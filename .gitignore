@@ -8,6 +8,9 @@ __pycache__/
 # Env
 .env
 .env.*
+# ...but the template carries no secrets and must be committed,
+# otherwise nobody cloning knows which variables the project needs.
+!.env.example
 
 # React
 frontend/hub/node_modules/
@@ -23,3 +26,9 @@ frontend/learn/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Docker / build artifacts
+backend/staticfiles/
+# Snapshot of the original dev machine's full pip freeze. Kept locally as a
+# reference only -- the real dependency list is backend/requirements.txt.
+backend/requirements.full.txt
