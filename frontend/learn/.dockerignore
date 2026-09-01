@@ -1,6 +1,9 @@
 node_modules/
 dist/
-.env
-.env.*
 .git/
 .DS_Store
+# NOTE: .env is intentionally NOT ignored -- Vite reads it during
+# `npm run build` so the image and `npm run dev` share one config file.
+# Only VITE_* vars live there and they are public by design.
+.env.local
+.env.*.local

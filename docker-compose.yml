@@ -1,18 +1,26 @@
+# Env lives next to each app -- see .env.example for the map.
+#   backend/.env          -> loaded here via `env_file:`
+#   frontend/*/.env       -> read by Vite during `npm run build` in the image
+# There is deliberately no root .env.
+
 services:
   db:
     image: postgres:16-alpine
     container_name: eduplus-db
+    # Local dev container credentials, kept as literals so the db and the
+    # backend below can never disagree. If you change these, update the
+    # matching DB_USER/DB_PASSWORD in backend/.env for native `runserver`.
     environment:
-      POSTGRES_DB: ${DB_NAME:-eduplus}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: eduplus
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      # Exposed so you can point a local psql / GUI client at it.
-      - "${DB_PORT_HOST:-5433}:5432"
+      # Host 5433 so it won't collide with a local Postgres on 5432.
+      - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-eduplus}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d eduplus"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,34 +30,19 @@ services:
     build:
       context: ./backend
     container_name: eduplus-backend
+    # Single source of truth -- the same file `manage.py runserver` reads.
+    env_file:
+      - ./backend/.env
+    # `environment:` wins over `env_file:`. Only Docker-internal networking
+    # differs: inside the compose network Postgres is db:5432, not localhost:5433.
     environment:
-      SECRET_KEY: ${SECRET_KEY}
-      DEBUG: ${DEBUG:-False}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
-      DB_NAME: ${DB_NAME:-eduplus}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      # 'db' is the compose service name, not localhost.
       DB_HOST: db
       DB_PORT: 5432
-      TIME_ZONE: ${TIME_ZONE:-Asia/Kolkata}
-      ALLOW_MOCK_AUTH: ${ALLOW_MOCK_AUTH:-False}
-      # Session auth is cookie-based, so these origins must match the browser
-      # URLs of hub/learn exactly (scheme + host + port) or login will fail.
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:3000,http://localhost:3001}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-False}
-      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
-      GOOGLE_SHEET_ID: ${GOOGLE_SHEET_ID:-}
-      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_SERVICE_ACCOUNT_EMAIL:-}
-      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY:-}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-rasip.eduport@gmail.com}
-      HUB_URL: ${HUB_URL:-http://localhost:3000}
-      LEARN_URL: ${LEARN_URL:-http://localhost:3001}
+      DB_NAME: eduplus
+      DB_USER: postgres
+      DB_PASSWORD: postgres
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -61,17 +54,14 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # No build args: Vite picks up frontend/<app>/.env from the build context,
+  # the same file `npm run dev` uses. Change a VITE_* value -> rebuild the image.
   hub:
     build:
       context: ./frontend/hub
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-        VITE_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
-        VITE_HUB_URL: ${HUB_URL:-http://localhost:3000}
-        VITE_LEARN_URL: ${LEARN_URL:-http://localhost:3001}
     container_name: eduplus-hub
     ports:
-      - "${HUB_PORT:-3000}:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -79,14 +69,9 @@ services:
   learn:
     build:
       context: ./frontend/learn
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-        VITE_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
-        VITE_HUB_URL: ${HUB_URL:-http://localhost:3000}
-        VITE_LEARN_URL: ${LEARN_URL:-http://localhost:3001}
     container_name: eduplus-learn
     ports:
-      - "${LEARN_PORT:-3001}:80"
+      - "3001:80"
     depends_on:
       - backend
     restart: unless-stopped
