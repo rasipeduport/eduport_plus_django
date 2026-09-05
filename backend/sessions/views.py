@@ -285,24 +285,41 @@ class SessionsView(APIView):
                 status=status.HTTP_200_OK
             )
 
+        # Tutors are read-only on sessions; only admins and mentors may edit.
+        if role == 'TUTOR':
+            return Response(
+                {"error": "Forbidden", "message": "Tutors cannot edit sessions."},
+                status=status.HTTP_403_FORBIDDEN
+            )
         if role == 'MENTOR' and session.student.mentor != request.user:
             return Response(
                 {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        elif role == 'TUTOR' and session.student.tutor != request.user:
-            return Response(
-                {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
-                status=status.HTTP_403_FORBIDDEN
-            )
 
-        # Check cancellation constraints
-        new_status = data.get("status")
-        if new_status:
-            new_status = new_status.upper()
-            if new_status == 'CANCELLED' and not data.get("cancellation_reason", "").strip():
+        # Validate status: CharField choices are not enforced on save(), so an
+        # unchecked value would be persisted as-is.
+        new_status = None
+        if 'status' in data:
+            raw_status = data.get("status")
+            new_status = raw_status.upper() if isinstance(raw_status, str) else None
+            if new_status not in SessionStatusChoices.values:
+                return Response(
+                    {"error": "status must be one of SCHEDULED, ATTENDED, or CANCELLED"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if new_status == 'CANCELLED' and not (data.get("cancellation_reason") or "").strip():
                 return Response(
                     {"error": "A cancellation reason is required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Staff rating updates get the same 1-5 gate the student path has.
+        if 'rating' in data:
+            rating_val = data.get("rating")
+            if isinstance(rating_val, bool) or not isinstance(rating_val, int) or not (1 <= rating_val <= 5):
+                return Response(
+                    {"error": "A rating between 1 and 5 is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -365,8 +382,8 @@ class SessionsView(APIView):
             for field in allowed_fields:
                 if field in data:
                     val = data[field]
-                    if field == 'status' and val:
-                        session.status = val.upper()
+                    if field == 'status':
+                        session.status = new_status
                     elif field == 'tutor':
                         if val is None:
                             session.tutor = None
@@ -443,7 +460,7 @@ class CancelSeriesView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data
         session_id = data.get("session_id")
-        cancellation_reason = data.get("cancellation_reason", "").strip()
+        cancellation_reason = (data.get("cancellation_reason") or "").strip()
         new_last_start_time_str = data.get("new_last_start_time")
         new_last_duration = data.get("new_last_duration_hours")
 
@@ -458,12 +475,13 @@ class CancelSeriesView(APIView):
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
 
         role = request.user.role
-        if role == 'MENTOR' and target_session.student.mentor != request.user:
+        # Tutors are read-only on sessions; only admins and mentors may cancel.
+        if role == 'TUTOR':
             return Response(
-                {"error": "Forbidden", "message": "You can only cancel sessions for your allocated students."},
+                {"error": "Forbidden", "message": "Tutors cannot cancel sessions."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        elif role == 'TUTOR' and target_session.student.tutor != request.user:
+        if role == 'MENTOR' and target_session.student.mentor != request.user:
             return Response(
                 {"error": "Forbidden", "message": "You can only cancel sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
