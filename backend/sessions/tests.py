@@ -521,3 +521,134 @@ class RoleScopingSecurityTests(APITestCase):
         self.client.force_authenticate(user=self.mentor_a)
         res = self.client.post('/api/sessions/cancel/', {"session_id": str(sess.id), "cancellation_reason": "nope"}, format='json')
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class SessionWritePermissionAndValidationTests(APITestCase):
+    """
+    Phase 0 hardening: tutors are read-only on sessions (403 on PUT and
+    cancel-series, matching the lead app), and staff updates validate status
+    and rating server-side instead of persisting whatever arrives.
+    """
+
+    def setUp(self):
+        self.mentor = User.objects.create_user(email='pm@eduport.com', password='x', full_name='Perm Mentor', role='MENTOR', is_staff=True)
+        self.tutor = User.objects.create_user(email='pt@eduport.com', password='x', full_name='Perm Tutor', role='TUTOR', is_staff=True)
+        self.student_user = User.objects.create_user(email='ps@eduport.com', password='x', full_name='Perm Stu', role='STUDENT')
+        self.student = Student.objects.create(
+            profile=self.student_user, student_code='EDPP', full_name='Perm Stu',
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=10, status=StatusChoices.ACTIVE,
+        )
+        start = timezone.now() + timedelta(days=1)
+        self.session = Session.objects.create(
+            student=self.student, tutor=self.tutor, title='Perm Class',
+            start_time=start, end_time=start + timedelta(hours=1),
+            status=SessionStatusChoices.SCHEDULED,
+        )
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+        self.cancel_series_url = reverse('sessions:cancel-series')
+
+    def test_tutor_put_is_forbidden(self):
+        """Even the allocated tutor gets 403 from the generic session PUT."""
+        self.client.force_authenticate(user=self.tutor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "title": "Tutor Edit", "status": "CANCELLED", "cancellation_reason": "x"},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.title, 'Perm Class')
+        self.assertEqual(self.session.status, SessionStatusChoices.SCHEDULED)
+
+    def test_tutor_cancel_series_is_forbidden(self):
+        """The allocated tutor gets 403 from cancel-series and its alias."""
+        self.client.force_authenticate(user=self.tutor)
+        payload = {"session_id": str(self.session.id), "cancellation_reason": "tutor tries"}
+        for url in (self.cancel_series_url, '/api/sessions/cancel/'):
+            res = self.client.post(url, payload, format='json')
+            self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN, msg=url)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.SCHEDULED)
+
+    def test_staff_status_must_be_a_known_choice(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "status": "BANANA"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.SCHEDULED)
+
+    def test_staff_status_rejects_non_string_values(self):
+        self.client.force_authenticate(user=self.mentor)
+        for bad in (None, 123, ["ATTENDED"], ""):
+            res = self.client.put(self.sessions_url, {"id": str(self.session.id), "status": bad}, format='json')
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, msg=f"status={bad!r}")
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.SCHEDULED)
+
+    def test_staff_rating_rejects_invalid_values(self):
+        self.client.force_authenticate(user=self.mentor)
+        for bad in ("great", 4.5, None, True):
+            res = self.client.put(self.sessions_url, {"id": str(self.session.id), "rating": bad}, format='json')
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, msg=f"rating={bad!r}")
+        self.session.refresh_from_db()
+        self.assertIsNone(self.session.rating)
+
+    def test_staff_rating_rejects_out_of_range_values(self):
+        self.client.force_authenticate(user=self.mentor)
+        for bad in (0, 6, -1, 9):
+            res = self.client.put(self.sessions_url, {"id": str(self.session.id), "rating": bad}, format='json')
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, msg=f"rating={bad!r}")
+        self.session.refresh_from_db()
+        self.assertIsNone(self.session.rating)
+
+    def test_staff_rating_accepts_valid_value(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "rating": 4}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.rating, 4)
+
+    def test_mentor_mark_attended_flow_unchanged(self):
+        """The hub SPA marks attended via PUT with status + all three links."""
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {
+                "id": str(self.session.id),
+                "status": "ATTENDED",
+                "recording_link": "https://example.com/rec",
+                "notes_link": "https://example.com/notes",
+                "homework_link": "https://example.com/hw",
+            },
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.ATTENDED)
+        self.assertEqual(self.session.recording_link, 'https://example.com/rec')
+        self.assertEqual(self.session.notes_link, 'https://example.com/notes')
+        self.assertEqual(self.session.homework_link, 'https://example.com/hw')
+
+    def test_mentor_cancel_with_null_reason_is_rejected(self):
+        """A null cancellation_reason is a 400, not a server error."""
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "status": "CANCELLED", "cancellation_reason": None},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.SCHEDULED)
+
+    def test_mentor_cancel_with_reason_still_works(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "status": "CANCELLED", "cancellation_reason": "Family emergency"},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, SessionStatusChoices.CANCELLED)
+        self.assertEqual(self.session.cancellation_reason, 'Family emergency')
