@@ -14,6 +14,8 @@ import os
 import environ
 from pathlib import Path
 
+from core.settings_guards import mock_auth_enabled, validate_production_settings
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,16 +27,32 @@ env = environ.Env(
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
-# Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+#
+# Everything in this file is written to FAIL CLOSED: an environment that is
+# missing or incomplete must produce a container that refuses to start, not one
+# that silently boots with development behaviour enabled. `.env` is excluded
+# from the image (see .dockerignore), so these defaults are what a deployment
+# gets when its environment is not wired up.
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# DEBUG defaults to False so a deployment with no environment does not land
+# in debug mode. Set it explicitly in backend/.env either way -- the local
+# Docker stack deliberately runs DEBUG=False for parity with production.
+DEBUG = env.bool('DEBUG', default=False)
+
+# The fallback key is usable only while DEBUG is on; validate_production_settings
+# below refuses to boot with it otherwise.
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-412_+bve!&-l+b@@dx@&fvvajw@u(x5524jqvmohwpv^i=5#e+')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG', default=True)
-
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+
+# Raises ImproperlyConfigured when DEBUG is off and SECRET_KEY or ALLOWED_HOSTS
+# still hold development values.
+validate_production_settings(
+    debug=DEBUG,
+    secret_key=SECRET_KEY,
+    allowed_hosts=ALLOWED_HOSTS,
+)
 
 
 # Application definition
@@ -158,10 +176,14 @@ STORAGES = {
 # Custom Authentication User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# Allow the "mock:" Google credential shortcut used for dev/test logins.
-# Defined explicitly (defaults to DEBUG) so production can never enable it
-# implicitly — set ALLOW_MOCK_AUTH=False even if DEBUG is accidentally on.
-ALLOW_MOCK_AUTH = env.bool('ALLOW_MOCK_AUTH', default=DEBUG)
+# The "mock:" Google credential shortcut used for dev/test logins. It skips
+# token verification entirely and logs in as whatever email the caller supplies,
+# so it is gated on DEBUG *as well as* its own flag: with DEBUG=False the answer
+# is False no matter what the environment says. Opt in explicitly for local dev.
+ALLOW_MOCK_AUTH = mock_auth_enabled(
+    debug=DEBUG,
+    env_flag=env.bool('ALLOW_MOCK_AUTH', default=False),
+)
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
@@ -170,23 +192,132 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    # The browsable API renders interactive write forms for every endpoint --
+    # a development tool. Production serves JSON only.
+    'DEFAULT_RENDERER_CLASSES': (
+        [
+            'rest_framework.renderers.JSONRenderer',
+            'rest_framework.renderers.BrowsableAPIRenderer',
+        ]
+        if DEBUG
+        else ['rest_framework.renderers.JSONRenderer']
+    ),
 }
 
 # Subdomain Cookie Sharing & Security Configuration
 SESSION_COOKIE_DOMAIN = env('SESSION_COOKIE_DOMAIN', default=None)
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=False)
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 CSRF_COOKIE_DOMAIN = env('SESSION_COOKIE_DOMAIN', default=None)
-CSRF_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=False)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=SESSION_COOKIE_SECURE)
 CSRF_COOKIE_HTTPONLY = False  # Allows Axios frontend to read the CSRF token from cookie
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+
+# ---------------------------------------------------------------------------
+# Transport security
+# ---------------------------------------------------------------------------
+# Every setting here is environment-driven and defaults to OFF, because the
+# right value depends on the TLS topology in front of Django (nginx? an ALB?
+# does it terminate TLS? does it strip inbound X-Forwarded-* headers?) and this
+# project does not get to assume one. `manage.py check --deploy` reports the
+# ones still unset -- see docs/production-env.md for the rollout order.
+
+# Whether to believe the proxy's "this request arrived over HTTPS" header.
+#
+# SECURITY WARNING: only enable this once the proxy is known to STRIP any
+# client-supplied value of the header and set its own. Otherwise any client can
+# send `X-Forwarded-Proto: https` and Django will treat a plaintext request as
+# secure -- which affects request.is_secure(), the CSRF origin check, and
+# whether the SSL redirect below fires at all.
+TRUST_PROXY_SSL_HEADER = env.bool('TRUST_PROXY_SSL_HEADER', default=False)
+SECURE_PROXY_SSL_HEADER = (
+    (
+        env('SECURE_PROXY_SSL_HEADER_NAME', default='HTTP_X_FORWARDED_PROTO'),
+        env('SECURE_PROXY_SSL_HEADER_VALUE', default='https'),
+    )
+    if TRUST_PROXY_SSL_HEADER
+    else None
+)
+
+# Leave False if TLS redirection is handled at the proxy (the common setup).
+# Turning it on without TRUST_PROXY_SSL_HEADER causes an infinite redirect loop.
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
+# Path regexes exempt from the redirect -- e.g. a load-balancer health check
+# that cannot follow a 301.
+SECURE_REDIRECT_EXEMPT = env.list('SECURE_REDIRECT_EXEMPT', default=[])
+
+# HSTS is hard to walk back: browsers cache it for the full duration. Ramp it
+# (3600 -> 86400 -> 31536000) only once HTTPS is confirmed end to end, and set
+# INCLUDE_SUBDOMAINS only after checking which hostnames it would cover.
+SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False)
+SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=False)
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+# Without an explicit config Django's defaults filter the console handler behind
+# `require_debug_true`, so with DEBUG=False application logs and unhandled 500
+# tracebacks (django.request) go nowhere at all. Everything below writes to
+# stdout, unfiltered, for the container runtime to collect.
+LOG_LEVEL = env('LOG_LEVEL', default='INFO').upper()
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)-8s %(name)s %(message)s',
+            'datefmt': '%Y-%m-%dT%H:%M:%S%z',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'verbose',
+        },
+    },
+    # Catches the project's own loggers (accounts.*, invitations.*, activity.*,
+    # sessions.*), which are not under the `django` namespace.
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        # 5xx at ERROR (with traceback), 4xx at WARNING. Pinned so an app-wide
+        # LOG_LEVEL of WARNING or above still surfaces server errors.
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Query logging is deafening; keep it off even at LOG_LEVEL=DEBUG.
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
 
 # Google Integration Configuration
 GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
