@@ -17,6 +17,16 @@ class IsStaffUser(BasePermission):
         )
 
 
+class IsAdminUser(BasePermission):
+    """Allows access only to the Admin role, or superusers."""
+
+    def has_permission(self, request, view):
+        return (
+            _is_authenticated(request)
+            and (request.user.role == 'ADMIN' or request.user.is_superuser)
+        )
+
+
 class IsStudentUser(BasePermission):
     """Allows access only to the Student role."""
 

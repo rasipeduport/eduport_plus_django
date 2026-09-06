@@ -335,3 +335,186 @@ class StaffManagementTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(User.objects.filter(id=other_admin.id).exists())
 
+
+
+class StaffDirectoryAuthorizationTests(APITestCase):
+    """
+    Role-based access control for the staff directory endpoints. These list
+    colleagues, so students must not reach them at all, and the full record
+    (email, mobile, inviter) is admin-only.
+    """
+
+    MENTORS_URL = '/api/mentors/'
+    TUTORS_URL = '/api/tutors/'
+    ADMINS_URL = '/api/admins/'
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="dir_admin@eduport.com",
+            password="password123",
+            full_name="Directory Admin",
+            role="ADMIN"
+        )
+        self.mentor = User.objects.create_user(
+            email="dir_mentor@eduport.com",
+            password="password123",
+            full_name="Directory Mentor",
+            role="MENTOR"
+        )
+        self.tutor = User.objects.create_user(
+            email="dir_tutor@eduport.com",
+            password="password123",
+            full_name="Directory Tutor",
+            role="TUTOR"
+        )
+        self.student_user = User.objects.create_user(
+            email="dir_student@eduport.com",
+            password="password123",
+            full_name="Directory Student",
+            role="STUDENT"
+        )
+
+        # Deactivated staff of every role: present in the table, but the
+        # directory advertises itself as listing active staff only.
+        self.inactive_admin = User.objects.create_user(
+            email="inactive_admin@eduport.com",
+            password="password123",
+            full_name="Inactive Admin",
+            role="ADMIN",
+            is_active=False
+        )
+        self.inactive_mentor = User.objects.create_user(
+            email="inactive_mentor@eduport.com",
+            password="password123",
+            full_name="Inactive Mentor",
+            role="MENTOR",
+            is_active=False
+        )
+        self.inactive_tutor = User.objects.create_user(
+            email="inactive_tutor@eduport.com",
+            password="password123",
+            full_name="Inactive Tutor",
+            role="TUTOR",
+            is_active=False
+        )
+
+    def emails(self, response, key):
+        return [row["email"] for row in response.data.get(key, [])]
+
+    # --- /api/mentors/ and /api/tutors/ : staff roles only -------------------
+
+    def test_mentor_directory_allowed_for_staff_roles(self):
+        for user in (self.admin, self.mentor, self.tutor):
+            with self.subTest(role=user.role):
+                self.client.force_authenticate(user=user)
+                response = self.client.get(self.MENTORS_URL)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertIn("dir_mentor@eduport.com", self.emails(response, "mentors"))
+
+    def test_tutor_directory_allowed_for_staff_roles(self):
+        for user in (self.admin, self.mentor, self.tutor):
+            with self.subTest(role=user.role):
+                self.client.force_authenticate(user=user)
+                response = self.client.get(self.TUTORS_URL)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertIn("dir_tutor@eduport.com", self.emails(response, "tutors"))
+
+    def test_student_cannot_read_mentor_directory(self):
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(self.MENTORS_URL)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotIn("mentors", response.data)
+
+    def test_student_cannot_read_tutor_directory(self):
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.get(self.TUTORS_URL)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotIn("tutors", response.data)
+
+    def test_anonymous_cannot_read_directories(self):
+        for url in (self.MENTORS_URL, self.TUTORS_URL, self.ADMINS_URL):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # --- /api/admins/ : admins only -----------------------------------------
+
+    def test_admin_directory_allowed_for_admin(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.ADMINS_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("dir_admin@eduport.com", self.emails(response, "admins"))
+
+    def test_admin_directory_forbidden_for_other_roles(self):
+        for user in (self.mentor, self.tutor, self.student_user):
+            with self.subTest(role=user.role):
+                self.client.force_authenticate(user=user)
+                response = self.client.get(self.ADMINS_URL)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+                self.assertNotIn("admins", response.data)
+
+    # --- ?all=true : admins only --------------------------------------------
+
+    def test_all_true_allowed_for_admin(self):
+        self.client.force_authenticate(user=self.admin)
+        for url, key in ((self.MENTORS_URL, "mentors"), (self.TUTORS_URL, "tutors")):
+            with self.subTest(url=url):
+                response = self.client.get(url, {"all": "true"})
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertTrue(response.data[key])
+                self.assertIn("mobile_number", response.data[key][0])
+
+    def test_all_true_forbidden_for_non_admins(self):
+        for user in (self.mentor, self.tutor, self.student_user):
+            for url in (self.MENTORS_URL, self.TUTORS_URL):
+                with self.subTest(role=user.role, url=url):
+                    self.client.force_authenticate(user=user)
+                    response = self.client.get(url, {"all": "true"})
+                    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_all_true_is_not_downgraded_to_slim_response(self):
+        """A refused ?all=true must fail loudly, not return the slim payload."""
+        self.client.force_authenticate(user=self.mentor)
+        response = self.client.get(self.MENTORS_URL, {"all": "true"})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotIn("mentors", response.data)
+        self.assertEqual(response.data.get("error"), "FORBIDDEN")
+
+    # --- payload shape -------------------------------------------------------
+
+    def test_slim_directory_exposes_no_extra_pii(self):
+        """Non-admin staff get id/full_name/email only — no mobile or inviter."""
+        self.client.force_authenticate(user=self.tutor)
+        response = self.client.get(self.MENTORS_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["mentors"])
+        for row in response.data["mentors"]:
+            self.assertEqual(set(row.keys()), {"id", "full_name", "email"})
+
+    # --- inactive staff filtering -------------------------------------------
+
+    def test_inactive_mentor_excluded_from_slim_directory(self):
+        self.client.force_authenticate(user=self.tutor)
+        response = self.client.get(self.MENTORS_URL)
+        emails = self.emails(response, "mentors")
+        self.assertIn("dir_mentor@eduport.com", emails)
+        self.assertNotIn("inactive_mentor@eduport.com", emails)
+
+    def test_inactive_staff_excluded_from_full_directory(self):
+        self.client.force_authenticate(user=self.admin)
+        for url, key, active, inactive in (
+            (self.MENTORS_URL, "mentors", "dir_mentor@eduport.com", "inactive_mentor@eduport.com"),
+            (self.TUTORS_URL, "tutors", "dir_tutor@eduport.com", "inactive_tutor@eduport.com"),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url, {"all": "true"})
+                emails = self.emails(response, key)
+                self.assertIn(active, emails)
+                self.assertNotIn(inactive, emails)
+
+    def test_inactive_admin_excluded_from_admin_directory(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.ADMINS_URL)
+        emails = self.emails(response, "admins")
+        self.assertIn("dir_admin@eduport.com", emails)
+        self.assertNotIn("inactive_admin@eduport.com", emails)

@@ -14,6 +14,7 @@ from google.auth.transport import requests as google_requests
 from students.models import Student
 from activity.models import ActivityLog
 from core.authentication import CSRFExemptSessionAuthentication
+from core.permissions import IsAdminUser, IsStaffUser
 from core.students import get_account_students, resolve_selected_student, EP_STUDENT_COOKIE
 from .serializers import UserSerializer, StudentSerializer
 from .services import UserProvisioningService
@@ -294,8 +295,12 @@ class BaseRoleListView(APIView):
     Subclasses set ``role`` and ``response_key``; roles that own students set
     ``count_relation`` (the reverse FK used to count allocations) which also
     enables the dropdown-compatibility mode (a slim payload unless ?all=true).
+
+    Staff-only: a directory of colleagues is not student-visible data. The full
+    record (email, mobile, inviter) is admin-only, so ?all=true is refused for
+    the other staff roles rather than quietly downgraded.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsStaffUser]
     role = None
     response_key = None
     count_relation = None
@@ -320,7 +325,13 @@ class BaseRoleListView(APIView):
     def get(self, request, *args, **kwargs):
         from django.db.models import Count
 
-        queryset = User.objects.filter(role=self.role)
+        if request.GET.get('all') == 'true' and not IsAdminUser().has_permission(request, self):
+            return Response(
+                {"error": "FORBIDDEN", "message": "Only admins can list full staff records."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        queryset = User.objects.filter(role=self.role, is_active=True)
         if self.count_relation:
             queryset = queryset.annotate(assigned_students_count=Count(self.count_relation))
         queryset = queryset.order_by('-created_at')
@@ -358,8 +369,10 @@ class TutorListView(BaseRoleListView):
 class AdminListView(BaseRoleListView):
     """
     GET /api/admins/
-    Returns list of active admins.
+    Returns list of active admins. Admin-only: this view has no slim mode, so
+    every response carries the full record.
     """
+    permission_classes = [IsAuthenticated, IsAdminUser]
     role = 'ADMIN'
     response_key = 'admins'
     count_relation = None
