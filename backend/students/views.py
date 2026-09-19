@@ -14,7 +14,7 @@ from activity.utils import log_activity
 from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsStaffUser, IsStudentUser
 from core.querysets import scope_students_by_role
-from core.students import get_account_students, resolve_selected_student
+from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 
 User = get_user_model()
@@ -92,15 +92,24 @@ class StudentDashboardView(APIView):
     def get(self, request, *args, **kwargs):
         student = resolve_selected_student(request)
         if not student:
-            # Distinguish "no students yet" (waiting room) from "several students,
-            # none selected" (the parent must pick one first).
-            if get_account_students(request.user).exists():
+            # Distinguish "several usable students, none selected" (pick one)
+            # from "every persona is expired" (access ended) from "no students
+            # yet" (waiting room).
+            if get_usable_students(request.user).exists():
                 return Response(
                     {
                         "error": "STUDENT_NOT_SELECTED",
                         "message": "Please select which student you want to view."
                     },
                     status=status.HTTP_409_CONFLICT
+                )
+            if get_account_students(request.user).exists():
+                return Response(
+                    {
+                        "error": "STUDENT_ACCESS_ENDED",
+                        "message": "Your access to Eduport Plus has ended."
+                    },
+                    status=status.HTTP_403_FORBIDDEN
                 )
             return Response(
                 {
@@ -258,16 +267,29 @@ class StudentListView(APIView):
 
         new_status = None
         if "status" in request.data:
-            new_status = request.data.get("status").upper()
+            raw_status = request.data.get("status")
+            new_status = raw_status.upper() if isinstance(raw_status, str) else None
             if new_status not in ('ACTIVE', 'INACTIVE', 'EXPIRED'):
                 return Response(
                     {"error": "INVALID_STATUS", "message": "Invalid student status specified."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             student.status = new_status
-
-        if "status_note" in request.data:
-            student.status_note = request.data.get("status_note")
+            if new_status == 'ACTIVE':
+                # Clear any prior note when the student is reactivated.
+                student.status_note = None
+            else:
+                note_raw = request.data.get("status_note")
+                note = note_raw.strip() if isinstance(note_raw, str) else ""
+                if not note:
+                    return Response(
+                        {
+                            "error": "STATUS_NOTE_REQUIRED",
+                            "message": "A note is required when marking a student inactive or expired."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                student.status_note = note
 
         student.save()
 

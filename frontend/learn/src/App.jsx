@@ -4,6 +4,7 @@ import StudentProvider from './context/StudentProvider';
 import { AppShell } from './components/student/app-shell';
 import LoginPage from './pages/LoginPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
+import AccessEndedPage from './pages/AccessEndedPage';
 import SelectProfilePage from './pages/SelectProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import SessionsPage from './pages/SessionsPage';
@@ -37,6 +38,7 @@ export default function App() {
                     <Route path="/profile" element={<AppShell><ProfilePage /></AppShell>} />
                     <Route path="/select-profile" element={<SelectProfilePage />} />
                     <Route path="/waiting-room" element={<WaitingRoomPage />} />
+                    <Route path="/access-ended" element={<AccessEndedPage />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </StudentProvider>

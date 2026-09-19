@@ -7,9 +7,15 @@ from students.models import Student
 class ActivityLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
+    # The audit log must not be mutated by other tables: an ON DELETE SET NULL
+    # would UPDATE log rows (rejected by the append-only trigger), so both FKs
+    # carry no DB constraint and no delete action — the denormalized actor_*
+    # snapshots keep rows self-contained forever (mirrors the original Hub
+    # dropping activity_log's actor FK).
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
         null=True,
         blank=True,
         related_name='activity_logs'
@@ -25,7 +31,8 @@ class ActivityLog(models.Model):
     
     student = models.ForeignKey(
         Student,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
         null=True,
         blank=True,
         related_name='activity_logs'

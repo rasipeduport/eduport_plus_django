@@ -1,11 +1,14 @@
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.test import override_settings
-from rest_framework.test import APITestCase
+from django.utils import timezone
+from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from unittest.mock import patch
+from datetime import timedelta
 from invitations.models import Invitation, InvitationStatusChoices, InvitationRoleChoices
-from students.models import Student
+from students.models import Student, StatusChoices
+from sessions.models import Session, SessionStatusChoices
 from activity.models import ActivityLog
 
 User = get_user_model()
@@ -305,35 +308,16 @@ class StaffManagementTests(APITestCase):
         response = self.client.patch(url, payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_delete_user_mentor(self):
-        url = f'/api/users/{self.mentor.id}/'
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertFalse(User.objects.filter(id=self.mentor.id).exists())
-
-    def test_delete_last_admin_fails(self):
-        # Admin deletes themselves while being the only admin
-        url = f'/api/users/{self.admin.id}/'
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertTrue(User.objects.filter(id=self.admin.id).exists())
-
-    def test_delete_admin_succeeds_if_other_admin_exists(self):
-        other_admin = User.objects.create_user(
-            email="admin2@eduport.com",
-            password="password123",
-            role="ADMIN"
-        )
-        url = f'/api/users/{other_admin.id}/'
-        
-        # Invite connection test: let's make caller the inviter, or target the inviter
-        # For simplicity, target's invited_by is set to caller (self.admin)
-        other_admin.invited_by = self.admin
-        other_admin.save()
-        
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertFalse(User.objects.filter(id=other_admin.id).exists())
+    def test_user_delete_endpoint_removed(self):
+        """
+        Staff are soft-deactivated, never hard-deleted (parity with the Hub,
+        which has no user DELETE route at all). The method must not exist.
+        """
+        for target in (self.mentor, self.tutor, self.admin):
+            with self.subTest(role=target.role):
+                response = self.client.delete(f'/api/users/{target.id}/')
+                self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+                self.assertTrue(User.objects.filter(id=target.id).exists())
 
 
 
@@ -374,28 +358,33 @@ class StaffDirectoryAuthorizationTests(APITestCase):
             role="STUDENT"
         )
 
-        # Deactivated staff of every role: present in the table, but the
-        # directory advertises itself as listing active staff only.
+        # Deactivated staff of every role, in the consistent lifecycle state
+        # (deactivated_at set AND is_active=False): hidden from the slim
+        # assignable dropdowns, but included in the admin's full records so
+        # they can be shown with a badge and reactivated.
         self.inactive_admin = User.objects.create_user(
             email="inactive_admin@eduport.com",
             password="password123",
             full_name="Inactive Admin",
             role="ADMIN",
-            is_active=False
+            is_active=False,
+            deactivated_at=timezone.now()
         )
         self.inactive_mentor = User.objects.create_user(
             email="inactive_mentor@eduport.com",
             password="password123",
             full_name="Inactive Mentor",
             role="MENTOR",
-            is_active=False
+            is_active=False,
+            deactivated_at=timezone.now()
         )
         self.inactive_tutor = User.objects.create_user(
             email="inactive_tutor@eduport.com",
             password="password123",
             full_name="Inactive Tutor",
             role="TUTOR",
-            is_active=False
+            is_active=False,
+            deactivated_at=timezone.now()
         )
 
     def emails(self, response, key):
@@ -500,7 +489,29 @@ class StaffDirectoryAuthorizationTests(APITestCase):
         self.assertIn("dir_mentor@eduport.com", emails)
         self.assertNotIn("inactive_mentor@eduport.com", emails)
 
-    def test_inactive_staff_excluded_from_full_directory(self):
+    def test_desynced_lifecycle_flags_never_assignable(self):
+        """
+        A user whose flags disagree (is_active=False with no deactivated_at,
+        only creatable through the Django admin) must still be excluded from
+        the assignable dropdowns.
+        """
+        User.objects.create_user(
+            email="desynced_mentor@eduport.com",
+            password="password123",
+            full_name="Desynced Mentor",
+            role="MENTOR",
+            is_active=False
+        )
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.MENTORS_URL)
+        self.assertNotIn("desynced_mentor@eduport.com", self.emails(response, "mentors"))
+
+    def test_deactivated_staff_included_in_full_directory_with_badge_field(self):
+        """
+        Parity with the Hub staff pages: the admin's full records include
+        deactivated staff (marked via deactivated_at) so they can be shown
+        with a badge and reactivated — only the assignable dropdowns hide them.
+        """
         self.client.force_authenticate(user=self.admin)
         for url, key, active, inactive in (
             (self.MENTORS_URL, "mentors", "dir_mentor@eduport.com", "inactive_mentor@eduport.com"),
@@ -508,13 +519,414 @@ class StaffDirectoryAuthorizationTests(APITestCase):
         ):
             with self.subTest(url=url):
                 response = self.client.get(url, {"all": "true"})
-                emails = self.emails(response, key)
-                self.assertIn(active, emails)
-                self.assertNotIn(inactive, emails)
+                rows = {row["email"]: row for row in response.data.get(key, [])}
+                self.assertIn(active, rows)
+                self.assertIsNone(rows[active]["deactivated_at"])
+                self.assertIn(inactive, rows)
+                self.assertIsNotNone(rows[inactive]["deactivated_at"])
 
-    def test_inactive_admin_excluded_from_admin_directory(self):
+    def test_deactivated_admin_included_in_admin_directory_with_badge_field(self):
         self.client.force_authenticate(user=self.admin)
         response = self.client.get(self.ADMINS_URL)
-        emails = self.emails(response, "admins")
-        self.assertIn("dir_admin@eduport.com", emails)
-        self.assertNotIn("inactive_admin@eduport.com", emails)
+        rows = {row["email"]: row for row in response.data.get("admins", [])}
+        self.assertIn("dir_admin@eduport.com", rows)
+        self.assertIsNone(rows["dir_admin@eduport.com"]["deactivated_at"])
+        self.assertIn("inactive_admin@eduport.com", rows)
+        self.assertIsNotNone(rows["inactive_admin@eduport.com"]["deactivated_at"])
+
+
+class StaffLifecycleTests(APITestCase):
+    """
+    Soft-deactivation lifecycle (parity with the Hub's user-exit flow):
+    admin-only status endpoint, mentors/tutors only (admins are peers),
+    handover guard on ACTIVE students, bulk reassign that re-points open
+    scheduled sessions, session lockout, and reactivation.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="lc_admin@eduport.com", password="password123",
+            full_name="Lifecycle Admin", role="ADMIN"
+        )
+        self.other_admin = User.objects.create_user(
+            email="lc_admin2@eduport.com", password="password123",
+            full_name="Other Admin", role="ADMIN"
+        )
+        self.mentor = User.objects.create_user(
+            email="lc_mentor@eduport.com", password="password123",
+            full_name="Departing Mentor", role="MENTOR"
+        )
+        self.mentor2 = User.objects.create_user(
+            email="lc_mentor2@eduport.com", password="password123",
+            full_name="Replacement Mentor", role="MENTOR"
+        )
+        self.tutor = User.objects.create_user(
+            email="lc_tutor@eduport.com", password="password123",
+            full_name="Departing Tutor", role="TUTOR"
+        )
+        self.tutor2 = User.objects.create_user(
+            email="lc_tutor2@eduport.com", password="password123",
+            full_name="Replacement Tutor", role="TUTOR"
+        )
+        self.student_user = User.objects.create_user(
+            email="lc_student@eduport.com", password="password123",
+            full_name="Lifecycle Student", role="STUDENT"
+        )
+
+        self.active_student = Student.objects.create(
+            profile=self.student_user, student_code="LC001",
+            full_name="Active Student", mentor=self.mentor, tutor=self.tutor,
+            status=StatusChoices.ACTIVE
+        )
+        self.inactive_student = Student.objects.create(
+            profile=self.student_user, student_code="LC002",
+            full_name="Inactive Student", mentor=self.mentor, tutor=self.tutor,
+            status=StatusChoices.INACTIVE, status_note="Paused"
+        )
+        self.expired_student = Student.objects.create(
+            profile=self.student_user, student_code="LC003",
+            full_name="Expired Student", mentor=self.mentor, tutor=self.tutor,
+            status=StatusChoices.EXPIRED, status_note="Left"
+        )
+
+        future = timezone.now() + timedelta(days=1)
+        past = timezone.now() - timedelta(days=1)
+        self.scheduled_session = Session.objects.create(
+            student=self.active_student, tutor=self.tutor,
+            start_time=future, end_time=future + timedelta(hours=1),
+            title="Open Class", status=SessionStatusChoices.SCHEDULED
+        )
+        self.attended_session = Session.objects.create(
+            student=self.active_student, tutor=self.tutor,
+            start_time=past, end_time=past + timedelta(hours=1),
+            title="Done Class", status=SessionStatusChoices.ATTENDED
+        )
+        self.inactive_student_session = Session.objects.create(
+            student=self.inactive_student, tutor=self.tutor,
+            start_time=future, end_time=future + timedelta(hours=1),
+            title="Paused Student Class", status=SessionStatusChoices.SCHEDULED
+        )
+
+        self.client.force_authenticate(user=self.admin)
+
+    def status_url(self, user):
+        return f'/api/users/{user.id}/status/'
+
+    def reassign_url(self, user):
+        return f'/api/users/{user.id}/reassign/'
+
+    # --- deactivate ----------------------------------------------------------
+
+    def test_deactivate_blocked_while_active_students_assigned(self):
+        res = self.client.post(self.status_url(self.mentor), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
+        self.mentor.refresh_from_db()
+        self.assertIsNone(self.mentor.deactivated_at)
+        self.assertTrue(self.mentor.is_active)
+
+    def test_inactive_and_expired_assignments_do_not_block_deactivation(self):
+        """The handover guard counts ACTIVE students only (Hub parity)."""
+        self.active_student.mentor = self.mentor2
+        self.active_student.tutor = self.tutor2
+        self.active_student.save()
+        # mentor/tutor now hold only INACTIVE and EXPIRED students.
+        for target in (self.mentor, self.tutor):
+            with self.subTest(role=target.role):
+                res = self.client.post(self.status_url(target), {"action": "deactivate"}, format='json')
+                self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_deactivate_sets_lifecycle_fields_and_logs(self):
+        res = self.client.post(
+            self.status_url(self.tutor2),
+            {"action": "deactivate", "reason": "  Left the company  "},
+            format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.tutor2.refresh_from_db()
+        self.assertIsNotNone(self.tutor2.deactivated_at)
+        self.assertEqual(self.tutor2.deactivated_by, self.admin)
+        self.assertEqual(self.tutor2.deactivation_reason, "Left the company")
+        self.assertFalse(self.tutor2.is_active)
+        # Role is kept for historical attribution.
+        self.assertEqual(self.tutor2.role, "TUTOR")
+
+        log = ActivityLog.objects.filter(action='user.deactivate', entity_id=str(self.tutor2.id)).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.changes["status"], {"old": "active", "new": "deactivated"})
+        self.assertEqual(log.context.get("reason"), "Left the company")
+
+    def test_deactivated_staff_session_is_locked_out(self):
+        """
+        A deactivated user's still-live session must die on their next request
+        (is_active=False makes ModelBackend.get_user return None).
+        """
+        live = APIClient()
+        self.assertTrue(live.login(email="lc_tutor2@eduport.com", password="password123"))
+        self.assertEqual(live.get('/api/auth/me/').status_code, status.HTTP_200_OK)
+
+        res = self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        blocked = live.get('/api/auth/me/')
+        self.assertIn(blocked.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    # --- reactivate ----------------------------------------------------------
+
+    def test_reactivate_clears_lifecycle_fields_and_logs(self):
+        self.client.post(self.status_url(self.tutor2), {"action": "deactivate", "reason": "x"}, format='json')
+        res = self.client.post(self.status_url(self.tutor2), {"action": "reactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.tutor2.refresh_from_db()
+        self.assertIsNone(self.tutor2.deactivated_at)
+        self.assertIsNone(self.tutor2.deactivated_by)
+        self.assertIsNone(self.tutor2.deactivation_reason)
+        self.assertTrue(self.tutor2.is_active)
+
+        log = ActivityLog.objects.filter(action='user.reactivate', entity_id=str(self.tutor2.id)).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.changes["status"], {"old": "deactivated", "new": "active"})
+
+    # --- guards --------------------------------------------------------------
+
+    def test_admin_target_is_refused(self):
+        """Admins are peers: one admin never deactivates another (Hub parity)."""
+        res = self.client.post(self.status_url(self.other_admin), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.other_admin.refresh_from_db()
+        self.assertIsNone(self.other_admin.deactivated_at)
+
+    def test_student_target_is_refused(self):
+        res = self.client.post(self.status_url(self.student_user), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_non_admin_caller_is_refused(self):
+        for caller in (self.mentor, self.tutor, self.student_user):
+            with self.subTest(role=caller.role):
+                self.client.force_authenticate(user=caller)
+                res = self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
+                self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unknown_target_is_404(self):
+        import uuid as uuid_mod
+        res = self.client.post(f'/api/users/{uuid_mod.uuid4()}/status/', {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_invalid_action_and_reason_are_rejected(self):
+        res = self.client.post(self.status_url(self.tutor2), {"action": "obliterate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.client.post(
+            self.status_url(self.tutor2),
+            {"action": "deactivate", "reason": "x" * 501},
+            format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- reassign ------------------------------------------------------------
+
+    def test_reassign_moves_active_students_and_open_sessions_only(self):
+        res = self.client.post(
+            self.reassign_url(self.tutor),
+            {"new_tutor": str(self.tutor2.id)},
+            format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        summary = res.data["result"]
+        self.assertEqual(summary["students_tutor_reassigned"], 1)
+        self.assertEqual(summary["sessions_repointed"], 1)
+
+        # ACTIVE student and their open session move; history and non-active
+        # students keep the departing tutor for attribution.
+        self.active_student.refresh_from_db()
+        self.scheduled_session.refresh_from_db()
+        self.attended_session.refresh_from_db()
+        self.inactive_student.refresh_from_db()
+        self.inactive_student_session.refresh_from_db()
+        self.assertEqual(self.active_student.tutor, self.tutor2)
+        self.assertEqual(self.scheduled_session.tutor, self.tutor2)
+        self.assertEqual(self.attended_session.tutor, self.tutor)
+        self.assertEqual(self.inactive_student.tutor, self.tutor)
+        self.assertEqual(self.inactive_student_session.tutor, self.tutor)
+
+        # The handover unblocks deactivation.
+        res = self.client.post(self.status_url(self.tutor), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        log = ActivityLog.objects.filter(action='staff.reassign_all', entity_id=str(self.tutor.id)).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.context.get("students_tutor_reassigned"), 1)
+
+    def test_reassign_mentor_students(self):
+        res = self.client.post(
+            self.reassign_url(self.mentor),
+            {"new_mentor": str(self.mentor2.id)},
+            format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["result"]["students_mentor_reassigned"], 1)
+        self.active_student.refresh_from_db()
+        self.inactive_student.refresh_from_db()
+        self.expired_student.refresh_from_db()
+        self.assertEqual(self.active_student.mentor, self.mentor2)
+        self.assertEqual(self.inactive_student.mentor, self.mentor)
+        self.assertEqual(self.expired_student.mentor, self.mentor)
+
+    def test_reassign_requires_valid_active_replacement_of_same_role(self):
+        # Missing replacement.
+        res = self.client.post(self.reassign_url(self.mentor), {}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res.data.get("error"), "INVALID_REPLACEMENT")
+        # Wrong role.
+        res = self.client.post(self.reassign_url(self.mentor), {"new_mentor": str(self.tutor2.id)}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        # Deactivated replacement.
+        self.mentor2.deactivated_at = timezone.now()
+        self.mentor2.is_active = False
+        self.mentor2.save()
+        res = self.client.post(self.reassign_url(self.mentor), {"new_mentor": str(self.mentor2.id)}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        # Nothing moved.
+        self.active_student.refresh_from_db()
+        self.assertEqual(self.active_student.mentor, self.mentor)
+
+    def test_reassign_non_admin_caller_is_refused(self):
+        for caller in (self.mentor2, self.tutor2, self.student_user):
+            with self.subTest(role=caller.role):
+                self.client.force_authenticate(user=caller)
+                res = self.client.post(
+                    self.reassign_url(self.tutor), {"new_tutor": str(self.tutor2.id)}, format='json'
+                )
+                self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reassign_unknown_target_is_404(self):
+        import uuid as uuid_mod
+        res = self.client.post(f'/api/users/{uuid_mod.uuid4()}/reassign/', {}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- directory integration ----------------------------------------------
+
+    def test_deactivated_tutor_hidden_from_dropdown_but_in_full_records(self):
+        self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
+
+        slim = self.client.get('/api/tutors/')
+        slim_emails = [t["email"] for t in slim.data["tutors"]]
+        self.assertNotIn("lc_tutor2@eduport.com", slim_emails)
+
+        full = self.client.get('/api/tutors/', {"all": "true"})
+        rows = {t["email"]: t for t in full.data["tutors"]}
+        self.assertIn("lc_tutor2@eduport.com", rows)
+        self.assertIsNotNone(rows["lc_tutor2@eduport.com"]["deactivated_at"])
+
+    def test_deactivate_blocked_for_tutor_with_active_students(self):
+        """The handover guard applies to tutors exactly as to mentors."""
+        res = self.client.post(self.status_url(self.tutor), {"action": "deactivate"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
+        self.tutor.refresh_from_db()
+        self.assertIsNone(self.tutor.deactivated_at)
+        self.assertTrue(self.tutor.is_active)
+
+    def test_reassign_rejects_malformed_replacement_id(self):
+        """A malformed body id must 400 (Hub parity: zod uuid), never 500."""
+        res = self.client.post(self.reassign_url(self.mentor), {"new_mentor": "not-a-uuid"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.client.post(self.reassign_url(self.tutor), {"new_tutor": 42}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_failed_handover_commits_nothing(self):
+        """
+        Hub parity: reassign_all_for_staff is all-or-nothing. When one staff
+        user holds both roles' assignments and only the mentor replacement is
+        valid, the whole handover must roll back — no half-moved students.
+        """
+        self.active_student.tutor = self.mentor
+        self.active_student.save()
+        self.scheduled_session.tutor = self.mentor
+        self.scheduled_session.save()
+
+        res = self.client.post(
+            self.reassign_url(self.mentor),
+            {"new_mentor": str(self.mentor2.id)},  # no new_tutor
+            format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res.data.get("error"), "INVALID_REPLACEMENT")
+
+        self.active_student.refresh_from_db()
+        self.scheduled_session.refresh_from_db()
+        self.assertEqual(self.active_student.mentor, self.mentor)
+        self.assertEqual(self.active_student.tutor, self.mentor)
+        self.assertEqual(self.scheduled_session.tutor, self.mentor)
+
+    def test_reassign_refuses_desynced_replacement(self):
+        """A replacement whose lifecycle flags disagree is never assignable."""
+        self.mentor2.is_active = False  # deactivated_at deliberately left NULL
+        self.mentor2.save()
+        res = self.client.post(
+            self.reassign_url(self.mentor), {"new_mentor": str(self.mentor2.id)}, format='json'
+        )
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+
+
+class LifecycleConsistencyTests(APITestCase):
+    """
+    The is_active <-> deactivated_at invariant survives every write path:
+    the Django admin's is_active toggle and the migration backfill for rows
+    disabled before soft-deactivation existed.
+    """
+
+    def test_user_admin_save_model_syncs_lifecycle_flags(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        from accounts.admin import UserAdmin
+
+        admin_user = User.objects.create_user(
+            email="sync_admin@eduport.com", password="password",
+            full_name="Sync Admin", role="ADMIN", is_staff=True, is_superuser=True
+        )
+        target = User.objects.create_user(
+            email="sync_target@eduport.com", password="password",
+            full_name="Sync Target", role="MENTOR"
+        )
+        model_admin = UserAdmin(User, AdminSite())
+        request = RequestFactory().post('/admin/')
+        request.user = admin_user
+
+        target.is_active = False
+        model_admin.save_model(request, target, form=None, change=True)
+        target.refresh_from_db()
+        self.assertFalse(target.is_active)
+        self.assertIsNotNone(target.deactivated_at)
+        self.assertEqual(target.deactivated_by, admin_user)
+        self.assertEqual(target.deactivation_reason, 'Disabled via Django admin')
+
+        target.is_active = True
+        model_admin.save_model(request, target, form=None, change=True)
+        target.refresh_from_db()
+        self.assertTrue(target.is_active)
+        self.assertIsNone(target.deactivated_at)
+        self.assertIsNone(target.deactivated_by)
+        self.assertIsNone(target.deactivation_reason)
+
+    def test_backfill_marks_preexisting_disabled_users(self):
+        import importlib
+        from django.apps import apps as global_apps
+
+        legacy = User.objects.create_user(
+            email="legacy_disabled@eduport.com", password="password",
+            full_name="Legacy Disabled", role="TUTOR", is_active=False
+        )
+        untouched = User.objects.create_user(
+            email="legacy_active@eduport.com", password="password",
+            full_name="Legacy Active", role="TUTOR"
+        )
+        self.assertIsNone(legacy.deactivated_at)
+
+        migration = importlib.import_module('accounts.migrations.0002_user_soft_deactivation')
+        migration.backfill_deactivated_at(global_apps, None)
+
+        legacy.refresh_from_db()
+        untouched.refresh_from_db()
+        self.assertIsNotNone(legacy.deactivated_at)
+        self.assertIn('Backfilled', legacy.deactivation_reason)
+        self.assertIsNone(untouched.deactivated_at)

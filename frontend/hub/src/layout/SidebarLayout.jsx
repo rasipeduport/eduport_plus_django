@@ -51,7 +51,8 @@ export default function SidebarLayout({ user, logout, children }) {
           {menuItems
             .filter((item) => {
               if (user?.role === 'TUTOR' || user?.role === 'MENTOR') {
-                return ['/dashboard', '/students', '/sessions', '/activity'].includes(item.path);
+                // No '/activity': the audit log is admin-only.
+                return ['/dashboard', '/students', '/sessions'].includes(item.path);
               }
               return true; // ADMIN see all
             })

@@ -53,6 +53,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name='invited_users'
     )
     
+    # Soft-deactivation lifecycle (staff exit). NULL deactivated_at = active.
+    # `deactivated_at` is the source of truth; `is_active` is kept mirrored to
+    # it so Django's session machinery (ModelBackend.get_user) locks a
+    # deactivated user out of an existing session on their next request.
+    # `role` stays untouched so historical rows keep correct attribution.
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    deactivated_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deactivated_users'
+    )
+    deactivation_reason = models.TextField(blank=True, null=True)
+
     # Django-required fields
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

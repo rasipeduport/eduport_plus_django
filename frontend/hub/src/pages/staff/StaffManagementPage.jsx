@@ -17,8 +17,11 @@ import StaffActionsDropdown from '../../components/StaffActionsDropdown';
  *   { entityLabel, endpoint, responseKey, initialRole, fallbackInitial, hasStudentsCount }
  *
  * `hasStudentsCount` (true for mentors/tutors) adds the "Assigned students"
- * column and changes the delete dialog's warning. Admins instead get the
- * "deleting your own account" warning.
+ * column and enables the deactivate/reactivate lifecycle: staff are
+ * soft-deactivated (access revoked, account and history kept), never
+ * deleted, and a mentor/tutor with assigned students must hand them over to
+ * a replacement first. Admins are peers — one admin never deactivates
+ * another, so the admins page has no status actions at all.
  */
 export default function StaffManagementPage({ config }) {
   const { entityLabel, endpoint, responseKey, initialRole, fallbackInitial, hasStudentsCount } = config;
@@ -39,19 +42,29 @@ export default function StaffManagementPage({ config }) {
     created_at: true,
     invited_by: true,
     ...(hasStudentsCount ? { students_count: true } : {}),
+    status: true,
   });
 
   // Invitation Modal triggers
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
-  // Edit / Delete Modal states
-  const [modalType, setModalType] = useState(null); // 'edit_details' | 'delete' | 'edit_email' | 'withdraw'
+  // Edit / lifecycle modal states
+  const [modalType, setModalType] = useState(null); // 'edit_details' | 'deactivate' | 'reactivate' | 'edit_email' | 'withdraw'
   const [active, setActive] = useState(null);
 
   // Form input states
   const [fullNameVal, setFullNameVal] = useState('');
   const [mobileNumberVal, setMobileNumberVal] = useState('');
   const [editEmailVal, setEditEmailVal] = useState('');
+  const [reasonVal, setReasonVal] = useState('');
+
+  // Handover (deactivate) state: active replacement staff of the same role.
+  const [replacements, setReplacements] = useState([]);
+  const [replacementsLoaded, setReplacementsLoaded] = useState(false);
+  const [replacementId, setReplacementId] = useState('');
+
+  // Deactivated staff are hidden by default; admins reveal them to reactivate.
+  const [showDeactivated, setShowDeactivated] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
@@ -99,6 +112,22 @@ export default function StaffManagementPage({ config }) {
       setMobileNumberVal(row.mobile_number || '');
     } else if (type === 'edit_email') {
       setEditEmailVal(row.email);
+    } else if (type === 'deactivate') {
+      setReasonVal('');
+      setReplacementId('');
+      setReplacements([]); // never show a previous row's (or a stale) list
+      // A handover is required when this mentor/tutor still has assigned
+      // students: load active same-role replacements (slim endpoint already
+      // excludes deactivated staff).
+      if (hasStudentsCount && (row.assigned_students_count ?? 0) > 0) {
+        setReplacementsLoaded(false);
+        api.get(`/api/${responseKey}/`)
+          .then((res) => {
+            setReplacements(res.data[responseKey] || []);
+          })
+          .catch(() => setModalError('Failed to load replacement options.'))
+          .finally(() => setReplacementsLoaded(true));
+      }
     }
   };
 
@@ -130,15 +159,47 @@ export default function StaffManagementPage({ config }) {
     }
   };
 
-  const handleDeleteUser = async () => {
+  const needsHandover = hasStudentsCount && (active?.assigned_students_count ?? 0) > 0;
+
+  const handleDeactivateUser = async () => {
     setSaving(true);
     setModalError('');
     try {
-      await api.delete(`/api/users/${active.id}/`);
+      // Hand over assigned students to the chosen replacement first; the
+      // backend refuses to deactivate while active students are assigned.
+      if (needsHandover) {
+        if (!replacementId) {
+          setModalError('Select a replacement first.');
+          setSaving(false);
+          return;
+        }
+        const reassignBody = initialRole === 'MENTOR'
+          ? { new_mentor: replacementId }
+          : { new_tutor: replacementId };
+        await api.post(`/api/users/${active.id}/reassign/`, reassignBody);
+      }
+      await api.post(`/api/users/${active.id}/status/`, {
+        action: 'deactivate',
+        ...(reasonVal.trim() ? { reason: reasonVal.trim() } : {}),
+      });
       fetchRows();
       closeModal();
     } catch (err) {
-      setModalError(err.response?.data?.message || 'Failed to delete user.');
+      setModalError(err.response?.data?.message || 'Failed to deactivate user.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReactivateUser = async () => {
+    setSaving(true);
+    setModalError('');
+    try {
+      await api.post(`/api/users/${active.id}/status/`, { action: 'reactivate' });
+      fetchRows();
+      closeModal();
+    } catch (err) {
+      setModalError(err.response?.data?.message || 'Failed to reactivate user.');
     } finally {
       setSaving(false);
     }
@@ -192,9 +253,11 @@ export default function StaffManagementPage({ config }) {
   };
 
   // Sorting and filtering
+  const deactivatedCount = rows.filter((r) => r.kind !== 'ghost' && r.deactivated_at).length;
   const filteredRows = rows.filter(row =>
-    row.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    row.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+    (showDeactivated || row.kind === 'ghost' || !row.deactivated_at) &&
+    (row.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getSortedData = (dataList) => {
@@ -279,6 +342,15 @@ export default function StaffManagementPage({ config }) {
               </div>
             )}
           </div>
+
+          {deactivatedCount > 0 && (
+            <button
+              onClick={() => setShowDeactivated((v) => !v)}
+              className="h-10 px-4 bg-[#111] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm font-medium hover:bg-zinc-900 transition-colors text-zinc-300 hover:text-white whitespace-nowrap"
+            >
+              {showDeactivated ? 'Hide deactivated' : `Show deactivated (${deactivatedCount})`}
+            </button>
+          )}
         </div>
 
         {currentUser?.role === 'ADMIN' && (
@@ -346,6 +418,9 @@ export default function StaffManagementPage({ config }) {
                       <ArrowUpDown className="w-3.5 h-3.5" />
                     </button>
                   </th>
+                )}
+                {visibleColumns.status && (
+                  <th className="h-12 px-6 font-semibold text-xs text-zinc-400 align-middle">Status</th>
                 )}
                 <th className="h-12 px-2 w-10 sticky right-0 bg-[#0f0f0f] border-l border-[rgba(255,255,255,0.08)] z-20"></th>
               </tr>
@@ -417,12 +492,28 @@ export default function StaffManagementPage({ config }) {
                           {row.kind === 'ghost' ? '—' : (row.assigned_students_count ?? 0)}
                         </td>
                       )}
+                      {visibleColumns.status && (
+                        <td className="py-2 px-6 align-middle whitespace-nowrap">
+                          {row.kind === 'ghost' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-900/80 text-zinc-400 border border-zinc-800/80">Invited</span>
+                          ) : row.deactivated_at ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-900/80 text-zinc-400 border border-zinc-800/80" title={row.deactivated_at}>Deactivated</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-900/50">Active</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-2 px-2 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
                         {currentUser?.role === 'ADMIN' && (
                           <StaffActionsDropdown
                             items={row.kind === 'active' ? [
                               { label: 'Edit Details', onClick: () => openModal('edit_details', row) },
-                              { label: `Delete ${entityLabel}`, onClick: () => openModal('delete', row), danger: true },
+                              // Admins are peers: no deactivate/reactivate on the admins page.
+                              ...(initialRole !== 'ADMIN' ? [
+                                row.deactivated_at
+                                  ? { label: 'Reactivate', onClick: () => openModal('reactivate', row) }
+                                  : { label: 'Deactivate', onClick: () => openModal('deactivate', row), danger: true },
+                              ] : []),
                             ] : [
                               { label: 'Edit Email', onClick: () => openModal('edit_email', row) },
                               { label: 'Withdraw Invitation', onClick: () => openModal('withdraw', row), danger: true },
@@ -499,28 +590,52 @@ export default function StaffManagementPage({ config }) {
             </div>
           )}
 
-          {/* Delete Modal */}
-          {modalType === 'delete' && (
+          {/* Deactivate Modal */}
+          {modalType === 'deactivate' && (
             <div className="w-full max-w-sm bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-              <h3 className="text-base font-semibold text-white m-0">Delete {entityLabel}</h3>
-              <p className={`text-xs text-zinc-400 mt-1.5 ${hasStudentsCount ? 'mb-4' : 'mb-6'}`}>
-                This permanently deletes <strong className="text-white font-semibold">{active?.full_name || active?.email}</strong> from the platform. Their sign-in, profile, and access are all removed. This action cannot be undone.
+              <h3 className="text-base font-semibold text-white m-0">Deactivate {entityLabel}</h3>
+              <p className="text-xs text-zinc-400 mt-1.5 mb-4">
+                This revokes <strong className="text-white font-semibold">{active?.full_name || active?.email}</strong>&apos;s access to the Hub. Their account and history are kept, and they can be reactivated later.
               </p>
 
-              {hasStudentsCount ? (
-                active?.assigned_students_count > 0 && (
-                  <div className="bg-zinc-900 text-zinc-400 rounded-md p-3.5 border border-white/5 text-xs mb-4 leading-normal">
-                    Heads up: this {entityLower} is currently assigned to <strong className="text-white font-semibold">{active.assigned_students_count} {active.assigned_students_count === 1 ? 'student' : 'students'}</strong>. Those students will lose their {entityLower} assignment until you reassign them.
+              {needsHandover && (
+                <div className="space-y-2 mb-4">
+                  <div className="bg-zinc-900 text-zinc-400 rounded-md p-3.5 border border-white/5 text-xs leading-normal">
+                    This {entityLower} is assigned to <strong className="text-white font-semibold">{active.assigned_students_count} {active.assigned_students_count === 1 ? 'student' : 'students'}</strong>. Choose a replacement {entityLower} to hand them over to before deactivating.
                   </div>
-                )
-              ) : (
-                currentUser?.id === active?.id && (
-                  <div className="bg-amber-950/40 text-amber-400 text-xs p-3 rounded-lg border border-amber-900/50 mb-4 flex items-start gap-2">
-                    <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>You are deleting your own account. If you are the only administrator, this operation will fail.</span>
-                  </div>
-                )
+                  <label htmlFor="replacement-select" className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Reassign students to</label>
+                  <select
+                    id="replacement-select"
+                    value={replacementId}
+                    onChange={(e) => setReplacementId(e.target.value)}
+                    disabled={!replacementsLoaded || saving}
+                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-60"
+                  >
+                    <option value="" className="bg-[#1c1c1c]">
+                      {replacementsLoaded ? `Select a ${entityLower}` : 'Loading…'}
+                    </option>
+                    {replacements.filter((o) => o.id !== active?.id).map((o) => (
+                      <option key={o.id} value={o.id} className="bg-[#1c1c1c]">
+                        {o.full_name || o.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
+
+              <div className="space-y-1.5 mb-4">
+                <label htmlFor="deactivate-reason" className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Reason (optional)</label>
+                <input
+                  id="deactivate-reason"
+                  type="text"
+                  placeholder="e.g. Left the company"
+                  value={reasonVal}
+                  onChange={(e) => setReasonVal(e.target.value)}
+                  maxLength={500}
+                  disabled={saving}
+                  className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
 
               {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2.5 rounded border border-red-900/50 mb-4">{modalError}</p>}
 
@@ -533,12 +648,42 @@ export default function StaffManagementPage({ config }) {
                   Cancel
                 </button>
                 <button
-                  onClick={handleDeleteUser}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  onClick={handleDeactivateUser}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={saving || (needsHandover && (!replacementsLoaded || !replacementId))}
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                  {needsHandover ? 'Reassign & Deactivate' : 'Deactivate'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Reactivate Modal */}
+          {modalType === 'reactivate' && (
+            <div className="w-full max-w-sm bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+              <h3 className="text-base font-semibold text-white m-0">Reactivate {entityLabel}</h3>
+              <p className="text-xs text-zinc-400 mt-1.5 mb-4">
+                Restore <strong className="text-white font-semibold">{active?.full_name || active?.email}</strong>&apos;s access to the Hub. They will be able to sign in again immediately. You can re-assign students to them afterwards.
+              </p>
+
+              {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2.5 rounded border border-red-900/50 mb-4">{modalError}</p>}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={closeModal}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white border border-white/10 rounded-lg hover:bg-white/10 transition-all cursor-pointer"
                   disabled={saving}
                 >
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash className="w-3.5 h-3.5" />}
-                  Delete User
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReactivateUser}
+                  className="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  Reactivate
                 </button>
               </div>
             </div>

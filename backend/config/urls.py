@@ -17,7 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include, re_path
 from students.views import StaffDashboardStatsView, StudentDashboardView
-from accounts.views import MentorListView, TutorListView, AdminListView, UserDetailView
+from accounts.views import (
+    MentorListView,
+    TutorListView,
+    AdminListView,
+    UserDetailView,
+    StaffStatusView,
+    StaffReassignView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +38,10 @@ urlpatterns = [
     path('api/admins', AdminListView.as_view()),
     path('api/users/<uuid:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('api/users/<uuid:pk>', UserDetailView.as_view()),
+    path('api/users/<uuid:pk>/status/', StaffStatusView.as_view(), name='user-status'),
+    path('api/users/<uuid:pk>/status', StaffStatusView.as_view()),
+    path('api/users/<uuid:pk>/reassign/', StaffReassignView.as_view(), name='user-reassign'),
+    path('api/users/<uuid:pk>/reassign', StaffReassignView.as_view()),
     path('api/students/', include('students.urls', namespace='students')),
     path('api/students', include('students.urls', namespace='students')),
     path('api/sessions/', include('sessions.urls', namespace='sessions')),
