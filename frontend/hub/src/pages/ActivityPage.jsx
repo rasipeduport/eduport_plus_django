@@ -24,6 +24,9 @@ const ACTION_LABELS = {
   'invitation.withdraw': 'Invitation withdrawn',
   'USER_UPDATE': 'User updated',
   'USER_DELETE': 'User deleted',
+  'user.deactivate': 'User deactivated',
+  'user.reactivate': 'User reactivated',
+  'staff.reassign_all': 'Workload reassigned',
   'ONBOARDED': 'Onboarded',
   'LOGIN': 'Logged in',
   'LOGOUT': 'Logged out',
@@ -105,6 +108,12 @@ function describe(log) {
       return 'Updated user details';
     case 'USER_DELETE':
       return 'Deleted the user';
+    case 'user.deactivate':
+      return `Deactivated ${log.entity_label || 'the user'}${ctx.reason ? ` — ${ctx.reason}` : ''}`;
+    case 'user.reactivate':
+      return `Reactivated ${log.entity_label || 'the user'}`;
+    case 'staff.reassign_all':
+      return "Reassigned this staff member's students before deactivation";
     case 'ONBOARDED':
       return 'Onboarded to the platform';
     case 'LOGIN':

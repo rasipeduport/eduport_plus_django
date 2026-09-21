@@ -35,7 +35,11 @@ export default function AuthProvider({ children }) {
 
       const profiles = meResponse.data.student_profiles || [];
       const selected = meResponse.data.student_profile || null;
-      setStudents(profiles);
+      // Only 'EXPIRED' blocks access (a terminal exit state); 'INACTIVE' is a
+      // soft pause with full access. The rest of the app only ever sees the
+      // usable personas — the backend refuses to act on expired ones anyway.
+      const usable = profiles.filter((p) => p.status !== 'EXPIRED');
+      setStudents(usable);
       setStudentProfile(selected);
 
       // No students linked yet -> waiting room
@@ -45,7 +49,14 @@ export default function AuthProvider({ children }) {
         return;
       }
 
-      // Several students linked but none chosen -> let the parent pick one
+      // Personas exist but every one is expired -> access ended
+      if (usable.length === 0) {
+        setStats(null);
+        if (location.pathname !== '/access-ended') navigate('/access-ended');
+        return;
+      }
+
+      // Several usable students but none chosen -> let the parent pick one
       if (!selected) {
         setStats(null);
         if (location.pathname !== '/select-profile') navigate('/select-profile');
@@ -60,7 +71,7 @@ export default function AuthProvider({ children }) {
         // Redirect into the app if currently on a gateway route. Note:
         // /select-profile is intentionally excluded so a parent who already
         // has a child selected can still open it to switch students.
-        if (['/waiting-room', '/login'].includes(location.pathname)) {
+        if (['/waiting-room', '/access-ended', '/login'].includes(location.pathname)) {
           navigate('/dashboard');
         }
       } catch (err) {
@@ -69,6 +80,8 @@ export default function AuthProvider({ children }) {
           if (location.pathname !== '/waiting-room') navigate('/waiting-room');
         } else if (code === 'STUDENT_NOT_SELECTED') {
           if (location.pathname !== '/select-profile') navigate('/select-profile');
+        } else if (code === 'STUDENT_ACCESS_ENDED') {
+          if (location.pathname !== '/access-ended') navigate('/access-ended');
         } else {
           console.error('Failed to load dashboard stats', err);
         }

@@ -417,12 +417,16 @@ class EduportPlusBackendAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['count'], 1)
 
-        # Test student history filter (accessible to Mentor)
-        self.client.force_authenticate(user=self.mentor)
+        # Test student history filter (admin-only — Hub parity: mentors get
+        # no activity read at all, even for their own allocated students)
         res = self.client.get(self.activity_logs_url, {"student_id": str(self.student.id)})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['count'], 1)
         self.assertEqual(res.data['results'][0]['entity_label'], 'Maths Session')
+
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.get(self.activity_logs_url, {"student_id": str(self.student.id)})
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
         # Verify Student is not allowed to query global logs
         self.client.force_authenticate(user=self.student_user)

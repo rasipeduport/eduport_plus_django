@@ -220,19 +220,28 @@ class CreateInvitationView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
+                # Assignments must be to ACTIVE staff of the right role
+                # (Hub parity: role='mentor'/'tutor' AND deactivated_at IS
+                # NULL) — deactivated staff can never receive new students.
                 mentor_id = data.get("mentor_id")
                 if mentor_id:
-                    if not User.objects.filter(id=mentor_id).exists():
+                    if not User.objects.filter(
+                        id=mentor_id, role='MENTOR',
+                        deactivated_at__isnull=True, is_active=True
+                    ).exists():
                         return Response(
-                            {"error": "INVALID_MENTOR", "message": f"Mentor with ID '{mentor_id}' does not exist."},
+                            {"error": "INVALID_MENTOR", "message": f"Mentor with ID '{mentor_id}' is not an active mentor."},
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
                 tutor_id = data.get("tutor_id")
                 if tutor_id:
-                    if not User.objects.filter(id=tutor_id).exists():
+                    if not User.objects.filter(
+                        id=tutor_id, role='TUTOR',
+                        deactivated_at__isnull=True, is_active=True
+                    ).exists():
                         return Response(
-                            {"error": "INVALID_TUTOR", "message": f"Tutor with ID '{tutor_id}' does not exist."},
+                            {"error": "INVALID_TUTOR", "message": f"Tutor with ID '{tutor_id}' is not an active tutor."},
                             status=status.HTTP_400_BAD_REQUEST
                         )
 

@@ -398,3 +398,64 @@ class InvitationFlowTests(APITestCase):
         self.assertIn("Tutor", sent_email.subject)
         self.assertIn("http://localhost:3000/login?email=invited_tutor@eduport.com", sent_email.body)
 
+
+
+class InvitationStaffAssignmentValidationTests(APITestCase):
+    """
+    New students can only be assigned to ACTIVE staff of the right role
+    (Hub parity: the invitations route requires role='mentor'/'tutor' AND
+    deactivated_at IS NULL) — otherwise a deactivated staff member could
+    keep receiving new students, defeating the soft-deactivation invariant.
+    """
+
+    def setUp(self):
+        from django.utils import timezone
+        self.admin_user = User.objects.create_user(
+            email="assign_admin@eduport.com", password="password",
+            full_name="Assign Admin", role="ADMIN"
+        )
+        self.active_mentor = User.objects.create_user(
+            email="assign_mentor@eduport.com", password="password",
+            full_name="Assign Mentor", role="MENTOR"
+        )
+        self.deactivated_mentor = User.objects.create_user(
+            email="assign_dead_mentor@eduport.com", password="password",
+            full_name="Deactivated Mentor", role="MENTOR",
+            is_active=False, deactivated_at=timezone.now()
+        )
+        self.tutor_user = User.objects.create_user(
+            email="assign_tutor@eduport.com", password="password",
+            full_name="Assign Tutor", role="TUTOR"
+        )
+        self.create_url = reverse('invitations:create-student-invitation')
+        self.client.force_authenticate(user=self.admin_user)
+
+    def payload(self, **extra):
+        base = {
+            "student_code": "EDPASSIGN1",
+            "email": "assign_student@gmail.com",
+            "full_name": "Assign Student",
+            "grade": "10",
+        }
+        base.update(extra)
+        return base
+
+    def test_deactivated_mentor_is_refused(self):
+        res = self.client.post(self.create_url, self.payload(mentor_id=str(self.deactivated_mentor.id)))
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"], "INVALID_MENTOR")
+
+    def test_wrong_role_mentor_id_is_refused(self):
+        # A tutor's id in the mentor field must not pass a bare existence check.
+        res = self.client.post(self.create_url, self.payload(mentor_id=str(self.tutor_user.id)))
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"], "INVALID_MENTOR")
+
+    def test_wrong_role_tutor_id_is_refused(self):
+        res = self.client.post(self.create_url, self.payload(tutor_id=str(self.active_mentor.id)))
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"], "INVALID_TUTOR")
+
+    def test_active_right_role_mentor_is_accepted(self):
+        res = self.client.post(self.create_url, self.payload(mentor_id=str(self.active_mentor.id)))
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)

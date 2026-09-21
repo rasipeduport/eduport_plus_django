@@ -13,30 +13,15 @@ User = get_user_model()
 
 class ActivityLogPermission(BasePermission):
     """
-    Access rules:
-    - If filtering by a specific student (student_id), allow ADMIN, MENTOR, or TUTOR.
-      - Mentors and Tutors are restricted to their own allocated students.
-    - Otherwise (global audit log), restrict access to ADMIN only (or superusers).
+    The activity log is an admin-only oversight tool — mirrors the original
+    Hub, where the only read policy on activity_log is active-admin-only and
+    mentors/tutors can read nothing (not even their own students' history).
+    Applies to both the global feed and per-student (?student_id=) queries.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-
-        student_id = request.query_params.get('student_id')
-        if student_id:
-            if request.user.role in ('ADMIN', 'MENTOR', 'TUTOR') or request.user.is_superuser:
-                if request.user.role == 'MENTOR':
-                    from students.models import Student
-                    return Student.objects.filter(id=student_id, mentor=request.user).exists()
-                elif request.user.role == 'TUTOR':
-                    from students.models import Student
-                    return Student.objects.filter(id=student_id, tutor=request.user).exists()
-                return True
-            return False
-
-        # Global audit log: admins see everything; mentors/tutors are allowed
-        # but their results are scoped to their own students in the view.
-        return request.user.role in ('ADMIN', 'MENTOR', 'TUTOR') or request.user.is_superuser
+        return request.user.role == 'ADMIN' or request.user.is_superuser
 
 class ActivityLogListView(APIView):
     """
@@ -49,16 +34,8 @@ class ActivityLogListView(APIView):
     def get(self, request, *args, **kwargs):
         params = request.query_params
         
-        # Base query
+        # Base query (permission layer already restricts callers to admins)
         queryset = ActivityLog.objects.all().order_by('-created_at')
-
-        # Scope non-admin staff to their own students' activity plus their own actions
-        user = request.user
-        if not (user.role == 'ADMIN' or user.is_superuser):
-            if user.role == 'MENTOR':
-                queryset = queryset.filter(Q(student__mentor=user) | Q(actor=user))
-            elif user.role == 'TUTOR':
-                queryset = queryset.filter(Q(student__tutor=user) | Q(actor=user))
 
         # Filters
         student_id = params.get('student_id')
@@ -122,15 +99,14 @@ class ActivityLogListView(APIView):
             "page_size": page_size
         }
 
-        # If user is ADMIN, also include actor options for filter dropdowns
-        if request.user.role == 'ADMIN' or request.user.is_superuser:
-            actors = User.objects.all().order_by('full_name')
-            response_data["actor_options"] = [
-                {
-                    "id": str(u.id),
-                    "name": u.full_name or u.email
-                }
-                for u in actors
-            ]
+        # Actor options for the filter dropdowns (all callers are admins here)
+        actors = User.objects.all().order_by('full_name')
+        response_data["actor_options"] = [
+            {
+                "id": str(u.id),
+                "name": u.full_name or u.email
+            }
+            for u in actors
+        ]
 
         return Response(response_data, status=status.HTTP_200_OK)
