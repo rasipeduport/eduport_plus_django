@@ -1,12 +1,11 @@
 import StaffManagementPage from './StaffManagementPage';
 
 const config = {
+  variant: 'tutor',
   entityLabel: 'Tutor',
   endpoint: '/api/tutors/?all=true',
   responseKey: 'tutors',
   initialRole: 'TUTOR',
-  fallbackInitial: 'T',
-  hasStudentsCount: true,
 };
 
 export default function TutorsPage() {

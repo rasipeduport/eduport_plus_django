@@ -1,12 +1,11 @@
 import StaffManagementPage from './StaffManagementPage';
 
 const config = {
+  variant: 'admin',
   entityLabel: 'Admin',
   endpoint: '/api/admins/',
   responseKey: 'admins',
   initialRole: 'ADMIN',
-  fallbackInitial: 'A',
-  hasStudentsCount: false,
 };
 
 export default function AdminsPage() {

@@ -9,7 +9,7 @@ import { getInitials } from '@/lib/utils';
 // hardcodes dark hex colours, so it gets wrapped in `.legacy-ui` to keep the
 // compatibility overrides in legacy.css applying to it. Remove a path from this
 // set's complement — i.e. add it here — as each page is ported.
-const PORTED_PATHS = new Set(['/dashboard', '/students']);
+const PORTED_PATHS = new Set(['/dashboard', '/students', '/admins', '/mentors', '/tutors']);
 
 // Protected layout: collapsible sidebar + breadcrumb header.
 export default function SidebarLayout({ user, logout, children }) {
