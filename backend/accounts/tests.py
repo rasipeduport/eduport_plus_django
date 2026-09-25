@@ -261,27 +261,52 @@ class StaffManagementTests(APITestCase):
 
         self.client.force_authenticate(user=self.admin)
 
-    def test_admin_list_returns_only_active_admins(self):
+    def test_admin_list_includes_pending_invitations_as_ghosts(self):
+        """Hub parity: the staff tables list pending invites above the accounts."""
         response = self.client.get('/api/admins/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         admins = response.data.get("admins", [])
-        
+
         emails = [a["email"] for a in admins]
         self.assertIn("admin@eduport.com", emails)
-        self.assertNotIn("ghost_admin@eduport.com", emails)
-        
-        # Check active flags
+        self.assertIn("ghost_admin@eduport.com", emails)
+
         active_admin = next(a for a in admins if a["email"] == "admin@eduport.com")
         self.assertEqual(active_admin["kind"], "active")
 
-    def test_mentor_list_all_returns_only_active_mentors(self):
+        ghost_admin = next(a for a in admins if a["email"] == "ghost_admin@eduport.com")
+        self.assertEqual(ghost_admin["kind"], "ghost")
+        self.assertEqual(ghost_admin["role"], "admin")
+        self.assertEqual(str(self.ghost_admin.id), ghost_admin["id"])
+
+        # Ghosts sort ahead of the real accounts.
+        self.assertLess(emails.index("ghost_admin@eduport.com"), emails.index("admin@eduport.com"))
+
+    def test_staff_list_excludes_accepted_invitations(self):
+        """An accepted invite is already represented by the account it created."""
+        self.ghost_admin.status = InvitationStatusChoices.ACCEPTED
+        self.ghost_admin.save(update_fields=["status"])
+
+        response = self.client.get('/api/admins/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        emails = [a["email"] for a in response.data.get("admins", [])]
+        self.assertNotIn("ghost_admin@eduport.com", emails)
+
+    def test_staff_list_ghosts_are_scoped_to_their_role(self):
+        response = self.client.get('/api/mentors/?all=true')
+        emails = [m["email"] for m in response.data.get("mentors", [])]
+        self.assertIn("ghost_mentor@eduport.com", emails)
+        self.assertNotIn("ghost_admin@eduport.com", emails)
+        self.assertNotIn("ghost_tutor@eduport.com", emails)
+
+    def test_mentor_list_all_includes_pending_invitations_as_ghosts(self):
         response = self.client.get('/api/mentors/?all=true')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mentors = response.data.get("mentors", [])
-        
+
         emails = [m["email"] for m in mentors]
         self.assertIn("mentor@eduport.com", emails)
-        self.assertNotIn("ghost_mentor@eduport.com", emails)
+        self.assertIn("ghost_mentor@eduport.com", emails)
 
     def test_mentor_list_default_returns_only_active_retains_compat(self):
         response = self.client.get('/api/mentors/')

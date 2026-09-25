@@ -111,7 +111,7 @@ function buildColumns(variant, readOnly, onChanged) {
       cell: ({ row }) => {
         const r = row.original;
         if (r.kind === 'ghost') {
-          return <Badge variant="secondary">Invited</Badge>;
+          return <span className="text-muted-foreground">—</span>;
         }
         return r.deactivated_at ? (
           <Badge variant="secondary" className="text-muted-foreground">
@@ -147,7 +147,18 @@ function buildColumns(variant, readOnly, onChanged) {
       cell: ({ row }) => {
         const r = row.original;
         if (r.kind === 'ghost') {
-          return <InvitationActionCell invitation={{ email: r.email }} onChanged={onChanged} />;
+          return (
+            <InvitationActionCell
+              invitation={{
+                id: r.id,
+                email: r.email,
+                role: r.role,
+                extra_data: r.extra_data,
+                created_at: r.created_at,
+              }}
+              onChanged={onChanged}
+            />
+          );
         }
         return <StaffActionsCell row={r} variant={variant} onChanged={onChanged} />;
       },

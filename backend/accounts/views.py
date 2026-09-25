@@ -15,6 +15,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from students.models import Student
+from invitations.models import Invitation, InvitationStatusChoices
 from activity.models import ActivityLog
 from activity.utils import log_activity
 from core.authentication import CSRFExemptSessionAuthentication
@@ -339,6 +340,27 @@ class BaseRoleListView(APIView):
             "deactivated_at": u.deactivated_at.isoformat() if u.deactivated_at else None
         }
 
+    def _serialize_ghost(self, inv):
+        """
+        A pending invitation rendered as a placeholder ("ghost") staff row.
+
+        The Hub's staff tables list these above the real accounts so an admin
+        can see and manage an invite before the person has signed up.
+        """
+        return {
+            "kind": "ghost",
+            "id": str(inv.id),
+            "email": inv.email,
+            "role": inv.role.lower(),
+            "created_at": inv.created_at.isoformat(),
+            "extra_data": inv.extra_data or {},
+            "invited_by_profile": {
+                "id": str(inv.invited_by.id),
+                "full_name": inv.invited_by.full_name or "",
+                "email": inv.invited_by.email
+            } if inv.invited_by else None
+        }
+
     def get(self, request, *args, **kwargs):
         from django.db.models import Count
 
@@ -370,10 +392,21 @@ class BaseRoleListView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        return Response(
-            {self.response_key: [self._serialize(u) for u in queryset]},
-            status=status.HTTP_200_OK
+        # Full-record mode is admin-only (enforced above, and by the
+        # admin-only subclass), which is exactly where the Hub includes
+        # pending invitations. Only PENDING ones: an accepted invitation is
+        # already represented by the active account it created.
+        ghosts = (
+            Invitation.objects
+            .filter(role=self.role, status=InvitationStatusChoices.PENDING)
+            .select_related('invited_by')
+            .order_by('-created_at')
         )
+
+        rows = [self._serialize_ghost(i) for i in ghosts]
+        rows += [self._serialize(u) for u in queryset]
+
+        return Response({self.response_key: rows}, status=status.HTTP_200_OK)
 
 class MentorListView(BaseRoleListView):
     """
