@@ -1,0 +1,191 @@
+/*
+ * Legacy visual overrides for Hub pages not yet migrated to the shadcn design
+ * system (Sessions, Admins, Mentors, Tutors, Invitations, Activity).
+ *
+ * Those pages hardcode dark hex colours in their Tailwind classes, so they need
+ * these `!important` rules to survive in light mode. The rules are scoped to the
+ * `.legacy-ui` wrapper so they cannot bleed into the ported pages, whose colours
+ * come from the design tokens in index.css. Delete each block as its page is
+ * ported; delete this file once none remain.
+ */
+
+/* Custom Light Mode Overrides for Hardcoded Dark Tailwind Elements */
+html:not(.dark) .legacy-ui {
+  /* Override background colors */
+  .bg-\[\#0a0a0a\],
+  .bg-\[\#0f0f0f\],
+  .bg-\[\#111\],
+  .bg-\[\#111111\],
+  .bg-\[\#121212\],
+  .bg-\[\#121214\],
+  .bg-\[\#1a1a1e\],
+  .bg-\[\#1c1c1c\],
+  .bg-white\/\[0\.03\],
+  .bg-white\/\[0\.04\],
+  .bg-white\/\[0\.06\],
+  .bg-white\/10,
+  .bg-black\/25 {
+    background-color: #ffffff !important;
+  }
+
+  .bg-zinc-900,
+  .bg-zinc-900\/10 {
+    background-color: rgba(9, 9, 11, 0.04) !important;
+  }
+
+  /* Table header rows */
+  tr.bg-\[\#0f0f0f\] {
+    background-color: #f4f4f5 !important; /* zinc-100 */
+  }
+
+  /* Border overrides */
+  .border-\[rgba\(255\,255\,255\,0\.08\)\] {
+    border-color: #e4e4e7 !important; /* zinc-200 */
+  }
+  .border-\[\#1e1e24\],
+  .border-\[\#27272a\],
+  .border-white\/5,
+  .border-white\/10 {
+    border-color: #e4e4e7 !important;
+  }
+  .divide-white\/5 > :not(:last-child) {
+    border-color: #e4e4e7 !important;
+  }
+
+  /* Text color overrides */
+  .text-white:not(.bg-red-600):not(.bg-indigo-600):not(.bg-zinc-800):not(.bg-black):not(.bg-zinc-950):not(span.bg-emerald-950\/80):not(span.bg-amber-950\/80):not(span.bg-zinc-900\/80) {
+    color: #09090b !important;
+  }
+  .text-black,
+  .text-white\/55,
+  .text-\[\#a1a1aa\],
+  .text-\[\#d4d4d8\],
+  .text-zinc-400 {
+    color: #71717a !important; /* zinc-500 */
+  }
+  .text-\[\#e4e4e7\],
+  .text-zinc-300 {
+    color: #27272a !important; /* zinc-800 */
+  }
+  .text-white\/40 {
+    color: #71717a !important;
+  }
+
+  /* Input fields */
+  input, select, textarea {
+    background-color: #ffffff !important;
+    color: #09090b !important;
+    border-color: #d4d4d8 !important;
+  }
+  input::placeholder {
+    color: #a1a1aa !important;
+  }
+  option {
+    background-color: #ffffff !important;
+    color: #09090b !important;
+  }
+
+  /* List & item hovers */
+  .hover\:bg-white\/5:hover,
+  .hover\:bg-zinc-800:hover,
+  .hover\:bg-white\/10:hover {
+    background-color: #f4f4f5 !important;
+    color: #09090b !important;
+  }
+  .hover\:bg-\[rgba\(255\,255\,255\,0\.02\)\]:hover,
+  .hover\:bg-zinc-900\/30:hover {
+    background-color: #f9f9fb !important;
+  }
+  .group:hover .group-hover\:bg-\[\#111\] {
+    background-color: #f9f9fb !important;
+  }
+  .hover\:text-white:hover {
+    color: #09090b !important;
+  }
+
+  /* Sticky table action columns */
+  .sticky.bg-\[\#0a0a0a\],
+  .sticky.bg-\[\#0f0f0f\] {
+    background-color: #ffffff !important;
+  }
+
+  .ring-black {
+    --tw-ring-color: #ffffff !important;
+  }
+
+  /* Pill Badges in light mode */
+  .bg-emerald-950\/80 {
+    background-color: #ecfdf5 !important;
+    color: #065f46 !important;
+    border-color: #a7f3d0 !important;
+  }
+  .bg-amber-950\/80 {
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+    border-color: #fde68a !important;
+  }
+  .bg-zinc-900\/80 {
+    background-color: #f4f4f5 !important;
+    color: #3f3f46 !important;
+    border-color: #e4e4e7 !important;
+  }
+}
+
+/* Dark Mode Overrides for Light-only Hub Elements */
+.dark .legacy-ui {
+
+  .bg-white:not(.bg-red-600):not(.bg-indigo-600),
+  .bg-zinc-50,
+  .bg-zinc-100,
+  .bg-zinc-150,
+  .bg-white\/10 {
+    background-color: #18181b !important;
+  }
+
+  .hover\:bg-zinc-200:hover,
+  .hover\:bg-zinc-100:hover,
+  .hover\:bg-zinc-50:hover,
+  .hover\:bg-white\/10:hover {
+    background-color: #27272a !important;
+  }
+
+  .text-black,
+  .text-zinc-950,
+  .text-zinc-900,
+  .text-zinc-800 {
+    color: #f4f4f5 !important;
+  }
+
+  .text-zinc-700,
+  .text-zinc-600 {
+    color: #d4d4d8 !important;
+  }
+
+  .text-zinc-500 {
+    color: #a1a1aa !important;
+  }
+
+  .border-zinc-100,
+  .border-zinc-200,
+  .border-zinc-300,
+  .border-zinc-200\/50,
+  .border-zinc-200\/60 {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  input, select, textarea {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #71717a !important;
+  }
+
+  option {
+    background-color: #18181b !important;
+    color: #ffffff !important;
+  }
+}

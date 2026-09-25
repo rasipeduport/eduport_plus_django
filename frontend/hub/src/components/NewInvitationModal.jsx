@@ -197,7 +197,7 @@ export default function NewInvitationModal({ isOpen, onClose, initialRole = 'STU
   const selectedTutorName = tutors.find(t => t.id === selectedTutor)?.full_name || '';
 
   return (
-    <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4 animate-fadeIn">
+    <div className="legacy-ui fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-4 animate-fadeIn">
       <div className="w-full max-w-[420px] bg-[#1c1c1c] border border-white/10 rounded-[12px] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.4)] relative">
         
         {/* Close Button */}

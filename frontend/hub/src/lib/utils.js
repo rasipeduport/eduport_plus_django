@@ -1,16 +1,25 @@
-// Shared formatting helpers and validators used across hub pages.
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-// Initials from a full name, e.g. "Jane Mary Doe" -> "JM" (max 2 chars).
-export function getInitials(fullName, fallback = 'U') {
-  if (!fullName) return fallback;
-  return (
-    fullName
-      .split(' ')
-      .filter(Boolean)
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2) || fallback
-  );
+// Merge conditional class names, letting later Tailwind utilities win.
+export function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+// Initials for an avatar fallback: "Jane Mary Doe" -> "JD", falling back to the
+// email's first two characters when no name is on file.
+export function getInitials(name, email) {
+  if (name) {
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.substring(0, 2).toUpperCase();
+  }
+  return '??';
 }
 
 // Format an ISO/date string as e.g. "Jun 24, 2026".

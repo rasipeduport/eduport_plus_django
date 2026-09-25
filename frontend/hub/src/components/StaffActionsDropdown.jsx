@@ -51,7 +51,7 @@ export default function StaffActionsDropdown({ items, label = 'Actions' }) {
         <div
           ref={menuRef}
           style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
-          className="w-48 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#1e1e24] rounded-lg shadow-xl py-1 text-left animate-fadeIn"
+          className="legacy-ui w-48 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#1e1e24] rounded-lg shadow-xl py-1 text-left animate-fadeIn"
         >
           <div className="px-3 py-1.5 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest border-b border-zinc-100 dark:border-[#1e1e24]/70 mb-1">
             {label}
