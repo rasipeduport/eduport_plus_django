@@ -1,6 +1,6 @@
 /*
  * Legacy visual overrides for Hub pages not yet migrated to the shadcn design
- * system (Sessions, Admins, Mentors, Tutors, Invitations, Activity).
+ * system (Sessions, Activity).
  *
  * Those pages hardcode dark hex colours in their Tailwind classes, so they need
  * these `!important` rules to survive in light mode. The rules are scoped to the

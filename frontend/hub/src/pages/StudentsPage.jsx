@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import api from '@/lib/api';
-import NewInvitationModal from '@/components/NewInvitationModal';
 import { StudentsTable } from '@/components/students/students-table';
 
 export default function StudentsPage() {
@@ -10,7 +9,6 @@ export default function StudentsPage() {
   const [role, setRole] = useState('admin');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     setError('');
@@ -53,19 +51,7 @@ export default function StudentsPage() {
     <div className="container mx-auto px-4 py-16">
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
 
-      <StudentsTable
-        students={students}
-        role={role}
-        onChanged={fetchStudents}
-        onNewStudent={() => setIsInviteModalOpen(true)}
-      />
-
-      <NewInvitationModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        initialRole="STUDENT"
-        onSuccess={fetchStudents}
-      />
+      <StudentsTable students={students} role={role} onChanged={fetchStudents} />
     </div>
   );
 }

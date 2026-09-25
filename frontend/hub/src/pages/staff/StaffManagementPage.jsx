@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PlusIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { StaffTable } from '@/components/staff/staff-table';
-import NewInvitationModal from '@/components/NewInvitationModal';
 
 /**
  * Generic staff (Admin / Mentor / Tutor) management page.
@@ -28,7 +28,6 @@ export default function StaffManagementPage({ config }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   const fetchRows = useCallback(async () => {
     setError('');
@@ -78,19 +77,16 @@ export default function StaffManagementPage({ config }) {
         onChanged={fetchRows}
         actions={
           isAdmin ? (
-            <Button onClick={() => setIsInviteModalOpen(true)}>
-              <PlusIcon />
-              New {entityLabel}
-            </Button>
+            // Invitations are created in one place; this lands there with the
+            // role preselected and the form already open.
+            <Link to={`/invitations?role=${initialRole.toLowerCase()}&open=true`}>
+              <Button>
+                <PlusIcon />
+                New {entityLabel}
+              </Button>
+            </Link>
           ) : undefined
         }
-      />
-
-      <NewInvitationModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        initialRole={initialRole}
-        onSuccess={fetchRows}
       />
     </div>
   );

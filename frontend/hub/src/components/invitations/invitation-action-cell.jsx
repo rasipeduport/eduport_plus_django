@@ -51,7 +51,10 @@ function EditEmailDialog({ invitation, open, onOpenChange, onSuccess }) {
 
     setIsSaving(true);
     try {
+      // Send the row id when we have it: one parent email may own several
+      // student invitations, and the API only falls back to matching on email.
       await api.patch('/api/invitations/', {
+        ...(invitation.id ? { id: invitation.id } : {}),
         old_email: invitation.email,
         new_email: trimmedEmail.toLowerCase(),
       });
@@ -110,7 +113,9 @@ function WithdrawDialog({ invitation, open, onOpenChange, onSuccess }) {
     setError('');
     setIsDeleting(true);
     try {
-      await api.delete('/api/invitations/', { data: { email: invitation.email } });
+      await api.delete('/api/invitations/', {
+        data: { ...(invitation.id ? { id: invitation.id } : {}), email: invitation.email },
+      });
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {

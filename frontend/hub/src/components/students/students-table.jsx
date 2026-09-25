@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { PlusIcon } from 'lucide-react';
 
 import { DataTable } from '@/components/data-table';
@@ -7,7 +8,7 @@ import { createColumns } from './columns';
 import { tutorColumns } from './tutor-columns';
 import { ExpiredStudentsSection } from './expired-students-section';
 
-export function StudentsTable({ students, role, onChanged, onNewStudent }) {
+export function StudentsTable({ students, role, onChanged }) {
   const isTutor = role === 'tutor';
   const isMentor = role === 'mentor';
 
@@ -32,13 +33,16 @@ export function StudentsTable({ students, role, onChanged, onNewStudent }) {
         initialSorting={[{ id: 'student_code', desc: false }]}
         initialColumnPinning={{ right: ['actions'] }}
         actions={
-          // Admin only. Enrolment runs through an invitation, which mentors and
-          // tutors are not allowed to create.
+          // Admin only. Enrolment runs through /invitations, which the router
+          // does not allow mentors or tutors to open, so showing them the
+          // button led nowhere.
           isTutor || isMentor ? undefined : (
-            <Button onClick={onNewStudent}>
-              <PlusIcon />
-              New Student
-            </Button>
+            <Link to="/invitations?role=student&open=true">
+              <Button>
+                <PlusIcon />
+                New Student
+              </Button>
+            </Link>
           )
         }
       />
