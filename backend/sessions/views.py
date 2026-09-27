@@ -31,6 +31,17 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def staff_display_name(user):
+    """
+    How a staff member is named in an activity diff: the same full-name-else-
+    email fallback the Hub uses, so an expanded row reads "Tutor: A -> B"
+    rather than showing raw UUIDs.
+    """
+    if not user:
+        return None
+    return user.full_name or user.email
+
+
 class SessionsView(APIView):
     """
     GET: List sessions.
@@ -323,11 +334,14 @@ class SessionsView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        # Capture state before modifications
+        # Capture state before modifications. The tutor is recorded by display
+        # name: `changes` is what the activity feed renders, and a raw UUID
+        # there is unreadable. The ids go into `context` below instead.
+        before_tutor_id = str(session.tutor.id) if session.tutor else None
         before_state = {
             "status": session.status,
             "title": session.title,
-            "tutor": str(session.tutor.id) if session.tutor else None,
+            "tutor": staff_display_name(session.tutor),
             "start_time": session.start_time.isoformat(),
             "end_time": session.end_time.isoformat(),
             "recording_link": session.recording_link,
@@ -423,7 +437,7 @@ class SessionsView(APIView):
             if key == 'start_time' or key == 'end_time':
                 new_val = getattr(session, key).isoformat()
             elif key == 'tutor':
-                new_val = str(session.tutor.id) if session.tutor else None
+                new_val = staff_display_name(session.tutor)
             else:
                 new_val = getattr(session, key)
 
@@ -434,6 +448,9 @@ class SessionsView(APIView):
             context = {}
             if new_status == 'CANCELLED' and session.cancellation_reason:
                 context['reason'] = session.cancellation_reason
+            if 'tutor' in changes:
+                context['old_tutor_id'] = before_tutor_id
+                context['new_tutor_id'] = str(session.tutor.id) if session.tutor else None
             
             log_activity(
                 action=action,

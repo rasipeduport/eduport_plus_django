@@ -14,7 +14,8 @@ const breadcrumbConfig = {
   '/mentors': [{ label: 'Mentors' }],
   '/tutors': [{ label: 'Tutors' }],
   '/invitations': [{ label: 'Invitations' }],
-  '/activity': [{ label: 'Activity' }],
+  // The Hub shows no breadcrumb on /activity -- the page carries its own
+  // "Activity log" heading, so the crumb only repeated it.
 };
 
 export function getBreadcrumbs(pathname) {

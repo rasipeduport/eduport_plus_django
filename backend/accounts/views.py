@@ -175,7 +175,7 @@ class GoogleLoginView(APIView):
             user.avatar_url = picture
             user.save(update_fields=['avatar_url'])
 
-        # Write login to ActivityLog (if not new user, who already gets an ONBOARDED log)
+        # Write the sign-in to ActivityLog (a new user already gets a user.onboarded log)
         if not is_new_user:
             student = Student.objects.filter(profile=user).first()
             ActivityLog.objects.create(
@@ -183,10 +183,10 @@ class GoogleLoginView(APIView):
                 actor_email=user.email,
                 actor_name=user.full_name,
                 actor_role=user.role,
-                action="LOGIN",
-                entity_type="SESSION",
-                entity_id=request.session.session_key or "unknown",
-                entity_label="User Session",
+                action="user.sign_in",
+                entity_type="profile",
+                entity_id=str(user.id),
+                entity_label=user.full_name or user.email,
                 student=student
             )
 
@@ -225,10 +225,10 @@ class LogoutView(APIView):
             actor_email=user.email,
             actor_name=user.full_name,
             actor_role=user.role,
-            action="LOGOUT",
-            entity_type="SESSION",
-            entity_id=session_key or "unknown",
-            entity_label="User Session",
+            action="user.sign_out",
+            entity_type="profile",
+            entity_id=str(user.id),
+            entity_label=user.full_name or user.email,
             student=student
         )
 
@@ -457,6 +457,11 @@ class UserDetailView(APIView):
         
         full_name = request.data.get("full_name")
         mobile_number = request.data.get("mobile_number")
+
+        # Snapshot before the edit so the log can carry a real before/after
+        # diff -- that is what the activity feed expands to show.
+        before_full_name = target_user.full_name
+        before_mobile_number = target_user.mobile_number
         
         if full_name is not None:
             full_name = full_name.strip()
@@ -471,6 +476,14 @@ class UserDetailView(APIView):
             target_user.mobile_number = mobile_number.strip() if mobile_number else None
             
         target_user.save()
+
+        # Only fields that actually moved, as {field: {old, new}} -- the shape
+        # the feed's changes table renders.
+        changes = {}
+        if target_user.full_name != before_full_name:
+            changes["full_name"] = {"old": before_full_name, "new": target_user.full_name}
+        if target_user.mobile_number != before_mobile_number:
+            changes["mobile_number"] = {"old": before_mobile_number, "new": target_user.mobile_number}
         
         # Log activity
         ActivityLog.objects.create(
@@ -478,12 +491,12 @@ class UserDetailView(APIView):
             actor_email=request.user.email,
             actor_name=request.user.full_name,
             actor_role=request.user.role,
-            action="USER_UPDATE",
-            entity_type="USER",
+            action="user.update_details",
+            entity_type="profile",
             entity_id=str(target_user.id),
             entity_label=target_user.full_name or target_user.email,
             student=None,
-            context={"changes": {"full_name": target_user.full_name, "mobile_number": target_user.mobile_number}}
+            changes=changes,
         )
         
         return Response({"success": True, "profile": {
@@ -589,7 +602,7 @@ class StaffStatusView(APIView):
 
         log_activity(
             action='user.reactivate' if action == 'reactivate' else 'user.deactivate',
-            entity_type='USER',
+            entity_type='profile',
             entity_id=str(target.id),
             entity_label=target.full_name or target.email,
             changes={
@@ -714,7 +727,7 @@ class StaffReassignView(APIView):
 
         log_activity(
             action='staff.reassign_all',
-            entity_type='USER',
+            entity_type='profile',
             entity_id=str(old_staff.id),
             entity_label=old_staff.full_name or old_staff.email,
             context={

@@ -21,10 +21,12 @@ export const ACTION_LABELS = {
   'user.deactivate': 'User deactivated',
   'user.reactivate': 'User reactivated',
   'staff.reassign_all': 'Workload reassigned',
-  ONBOARDED: 'Onboarded',
-  LOGIN: 'Logged in',
-  LOGOUT: 'Logged out',
-  USER_UPDATE: 'User details updated',
+  'user.update_details': 'User details updated',
+  // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
+  // labelled so they read properly when picked from the action filter.
+  'user.onboarded': 'Onboarded',
+  'user.sign_in': 'Signed in',
+  'user.sign_out': 'Signed out',
   tampered: 'Tampered entry',
 };
 

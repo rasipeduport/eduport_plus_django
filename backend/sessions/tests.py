@@ -387,7 +387,7 @@ class EduportPlusBackendAPITests(APITestCase):
         # Create some activity logs
         ActivityLog.objects.create(
             actor=self.admin, actor_name='Test Admin', actor_email='admin@eduport.com', actor_role='ADMIN',
-            action='LOGIN', entity_type='SESSION', entity_id='sess_123', entity_label='User Session'
+            action='user.sign_in', entity_type='profile', entity_id='user_123', entity_label='Test Admin'
         )
         ActivityLog.objects.create(
             actor=self.mentor, actor_name='Test Mentor', actor_email='mentor@eduport.com', actor_role='MENTOR',
@@ -403,7 +403,9 @@ class EduportPlusBackendAPITests(APITestCase):
         self.client.force_authenticate(user=self.admin)
         res = self.client.get(self.activity_logs_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data['count'], 3)
+        # The default feed is a change log: the sign-in is recorded but held back.
+        self.assertEqual(res.data['count'], 2)
+        self.assertNotIn('user.sign_in', [r['action'] for r in res.data['results']])
         self.assertIn('actor_options', res.data)
 
         # Test keyword search
@@ -412,8 +414,8 @@ class EduportPlusBackendAPITests(APITestCase):
         self.assertEqual(res.data['count'], 1)
         self.assertEqual(res.data['results'][0]['action'], 'session.create')
 
-        # Test filter by action
-        res = self.client.get(self.activity_logs_url, {"action": "LOGIN"})
+        # Asking for a sign-in by name still returns it.
+        res = self.client.get(self.activity_logs_url, {"action": "user.sign_in"})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['count'], 1)
 
@@ -656,3 +658,57 @@ class SessionWritePermissionAndValidationTests(APITestCase):
         self.session.refresh_from_db()
         self.assertEqual(self.session.status, SessionStatusChoices.CANCELLED)
         self.assertEqual(self.session.cancellation_reason, 'Family emergency')
+
+    def test_session_tutor_change_logs_names_in_changes_and_ids_in_context(self):
+        """
+        An expanded activity row renders `changes`, so a tutor swap has to read
+        "Tutor: A -> B" there. The raw ids stay available in `context`, which is
+        how the Hub splits the two.
+        """
+        replacement = User.objects.create_user(
+            email='replacement_tutor@eduport.com',
+            password='testpassword',
+            full_name='Replacement Tutor',
+            role='TUTOR',
+            is_staff=True,
+        )
+
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "tutor": str(replacement.id)},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        log = ActivityLog.objects.filter(
+            action='session.update', entity_id=str(self.session.id)
+        ).first()
+        self.assertIsNotNone(log)
+
+        self.assertEqual(
+            log.changes["tutor"],
+            {"old": self.tutor.full_name, "new": replacement.full_name},
+        )
+        # Guard against regressing to raw UUIDs in the rendered diff.
+        self.assertNotIn(str(self.tutor.id), str(log.changes["tutor"]))
+        self.assertNotIn(str(replacement.id), str(log.changes["tutor"]))
+
+        self.assertEqual(log.context.get("old_tutor_id"), str(self.tutor.id))
+        self.assertEqual(log.context.get("new_tutor_id"), str(replacement.id))
+
+    def test_session_update_without_tutor_change_carries_no_tutor_ids(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "title": "Retitled Class"},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        log = ActivityLog.objects.filter(
+            action='session.update', entity_id=str(self.session.id)
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertNotIn("tutor", log.changes)
+        self.assertNotIn("old_tutor_id", log.context or {})

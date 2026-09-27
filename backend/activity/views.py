@@ -11,6 +11,10 @@ from .serializers import ActivityLogSerializer
 
 User = get_user_model()
 
+# Authentication/provisioning entries. Recorded for audit, but excluded from
+# the unfiltered feed so it reads as a log of changes, like the Hub's.
+AUTH_ACTIONS = ('user.sign_in', 'user.sign_out', 'user.onboarded')
+
 class ActivityLogPermission(BasePermission):
     """
     The activity log is an admin-only oversight tool — mirrors the original
@@ -45,6 +49,12 @@ class ActivityLogListView(APIView):
         action = params.get('action')
         if action:
             queryset = queryset.filter(action=action)
+        else:
+            # Hub parity: this feed is a change log -- "who changed what". The
+            # sign-in and onboarding entries are still written and kept for the
+            # audit trail, they just don't drown the default view; picking one
+            # by name in the action filter brings them back.
+            queryset = queryset.exclude(action__in=AUTH_ACTIONS)
 
         entity_type = params.get('entity') or params.get('entity_type')
         if entity_type:

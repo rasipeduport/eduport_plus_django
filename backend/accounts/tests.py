@@ -135,9 +135,9 @@ class GoogleAuthenticationTests(APITestCase):
         self.assertEqual(self.student_invitation.status, InvitationStatusChoices.ACCEPTED)
 
         # 5. Verify Activity Log
-        log = ActivityLog.objects.filter(actor=user, action="ONBOARDED").first()
+        log = ActivityLog.objects.filter(actor=user, action="user.onboarded").first()
         self.assertIsNotNone(log)
-        self.assertEqual(log.entity_type, "USER")
+        self.assertEqual(log.entity_type, "profile")
         self.assertEqual(log.entity_id, str(user.id))
         self.assertEqual(log.student, student)
 
@@ -172,7 +172,7 @@ class GoogleAuthenticationTests(APITestCase):
 
         # Check ActivityLog for second login
         user = User.objects.get(email=self.student_email)
-        login_log = ActivityLog.objects.filter(actor=user, action="LOGIN").first()
+        login_log = ActivityLog.objects.filter(actor=user, action="user.sign_in").first()
         self.assertIsNotNone(login_log)
 
     def test_disabled_user_login_rejected(self):
@@ -326,6 +326,49 @@ class StaffManagementTests(APITestCase):
         self.mentor.refresh_from_db()
         self.assertEqual(self.mentor.full_name, "Updated Mentor Name")
         self.assertEqual(self.mentor.mobile_number, "+919000000000")
+
+    def test_edit_user_details_logs_expandable_old_new_diff(self):
+        """
+        The activity feed expands a row from `changes`, so a details edit has
+        to record a real {field: {old, new}} diff there -- not a summary of the
+        new values tucked into `context`.
+        """
+        before_name = self.mentor.full_name
+        url = f'/api/users/{self.mentor.id}/'
+        response = self.client.patch(
+            url,
+            {"full_name": "Renamed Mentor", "mobile_number": "+919000000000"},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        log = ActivityLog.objects.filter(
+            action='user.update_details', entity_id=str(self.mentor.id)
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.entity_type, 'profile')
+
+        self.assertEqual(log.changes["full_name"], {"old": before_name, "new": "Renamed Mentor"})
+        self.assertEqual(log.changes["mobile_number"], {"old": None, "new": "+919000000000"})
+        # The diff must not linger in context, where nothing renders it.
+        self.assertNotIn("changes", log.context or {})
+
+    def test_edit_user_details_omits_unchanged_fields_from_diff(self):
+        url = f'/api/users/{self.mentor.id}/'
+        # Re-send the name it already has, and change only the phone number.
+        response = self.client.patch(
+            url,
+            {"full_name": self.mentor.full_name, "mobile_number": "+919111111111"},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        log = ActivityLog.objects.filter(
+            action='user.update_details', entity_id=str(self.mentor.id)
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertIn("mobile_number", log.changes)
+        self.assertNotIn("full_name", log.changes)
 
     def test_edit_user_details_empty_name_fails(self):
         url = f'/api/users/{self.mentor.id}/'
@@ -678,6 +721,8 @@ class StaffLifecycleTests(APITestCase):
 
         log = ActivityLog.objects.filter(action='user.deactivate', entity_id=str(self.tutor2.id)).first()
         self.assertIsNotNone(log)
+        # Normalised entity vocabulary: new rows must not reintroduce 'USER'.
+        self.assertEqual(log.entity_type, 'profile')
         self.assertEqual(log.changes["status"], {"old": "active", "new": "deactivated"})
         self.assertEqual(log.context.get("reason"), "Left the company")
 
@@ -710,6 +755,7 @@ class StaffLifecycleTests(APITestCase):
 
         log = ActivityLog.objects.filter(action='user.reactivate', entity_id=str(self.tutor2.id)).first()
         self.assertIsNotNone(log)
+        self.assertEqual(log.entity_type, 'profile')
         self.assertEqual(log.changes["status"], {"old": "deactivated", "new": "active"})
 
     # --- guards --------------------------------------------------------------
@@ -779,6 +825,7 @@ class StaffLifecycleTests(APITestCase):
 
         log = ActivityLog.objects.filter(action='staff.reassign_all', entity_id=str(self.tutor.id)).first()
         self.assertIsNotNone(log)
+        self.assertEqual(log.entity_type, 'profile')
         self.assertEqual(log.context.get("students_tutor_reassigned"), 1)
 
     def test_reassign_mentor_students(self):
