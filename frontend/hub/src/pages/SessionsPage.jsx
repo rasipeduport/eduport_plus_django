@@ -398,6 +398,9 @@ export default function SessionsPage() {
 
   // Table columns in Hub order. Every one but Actions can be hidden from the
   // Columns menu, where `id` doubles as the label (underscores become spaces).
+  // `tabs` limits a column to those status tabs: recording, notes, homework
+  // and rating only exist once a class was attended, and the Meet room is
+  // only worth joining for a class that has not happened yet.
   const columns = [
     {
       id: 'title',
@@ -445,6 +448,7 @@ export default function SessionsPage() {
     {
       id: 'meeting',
       label: 'Meeting',
+      tabs: ['scheduled', 'cancelled'],
       // The student's own Meet room (students.meet_link), nested by the
       // Sessions API. Only a real https URL gets a Join button.
       cell: (s) => {
@@ -466,17 +470,19 @@ export default function SessionsPage() {
         );
       },
     },
-    { id: 'recording', label: 'Recording', cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" /> },
-    { id: 'notes', label: 'Notes', cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" /> },
-    { id: 'homework', label: 'Homework', cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" /> },
+    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" /> },
+    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" /> },
+    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" /> },
     {
       id: 'rating',
       label: 'Rating',
+      tabs: ['attended'],
       cellClass: 'text-sm whitespace-nowrap',
       cell: (s) => (s.rating != null ? <span className="text-zinc-300">{s.rating}/5</span> : <span className="text-zinc-500">—</span>),
     },
   ];
-  const visibleColumns = columns.filter((c) => columnVisibility[c.id] !== false);
+  const tabColumns = columns.filter((c) => !c.tabs || c.tabs.includes(activeTab));
+  const visibleColumns = tabColumns.filter((c) => columnVisibility[c.id] !== false);
 
   const getStudentName = (id) => {
     const s = students.find(x => x.id === id);
@@ -580,7 +586,7 @@ export default function SessionsPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {columns.map((c) => (
+            {tabColumns.map((c) => (
               <DropdownMenuCheckboxItem
                 key={c.id}
                 className="capitalize"
