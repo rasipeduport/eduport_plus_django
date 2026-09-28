@@ -6,6 +6,10 @@ export const ACTION_LABELS = {
   'student.update_status': 'Status changed',
   'student.update_quota': 'Quota changed',
   'student.update_meet_link': 'Meet link updated',
+  'student.update_details': 'Profile updated',
+  'student.reassign_mentor': 'Mentor reassigned',
+  'student.reassign_tutor': 'Tutor reassigned',
+  'student.purge': 'Student purged',
   'session.create': 'Session created',
   'session.create_series': 'Series created',
   'session.update': 'Session updated',
@@ -81,6 +85,18 @@ export function describeActivity(row) {
     }
     case 'student.update_meet_link':
       return 'Updated the meet link';
+    case 'student.update_details':
+      return 'Updated the profile';
+    case 'student.reassign_mentor': {
+      const m = c.mentor;
+      return m ? `Reassigned mentor from ${formatValue(m.old)} to ${formatValue(m.new)}` : 'Reassigned the mentor';
+    }
+    case 'student.reassign_tutor': {
+      const t = c.tutor;
+      return t ? `Reassigned tutor from ${formatValue(t.old)} to ${formatValue(t.new)}` : 'Reassigned the tutor';
+    }
+    case 'student.purge':
+      return `Permanently removed ${row.entity_label ?? 'the student'}`;
     case 'session.create':
       return 'Created a session';
     case 'session.create_series':

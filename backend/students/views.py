@@ -1,6 +1,9 @@
 import datetime
+import uuid
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,12 +15,42 @@ from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
 from activity.utils import log_activity
 from core.authentication import CSRFExemptSessionAuthentication
-from core.permissions import IsStaffUser, IsStudentUser
+from core.permissions import IsAdminUser, IsStaffUser, IsStudentUser
 from core.querysets import scope_students_by_role
 from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 
 User = get_user_model()
+
+# Free-text profile columns the Hub's "Edit Profile" sheet may change. The
+# student_code (enrolment key + purge confirmation token) and the linked
+# sign-in account are deliberately not in this list.
+PROFILE_TEXT_FIELDS = (
+    'full_name', 'mobile_number', 'country', 'state',
+    'school_name', 'grade', 'syllabus', 'remarks_for_mentor',
+)
+
+
+def _parse_uuid(value, field):
+    """
+    ``(uuid, None)`` for a valid id, ``(None, None)`` for null/empty, or
+    ``(None, 400-response)`` for garbage -- a malformed value must never reach
+    a UUIDField filter, where it would raise instead of returning 400.
+    """
+    if value in (None, ''):
+        return None, None
+    try:
+        return uuid.UUID(str(value)), None
+    except (ValueError, TypeError, AttributeError):
+        return None, Response(
+            {"error": "INVALID_INPUT", "message": f"{field} must be a valid id."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+def _staff_display(user):
+    return (user.full_name or user.email) if user else None
+
 
 class StaffDashboardStatsView(APIView):
     """
@@ -158,8 +191,9 @@ class StudentListView(APIView):
     GET /api/students/ - List students
       - ADMIN/MENTOR: See all students.
       - TUTOR: See assigned students where status in ('ACTIVE', 'INACTIVE').
-    PUT /api/students/ - Update student details (meet link, class quota, status)
-      - ADMIN/MENTOR: Allowed.
+    PUT /api/students/ - Update student details (meet link, class quota, status,
+      and the profile fields behind the Hub's "Edit Profile" sheet)
+      - ADMIN/MENTOR: Allowed (mentors only for their allocated students).
     """
     authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffUser]
@@ -291,7 +325,61 @@ class StudentListView(APIView):
                     )
                 student.status_note = note
 
+        # Profile details (Edit Profile). Only fields present in the payload
+        # are touched; blank text clears the column (null), except the name,
+        # which is required.
+        profile_changes = {}
+        for field in PROFILE_TEXT_FIELDS:
+            if field not in request.data:
+                continue
+            raw = request.data.get(field)
+            value = raw.strip() if isinstance(raw, str) else ("" if raw is None else str(raw).strip())
+            if field == 'full_name':
+                if not value:
+                    return Response(
+                        {"error": "INVALID_INPUT", "message": "Name cannot be empty."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                value = value or None
+            old = getattr(student, field) or None
+            if value != old:
+                profile_changes[field] = {"old": old, "new": value}
+                setattr(student, field, value)
+
+        if "admission_date" in request.data:
+            raw = request.data.get("admission_date")
+            if raw in (None, ""):
+                new_date = None
+            else:
+                try:
+                    new_date = parse_date(str(raw))
+                except ValueError:
+                    new_date = None
+                if new_date is None:
+                    return Response(
+                        {"error": "INVALID_INPUT", "message": "admission_date must be a date in YYYY-MM-DD format."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            if new_date != student.admission_date:
+                profile_changes["admission_date"] = {
+                    "old": student.admission_date.isoformat() if student.admission_date else None,
+                    "new": new_date.isoformat() if new_date else None,
+                }
+                student.admission_date = new_date
+
         student.save()
+
+        if profile_changes:
+            log_activity(
+                action='student.update_details',
+                entity_type='student',
+                entity_id=str(student.id),
+                entity_label=student.full_name,
+                student=student,
+                changes=profile_changes,
+                request=request,
+            )
 
         # Activity logging (best-effort) — one entry per kind of change
         if "meet_link" in request.data and student.meet_link != before_meet_link:
@@ -336,3 +424,201 @@ class StudentListView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class StudentReassignView(APIView):
+    """
+    POST /api/students/reassign/ — change ONE student's mentor and/or tutor.
+
+    Admin-only, mirroring the Hub's reassign_student_staff RPC: the client
+    always sends both desired final values (null = unassign). Completed and
+    cancelled sessions keep their tutor snapshot for attribution; only open
+    (SCHEDULED) sessions are handed over to the new tutor. Replacements must
+    be assignable (right role, not deactivated) — the same rule the slim
+    /api/mentors and /api/tutors dropdown lists apply. The bulk staff-exit
+    handover is a different flow: accounts.StaffReassignView.
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def post(self, request, *args, **kwargs):
+        student_id, err = _parse_uuid(request.data.get("id"), "id")
+        if err:
+            return err
+        if not student_id:
+            return Response(
+                {"error": "INVALID_INPUT", "message": "student id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        new_mentor_id, err = _parse_uuid(request.data.get("mentor"), "mentor")
+        if err:
+            return err
+        new_tutor_id, err = _parse_uuid(request.data.get("tutor"), "tutor")
+        if err:
+            return err
+
+        sessions_repointed = 0
+        with transaction.atomic():
+            # Row lock on the student serialises two admins reassigning at once.
+            student = Student.objects.select_for_update().filter(id=student_id).first()
+            if not student:
+                return Response(
+                    {"error": "NOT_FOUND", "message": "Student not found."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            old_mentor = student.mentor
+            old_tutor = student.tutor
+            mentor_changed = new_mentor_id != student.mentor_id
+            tutor_changed = new_tutor_id != student.tutor_id
+            if not mentor_changed and not tutor_changed:
+                return Response({"success": True, "unchanged": True}, status=status.HTTP_200_OK)
+
+            # Validate BOTH replacements before moving anything (one
+            # transaction, no half-reassigned state). Locking the replacement
+            # rows serialises this against a concurrent deactivation.
+            new_mentor = None
+            if mentor_changed and new_mentor_id:
+                new_mentor = User.objects.select_for_update().filter(
+                    pk=new_mentor_id, role='MENTOR',
+                    deactivated_at__isnull=True, is_active=True
+                ).first()
+                if not new_mentor:
+                    return Response(
+                        {"error": "INVALID_MENTOR", "message": "Selected mentor is not an active mentor."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            new_tutor = None
+            if tutor_changed and new_tutor_id:
+                new_tutor = User.objects.select_for_update().filter(
+                    pk=new_tutor_id, role='TUTOR',
+                    deactivated_at__isnull=True, is_active=True
+                ).first()
+                if not new_tutor:
+                    return Response(
+                        {"error": "INVALID_TUTOR", "message": "Selected tutor is not an active tutor."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            update_fields = ['updated_at']
+            if mentor_changed:
+                student.mentor = new_mentor
+                update_fields.append('mentor')
+            if tutor_changed:
+                sessions_repointed = Session.objects.filter(
+                    student=student, status=SessionStatusChoices.SCHEDULED
+                ).update(tutor=new_tutor)
+                student.tutor = new_tutor
+                update_fields.append('tutor')
+            student.save(update_fields=update_fields)
+
+        # One audit entry per role that changed; display names in `changes`
+        # (they outlive a later staff deletion), ids and counts in `context`.
+        label = student.full_name or student.student_code
+        if mentor_changed:
+            log_activity(
+                action='student.reassign_mentor',
+                entity_type='student',
+                entity_id=str(student.id),
+                entity_label=label,
+                student=student,
+                changes={"mentor": {"old": _staff_display(old_mentor), "new": _staff_display(new_mentor)}},
+                context={
+                    "old_mentor_id": str(old_mentor.id) if old_mentor else None,
+                    "new_mentor_id": str(new_mentor.id) if new_mentor else None,
+                },
+                request=request,
+            )
+        if tutor_changed:
+            log_activity(
+                action='student.reassign_tutor',
+                entity_type='student',
+                entity_id=str(student.id),
+                entity_label=label,
+                student=student,
+                changes={"tutor": {"old": _staff_display(old_tutor), "new": _staff_display(new_tutor)}},
+                context={
+                    "old_tutor_id": str(old_tutor.id) if old_tutor else None,
+                    "new_tutor_id": str(new_tutor.id) if new_tutor else None,
+                    "sessions_repointed": sessions_repointed,
+                },
+                request=request,
+            )
+
+        return Response({
+            "success": True,
+            "result": {
+                "old_mentor": str(old_mentor.id) if old_mentor else None,
+                "new_mentor": str(student.mentor_id) if student.mentor_id else None,
+                "old_tutor": str(old_tutor.id) if old_tutor else None,
+                "new_tutor": str(student.tutor_id) if student.tutor_id else None,
+                "sessions_repointed": sessions_repointed,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class StudentDetailView(APIView):
+    """
+    DELETE /api/students/<id>/ — permanently remove a student created by
+    mistake (the Hub's "Delete permanently").
+
+    Admin-only and narrow on purpose: the caller must retype the student_code,
+    and the request is refused (409) when the student has ANY history — today
+    that means sessions; extend the guard when exams/homework are ported. For
+    a real student who has left, the status flow (expired) is the right tool.
+    The linked sign-in account is left untouched (a parent account may own
+    other students). The append-only activity log takes a snapshot in the
+    same transaction; its student FK carries no DB constraint, so the entry
+    outlives the row.
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def delete(self, request, pk, *args, **kwargs):
+        student = Student.objects.filter(pk=pk).first()
+        if not student:
+            return Response(
+                {"error": "NOT_FOUND", "message": "Student not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        confirm_raw = request.data.get("confirm_code")
+        confirm = confirm_raw.strip() if isinstance(confirm_raw, str) else ""
+        if not confirm:
+            return Response(
+                {"error": "INVALID_INPUT", "message": "Confirmation is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if confirm != student.student_code:
+            return Response(
+                {"error": "CODE_MISMATCH", "message": "The student code you entered does not match."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if Session.objects.filter(student=student).exists():
+            return Response(
+                {
+                    "error": "HAS_HISTORY",
+                    "message": 'This student has sessions and cannot be permanently deleted. '
+                               'Set their status to "expired" instead.'
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+
+        with transaction.atomic():
+            log_activity(
+                action='student.purge',
+                entity_type='student',
+                entity_id=str(student.id),
+                entity_label=student.full_name or student.student_code,
+                student=student,
+                changes={"student": {"old": f"{student.full_name} ({student.student_code})", "new": None}},
+                context={
+                    "student_code": student.student_code,
+                    "status": student.status.lower(),
+                    "mentor": str(student.mentor_id) if student.mentor_id else None,
+                    "tutor": str(student.tutor_id) if student.tutor_id else None,
+                },
+                request=request,
+            )
+            student.delete()
+
+        return Response({"success": True}, status=status.HTTP_200_OK)

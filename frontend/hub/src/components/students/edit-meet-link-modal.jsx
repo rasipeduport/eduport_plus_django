@@ -56,7 +56,7 @@ export function EditMeetLinkModal({ student, open, onOpenChange, onSaved }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Edit Meet Link</DialogTitle>
+          <DialogTitle>Edit Demo Link</DialogTitle>
           <DialogDescription>{student.full_name}</DialogDescription>
         </DialogHeader>
 

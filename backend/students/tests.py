@@ -345,3 +345,231 @@ class StudentStatusNoteTests(APITestCase):
         self.student.refresh_from_db()
         self.assertEqual(self.student.status, "ACTIVE")
         self.assertIsNone(self.student.status_note)
+
+
+class StudentActionsAPITests(APITestCase):
+    """
+    The Hub Actions menu items that got a Django backend in this pass:
+    Edit Profile (PUT profile fields), Reassign Mentor / Tutor and Delete
+    permanently. Existing meet-link / quota / status behaviour is covered above.
+    """
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from sessions.models import Session, SessionStatusChoices
+
+        def staff(email, name, role, **extra):
+            return User.objects.create_user(email=email, password="password", full_name=name, role=role, **extra)
+
+        self.admin = staff("act_admin@eduport.com", "Act Admin", "ADMIN")
+        self.mentor = staff("act_mentor1@eduport.com", "Mentor One", "MENTOR")
+        self.mentor2 = staff("act_mentor2@eduport.com", "Mentor Two", "MENTOR")
+        self.tutor = staff("act_tutor1@eduport.com", "Tutor One", "TUTOR")
+        self.tutor2 = staff("act_tutor2@eduport.com", "Tutor Two", "TUTOR")
+        self.gone_tutor = staff("act_tutor3@eduport.com", "Tutor Gone", "TUTOR", is_active=False)
+        self.gone_tutor.deactivated_at = timezone.now()
+        self.gone_tutor.save(update_fields=['deactivated_at'])
+        self.parent = staff("act_parent@eduport.com", "Act Parent", "STUDENT")
+
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="ACT001", full_name="Act Student",
+            mentor=self.mentor, tutor=self.tutor, school_name="Old School",
+        )
+        now = timezone.now()
+        self.scheduled = Session.objects.create(
+            student=self.student, tutor=self.tutor, title="Upcoming",
+            start_time=now + timedelta(days=1), end_time=now + timedelta(days=1, hours=1),
+            status=SessionStatusChoices.SCHEDULED,
+        )
+        self.attended = Session.objects.create(
+            student=self.student, tutor=self.tutor, title="Done",
+            start_time=now - timedelta(days=1), end_time=now - timedelta(days=1) + timedelta(hours=1),
+            status=SessionStatusChoices.ATTENDED,
+        )
+
+        self.list_url = reverse('students:student-list')
+        self.reassign_url = reverse('students:student-reassign')
+        self.detail_url = reverse('students:student-detail', kwargs={'pk': self.student.id})
+
+    # ---- Edit Profile -----------------------------------------------------
+
+    def test_edit_profile_updates_fields_and_logs(self):
+        from activity.models import ActivityLog
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.put(self.list_url, {
+            "id": str(self.student.id),
+            "full_name": "  Renamed Student ",
+            "school_name": "New School",
+            "grade": "10",
+            "admission_date": "2024-06-01",
+            "remarks_for_mentor": "Prefers evenings",
+            "country": "",
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.full_name, "Renamed Student")
+        self.assertEqual(self.student.school_name, "New School")
+        self.assertEqual(self.student.grade, "10")
+        self.assertEqual(self.student.admission_date.isoformat(), "2024-06-01")
+        self.assertEqual(self.student.remarks_for_mentor, "Prefers evenings")
+        self.assertIsNone(self.student.country)
+
+        log = ActivityLog.objects.filter(action='student.update_details', student=self.student).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.changes["full_name"], {"old": "Act Student", "new": "Renamed Student"})
+        self.assertEqual(log.changes["school_name"], {"old": "Old School", "new": "New School"})
+        self.assertEqual(log.changes["admission_date"], {"old": None, "new": "2024-06-01"})
+        # A blank value on an already-empty column is not a change.
+        self.assertNotIn("country", log.changes)
+
+    def test_edit_profile_validation(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.put(self.list_url, {"id": str(self.student.id), "full_name": "  "}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.put(self.list_url, {"id": str(self.student.id), "admission_date": "01/06/2024"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # The enrolment key is not editable through the profile sheet.
+        response = self.client.put(self.list_url, {"id": str(self.student.id), "student_code": "HACK01"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.full_name, "Act Student")
+        self.assertEqual(self.student.student_code, "ACT001")
+
+    def test_edit_profile_mentor_scoping(self):
+        payload = {"id": str(self.student.id), "school_name": "Mentor School"}
+        self.client.force_authenticate(user=self.mentor2)
+        response = self.client.put(self.list_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user=self.mentor)
+        response = self.client.put(self.list_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.school_name, "Mentor School")
+
+    # ---- Reassign Mentor / Tutor ------------------------------------------
+
+    def test_reassign_is_admin_only(self):
+        self.client.force_authenticate(user=self.mentor)
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": str(self.mentor2.id), "tutor": str(self.tutor.id)
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reassign_moves_only_scheduled_sessions(self):
+        from activity.models import ActivityLog
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": str(self.mentor2.id), "tutor": str(self.tutor2.id)
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data["result"]["sessions_repointed"], 1)
+
+        self.student.refresh_from_db()
+        self.scheduled.refresh_from_db()
+        self.attended.refresh_from_db()
+        self.assertEqual(self.student.mentor, self.mentor2)
+        self.assertEqual(self.student.tutor, self.tutor2)
+        self.assertEqual(self.scheduled.tutor, self.tutor2)
+        # History keeps the staff member who actually taught it.
+        self.assertEqual(self.attended.tutor, self.tutor)
+
+        mentor_log = ActivityLog.objects.get(action='student.reassign_mentor', student=self.student)
+        self.assertEqual(mentor_log.changes["mentor"], {"old": "Mentor One", "new": "Mentor Two"})
+        tutor_log = ActivityLog.objects.get(action='student.reassign_tutor', student=self.student)
+        self.assertEqual(tutor_log.changes["tutor"], {"old": "Tutor One", "new": "Tutor Two"})
+        self.assertEqual(tutor_log.context["sessions_repointed"], 1)
+
+    def test_reassign_rejects_wrong_role_or_deactivated_staff(self):
+        self.client.force_authenticate(user=self.admin)
+        # A mentor in the tutor slot
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": str(self.mentor.id), "tutor": str(self.mentor2.id)
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # A deactivated tutor
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": str(self.mentor.id), "tutor": str(self.gone_tutor.id)
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Garbage id
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": "not-a-uuid", "tutor": None
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.student.refresh_from_db()
+        self.scheduled.refresh_from_db()
+        self.assertEqual(self.student.tutor, self.tutor)
+        self.assertEqual(self.scheduled.tutor, self.tutor)
+
+    def test_reassign_unchanged_and_unassign(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": str(self.mentor.id), "tutor": str(self.tutor.id)
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data.get("unchanged"))
+
+        response = self.client.post(self.reassign_url, {
+            "id": str(self.student.id), "mentor": None, "tutor": None
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.student.refresh_from_db()
+        self.scheduled.refresh_from_db()
+        self.assertIsNone(self.student.mentor)
+        self.assertIsNone(self.student.tutor)
+        self.assertIsNone(self.scheduled.tutor)
+
+    # ---- Delete permanently ----------------------------------------------
+
+    def test_purge_is_admin_only(self):
+        self.client.force_authenticate(user=self.mentor)
+        response = self.client.delete(self.detail_url, {"confirm_code": "ACT001"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Student.objects.filter(pk=self.student.pk).exists())
+
+    def test_purge_requires_matching_code(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.delete(self.detail_url, {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.delete(self.detail_url, {"confirm_code": "WRONG"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Student.objects.filter(pk=self.student.pk).exists())
+
+    def test_purge_refuses_student_with_history(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.delete(self.detail_url, {"confirm_code": " ACT001 "}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertTrue(Student.objects.filter(pk=self.student.pk).exists())
+
+    def test_purge_deletes_student_without_history_and_logs(self):
+        from activity.models import ActivityLog
+        fresh = Student.objects.create(
+            profile=self.parent, student_code="ACT002", full_name="Mistake Student",
+            mentor=self.mentor, tutor=self.tutor,
+        )
+        url = reverse('students:student-detail', kwargs={'pk': fresh.id})
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.delete(url, {"confirm_code": "ACT002"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        self.assertFalse(Student.objects.filter(pk=fresh.pk).exists())
+        # The sign-in account and the sibling student are untouched.
+        self.assertTrue(User.objects.filter(pk=self.parent.pk).exists())
+        self.assertTrue(Student.objects.filter(pk=self.student.pk).exists())
+
+        log = ActivityLog.objects.get(action='student.purge', entity_id=str(fresh.id))
+        self.assertEqual(log.student_id, fresh.id)
+        self.assertEqual(log.changes["student"]["old"], "Mistake Student (ACT002)")
+        self.assertEqual(log.context["student_code"], "ACT002")
+
+        # Its history is still readable by id after the row is gone.
+        history = self.client.get(reverse('activity:activity-logs-list'), {"student_id": str(fresh.id)})
+        self.assertEqual(history.status_code, status.HTTP_200_OK)
+        self.assertEqual(history.data["results"][0]["action"], 'student.purge')
+        self.assertIsNone(history.data["results"][0]["student_name"])
