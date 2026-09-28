@@ -1,4 +1,4 @@
-import { Calendar, Clock, User, GraduationCap, Play, FileText, BookOpen, ChevronDown, Star, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, User, GraduationCap, Play, FileText, BookOpen, ChevronDown, Star, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/card';
 import { cn } from '../../lib/utils';
@@ -12,9 +12,17 @@ export function SessionCard({ session, isExpanded, onToggle }) {
     session.end_time
   );
 
+  // Which required items are still missing. The API's `missing_content` is
+  // the source of truth; a payload without it falls back to the link itself.
+  const isMissing = (key, href) =>
+    Array.isArray(session.missing_content) ? session.missing_content.includes(key) : !href;
+
+  // Every attended class lists all three items: a missing one is shown as
+  // missing rather than dropped, so the student can see what is still to come.
   const resourceLinks = attended
     ? [
         {
+          key: 'recording',
           href: session.recording_link,
           icon: Play,
           label: 'Recording',
@@ -23,6 +31,7 @@ export function SessionCard({ session, isExpanded, onToggle }) {
           hover: 'hover:border-primary/40 hover:bg-primary/5'
         },
         {
+          key: 'notes',
           href: session.notes_link,
           icon: FileText,
           label: 'Notes',
@@ -31,6 +40,7 @@ export function SessionCard({ session, isExpanded, onToggle }) {
           hover: 'hover:border-info/40 hover:bg-info/5'
         },
         {
+          key: 'homework',
           href: session.homework_link,
           icon: BookOpen,
           label: 'Homework',
@@ -38,8 +48,9 @@ export function SessionCard({ session, isExpanded, onToggle }) {
           bg: 'bg-warning-subtle',
           hover: 'hover:border-warning/40 hover:bg-warning/5'
         }
-      ].filter((r) => r.href)
+      ].map((r) => ({ ...r, missing: isMissing(r.key, r.href) }))
     : [];
+  const missingCount = resourceLinks.filter((r) => r.missing).length;
 
   const { isRated, rating, hoverRating, setHoverRating, isSubmitting, showSuccess, handleRate } = useSessionRating(session);
 
@@ -147,33 +158,59 @@ export function SessionCard({ session, isExpanded, onToggle }) {
 
               {/* Resources */}
               {resourceLinks.length > 0 && (
-                <div className="mb-4 grid grid-cols-3 gap-3">
-                  {resourceLinks.map(
-                    ({ href, icon: Icon, label, color, bg, hover }) => (
-                      <a
-                        key={label}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cn(
-                          'group border-border-light bg-surface-muted flex flex-col items-center justify-center gap-2.5 rounded-xl border p-3 text-center transition-all duration-200',
-                          hover
-                        )}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div
-                          className={cn(
-                            'flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110',
-                            bg
-                          )}
-                        >
-                          <Icon className={cn('h-4 w-4', color)} />
-                        </div>
-                        <span className="text-text-primary text-xs font-semibold">
-                          {label}
-                        </span>
-                      </a>
-                    )
+                <div className="mb-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {resourceLinks.map(
+                      ({ key, href, icon: Icon, label, color, bg, hover, missing }) =>
+                        missing ? (
+                          <div
+                            key={key}
+                            role="status"
+                            aria-label={`${label} missing`}
+                            className="border-danger/20 bg-danger-subtle flex flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed p-3 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="bg-danger-light flex h-9 w-9 items-center justify-center rounded-xl">
+                              <AlertCircle className="text-danger h-4 w-4" />
+                            </div>
+                            <span className="text-text-primary text-xs font-semibold">
+                              {label}
+                            </span>
+                            <span className="text-danger -mt-1.5 text-[11px] font-semibold">
+                              Missing
+                            </span>
+                          </div>
+                        ) : (
+                          <a
+                            key={key}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              'group border-border-light bg-surface-muted flex flex-col items-center justify-center gap-2.5 rounded-xl border p-3 text-center transition-all duration-200',
+                              hover
+                            )}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div
+                              className={cn(
+                                'flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110',
+                                bg
+                              )}
+                            >
+                              <Icon className={cn('h-4 w-4', color)} />
+                            </div>
+                            <span className="text-text-primary text-xs font-semibold">
+                              {label}
+                            </span>
+                          </a>
+                        )
+                    )}
+                  </div>
+                  {missingCount > 0 && (
+                    <p className="text-text-muted mt-2 text-[11px]">
+                      Missing items will appear here as soon as they are added.
+                    </p>
                   )}
                 </div>
               )}

@@ -23,10 +23,12 @@ from .services import (
     ALLOWED_DURATIONS,
     MAX_SERIES_ITEMS,
     normalize_title,
+    normalize_link,
     parse_iso_datetime,
     resolve_start_time,
     calculate_credits_used,
     find_conflict,
+    apply_content_filter,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,15 @@ class SessionsView(APIView):
             queryset = queryset.filter(student=student)
         else:
             queryset = scope_sessions_by_role(queryset, request.user)
+
+        # Post-session content filter (attended rows only), applied after the
+        # role scoping and before pagination. Absent/blank means no filter.
+        content = request.query_params.get('content')
+        if content:
+            try:
+                queryset = apply_content_filter(queryset, content)
+            except ValueError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         # Opt-in pagination: full list by default, sliced when ?page= is given.
         page_items, meta = paginate_queryset(request, queryset)
@@ -305,12 +316,11 @@ class SessionsView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # Tutors are read-only on sessions; only admins and mentors may edit.
+        # Tutors own exactly one field: the notes link, on their allocated
+        # students' sessions. Everything else (status, recording, homework,
+        # schedule, tutor, rating) stays admin/mentor-only.
         if role == 'TUTOR':
-            return Response(
-                {"error": "Forbidden", "message": "Tutors cannot edit sessions."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return self._tutor_update_notes(request, session, data)
         if role == 'MENTOR' and session.student.mentor != request.user:
             return Response(
                 {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
@@ -342,6 +352,16 @@ class SessionsView(APIView):
                     {"error": "A rating between 1 and 5 is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+        # Resource links are stored normalised (stripped, blank -> null) so the
+        # derived content state and the ?content= filter see one "empty".
+        link_updates = {}
+        for field in ('recording_link', 'notes_link', 'homework_link'):
+            if field in data:
+                try:
+                    link_updates[field] = normalize_link(data[field])
+                except ValueError as exc:
+                    return Response({"error": f"{field} {exc}"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Capture state before modifications. The tutor is recorded by display
         # name: `changes` is what the activity feed renders, and a raw UUID
@@ -420,6 +440,8 @@ class SessionsView(APIView):
                                 )
                     elif field == 'title' and val:
                         session.title = normalize_title(val)
+                    elif field in link_updates:
+                        setattr(session, field, link_updates[field])
                     else:
                         setattr(session, field, val)
 
@@ -474,6 +496,61 @@ class SessionsView(APIView):
 
         serializer = SessionSerializer(session)
         return Response({"success": True, "session": serializer.data}, status=status.HTTP_200_OK)
+
+    def _tutor_update_notes(self, request, session, data):
+        """
+        The tutor's post-session responsibility: add or correct the notes link
+        on a session of a student allocated to them. The request may carry
+        nothing but `id` and `notes_link`; the link may be set while the class
+        is scheduled or attended (an attended class missing its notes reads as
+        Pending until this lands), never on a cancelled one. Logged as
+        `session.update_links`, the same entry a mentor's link edit produces.
+        """
+        if session.student.tutor_id != request.user.id:
+            return Response(
+                {"error": "Forbidden", "message": "You can only add notes for your allocated students' sessions."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        extra = set(data.keys()) - {'id', 'notes_link'}
+        if extra:
+            return Response(
+                {"error": "Forbidden", "message": "Tutors can only update the notes link."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if 'notes_link' not in data:
+            return Response({"error": "notes_link is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            notes_link = normalize_link(data.get("notes_link"))
+        except ValueError as exc:
+            return Response({"error": f"notes_link {exc}"}, status=status.HTTP_400_BAD_REQUEST)
+        if not notes_link:
+            return Response({"error": "A notes link is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if session.status == SessionStatusChoices.CANCELLED:
+            return Response(
+                {"error": "Notes cannot be added to a cancelled session."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        before_notes = session.notes_link
+        session.notes_link = notes_link
+        session.save(update_fields=['notes_link', 'updated_at'])
+
+        if before_notes != notes_link:
+            log_activity(
+                action='session.update_links',
+                entity_type='session',
+                entity_id=str(session.id),
+                entity_label=session.title,
+                student=session.student,
+                changes={"notes_link": {"old": before_notes, "new": notes_link}},
+                request=request,
+            )
+
+        return Response(
+            {"success": True, "session": SessionSerializer(session).data},
+            status=status.HTTP_200_OK
+        )
+
 
 class CancelSeriesView(APIView):
     """

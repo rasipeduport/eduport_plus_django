@@ -70,6 +70,52 @@ def resolve_start_time(item, timezone_name, label):
     return start_time
 
 
+def normalize_link(value):
+    """
+    A resource link as stored: stripped, with blank strings collapsed to None
+    so "no link" has exactly one representation for the completion checks and
+    the content filter. Non-string, non-null input raises ValueError.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("must be a string or null")
+    return value.strip() or None
+
+
+def _link_missing(field):
+    return Q(**{f"{field}__isnull": True}) | Q(**{field: ""})
+
+
+# ?content= values on the sessions list. Every option is scoped to ATTENDED
+# rows: a scheduled class has no material yet and a cancelled one never will,
+# so neither counts as "missing" anything.
+CONTENT_FILTERS = ('complete', 'missing_notes', 'missing_recording', 'missing_homework', 'missing_content')
+
+
+def apply_content_filter(queryset, value):
+    """
+    Restrict a Session queryset by post-session content state. Raises
+    ValueError for an unknown value so the view can answer 400.
+    """
+    if value not in CONTENT_FILTERS:
+        raise ValueError(f"content must be one of {', '.join(CONTENT_FILTERS)}")
+
+    queryset = queryset.filter(status=SessionStatusChoices.ATTENDED)
+    fields = dict(Session.REQUIRED_CONTENT)
+    if value == 'complete':
+        for field in fields.values():
+            queryset = queryset.exclude(_link_missing(field))
+        return queryset
+    if value == 'missing_content':
+        any_missing = Q()
+        for field in fields.values():
+            any_missing |= _link_missing(field)
+        return queryset.filter(any_missing)
+    # missing_notes / missing_recording / missing_homework
+    return queryset.filter(_link_missing(fields[value.removeprefix('missing_')]))
+
+
 def calculate_credits_used(student):
     """Total hours consumed by the student's non-cancelled sessions."""
     existing_sessions = Session.objects.filter(student=student).exclude(

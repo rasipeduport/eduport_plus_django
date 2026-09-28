@@ -49,6 +49,14 @@ class Session(models.Model):
     series_id = models.UUIDField(blank=True, null=True, db_index=True)
     class_number = models.IntegerField(blank=True, null=True)
 
+    # Post-session content every attended class must end up with, keyed by the
+    # short name the API and the SPAs use. Order is the display order.
+    REQUIRED_CONTENT = (
+        ('notes', 'notes_link'),
+        ('recording', 'recording_link'),
+        ('homework', 'homework_link'),
+    )
+
     class Meta:
         db_table = 'sessions'
         verbose_name = 'Session'
@@ -57,3 +65,29 @@ class Session(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.student.full_name} ({self.start_time.strftime('%Y-%m-%d %H:%M')})"
+
+    # Content completion is derived from the link columns every time it is
+    # read, never stored: a stored flag would go stale the moment a tutor or
+    # mentor edits a link. Attendance (`status`) stays a separate fact --
+    # a mentor may mark a class attended before its material exists.
+
+    @property
+    def missing_content(self):
+        """Short names of the required links that are still empty."""
+        return [name for name, field in self.REQUIRED_CONTENT if not (getattr(self, field) or '').strip()]
+
+    @property
+    def content_complete(self):
+        return not self.missing_content
+
+    @property
+    def display_status(self):
+        """
+        What the UIs label the row: an attended class whose material is still
+        incomplete reads as ``pending``; otherwise the lowercase attendance
+        status. Scheduled and cancelled classes are never pending -- their
+        content does not apply yet / at all.
+        """
+        if self.status == SessionStatusChoices.ATTENDED and not self.content_complete:
+            return 'pending'
+        return self.status.lower()

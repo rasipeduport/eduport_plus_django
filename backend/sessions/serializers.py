@@ -30,6 +30,12 @@ class SessionSerializer(serializers.ModelSerializer):
     students = StudentBriefSerializer(source='student', read_only=True)
     tutor_profile = ProfileBriefSerializer(source='tutor', read_only=True)
     status = serializers.CharField()
+    # Derived on the model from the three link columns (see Session.REQUIRED_CONTENT):
+    # `status` stays the raw attendance fact; `display_status` is what the
+    # tables label the row ('pending' = attended but material still missing).
+    content_complete = serializers.BooleanField(read_only=True)
+    missing_content = serializers.ListField(child=serializers.CharField(), read_only=True)
+    display_status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Session
@@ -51,7 +57,10 @@ class SessionSerializer(serializers.ModelSerializer):
             'tutor',
             'tutor_profile',
             'series_id',
-            'class_number'
+            'class_number',
+            'content_complete',
+            'missing_content',
+            'display_status',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
 

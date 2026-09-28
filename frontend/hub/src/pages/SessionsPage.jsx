@@ -19,6 +19,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
@@ -38,34 +40,76 @@ const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-const STATUS_LABEL = { scheduled: 'Scheduled', attended: 'Attended', cancelled: 'Cancelled' };
-const STATUS_VARIANT = { scheduled: 'secondary', attended: 'success', cancelled: 'destructive' };
+// `display_status` from the API: the attendance status, except that an
+// attended class whose notes/recording/homework are not all in reads as
+// "pending" until the last one lands (derived server-side, never stored).
+const STATUS_LABEL = { scheduled: 'Scheduled', pending: 'Pending', attended: 'Attended', cancelled: 'Cancelled' };
+const STATUS_VARIANT = { scheduled: 'secondary', pending: 'warning', attended: 'success', cancelled: 'destructive' };
 
-// Status badge as the Hub renders it; a cancelled session shows its reason on hover.
-function StatusBadge({ status, reason }) {
-  const key = (status || '').toLowerCase();
+const CONTENT_LABEL = { notes: 'Notes', recording: 'Recording', homework: 'Homework' };
+
+// Post-session content filter (attended rows only; `?content=` on the API).
+const CONTENT_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'complete', label: 'Complete' },
+  { value: 'missing_notes', label: 'Missing Notes' },
+  { value: 'missing_recording', label: 'Missing Recording' },
+  { value: 'missing_homework', label: 'Missing Homework' },
+  { value: 'missing_content', label: 'Missing Content' },
+];
+
+// Whether a required post-session item is absent on an attended class. The
+// API's `missing_content` is the source of truth; a payload without it falls
+// back to the link itself. Never true for scheduled/cancelled rows.
+const isContentMissing = (s, key) => {
+  if ((s.status || '').toLowerCase() !== 'attended') return false;
+  if (Array.isArray(s.missing_content)) return s.missing_content.includes(key);
+  return !(s[`${key}_link`] || '').trim();
+};
+
+// Status badge as the Hub renders it. A cancelled session shows its reason
+// on hover; a pending one lists what is still missing.
+function StatusBadge({ session }) {
+  const key = session.display_status || (session.status || '').toLowerCase();
   const badge = <Badge variant={STATUS_VARIANT[key] || 'secondary'}>{STATUS_LABEL[key] || 'Scheduled'}</Badge>;
-  if (key === 'cancelled' && reason) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="cursor-help">{badge}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="max-w-xs">{reason}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
+  let hint = null;
+  if (key === 'cancelled' && session.cancellation_reason) {
+    hint = session.cancellation_reason;
+  } else if (key === 'pending') {
+    const missing = (session.missing_content || []).map((k) => CONTENT_LABEL[k] || k);
+    hint = missing.length ? `Missing: ${missing.join(', ')}` : 'Post-session content incomplete';
   }
-  return badge;
+  if (!hint) return badge;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-help">{badge}</span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="max-w-xs">{hint}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Required content that an attended class still lacks. Deliberately louder
+// than the "—" used for a field that simply does not apply.
+function MissingBadge() {
+  return (
+    <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">
+      <AlertTriangle />
+      Missing
+    </Badge>
+  );
 }
 
 // A session resource (recording / notes / homework link). The Hub prints the
 // URL truncated; a compact open-in-new-tab action keeps this wider table
-// usable. "—" when unset; a value that is not a web URL is shown as text.
-function ResourceLink({ href, icon: Icon, label }) {
+// usable. "—" when unset (or a Missing badge when the class is attended and
+// the item is required); a value that is not a web URL is shown as text.
+function ResourceLink({ href, icon: Icon, label, missing = false }) {
   const url = (href || '').trim();
-  if (!url) return <span className="text-zinc-500">—</span>;
+  if (!url) return missing ? <MissingBadge /> : <span className="text-zinc-500">—</span>;
   if (!/^https?:\/\/\S+$/i.test(url)) {
     return <span className="block max-w-40 truncate text-xs text-zinc-400" title={url}>{url}</span>;
   }
@@ -100,6 +144,10 @@ export default function SessionsPage() {
   const [tutorFilter, setTutorFilter] = useState([]); // tutor profile ids
   const [columnVisibility, setColumnVisibility] = useState({}); // { [columnId]: false } hides
   const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled' | 'attended' | 'cancelled'
+  // Post-session content filter (Attended tab only). The API does the
+  // filtering; `contentSessions` holds its result while a filter is active.
+  const [contentFilter, setContentFilter] = useState('all');
+  const [contentSessions, setContentSessions] = useState(null);
   const [selectedStudentId, setSelectedStudentId] = useState(studentIdQuery || '');
 
   // User role context
@@ -162,16 +210,51 @@ export default function SessionsPage() {
     }
   };
 
-  const fetchSessions = async () => {
+  // `sessions` is always the unfiltered list: it feeds the tutor options and
+  // the New Session drawer's credit maths. While a Content filter is active
+  // the table instead shows the API's filtered result, refreshed together.
+  const fetchSessions = async (content = contentFilter) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/api/sessions/');
-      setSessions(res.data.sessions || []);
+      const [all, filtered] = await Promise.all([
+        api.get('/api/sessions/'),
+        content && content !== 'all' ? api.get('/api/sessions/', { params: { content } }) : Promise.resolve(null),
+      ]);
+      setSessions(all.data.sessions || []);
+      setContentSessions(filtered ? filtered.data.sessions || [] : null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load sessions.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyContentFilter = async (value) => {
+    setContentFilter(value);
+    if (value === 'all') {
+      setContentSessions(null);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.get('/api/sessions/', { params: { content: value } });
+      setContentSessions(res.data.sessions || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load sessions.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // The Content filter only means something on the Attended tab; leaving the
+  // tab drops it so the other tabs always show their full lists.
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    if (tab !== 'attended' && contentFilter !== 'all') {
+      setContentFilter('all');
+      setContentSessions(null);
     }
   };
 
@@ -199,6 +282,8 @@ export default function SessionsPage() {
       setRecLink(session.recording_link || '');
       setNotesLink(session.notes_link || '');
       setHwLink(session.homework_link || '');
+    } else if (type === 'notes' && session) {
+      setNotesLink(session.notes_link || '');
     } else if (type === 'cancel' && session) {
       setCancelReason('');
       setNeedMakeup(false);
@@ -304,11 +389,14 @@ export default function SessionsPage() {
   const handleMarkAttended = async (e) => {
     e.preventDefault();
 
-    // Match the staff flow: recording, notes, and homework are captured and
-    // required at the moment a class is marked attended.
-    const links = [recLink, notesLink, hwLink].map(l => l.trim());
-    if (links.some(l => !isHttpsUrl(l))) {
-      setModalError('All three links are required and must be valid https:// URLs.');
+    // Attendance is recorded on its own. The mentor's two links (recording,
+    // homework) may come now or later and the notes come from the tutor; the
+    // API reports the class as Pending until all three exist. Whatever is
+    // typed here must still be a real https URL.
+    const rec = recLink.trim();
+    const hw = hwLink.trim();
+    if ((rec && !isHttpsUrl(rec)) || (hw && !isHttpsUrl(hw))) {
+      setModalError('Links must be valid https:// URLs.');
       return;
     }
 
@@ -319,9 +407,8 @@ export default function SessionsPage() {
       await api.put('/api/sessions/', {
         id: activeSession.id,
         status: 'ATTENDED',
-        recording_link: links[0],
-        notes_link: links[1],
-        homework_link: links[2]
+        recording_link: rec || null,
+        homework_link: hw || null
       });
       fetchSessions();
       closeModal();
@@ -332,13 +419,39 @@ export default function SessionsPage() {
     }
   };
 
+  // Tutor's post-session responsibility: the notes link, and only that. The
+  // API refuses anything else from a tutor.
+  const handleSaveNotes = async (e) => {
+    e.preventDefault();
+    const link = notesLink.trim();
+    if (!isHttpsUrl(link)) {
+      setModalError('Enter a valid https:// link to the class notes.');
+      return;
+    }
+
+    setSaving(true);
+    setModalError('');
+
+    try {
+      await api.put('/api/sessions/', { id: activeSession.id, notes_link: link });
+      fetchSessions();
+      closeModal();
+    } catch (err) {
+      setModalError(err.response?.data?.error || err.response?.data?.message || 'Failed to save the notes link.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const clearStudentFilter = () => {
     setSelectedStudentId('');
     setSearchParams({});
   };
 
-  // Filter sessions
-  const filteredSessions = sessions.filter(session => {
+  // Filter sessions. With a Content filter active the rows come from the API's
+  // filtered result (attended only); the title/date/tutor filters still apply.
+  const tableSource = contentFilter !== 'all' && contentSessions ? contentSessions : sessions;
+  const filteredSessions = tableSource.filter(session => {
     const studentMatch = selectedStudentId ? (session.student_id === selectedStudentId || session.student?.id === selectedStudentId) : true;
     const tabMatch = session.status?.toLowerCase() === activeTab;
     const title = searchTerm.trim().toLowerCase();
@@ -364,13 +477,18 @@ export default function SessionsPage() {
         ).values()
       ).sort((a, b) => a.name.localeCompare(b.name));
 
-  const hasActiveFilters = Boolean(searchTerm) || Boolean(dateRange?.from || dateRange?.to) || tutorFilter.length > 0;
+  const hasActiveFilters =
+    Boolean(searchTerm) || Boolean(dateRange?.from || dateRange?.to) || tutorFilter.length > 0 || contentFilter !== 'all';
 
   const clearFilters = () => {
     setSearchTerm('');
     setDateRange(undefined);
     setTutorFilter([]);
+    setContentFilter('all');
+    setContentSessions(null);
   };
+
+  const contentFilterLabel = CONTENT_FILTERS.find((o) => o.value === contentFilter)?.label;
 
   const dateLabel = (() => {
     if (!dateRange?.from && !dateRange?.to) return 'Date range';
@@ -423,7 +541,7 @@ export default function SessionsPage() {
       cellClass: 'text-sm text-zinc-300 whitespace-nowrap',
       cell: (s) => `${TIME_FORMAT.format(new Date(s.start_time))} - ${TIME_FORMAT.format(new Date(s.end_time))}`,
     },
-    { id: 'status', label: 'Status', cell: (s) => <StatusBadge status={s.status} reason={s.cancellation_reason} /> },
+    { id: 'status', label: 'Status', cell: (s) => <StatusBadge session={s} /> },
     {
       id: 'student',
       label: 'Student',
@@ -470,9 +588,11 @@ export default function SessionsPage() {
         );
       },
     },
-    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" /> },
-    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" /> },
-    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" /> },
+    // Attended-only columns. Each required item that is still absent gets the
+    // Missing badge; rating is optional and stays "—" when unset.
+    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} /> },
+    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} /> },
+    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} /> },
     {
       id: 'rating',
       label: 'Rating',
@@ -571,6 +691,29 @@ export default function SessionsPage() {
           </DropdownMenu>
         )}
 
+        {activeTab === 'attended' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Content
+                {contentFilter !== 'all' ? <span className="text-muted-foreground ml-1">({contentFilterLabel})</span> : null}
+                <ChevronDown className="ml-1 size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Content</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup value={contentFilter} onValueChange={applyContentFilter}>
+                {CONTENT_FILTERS.map((opt) => (
+                  <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
             <X className="size-4" />
@@ -623,7 +766,7 @@ export default function SessionsPage() {
         {['scheduled', 'attended', 'cancelled'].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => switchTab(tab)}
             className={`pb-3 text-sm font-medium transition-colors relative capitalize cursor-pointer ${
               activeTab === tab 
                 ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white' 
@@ -667,7 +810,17 @@ export default function SessionsPage() {
                     ))}
 
                     <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
-                      {userRole !== 'TUTOR' && (
+                      {userRole === 'TUTOR' ? (
+                        // Tutors own the notes link and nothing else; a
+                        // cancelled class has no notes to add.
+                        activeTab !== 'cancelled' && (
+                          <StaffActionsDropdown
+                            items={[
+                              { label: session.notes_link ? 'Update Notes' : 'Add Notes', onClick: () => openModal('notes', session) },
+                            ]}
+                          />
+                        )
+                      ) : (
                         <StaffActionsDropdown
                           items={[
                             ...(activeTab === 'scheduled' ? [
@@ -702,19 +855,74 @@ export default function SessionsPage() {
               <form onSubmit={handleMarkAttended} className="space-y-4">
                 {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
 
-                <p className="text-[11px] text-zinc-500 m-0">All three links are required to mark this class attended.</p>
+                <p className="text-[11px] text-zinc-500 m-0">
+                  Recording and homework can be added now or later; the tutor adds the notes.
+                  The class shows as <span className="text-amber-400">Pending</span> until all three are available.
+                </p>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Recording Link</label>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Recording Link <span className="text-zinc-600 normal-case tracking-normal font-medium">(optional)</span></label>
                   <input
                     type="url"
                     placeholder="https://drive.google.com/..."
                     value={recLink}
                     onChange={(e) => setRecLink(e.target.value)}
                     className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                    required
                   />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Homework Assignment Link <span className="text-zinc-600 normal-case tracking-normal font-medium">(optional)</span></label>
+                  <input
+                    type="url"
+                    placeholder="https://classroom.google.com/..."
+                    value={hwLink}
+                    onChange={(e) => setHwLink(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes <span className="text-zinc-600 normal-case tracking-normal font-medium">(added by the tutor)</span></span>
+                  {activeSession?.notes_link
+                    ? <Badge variant="success"><Check />Available</Badge>
+                    : <Badge variant="warning"><AlertTriangle />Not added yet</Badge>}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white border border-white/10 rounded-lg hover:bg-white/10 transition-all"
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    Mark Attended
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Tutor: Add / Update Notes Link */}
+          {modalType === 'notes' && (
+            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+              <h3 className="text-base font-semibold text-white m-0">{activeSession?.notes_link ? 'Update Notes Link' : 'Add Notes Link'}</h3>
+              <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
+
+              <form onSubmit={handleSaveNotes} className="space-y-4">
+                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+
+                <p className="text-[11px] text-zinc-500 m-0">
+                  Link to your notes for this class. Once the recording and homework are in as well, the class shows as Attended.
+                </p>
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes Link</label>
@@ -723,18 +931,6 @@ export default function SessionsPage() {
                     placeholder="https://docs.google.com/..."
                     value={notesLink}
                     onChange={(e) => setNotesLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Homework Assignment Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://classroom.google.com/..."
-                    value={hwLink}
-                    onChange={(e) => setHwLink(e.target.value)}
                     className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
                     required
                   />
@@ -754,8 +950,8 @@ export default function SessionsPage() {
                     className="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
                     disabled={saving}
                   >
-                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                    Mark Attended
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                    Save Notes
                   </button>
                 </div>
               </form>
