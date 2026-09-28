@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  Loader2, Search, Calendar, Clock, Video, FileText, 
-  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Star, Check, ExternalLink
+  Loader2, Search, Calendar, Video, FileText, 
+  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink
 } from 'lucide-react';
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
+import { Badge } from '../components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 
 const ALLOWED_DURATIONS = [
   { label: '30 mins', value: 0.5 },
@@ -18,6 +20,57 @@ const ALLOWED_DURATIONS = [
 const MEET_PREFIX = 'https://meet.google.com/';
 
 const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
+
+// Hub-style table formats. Times stay browser-local, as this table always was.
+const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+const STATUS_LABEL = { scheduled: 'Scheduled', attended: 'Attended', cancelled: 'Cancelled' };
+const STATUS_VARIANT = { scheduled: 'secondary', attended: 'success', cancelled: 'destructive' };
+
+// Status badge as the Hub renders it; a cancelled session shows its reason on hover.
+function StatusBadge({ status, reason }) {
+  const key = (status || '').toLowerCase();
+  const badge = <Badge variant={STATUS_VARIANT[key] || 'secondary'}>{STATUS_LABEL[key] || 'Scheduled'}</Badge>;
+  if (key === 'cancelled' && reason) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help">{badge}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="max-w-xs">{reason}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  return badge;
+}
+
+// A session resource (recording / notes / homework link). The Hub prints the
+// URL truncated; a compact open-in-new-tab action keeps this wider table
+// usable. "—" when unset; a value that is not a web URL is shown as text.
+function ResourceLink({ href, icon: Icon, label }) {
+  const url = (href || '').trim();
+  if (!url) return <span className="text-zinc-500">—</span>;
+  if (!/^https?:\/\/\S+$/i.test(url)) {
+    return <span className="block max-w-40 truncate text-xs text-zinc-400" title={url}>{url}</span>;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={url}
+      aria-label={label}
+      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white whitespace-nowrap transition-colors"
+    >
+      <Icon className="w-3.5 h-3.5 shrink-0" />
+      Open
+      <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
+    </a>
+  );
+}
 
 export default function SessionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -403,15 +456,18 @@ export default function SessionsPage() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[#0f0f0f]">
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Class Title</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Session Title</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Date</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Time</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Status</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Student</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Schedule</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Meeting</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Tutor</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Mentor</th>
-                  {activeTab === 'attended' && <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Rating</th>}
-                  {activeTab === 'cancelled' && <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Cancellation Reason</th>}
-                  {activeTab === 'attended' && <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Resources</th>}
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Student's Mentor</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Meeting</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Recording</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Notes</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Homework</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Rating</th>
                   <th className="h-12 px-4 w-10"></th>
                 </tr>
               </thead>
@@ -419,16 +475,16 @@ export default function SessionsPage() {
                 {filteredSessions.map((session) => {
                   const sName = session.students?.full_name || session.student_profile?.full_name || session.student?.full_name || '—';
                   const sCode = session.students?.student_code || session.student_profile?.student_code || session.student?.student_code || '';
-                  const tName = session.tutor_profile?.full_name || session.tutor?.full_name || 'Not Assigned';
-                  const mName = session.students?.mentor_profile?.full_name || '—';
+                  const tName = session.tutor_profile?.full_name || session.tutor_profile?.email || '—';
+                  const mName = session.students?.mentor_profile?.full_name || session.students?.mentor_profile?.email || '—';
                   // The student's own Meet room (students.meet_link), nested by the
                   // Sessions API. Only a real https URL gets a Join button.
                   const meetLink = (session.students?.meet_link || '').trim();
                   
                   const start = new Date(session.start_time);
                   const end = new Date(session.end_time);
-                  const timeStr = `${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-                  const dateStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  const dateStr = DATE_FORMAT.format(start);
+                  const timeStr = `${TIME_FORMAT.format(start)} - ${TIME_FORMAT.format(end)}`;
 
                   return (
                     <tr 
@@ -445,24 +501,19 @@ export default function SessionsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="py-2 px-4 text-sm text-zinc-300 align-middle whitespace-nowrap">{dateStr}</td>
+                      <td className="py-2 px-4 text-sm text-zinc-300 align-middle whitespace-nowrap">{timeStr}</td>
+                      <td className="py-2 px-4 align-middle">
+                        <StatusBadge status={session.status} reason={session.cancellation_reason} />
+                      </td>
                       <td className="py-2 px-4 align-middle">
                         <div className="flex flex-col gap-0.5">
                           <span className="font-medium text-white text-sm">{sName}</span>
                           <span className="text-xs text-[#a1a1aa] font-mono">{sCode}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-4 align-middle">
-                        <div className="flex flex-col gap-0.5 text-zinc-300">
-                          <span className="flex items-center gap-1.5 text-sm">
-                            <Calendar className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                            {dateStr}
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-                            <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                            {timeStr}
-                          </span>
-                        </div>
-                      </td>
+                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{tName}</td>
+                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{mName}</td>
                       <td className="py-2 px-4 align-middle">
                         {isHttpsUrl(meetLink) ? (
                           <a
@@ -480,56 +531,22 @@ export default function SessionsPage() {
                           <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
                         )}
                       </td>
-                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{tName}</td>
-                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{mName}</td>
-                      
-                      {activeTab === 'attended' && (
-                        <td className="py-2 px-4 align-middle">
-                          {session.rating ? (
-                            <div className="flex items-center gap-0.5">
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <Star 
-                                  key={star} 
-                                  className={`w-3.5 h-3.5 ${star <= session.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'}`} 
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-zinc-500 italic">Not rated</span>
-                          )}
-                        </td>
-                      )}
-
-                      {activeTab === 'cancelled' && (
-                        <td className="py-2 px-4 text-xs text-zinc-400 align-middle max-w-[200px] truncate" title={session.cancellation_reason}>
-                          {session.cancellation_reason || '—'}
-                        </td>
-                      )}
-
-                      {activeTab === 'attended' && (
-                        <td className="py-2 px-4 align-middle">
-                          <div className="flex gap-2">
-                            {session.recording_link && (
-                              <a href={session.recording_link} target="_blank" rel="noreferrer" title="Recording Link" className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors">
-                                <Video className="w-4 h-4" />
-                              </a>
-                            )}
-                            {session.notes_link && (
-                              <a href={session.notes_link} target="_blank" rel="noreferrer" title="Notes Link" className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors">
-                                <FileText className="w-4 h-4" />
-                              </a>
-                            )}
-                            {session.homework_link && (
-                              <a href={session.homework_link} target="_blank" rel="noreferrer" title="Homework Link" className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors">
-                                <BookOpen className="w-4 h-4" />
-                              </a>
-                            )}
-                            {!session.recording_link && !session.notes_link && !session.homework_link && (
-                              <span className="text-xs text-zinc-500">—</span>
-                            )}
-                          </div>
-                        </td>
-                      )}
+                      <td className="py-2 px-4 align-middle">
+                        <ResourceLink href={session.recording_link} icon={Video} label="Open recording" />
+                      </td>
+                      <td className="py-2 px-4 align-middle">
+                        <ResourceLink href={session.notes_link} icon={FileText} label="Open notes" />
+                      </td>
+                      <td className="py-2 px-4 align-middle">
+                        <ResourceLink href={session.homework_link} icon={BookOpen} label="Open homework" />
+                      </td>
+                      <td className="py-2 px-4 text-sm align-middle whitespace-nowrap">
+                        {session.rating != null ? (
+                          <span className="text-zinc-300">{session.rating}/5</span>
+                        ) : (
+                          <span className="text-zinc-500">—</span>
+                        )}
+                      </td>
 
                       <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
                         {userRole !== 'TUTOR' && (
