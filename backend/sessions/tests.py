@@ -712,3 +712,101 @@ class SessionWritePermissionAndValidationTests(APITestCase):
         self.assertIsNotNone(log)
         self.assertNotIn("tutor", log.changes)
         self.assertNotIn("old_tutor_id", log.context or {})
+
+
+from datetime import datetime, timezone as dt_timezone
+
+
+class SessionLocalTimeSchedulingTests(APITestCase):
+    """
+    Hub parity for the "New Session" sheet: a class is entered as the
+    student's local wall-clock time plus an IANA zone, and the API converts it
+    to the UTC instant (rejecting DST gaps, resolving fall-back repeats to the
+    earlier instant). The legacy UTC ``start_time`` shape still works.
+    """
+
+    def setUp(self):
+        self.mentor = User.objects.create_user(email='tz_mentor@eduport.com', password='x', full_name='Tz Mentor', role='MENTOR', is_staff=True)
+        self.tutor = User.objects.create_user(email='tz_tutor@eduport.com', password='x', full_name='Tz Tutor', role='TUTOR', is_staff=True)
+        self.student = Student.objects.create(
+            profile=User.objects.create_user(email='tz_student@eduport.com', password='x', full_name='Tz Stu', role='STUDENT'),
+            student_code='EDPTZ', full_name='Tz Stu', mentor=self.mentor, tutor=self.tutor,
+            total_class_quota=10, status=StatusChoices.ACTIVE,
+        )
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+        self.client.force_authenticate(user=self.mentor)
+
+    def create(self, zone, items, series=False, title='Real Numbers'):
+        payload = {"student_id": str(self.student.id), "base_title": title, "series": series, "items": items}
+        if zone is not None:
+            payload["timezone"] = zone
+        return self.client.post(self.sessions_url, payload, format='json')
+
+    def test_local_time_is_converted_in_the_given_zone(self):
+        res = self.create('Asia/Dubai', [{"local_date": "2026-10-05", "local_time": "17:00", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        session = Session.objects.get(id=res.data['sessions'][0]['id'])
+        # 5 PM Gulf (UTC+4) is 1 PM UTC; a 1-hour class ends an hour later.
+        self.assertEqual(session.start_time, datetime(2026, 10, 5, 13, 0, tzinfo=dt_timezone.utc))
+        self.assertEqual(session.end_time, datetime(2026, 10, 5, 14, 0, tzinfo=dt_timezone.utc))
+
+    def test_series_keeps_each_local_start_across_a_clock_change(self):
+        # UK clocks go back on 25 Oct 2026: 10:00 BST is 09:00Z, 10:00 GMT is 10:00Z.
+        res = self.create('Europe/London', [
+            {"local_date": "2026-10-24", "local_time": "10:00", "duration_hours": 1},
+            {"local_date": "2026-10-26", "local_time": "10:00", "duration_hours": 1},
+        ], series=True)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        starts = sorted(Session.objects.filter(student=self.student).values_list('start_time', flat=True))
+        self.assertEqual(starts, [
+            datetime(2026, 10, 24, 9, 0, tzinfo=dt_timezone.utc),
+            datetime(2026, 10, 26, 10, 0, tzinfo=dt_timezone.utc),
+        ])
+        titles = set(Session.objects.filter(student=self.student).values_list('title', flat=True))
+        self.assertEqual(titles, {'Real Numbers - Class 1', 'Real Numbers - Class 2'})
+
+    def test_time_inside_a_spring_forward_gap_is_rejected(self):
+        # US clocks jump from 02:00 to 03:00 on 8 Mar 2026, so 02:30 never happens.
+        res = self.create('America/New_York', [{"local_date": "2026-03-08", "local_time": "02:30", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('does not exist', res.data['error'])
+        self.assertEqual(Session.objects.filter(student=self.student).count(), 0)
+
+    def test_ambiguous_fall_back_time_resolves_to_the_earlier_instant(self):
+        # 01:30 on 1 Nov 2026 happens twice in New York; the first (EDT) wins.
+        res = self.create('America/New_York', [{"local_date": "2026-11-01", "local_time": "01:30", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        session = Session.objects.get(id=res.data['sessions'][0]['id'])
+        self.assertEqual(session.start_time, datetime(2026, 11, 1, 5, 30, tzinfo=dt_timezone.utc))
+
+    def test_unknown_timezone_is_rejected(self):
+        res = self.create('Mars/Olympus_Mons', [{"local_date": "2026-10-05", "local_time": "17:00", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Unknown time zone', res.data['error'])
+
+    def test_local_time_requires_a_zone_and_both_parts(self):
+        res = self.create(None, [{"local_date": "2026-10-05", "local_time": "17:00", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('timezone is required', res.data['error'])
+
+        res = self.create('Asia/Dubai', [{"local_date": "2026-10-05", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('supplied together', res.data['error'])
+
+        res = self.create('Asia/Dubai', [{"local_date": "2026-02-30", "local_time": "17:00", "duration_hours": 1}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('not a real date', res.data['error'])
+
+    def test_legacy_utc_start_time_still_accepted(self):
+        start = timezone.now() + timedelta(days=3)
+        res = self.create(None, [{"start_time": start.isoformat(), "duration_hours": 0.5}])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        res = self.create(None, [{"duration_hours": 0.5}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('start_time', res.data['error'])
+
+    def test_title_is_title_cased_like_the_hub(self):
+        res = self.create('Asia/Kolkata', [{"local_date": "2026-10-05", "local_time": "09:00", "duration_hours": 1}], title='  real   NUMBERS ')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['sessions'][0]['title'], 'Real Numbers')

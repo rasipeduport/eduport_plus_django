@@ -573,3 +573,69 @@ class StudentActionsAPITests(APITestCase):
         self.assertEqual(history.status_code, status.HTTP_200_OK)
         self.assertEqual(history.data["results"][0]["action"], 'student.purge')
         self.assertIsNone(history.data["results"][0]["student_name"])
+
+
+class StudentTimezoneTests(APITestCase):
+    """
+    The "New Session" sheet writes the zone it schedules in back to the
+    student. PUT /api/students/ validates it against the zone database, blank
+    clears it, and each change is logged as student.update_timezone.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="tz_admin@eduport.com", password="password", full_name="Tz Admin", role="ADMIN"
+        )
+        self.student = Student.objects.create(
+            student_code="TZ001", full_name="Tz Student",
+            profile=User.objects.create_user(
+                email="tz_student@eduport.com", password="password", full_name="Tz Student", role="STUDENT"
+            ),
+        )
+        self.url = reverse('students:student-list')
+        self.client.force_authenticate(user=self.admin)
+
+    def put(self, **fields):
+        return self.client.put(self.url, {"id": str(self.student.id), **fields}, format='json')
+
+    def test_list_exposes_raw_timezone(self):
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIsNone(res.data[0]["timezone"])
+
+        self.student.timezone = "Asia/Dubai"
+        self.student.save()
+        res = self.client.get(self.url)
+        self.assertEqual(res.data[0]["timezone"], "Asia/Dubai")
+
+    def test_set_timezone_is_validated_and_logged(self):
+        from activity.models import ActivityLog
+        res = self.put(timezone=" Asia/Dubai ")
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.timezone, "Asia/Dubai")
+        log = ActivityLog.objects.filter(action='student.update_timezone', student=self.student).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.changes["timezone"], {"old": None, "new": "Asia/Dubai"})
+
+        # Re-sending the same zone is not a change and logs nothing new.
+        res = self.put(timezone="Asia/Dubai")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(ActivityLog.objects.filter(action='student.update_timezone', student=self.student).count(), 1)
+
+    def test_unknown_timezone_is_rejected(self):
+        for bad in ("Mars/Olympus_Mons", 123, ["Asia/Dubai"]):
+            with self.subTest(value=bad):
+                res = self.put(timezone=bad)
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(res.data["error"], "INVALID_TIMEZONE")
+        self.student.refresh_from_db()
+        self.assertIsNone(self.student.timezone)
+
+    def test_blank_clears_timezone(self):
+        self.student.timezone = "Asia/Dubai"
+        self.student.save()
+        res = self.put(timezone=None)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.student.refresh_from_db()
+        self.assertIsNone(self.student.timezone)

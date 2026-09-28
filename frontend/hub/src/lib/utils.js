@@ -28,6 +28,17 @@ export function formatDate(value, options = { month: 'short', day: 'numeric', ye
   return new Date(value).toLocaleDateString('en-US', options);
 }
 
+// The title the API stores: whitespace collapsed, every word Title-Cased
+// (mirrors sessions.services.normalize_title and the Hub's normalizeTitle).
+export function normalizeTitle(raw) {
+  return (raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+}
+
 // Validators shared by the invitation / staff forms.
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const MEET_RE = /^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/;

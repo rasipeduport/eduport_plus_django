@@ -19,6 +19,7 @@ from core.permissions import IsAdminUser, IsStaffUser, IsStudentUser
 from core.querysets import scope_students_by_role
 from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
+from core.timezones import is_valid_timezone
 
 User = get_user_model()
 
@@ -232,6 +233,9 @@ class StudentListView(APIView):
                 "remarks_for_mentor": s.remarks_for_mentor or "",
                 "status": s.status.lower(),
                 "status_note": s.status_note or "",
+                # Raw value: the scheduling sheet tells "unset" (offer the IST
+                # default, say it is unset) apart from an explicit choice.
+                "timezone": s.timezone,
                 "profile": {
                     "email": s.profile.email if s.profile else "",
                     "avatar_url": s.profile.avatar_url if s.profile else None
@@ -284,6 +288,7 @@ class StudentListView(APIView):
         before_meet_link = student.meet_link
         before_quota = student.total_class_quota
         before_status = student.status
+        before_timezone = student.timezone
 
         # Update fields if present in request.data
         if "meet_link" in request.data:
@@ -296,6 +301,21 @@ class StudentListView(APIView):
             except (ValueError, TypeError):
                 return Response(
                     {"error": "INVALID_INPUT", "message": "total_class_quota must be an integer."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # IANA zone the student's sessions are scheduled in (the "New Session"
+        # sheet writes it back when the mentor picks a different one). Checked
+        # against the runtime's zone database, not an enum; blank/null clears.
+        if "timezone" in request.data:
+            raw_tz = request.data.get("timezone")
+            if raw_tz in (None, ""):
+                student.timezone = None
+            elif isinstance(raw_tz, str) and is_valid_timezone(raw_tz.strip()):
+                student.timezone = raw_tz.strip()
+            else:
+                return Response(
+                    {"error": "INVALID_TIMEZONE", "message": "Unknown time zone."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -401,6 +421,17 @@ class StudentListView(APIView):
                 entity_label=student.full_name,
                 student=student,
                 changes={"total_class_quota": {"old": before_quota, "new": student.total_class_quota}},
+                request=request,
+            )
+
+        if "timezone" in request.data and student.timezone != before_timezone:
+            log_activity(
+                action='student.update_timezone',
+                entity_type='student',
+                entity_id=str(student.id),
+                entity_label=student.full_name,
+                student=student,
+                changes={"timezone": {"old": before_timezone, "new": student.timezone}},
                 request=request,
             )
 

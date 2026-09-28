@@ -10,7 +10,7 @@ class StudentAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('profile', 'student_code', 'full_name')}),
         ('Academic Info', {'fields': ('school_name', 'grade', 'syllabus', 'admission_date')}),
-        ('Contact Info', {'fields': ('mobile_number', 'country', 'state')}),
+        ('Contact Info', {'fields': ('mobile_number', 'country', 'state', 'timezone')}),
         ('Staff Assignment', {'fields': ('mentor', 'tutor', 'meet_link')}),
         ('Quota & Remarks', {'fields': ('total_class_quota', 'remarks_for_mentor')}),
         ('Status', {'fields': ('status', 'status_note')}),

@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
   Loader2, Search, Calendar, Clock, Video, FileText, 
-  BookOpen, Plus, X, Link2, AlertTriangle, RefreshCw, Star, Check
+  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Star, Check
 } from 'lucide-react';
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
+import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 
 const ALLOWED_DURATIONS = [
   { label: '30 mins', value: 0.5 },
@@ -37,19 +38,14 @@ export default function SessionsPage() {
   const [currentUser, setCurrentUser] = useState(null);
 
   // Modals active state
-  const [modalType, setModalType] = useState(null); // 'create' | 'reschedule' | 'links' | 'cancel'
+  const [modalType, setModalType] = useState(null); // 'attend' | 'reschedule' | 'links' | 'cancel'
   const [activeSession, setActiveSession] = useState(null);
 
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
 
-  // Form states for creating/editing
-  const [createStudentId, setCreateStudentId] = useState('');
-  const [createTitle, setCreateTitle] = useState('');
-  const [isSeries, setIsSeries] = useState(false);
-  // Each class in a booking carries its own date/time + duration. Single
-  // bookings use the first row; series uses every row.
-  const [classRows, setClassRows] = useState([{ startTime: '', duration: 1.0 }]);
+  // "New Session" drawer (Hub parity): its form state lives in the sheet.
+  const [createOpen, setCreateOpen] = useState(false);
 
   // Form states for rescheduling
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -116,12 +112,7 @@ export default function SessionsPage() {
     setModalError('');
     setSaving(false);
 
-    if (type === 'create') {
-      setCreateStudentId(selectedStudentId);
-      setCreateTitle('');
-      setIsSeries(false);
-      setClassRows([{ startTime: '', duration: 1.0 }]);
-    } else if (type === 'attend' && session) {
+    if (type === 'attend' && session) {
       setRecLink(session.recording_link || '');
       setNotesLink(session.notes_link || '');
       setHwLink(session.homework_link || '');
@@ -151,57 +142,6 @@ export default function SessionsPage() {
     setModalType(null);
     setActiveSession(null);
     setModalError('');
-  };
-
-  const addClassRow = () => {
-    setClassRows(prev => (prev.length >= 20 ? prev : [...prev, { startTime: '', duration: 1.0 }]));
-  };
-
-  const removeClassRow = (index) => {
-    setClassRows(prev => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
-  };
-
-  const updateClassRow = (index, field, value) => {
-    setClassRows(prev => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
-  };
-
-  const handleCreateSession = async (e) => {
-    e.preventDefault();
-    if (!createStudentId) {
-      setModalError('Please select a student.');
-      return;
-    }
-
-    // Single bookings use only the first row; a series uses every row, each
-    // with its own date/time + duration.
-    const rows = isSeries ? classRows : classRows.slice(0, 1);
-    if (rows.some(r => !r.startTime)) {
-      setModalError('Please set a date & time for every class.');
-      return;
-    }
-
-    setSaving(true);
-    setModalError('');
-
-    const items = rows.map(r => ({
-      start_time: new Date(r.startTime).toISOString(),
-      duration_hours: Number(r.duration)
-    }));
-
-    try {
-      await api.post('/api/sessions/', {
-        student_id: createStudentId,
-        base_title: createTitle.trim(),
-        series: isSeries,
-        items
-      });
-      fetchSessions();
-      closeModal();
-    } catch (err) {
-      setModalError(err.response?.data?.error || 'Failed to create session.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleReschedule = async (e) => {
@@ -348,6 +288,16 @@ export default function SessionsPage() {
     return s ? s.full_name : 'Unknown Student';
   };
 
+  // Drawer inputs: the student behind the filter and their live quota usage.
+  // Credits used mirrors the API's calculate_credits_used (hours of every
+  // non-cancelled session) over the same list the table renders.
+  const selectedStudent = students.find(s => s.id === selectedStudentId) || null;
+  const creditsUsed = selectedStudent
+    ? sessions
+        .filter(s => s.student_id === selectedStudent.id && s.status?.toLowerCase() !== 'cancelled')
+        .reduce((sum, s) => sum + Math.max(0, (new Date(s.end_time) - new Date(s.start_time)) / 3600000), 0)
+    : 0;
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-full box-border">
       
@@ -406,7 +356,7 @@ export default function SessionsPage() {
 
         {selectedStudentId && userRole !== 'TUTOR' && (
           <button 
-            onClick={() => openModal('create')}
+            onClick={() => setCreateOpen(true)}
             className="h-10 px-4 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center gap-2 self-stretch sm:self-auto shrink-0 justify-center cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -588,137 +538,6 @@ export default function SessionsPage() {
       {modalType && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-4">
           
-          {/* 1. Create Session Modal */}
-          {modalType === 'create' && (
-            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
-              <h3 className="text-base font-semibold text-white m-0">Create New Session</h3>
-              <p className="text-xs text-zinc-400 mt-1 mb-6">Schedule 1-to-1 live classes for students</p>
-
-              <form onSubmit={handleCreateSession} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
-                
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Select Student</label>
-                  <select
-                    value={createStudentId}
-                    onChange={(e) => setCreateStudentId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-60 disabled:cursor-not-allowed"
-                    required
-                    disabled={!!selectedStudentId}
-                  >
-                    <option value="">-- Choose Student --</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.full_name} ({s.student_code})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Topic / Base Title</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Mathematics, Science Class"
-                    value={createTitle}
-                    onChange={(e) => setCreateTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                    required
-                  />
-                </div>
-
-                {/* Series toggle */}
-                <div className="flex items-center gap-2.5 pt-0.5">
-                  <input
-                    id="is-series"
-                    type="checkbox"
-                    checked={isSeries}
-                    onChange={(e) => setIsSeries(e.target.checked)}
-                    className="rounded border-zinc-700 bg-zinc-950 text-white focus:ring-white/20"
-                  />
-                  <label htmlFor="is-series" className="text-xs font-semibold text-zinc-300 select-none cursor-pointer">
-                    Series (schedule multiple classes)
-                  </label>
-                </div>
-
-                {/* Per-class rows: each class has its own date/time + duration */}
-                <div className="space-y-3">
-                  {(isSeries ? classRows : classRows.slice(0, 1)).map((row, index) => (
-                    <div key={index} className="bg-white/[0.02] border border-white/5 rounded-lg p-3 space-y-2">
-                      {isSeries && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Class {index + 1}</span>
-                          {classRows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeClassRow(index)}
-                              className="text-zinc-500 hover:text-red-400 transition-colors cursor-pointer"
-                              aria-label="Remove class"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Date & Time</label>
-                          <input
-                            type="datetime-local"
-                            value={row.startTime}
-                            onChange={(e) => updateClassRow(index, 'startTime', e.target.value)}
-                            className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Duration</label>
-                          <select
-                            value={row.duration}
-                            onChange={(e) => updateClassRow(index, 'duration', Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-                          >
-                            {ALLOWED_DURATIONS.map(d => (
-                              <option key={d.value} value={d.value}>{d.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {isSeries && (
-                    <button
-                      type="button"
-                      onClick={addClassRow}
-                      disabled={classRows.length >= 20}
-                      className="w-full py-2 border border-dashed border-white/15 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white hover:border-white/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add Class ({classRows.length}/20)
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-3">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white border border-white/10 rounded-lg hover:bg-white/10 transition-all"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    Create {isSeries ? 'Series' : 'Session'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
           {/* Mark Attended Modal — captures required resource links */}
           {modalType === 'attend' && (
             <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
@@ -1003,6 +822,19 @@ export default function SessionsPage() {
 
         </div>
       )}
+
+      {/* New Session drawer (Hub parity). Refetch students too: saving may
+          have written the student's timezone. */}
+      <NewSessionSheet
+        student={selectedStudent}
+        creditsUsed={creditsUsed}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={() => {
+          fetchSessions();
+          fetchStudents();
+        }}
+      />
 
     </div>
   );

@@ -6,6 +6,7 @@ export const ACTION_LABELS = {
   'student.update_status': 'Status changed',
   'student.update_quota': 'Quota changed',
   'student.update_meet_link': 'Meet link updated',
+  'student.update_timezone': 'Timezone changed',
   'student.update_details': 'Profile updated',
   'student.reassign_mentor': 'Mentor reassigned',
   'student.reassign_tutor': 'Tutor reassigned',
@@ -85,6 +86,10 @@ export function describeActivity(row) {
     }
     case 'student.update_meet_link':
       return 'Updated the meet link';
+    case 'student.update_timezone': {
+      const t = c.timezone;
+      return t ? `Changed timezone from ${formatValue(t.old)} to ${formatValue(t.new)}` : 'Updated the timezone';
+    }
     case 'student.update_details':
       return 'Updated the profile';
     case 'student.reassign_mentor': {

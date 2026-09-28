@@ -42,6 +42,16 @@ class Student(models.Model):
         related_name='tutored_students'
     )
     meet_link = models.URLField(max_length=1024, blank=True, null=True)
+    # IANA zone the student's sessions are scheduled and displayed in
+    # (e.g. Asia/Dubai). NULL means unset; callers fall back to
+    # core.timezones.DEFAULT_TIMEZONE (IST), which is how sessions were
+    # always entered before the column existed.
+    timezone = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="IANA time zone identifier (e.g. Asia/Dubai) used to schedule and display this student's sessions. Blank means unset; callers fall back to Asia/Kolkata.",
+    )
     total_class_quota = models.IntegerField(default=0)
     remarks_for_mentor = models.TextField(blank=True, null=True)
     status = models.CharField(

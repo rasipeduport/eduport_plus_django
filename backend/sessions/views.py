@@ -16,6 +16,7 @@ from core.permissions import IsStaffOrSelfStudent
 from core.querysets import scope_sessions_by_role
 from core.students import resolve_selected_student
 from core.pagination import paginate_queryset
+from core.timezones import TimezoneConversionError, is_valid_timezone
 from .models import Session, SessionStatusChoices
 from .serializers import SessionSerializer
 from .services import (
@@ -23,6 +24,7 @@ from .services import (
     MAX_SERIES_ITEMS,
     normalize_title,
     parse_iso_datetime,
+    resolve_start_time,
     calculate_credits_used,
     find_conflict,
 )
@@ -95,6 +97,17 @@ class SessionsView(APIView):
 
         is_series = bool(series)
 
+        # One zone governs every class in the booking -- it belongs to the
+        # student, not to an individual class. Validated against the zone
+        # database rather than an enum so the list stays correct as tzdata
+        # is updated. Optional: legacy clients still send UTC start_time.
+        timezone_name = data.get("timezone")
+        if timezone_name is not None and not is_valid_timezone(timezone_name):
+            return Response(
+                {"error": f'Unknown time zone "{timezone_name}"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if len(items) == 0:
             return Response(
                 {"error": "At least one class is required"},
@@ -152,20 +165,16 @@ class SessionsView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            start_time_str = item.get("start_time")
-            if not start_time_str:
-                return Response(
-                    {"error": f"{label}: start_time is required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # Each class converts independently against the shared zone: a
+            # series spanning a DST change must hold its local start time, so
+            # the UTC offsets across it are deliberately not uniform.
+            try:
+                start_time = resolve_start_time(item, timezone_name, label)
+            except TimezoneConversionError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-            start_time = parse_iso_datetime(start_time_str)
-            if not start_time:
-                return Response(
-                    {"error": f"{label}: start_time is not a valid date"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
+            # Duration is elapsed time, so it is added to the instant -- a
+            # 1-hour class stays 1 hour even across a clock change.
             end_time = start_time + timedelta(hours=duration)
             validated_items.append({
                 "start_time": start_time,
