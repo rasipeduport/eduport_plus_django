@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
   Loader2, Search, Calendar, Clock, Video, FileText, 
-  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Star, Check
+  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Star, Check, ExternalLink
 } from 'lucide-react';
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
@@ -406,6 +406,7 @@ export default function SessionsPage() {
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Class Title</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Student</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Schedule</th>
+                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Meeting</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Tutor</th>
                   <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Mentor</th>
                   {activeTab === 'attended' && <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Rating</th>}
@@ -420,6 +421,9 @@ export default function SessionsPage() {
                   const sCode = session.students?.student_code || session.student_profile?.student_code || session.student?.student_code || '';
                   const tName = session.tutor_profile?.full_name || session.tutor?.full_name || 'Not Assigned';
                   const mName = session.students?.mentor_profile?.full_name || '—';
+                  // The student's own Meet room (students.meet_link), nested by the
+                  // Sessions API. Only a real https URL gets a Join button.
+                  const meetLink = (session.students?.meet_link || '').trim();
                   
                   const start = new Date(session.start_time);
                   const end = new Date(session.end_time);
@@ -458,6 +462,23 @@ export default function SessionsPage() {
                             {timeStr}
                           </span>
                         </div>
+                      </td>
+                      <td className="py-2 px-4 align-middle">
+                        {isHttpsUrl(meetLink) ? (
+                          <a
+                            href={meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={meetLink}
+                            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white whitespace-nowrap transition-colors"
+                          >
+                            <Video className="w-3.5 h-3.5 shrink-0" />
+                            Join Meet
+                            <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
+                        )}
                       </td>
                       <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{tName}</td>
                       <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{mName}</td>

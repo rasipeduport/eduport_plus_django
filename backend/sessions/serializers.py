@@ -16,7 +16,11 @@ class StudentBriefSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Student
-        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url']
+        # meet_link is the student's Google Meet room (students.meet_link, the
+        # same column the Students API and "Edit Demo Link" use). Nesting it
+        # here lets the sessions table offer "Join Meet" without a second
+        # endpoint; it reaches exactly the callers who can already see the row.
+        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url', 'meet_link']
 
 class SessionSerializer(serializers.ModelSerializer):
     student_id = serializers.PrimaryKeyRelatedField(

@@ -810,3 +810,57 @@ class SessionLocalTimeSchedulingTests(APITestCase):
         res = self.create('Asia/Kolkata', [{"local_date": "2026-10-05", "local_time": "09:00", "duration_hours": 1}], title='  real   NUMBERS ')
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data['sessions'][0]['title'], 'Real Numbers')
+
+
+class SessionMeetLinkExposureTests(APITestCase):
+    """
+    The Sessions list nests the student's Meet room (students.meet_link) so
+    staff can join from the table. It rides on the existing row scoping only:
+    a tutor or mentor receives links solely for the students allocated to
+    them, a student only their own, and no other endpoint serves it.
+    """
+
+    LINK_A = 'https://meet.google.com/aaa-bbbb-ccc'
+
+    def setUp(self):
+        self.admin = User.objects.create_user(email='ml_admin@eduport.com', password='x', full_name='Ml Admin', role='ADMIN', is_staff=True)
+        self.mentor_a = User.objects.create_user(email='ml_ma@eduport.com', password='x', full_name='Ml Mentor A', role='MENTOR', is_staff=True)
+        self.tutor_a = User.objects.create_user(email='ml_ta@eduport.com', password='x', full_name='Ml Tutor A', role='TUTOR', is_staff=True)
+        self.tutor_b = User.objects.create_user(email='ml_tb@eduport.com', password='x', full_name='Ml Tutor B', role='TUTOR', is_staff=True)
+        self.user_a = User.objects.create_user(email='ml_sa@eduport.com', password='x', full_name='Ml Stu A', role='STUDENT')
+        self.user_b = User.objects.create_user(email='ml_sb@eduport.com', password='x', full_name='Ml Stu B', role='STUDENT')
+        self.student_a = Student.objects.create(
+            profile=self.user_a, student_code='MLA', full_name='Ml Stu A', mentor=self.mentor_a, tutor=self.tutor_a,
+            meet_link=self.LINK_A, status=StatusChoices.ACTIVE,
+        )
+        self.student_b = Student.objects.create(
+            profile=self.user_b, student_code='MLB', full_name='Ml Stu B', tutor=self.tutor_b,
+            meet_link=None, status=StatusChoices.ACTIVE,
+        )
+        now = timezone.now()
+        for student, tutor in ((self.student_a, self.tutor_a), (self.student_b, self.tutor_b)):
+            Session.objects.create(student=student, tutor=tutor, title=f'{student.student_code} class',
+                                   start_time=now, end_time=now + timedelta(hours=1))
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+
+    def links_by_student(self, user):
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.sessions_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        return {s['students']['student_code']: s['students']['meet_link'] for s in res.data['sessions']}
+
+    def test_each_session_carries_its_own_students_link(self):
+        self.assertEqual(self.links_by_student(self.admin), {'MLA': self.LINK_A, 'MLB': None})
+
+    def test_tutor_and_mentor_only_receive_links_for_allocated_students(self):
+        self.assertEqual(self.links_by_student(self.tutor_a), {'MLA': self.LINK_A})
+        self.assertEqual(self.links_by_student(self.mentor_a), {'MLA': self.LINK_A})
+        # Tutor B's only student has no room configured, and Student A's link
+        # must not appear anywhere in their payload.
+        self.assertEqual(self.links_by_student(self.tutor_b), {'MLB': None})
+        res = self.client.get(self.sessions_url)
+        self.assertNotIn(self.LINK_A, str(res.data))
+
+    def test_student_only_receives_their_own_link(self):
+        self.assertEqual(self.links_by_student(self.user_a), {'MLA': self.LINK_A})
+        self.assertEqual(self.links_by_student(self.user_b), {'MLB': None})
