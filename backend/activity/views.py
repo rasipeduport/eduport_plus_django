@@ -1,11 +1,12 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, BasePermission
+from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from django.utils.dateparse import parse_datetime
 
+from core.permissions import IsStaffUser
+from core.querysets import scope_activity_by_role
 from .models import ActivityLog
 from .serializers import ActivityLogSerializer
 
@@ -15,31 +16,46 @@ User = get_user_model()
 # the unfiltered feed so it reads as a log of changes, like the Hub's.
 AUTH_ACTIONS = ('user.sign_in', 'user.sign_out', 'user.onboarded')
 
-class ActivityLogPermission(BasePermission):
+
+def _is_admin(user):
+    return user.role == 'ADMIN' or user.is_superuser
+
+
+def _actor_options(is_admin):
     """
-    The activity log is an admin-only oversight tool — mirrors the original
-    Hub, where the only read policy on activity_log is active-admin-only and
-    mentors/tutors can read nothing (not even their own students' history).
-    Applies to both the global feed and per-student (?student_id=) queries.
+    Choices for the actor filter dropdown. Admins pick from every account. A
+    mentor or tutor is pinned to their own entries, so they get no choices
+    (the SPA hides the control) and the staff roster is not handed out.
     """
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return request.user.role == 'ADMIN' or request.user.is_superuser
+    if not is_admin:
+        return []
+    return [
+        {"id": str(u.id), "name": u.full_name or u.email}
+        for u in User.objects.all().order_by('full_name')
+    ]
+
 
 class ActivityLogListView(APIView):
     """
     GET /api/activity/
     Returns list of activity logs matching query parameters.
     Supports pagination, filters, and full-text keyword search.
+
+    Every staff role may read, but not the same rows. Admins get the whole log
+    (their oversight tool, as in the original Hub). Mentors and tutors get only
+    the entries they wrote themselves -- see core.querysets.scope_activity_by_role.
+    The scope is applied before any query parameter, so ?actor=, ?student_id=
+    and the rest can only narrow it, never widen it.
     """
-    permission_classes = [IsAuthenticated, ActivityLogPermission]
+    permission_classes = [IsAuthenticated, IsStaffUser]
 
     def get(self, request, *args, **kwargs):
         params = request.query_params
-        
-        # Base query (permission layer already restricts callers to admins)
-        queryset = ActivityLog.objects.all().order_by('-created_at')
+        is_admin = _is_admin(request.user)
+
+        # Everything this caller may ever see; the request filters below only
+        # narrow it further.
+        queryset = scope_activity_by_role(ActivityLog.objects.all(), request.user).order_by('-created_at')
 
         # Filters
         student_id = params.get('student_id')
@@ -106,17 +122,8 @@ class ActivityLogListView(APIView):
             "results": serializer.data,
             "count": total_count,
             "page": page,
-            "page_size": page_size
+            "page_size": page_size,
+            "actor_options": _actor_options(is_admin),
         }
-
-        # Actor options for the filter dropdowns (all callers are admins here)
-        actors = User.objects.all().order_by('full_name')
-        response_data["actor_options"] = [
-            {
-                "id": str(u.id),
-                "name": u.full_name or u.email
-            }
-            for u in actors
-        ]
 
         return Response(response_data, status=status.HTTP_200_OK)

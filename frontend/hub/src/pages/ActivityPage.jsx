@@ -22,7 +22,10 @@ function FeedSkeleton() {
   );
 }
 
-export default function ActivityPage() {
+// `role` only decides the copy and which filters are offered: the API already
+// returns each caller their own slice of the log.
+export default function ActivityPage({ role = 'ADMIN' }) {
+  const isAdmin = role === 'ADMIN';
   const [searchParams] = useSearchParams();
   const [data, setData] = useState({ results: [], count: 0, actor_options: [] });
   const [loading, setLoading] = useState(true);
@@ -78,7 +81,9 @@ export default function ActivityPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Activity log</h1>
         <p className="text-muted-foreground text-sm">
-          A record of who changed what across students, sessions, invitations, and users.
+          {isAdmin
+            ? 'A record of who changed what across students, sessions, invitations, and users.'
+            : 'A record of your activity across students, sessions, and interactions.'}
         </p>
       </div>
 
@@ -95,6 +100,7 @@ export default function ActivityPage() {
           actorOptions={data.actor_options ?? []}
           filters={{ q, action, entity, actor, from, to }}
           pending={pending}
+          role={role}
         />
       )}
     </div>

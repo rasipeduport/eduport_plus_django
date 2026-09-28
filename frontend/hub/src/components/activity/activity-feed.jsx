@@ -30,7 +30,10 @@ const ENTITY_NOUN = {
   profile: 'User',
 };
 
-export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false }) {
+export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, role = 'ADMIN' }) {
+  // Mentors and tutors are pinned to their own entries by the API, so the
+  // actor filter would have nothing to offer them.
+  const showActorFilter = role === 'ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
   const [expanded, setExpanded] = useState(null);
   const [q, setQ] = useState(filters.q);
@@ -108,12 +111,14 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
           onChange={(value) => navigate({ entity: value === ALL ? null : value })}
           options={ENTITY_TYPES}
         />
-        <FilterSelect
-          placeholder="All actors"
-          value={filters.actor || ALL}
-          onChange={(value) => navigate({ actor: value === ALL ? null : value })}
-          options={actorOptions.map((actor) => ({ value: actor.id, label: actor.name }))}
-        />
+        {showActorFilter ? (
+          <FilterSelect
+            placeholder="All actors"
+            value={filters.actor || ALL}
+            onChange={(value) => navigate({ actor: value === ALL ? null : value })}
+            options={actorOptions.map((actor) => ({ value: actor.id, label: actor.name }))}
+          />
+        ) : null}
 
         <Popover>
           <PopoverTrigger asChild>

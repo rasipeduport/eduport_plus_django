@@ -14,42 +14,44 @@ from .serializers import ActivityLogSerializer
 User = get_user_model()
 
 
+def make_user(prefix, role):
+    return User.objects.create_user(
+        email=f"{prefix}_{role.lower()}@eduport.com", password="password123",
+        full_name=f"{prefix.title()} {role.title()}", role=role
+    )
+
+
+def make_log(actor, action, entity_type='student', student=None, entity_id=None, **extra):
+    """A log row the way activity.utils.log_activity would write it."""
+    return ActivityLog.objects.create(
+        actor=actor, actor_email=actor.email, actor_name=actor.full_name,
+        actor_role=actor.role, action=action, entity_type=entity_type,
+        entity_id=entity_id or (str(student.id) if student else 'n/a'),
+        entity_label=student.full_name if student else actor.full_name,
+        student=student, **extra
+    )
+
+
 class ActivityAccessTests(APITestCase):
     """
-    The activity log is an admin-only oversight tool (Hub parity: the only
-    read policy on activity_log is admin-only; mentors and tutors can read
-    nothing — not even their own students' history).
+    Who may read the log at all: every staff role, and nobody else. Admins get
+    the whole log (their oversight tool); mentors and tutors get only their own
+    entries, which ActivityStaffScopeTests pins down.
     """
 
     def setUp(self):
         self.url = reverse('activity:activity-logs-list')
-        self.admin = User.objects.create_user(
-            email="act_admin@eduport.com", password="password123",
-            full_name="Activity Admin", role="ADMIN"
-        )
-        self.mentor = User.objects.create_user(
-            email="act_mentor@eduport.com", password="password123",
-            full_name="Activity Mentor", role="MENTOR"
-        )
-        self.tutor = User.objects.create_user(
-            email="act_tutor@eduport.com", password="password123",
-            full_name="Activity Tutor", role="TUTOR"
-        )
-        self.student_user = User.objects.create_user(
-            email="act_student@eduport.com", password="password123",
-            full_name="Activity Student", role="STUDENT"
-        )
+        self.admin = make_user('act', 'ADMIN')
+        self.mentor = make_user('act', 'MENTOR')
+        self.tutor = make_user('act', 'TUTOR')
+        self.student_user = make_user('act', 'STUDENT')
         self.student = Student.objects.create(
             profile=self.student_user, student_code="ACT001",
             full_name="Activity Student", mentor=self.mentor, tutor=self.tutor,
             status=StatusChoices.ACTIVE
         )
-        ActivityLog.objects.create(
-            actor=self.admin, actor_email=self.admin.email,
-            actor_name=self.admin.full_name, actor_role='ADMIN',
-            action='student.update_status', entity_type='student',
-            entity_id=str(self.student.id), entity_label=self.student.full_name,
-            student=self.student,
+        make_log(
+            self.admin, 'student.update_status', student=self.student,
             context={"ip": "203.0.113.9", "user_agent": "test-agent"}
         )
 
@@ -58,7 +60,11 @@ class ActivityAccessTests(APITestCase):
         res = self.client.get(self.url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["count"], 1)
-        self.assertIn("actor_options", res.data)
+        self.assertEqual(res.data["results"][0]["context"]["ip"], "203.0.113.9")
+        self.assertEqual(
+            {o["id"] for o in res.data["actor_options"]},
+            {str(u.id) for u in User.objects.all()}
+        )
 
     def test_admin_can_filter_by_student(self):
         self.client.force_authenticate(user=self.admin)
@@ -66,37 +72,135 @@ class ActivityAccessTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["count"], 1)
 
-    def test_mentor_cannot_read_global_feed(self):
-        self.client.force_authenticate(user=self.mentor)
-        res = self.client.get(self.url)
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertNotIn("results", res.data)
-
-    def test_mentor_cannot_read_own_students_history(self):
+    def test_mentor_and_tutor_can_open_the_feed_but_not_the_admins_entry(self):
         """
-        Ticket correction: in the original, per-student history is admin-only
-        too — a mentor gets nothing, even for their own allocated student.
+        The student is theirs, but the entry is the admin's work -- so they get
+        an empty, well-formed page rather than a 403 or the admin's row.
         """
-        self.client.force_authenticate(user=self.mentor)
-        res = self.client.get(self.url, {"student_id": str(self.student.id)})
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertNotIn("results", res.data)
-
-    def test_tutor_cannot_read_feed_or_history(self):
-        self.client.force_authenticate(user=self.tutor)
-        for params in ({}, {"student_id": str(self.student.id)}):
-            with self.subTest(params=params):
-                res = self.client.get(self.url, params)
-                self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        for user in (self.mentor, self.tutor):
+            with self.subTest(role=user.role):
+                self.client.force_authenticate(user=user)
+                for params in ({}, {"student_id": str(self.student.id)}):
+                    res = self.client.get(self.url, params)
+                    self.assertEqual(res.status_code, status.HTTP_200_OK)
+                    self.assertEqual(res.data["count"], 0)
+                    self.assertEqual(res.data["results"], [])
+                    self.assertEqual(res.data["actor_options"], [])
 
     def test_student_cannot_read(self):
         self.client.force_authenticate(user=self.student_user)
         res = self.client.get(self.url)
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotIn("results", res.data)
 
     def test_anonymous_cannot_read(self):
         res = self.client.get(self.url)
         self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+class ActivityStaffScopeTests(APITestCase):
+    """
+    Mentors and tutors see only the entries they wrote themselves. The scope is
+    applied before any query parameter, so no filter -- actor, student, search,
+    type -- can reach another person's entries.
+    """
+
+    def setUp(self):
+        self.url = reverse('activity:activity-logs-list')
+        self.admin = make_user('scope', 'ADMIN')
+        self.mentor_a = make_user('scope_a', 'MENTOR')
+        self.mentor_b = make_user('scope_b', 'MENTOR')
+        self.tutor_a = make_user('scope_a', 'TUTOR')
+        self.tutor_b = make_user('scope_b', 'TUTOR')
+        self.parent = make_user('scope', 'STUDENT')
+        self.student_a = Student.objects.create(
+            profile=self.parent, student_code="SCP001", full_name="Student A",
+            mentor=self.mentor_a, tutor=self.tutor_a, status=StatusChoices.ACTIVE
+        )
+        self.student_b = Student.objects.create(
+            profile=self.parent, student_code="SCP002", full_name="Student B",
+            mentor=self.mentor_b, tutor=self.tutor_b, status=StatusChoices.ACTIVE
+        )
+
+        # One entry per person, each touching a student the others also work with.
+        self.log_admin = make_log(self.admin, 'student.update_quota', student=self.student_a)
+        self.log_mentor_a = make_log(self.mentor_a, 'session.create', entity_type='session', student=self.student_a)
+        self.log_mentor_b = make_log(self.mentor_b, 'session.cancel', entity_type='session', student=self.student_b)
+        self.log_tutor_a = make_log(self.tutor_a, 'session.update_links', entity_type='session', student=self.student_a)
+        self.log_tutor_b = make_log(self.tutor_b, 'session.update_links', entity_type='session', student=self.student_b)
+        self.log_student = make_log(self.parent, 'session.rate', entity_type='session', student=self.student_a)
+        # Mentor A's sign-in: theirs, but held back from the default feed.
+        self.log_signin = make_log(
+            self.mentor_a, 'user.sign_in', entity_type='profile', entity_id=str(self.mentor_a.id)
+        )
+        self.change_logs = {
+            str(log.id) for log in (
+                self.log_admin, self.log_mentor_a, self.log_mentor_b,
+                self.log_tutor_a, self.log_tutor_b, self.log_student,
+            )
+        }
+
+    def _ids(self, user, **params):
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.url, params)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], len(res.data["results"]))
+        return {row["id"] for row in res.data["results"]}
+
+    def test_admin_sees_every_entry(self):
+        self.assertEqual(self._ids(self.admin), self.change_logs)
+
+    def test_mentor_sees_only_own_entries(self):
+        self.assertEqual(self._ids(self.mentor_a), {str(self.log_mentor_a.id)})
+        self.assertEqual(self._ids(self.mentor_b), {str(self.log_mentor_b.id)})
+
+    def test_tutor_sees_only_own_entries(self):
+        self.assertEqual(self._ids(self.tutor_a), {str(self.log_tutor_a.id)})
+        self.assertEqual(self._ids(self.tutor_b), {str(self.log_tutor_b.id)})
+
+    def test_mentor_cannot_reach_other_entries_through_query_parameters(self):
+        me, own = self.mentor_a, {str(self.log_mentor_a.id)}
+        # Naming another actor (either spelling of the parameter) yields nothing.
+        self.assertEqual(self._ids(me, actor=str(self.mentor_b.id)), set())
+        self.assertEqual(self._ids(me, actor_id=str(self.admin.id)), set())
+        # A student the caller does not work with, and a search for a
+        # colleague's name, are equally empty.
+        self.assertEqual(self._ids(me, student_id=str(self.student_b.id)), set())
+        self.assertEqual(self._ids(me, q=self.mentor_b.full_name), set())
+        # The caller's own student's history holds only the caller's entry --
+        # not the admin's, tutor's or student's on the same student.
+        self.assertEqual(self._ids(me, student_id=str(self.student_a.id)), own)
+        # Filters that match the caller's own work keep working.
+        self.assertEqual(self._ids(me, entity='session'), own)
+        self.assertEqual(self._ids(me, action='session.create'), own)
+        self.assertEqual(self._ids(me, q=self.mentor_a.full_name), own)
+        self.assertEqual(self._ids(me, actor=str(me.id)), own)
+
+    def test_tutor_cannot_reach_other_entries_through_query_parameters(self):
+        me, own = self.tutor_a, {str(self.log_tutor_a.id)}
+        self.assertEqual(self._ids(me, actor=str(self.tutor_b.id)), set())
+        self.assertEqual(self._ids(me, actor_id=str(self.mentor_a.id)), set())
+        self.assertEqual(self._ids(me, student_id=str(self.student_b.id)), set())
+        self.assertEqual(self._ids(me, q=self.tutor_b.full_name), set())
+        self.assertEqual(self._ids(me, student_id=str(self.student_a.id)), own)
+        self.assertEqual(self._ids(me, entity='session'), own)
+        self.assertEqual(self._ids(me, action='session.update_links'), own)
+        self.assertEqual(self._ids(me, actor=str(me.id)), own)
+
+    def test_own_sign_in_is_reachable_through_the_action_filter(self):
+        self.assertEqual(self._ids(self.mentor_a, action='user.sign_in'), {str(self.log_signin.id)})
+        # ...and only one's own: mentor B has no sign-in to see.
+        self.assertEqual(self._ids(self.mentor_b, action='user.sign_in'), set())
+
+    def test_actor_options_are_admin_only(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(self.url)
+        self.assertIn(str(self.mentor_b.id), {o["id"] for o in res.data["actor_options"]})
+        for user in (self.mentor_a, self.tutor_a):
+            with self.subTest(role=user.role):
+                self.client.force_authenticate(user=user)
+                res = self.client.get(self.url)
+                self.assertEqual(res.data["actor_options"], [])
 
 
 class ActivityAppendOnlyTests(APITestCase):

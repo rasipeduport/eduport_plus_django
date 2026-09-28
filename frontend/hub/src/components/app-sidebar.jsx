@@ -15,10 +15,11 @@ const navMain = [
   { title: 'Activity', url: '/activity', icon: History },
 ];
 
-// Mentors and tutors only get the operational pages; staff management, the
-// invitation queue and the audit log stay admin-only, matching the route guards
-// in App.jsx and the backend permissions.
-const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions']);
+// Mentors and tutors get the operational pages and the activity log (the API
+// pins it to their own entries); staff management and the invitation queue
+// stay admin-only, matching the route guards in App.jsx and the backend
+// permissions.
+const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/activity']);
 
 export function AppSidebar({ user, logout, ...props }) {
   const items =

@@ -419,16 +419,21 @@ class EduportPlusBackendAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['count'], 1)
 
-        # Test student history filter (admin-only — Hub parity: mentors get
-        # no activity read at all, even for their own allocated students)
+        # Test student history filter
         res = self.client.get(self.activity_logs_url, {"student_id": str(self.student.id)})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['count'], 1)
         self.assertEqual(res.data['results'][0]['entity_label'], 'Maths Session')
 
+        # The mentor may open the feed but only ever sees their own entries:
+        # the invitation they sent, not the admin's session on their student.
         self.client.force_authenticate(user=self.mentor)
+        res = self.client.get(self.activity_logs_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual([r['action'] for r in res.data['results']], ['invitation.create'])
         res = self.client.get(self.activity_logs_url, {"student_id": str(self.student.id)})
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['count'], 0)
 
         # Verify Student is not allowed to query global logs
         self.client.force_authenticate(user=self.student_user)

@@ -2,7 +2,8 @@
 Shared helpers for restricting querysets by the requesting user's role.
 
 Mentors and tutors only ever see the students (and the sessions of the students)
-allocated to them; admins and other roles see everything passed in.
+allocated to them, and only their own activity-log entries; admins and other
+roles see everything passed in.
 """
 
 
@@ -21,4 +22,14 @@ def scope_sessions_by_role(qs, user):
         return qs.filter(student__mentor=user)
     if user.role == 'TUTOR':
         return qs.filter(student__tutor=user)
+    return qs
+
+
+def scope_activity_by_role(qs, user):
+    """
+    Restrict an ``ActivityLog`` queryset to the rows a mentor/tutor may see:
+    only the entries they wrote themselves. Admins see everything.
+    """
+    if user.role in ('MENTOR', 'TUTOR'):
+        return qs.filter(actor_id=user.id)
     return qs

@@ -31,8 +31,9 @@ export default function App() {
                     <Route path="/mentors" element={user?.role === 'ADMIN' ? <MentorsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/tutors" element={user?.role === 'ADMIN' ? <TutorsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/invitations" element={user?.role === 'ADMIN' ? <InvitationsPage /> : <Navigate to="/dashboard" replace />} />
-                    {/* The activity log is an admin-only oversight tool. */}
-                    <Route path="/activity" element={user?.role === 'ADMIN' ? <ActivityPage /> : <Navigate to="/dashboard" replace />} />
+                    {/* Every staff role gets the activity log; the API pins
+                        mentors and tutors to their own entries. */}
+                    <Route path="/activity" element={<ActivityPage role={user?.role} />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </SidebarLayout>
