@@ -83,16 +83,20 @@ def calculate_credits_used(student):
 
 def find_conflict(student, tutor, start_time, end_time, exclude_id=None):
     """
-    Return the first non-cancelled session that overlaps ``[start_time, end_time)``
+    Return the first SCHEDULED session that overlaps ``[start_time, end_time)``
     for the same student or the same tutor, or None if there is no conflict.
+
+    Only active (SCHEDULED) sessions block a slot: an ATTENDED session has
+    already happened and a CANCELLED one never will, so neither should stop
+    a new booking from being placed over its time.
     """
     overlap_filters = Q(student=student)
     if tutor:
         overlap_filters |= Q(tutor=tutor)
 
     conflicts = Session.objects.filter(
-        ~Q(status=SessionStatusChoices.CANCELLED),
         overlap_filters,
+        status=SessionStatusChoices.SCHEDULED,
         start_time__lt=end_time,
         end_time__gt=start_time,
     )

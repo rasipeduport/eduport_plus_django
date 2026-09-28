@@ -864,3 +864,87 @@ class SessionMeetLinkExposureTests(APITestCase):
     def test_student_only_receives_their_own_link(self):
         self.assertEqual(self.links_by_student(self.user_a), {'MLA': self.LINK_A})
         self.assertEqual(self.links_by_student(self.user_b), {'MLB': None})
+
+
+class SessionConflictStatusTests(APITestCase):
+    """
+    Only an active (SCHEDULED) session blocks a slot. An ATTENDED session has
+    already happened and a CANCELLED one never will, so neither may stop a
+    new single session or a new series from being booked over its time.
+    Mirrors the reported case: "Demo2" (Attended, 2:40-4:40 PM) must not
+    block a new Scheduled class at 2:15-3:15 PM.
+    """
+
+    def setUp(self):
+        self.mentor = User.objects.create_user(email='cs_mentor@eduport.com', password='x', full_name='Cs Mentor', role='MENTOR', is_staff=True)
+        self.tutor = User.objects.create_user(email='cs_tutor@eduport.com', password='x', full_name='Cs Tutor', role='TUTOR', is_staff=True)
+        self.student = Student.objects.create(
+            profile=User.objects.create_user(email='cs_student@eduport.com', password='x', full_name='Cs Stu', role='STUDENT'),
+            student_code='EDPCS', full_name='Cs Stu', mentor=self.mentor, tutor=self.tutor,
+            total_class_quota=10, status=StatusChoices.ACTIVE,
+        )
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+        self.client.force_authenticate(user=self.mentor)
+        # Existing "Demo2": 2:40 PM - 4:40 PM, a few days out.
+        self.demo2_start = (timezone.now() + timedelta(days=3)).replace(hour=14, minute=40, second=0, microsecond=0)
+        self.demo2_end = self.demo2_start + timedelta(hours=2)
+        # Candidate new class: 2:15 PM - 3:15 PM, overlapping Demo2 by 35 minutes.
+        self.new_start = self.demo2_start - timedelta(minutes=25)
+
+    def existing(self, status_value):
+        return Session.objects.create(
+            student=self.student, tutor=self.tutor, title='Demo2',
+            start_time=self.demo2_start, end_time=self.demo2_end, status=status_value,
+        )
+
+    def book(self, items, series=False, title='Algebra'):
+        payload = {"student_id": str(self.student.id), "base_title": title, "series": series, "items": items}
+        return self.client.post(self.sessions_url, payload, format='json')
+
+    def book_single(self):
+        return self.book([{"start_time": self.new_start.isoformat(), "duration_hours": 1}])
+
+    def test_scheduled_existing_session_blocks_overlapping_new_session(self):
+        self.existing(SessionStatusChoices.SCHEDULED)
+        res = self.book_single()
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('conflicts with "Demo2"', res.data['error'])
+        self.assertEqual(Session.objects.filter(title='Algebra').count(), 0)
+
+    def test_attended_existing_session_does_not_block_new_session(self):
+        self.existing(SessionStatusChoices.ATTENDED)
+        res = self.book_single()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(len(res.data['sessions']), 1)
+        created = Session.objects.get(title='Algebra')
+        self.assertEqual(created.status, SessionStatusChoices.SCHEDULED)
+        self.assertEqual(created.start_time, self.new_start)
+
+    def test_cancelled_existing_session_does_not_block_new_session(self):
+        self.existing(SessionStatusChoices.CANCELLED)
+        res = self.book_single()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(len(res.data['sessions']), 1)
+        self.assertEqual(Session.objects.filter(title='Algebra', status=SessionStatusChoices.SCHEDULED).count(), 1)
+
+    def test_series_creation_is_allowed_over_attended_session(self):
+        self.existing(SessionStatusChoices.ATTENDED)
+        res = self.book([
+            {"start_time": self.new_start.isoformat(), "duration_hours": 1},
+            {"start_time": (self.new_start + timedelta(days=1)).isoformat(), "duration_hours": 1},
+        ], series=True)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(len(res.data['sessions']), 2)
+        created = Session.objects.filter(title__startswith='Algebra - Class').order_by('class_number')
+        self.assertEqual([s.title for s in created], ['Algebra - Class 1', 'Algebra - Class 2'])
+        self.assertEqual(len({s.series_id for s in created}), 1)
+
+    def test_series_creation_is_still_blocked_by_scheduled_session(self):
+        self.existing(SessionStatusChoices.SCHEDULED)
+        res = self.book([
+            {"start_time": (self.new_start - timedelta(days=1)).isoformat(), "duration_hours": 1},
+            {"start_time": self.new_start.isoformat(), "duration_hours": 1},
+        ], series=True)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('Class 2 conflicts with "Demo2"', res.data['error'])
+        self.assertEqual(Session.objects.filter(title__startswith='Algebra').count(), 0)
