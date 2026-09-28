@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  Loader2, Search, Calendar, Video, FileText, 
-  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink
+  Loader2, Calendar, Video, FileText, 
+  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink, ChevronDown, X
 } from 'lucide-react';
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { format } from 'date-fns';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Calendar as CalendarPicker } from '../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 const ALLOWED_DURATIONS = [
   { label: '30 mins', value: 0.5 },
@@ -81,8 +94,11 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Filtering & Search states
+  // Filtering & Search states (Hub filter bar: title, date range, tutor, columns)
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState(undefined); // { from, to } with `to` at end of day
+  const [tutorFilter, setTutorFilter] = useState([]); // tutor profile ids
+  const [columnVisibility, setColumnVisibility] = useState({}); // { [columnId]: false } hides
   const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled' | 'attended' | 'cancelled'
   const [selectedStudentId, setSelectedStudentId] = useState(studentIdQuery || '');
 
@@ -325,16 +341,142 @@ export default function SessionsPage() {
   const filteredSessions = sessions.filter(session => {
     const studentMatch = selectedStudentId ? (session.student_id === selectedStudentId || session.student?.id === selectedStudentId) : true;
     const tabMatch = session.status?.toLowerCase() === activeTab;
-    
-    const studentName = session.students?.full_name || session.student_profile?.full_name || session.student?.full_name || '';
-    const studentCode = session.students?.student_code || session.student_profile?.student_code || session.student?.student_code || '';
-    const textMatch = searchTerm.trim() === '' || 
-      session.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      studentCode.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    return studentMatch && tabMatch && textMatch;
+    const title = searchTerm.trim().toLowerCase();
+    const titleMatch = !title || (session.title || '').toLowerCase().includes(title);
+    const startMs = new Date(session.start_time).getTime();
+    const dateMatch =
+      !dateRange ||
+      ((!dateRange.from || startMs >= dateRange.from.getTime()) && (!dateRange.to || startMs <= dateRange.to.getTime()));
+    const tutorId = session.tutor_profile?.id ?? session.tutor ?? null;
+    const tutorMatch = tutorFilter.length === 0 || (tutorId != null && tutorFilter.includes(tutorId));
+    return studentMatch && tabMatch && titleMatch && dateMatch && tutorMatch;
   });
+
+  // Tutor filter choices come from the rows on screen, like the Hub. Tutors
+  // only ever see their own sessions, so the control is hidden for them.
+  const tutorOptions = userRole === 'TUTOR'
+    ? []
+    : Array.from(
+        new Map(
+          sessions
+            .filter((s) => s.tutor_profile)
+            .map((s) => [s.tutor_profile.id, { id: s.tutor_profile.id, name: s.tutor_profile.full_name || s.tutor_profile.email }])
+        ).values()
+      ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const hasActiveFilters = Boolean(searchTerm) || Boolean(dateRange?.from || dateRange?.to) || tutorFilter.length > 0;
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setDateRange(undefined);
+    setTutorFilter([]);
+  };
+
+  const dateLabel = (() => {
+    if (!dateRange?.from && !dateRange?.to) return 'Date range';
+    if (dateRange?.from && dateRange?.to) return `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d, yyyy')}`;
+    if (dateRange?.from) return `From ${format(dateRange.from, 'MMM d, yyyy')}`;
+    return `Until ${format(dateRange.to, 'MMM d, yyyy')}`;
+  })();
+
+  // The picker returns midnight for `to`; extend it to the end of that day so a
+  // session that afternoon still falls inside the range.
+  const applyDateRange = (range) => {
+    if (!range || (!range.from && !range.to)) {
+      setDateRange(undefined);
+      return;
+    }
+    const to = range.to
+      ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 23, 59, 59, 999)
+      : undefined;
+    setDateRange({ from: range.from, to });
+  };
+
+  const toggleTutor = (id, checked) => {
+    setTutorFilter((prev) => (checked ? Array.from(new Set([...prev, id])) : prev.filter((v) => v !== id)));
+  };
+
+  // Table columns in Hub order. Every one but Actions can be hidden from the
+  // Columns menu, where `id` doubles as the label (underscores become spaces).
+  const columns = [
+    {
+      id: 'title',
+      label: 'Session Title',
+      cell: (s) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold text-white text-sm">{s.title}</span>
+          {s.series_id && (
+            <span className="text-[10px] text-zinc-500 font-mono">
+              Series Class #{s.class_number}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { id: 'date', label: 'Date', cellClass: 'text-sm text-zinc-300 whitespace-nowrap', cell: (s) => DATE_FORMAT.format(new Date(s.start_time)) },
+    {
+      id: 'time',
+      label: 'Time',
+      cellClass: 'text-sm text-zinc-300 whitespace-nowrap',
+      cell: (s) => `${TIME_FORMAT.format(new Date(s.start_time))} - ${TIME_FORMAT.format(new Date(s.end_time))}`,
+    },
+    { id: 'status', label: 'Status', cell: (s) => <StatusBadge status={s.status} reason={s.cancellation_reason} /> },
+    {
+      id: 'student',
+      label: 'Student',
+      cell: (s) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium text-white text-sm">
+            {s.students?.full_name || s.student_profile?.full_name || s.student?.full_name || '—'}
+          </span>
+          <span className="text-xs text-[#a1a1aa] font-mono">
+            {s.students?.student_code || s.student_profile?.student_code || s.student?.student_code || ''}
+          </span>
+        </div>
+      ),
+    },
+    { id: 'tutor', label: 'Tutor', cellClass: 'text-sm text-[#e4e4e7]', cell: (s) => s.tutor_profile?.full_name || s.tutor_profile?.email || '—' },
+    {
+      id: 'student_mentor',
+      label: "Student's Mentor",
+      cellClass: 'text-sm text-[#e4e4e7]',
+      cell: (s) => s.students?.mentor_profile?.full_name || s.students?.mentor_profile?.email || '—',
+    },
+    {
+      id: 'meeting',
+      label: 'Meeting',
+      // The student's own Meet room (students.meet_link), nested by the
+      // Sessions API. Only a real https URL gets a Join button.
+      cell: (s) => {
+        const meetLink = (s.students?.meet_link || '').trim();
+        return isHttpsUrl(meetLink) ? (
+          <a
+            href={meetLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={meetLink}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white whitespace-nowrap transition-colors"
+          >
+            <Video className="w-3.5 h-3.5 shrink-0" />
+            Join Meet
+            <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
+          </a>
+        ) : (
+          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
+        );
+      },
+    },
+    { id: 'recording', label: 'Recording', cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" /> },
+    { id: 'notes', label: 'Notes', cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" /> },
+    { id: 'homework', label: 'Homework', cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" /> },
+    {
+      id: 'rating',
+      label: 'Rating',
+      cellClass: 'text-sm whitespace-nowrap',
+      cell: (s) => (s.rating != null ? <span className="text-zinc-300">{s.rating}/5</span> : <span className="text-zinc-500">—</span>),
+    },
+  ];
+  const visibleColumns = columns.filter((c) => columnVisibility[c.id] !== false);
 
   const getStudentName = (id) => {
     const s = students.find(x => x.id === id);
@@ -370,51 +512,97 @@ export default function SessionsPage() {
         </div>
       )}
 
-      {/* Header and filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          {/* Search bar */}
-          <div className="relative flex-1 sm:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-            <input
-              type="text"
-              placeholder="Search title, student or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 h-10 bg-[#111] border border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-all"
-            />
-          </div>
+      {/* Filter bar (Hub parity): title, date range, tutor, columns. Student
+          scoping comes only from ?student_id, shown in the banner above. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Filter by session title..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-xs"
+        />
 
-          {/* Student Filter dropdown */}
-          <select
-            value={selectedStudentId}
-            onChange={(e) => {
-              setSelectedStudentId(e.target.value);
-              if (e.target.value) {
-                setSearchParams({ student_id: e.target.value });
-              } else {
-                setSearchParams({});
-              }
-            }}
-            className="h-10 px-3 bg-white dark:bg-[#111] border border-zinc-200 dark:border-[rgba(255,255,255,0.08)] rounded-xl text-sm text-zinc-900 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-          >
-            <option value="">All Students</option>
-            {students.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.full_name} ({s.student_code})
-              </option>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Calendar className="size-4" />
+              {dateLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="range"
+              selected={dateRange?.from || dateRange?.to ? { from: dateRange?.from, to: dateRange?.to } : undefined}
+              onSelect={applyDateRange}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {tutorOptions.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Tutor
+                {tutorFilter.length > 0 ? <span className="text-muted-foreground ml-1">({tutorFilter.length})</span> : null}
+                <ChevronDown className="ml-1 size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+              <DropdownMenuLabel>Tutor</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {tutorOptions.map((opt) => (
+                <DropdownMenuCheckboxItem
+                  key={opt.id}
+                  checked={tutorFilter.includes(opt.id)}
+                  onCheckedChange={(checked) => toggleTutor(opt.id, Boolean(checked))}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {opt.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+            <X className="size-4" />
+            Clear
+          </Button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              Columns
+              <ChevronDown className="ml-1 size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {columns.map((c) => (
+              <DropdownMenuCheckboxItem
+                key={c.id}
+                className="capitalize"
+                checked={columnVisibility[c.id] !== false}
+                onCheckedChange={(value) => setColumnVisibility((prev) => ({ ...prev, [c.id]: Boolean(value) }))}
+              >
+                {c.id.replace(/_/g, ' ')}
+              </DropdownMenuCheckboxItem>
             ))}
-          </select>
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {selectedStudentId && userRole !== 'TUTOR' && (
-          <button 
-            onClick={() => setCreateOpen(true)}
-            className="h-10 px-4 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center gap-2 self-stretch sm:self-auto shrink-0 justify-center cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            New Session
-          </button>
+          <div className="ml-auto">
+            <button 
+              onClick={() => setCreateOpen(true)}
+              className="h-10 px-4 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center gap-2 self-stretch sm:self-auto shrink-0 justify-center cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              New Session
+            </button>
+          </div>
         )}
       </div>
 
@@ -456,117 +644,40 @@ export default function SessionsPage() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[#0f0f0f]">
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Session Title</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Date</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Time</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Status</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Student</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Tutor</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Student's Mentor</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Meeting</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Recording</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Notes</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Homework</th>
-                  <th className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">Rating</th>
+                  {visibleColumns.map((c) => (
+                    <th key={c.id} className="h-12 px-4 font-semibold text-xs text-zinc-400 align-middle">{c.label}</th>
+                  ))}
                   <th className="h-12 px-4 w-10"></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSessions.map((session) => {
-                  const sName = session.students?.full_name || session.student_profile?.full_name || session.student?.full_name || '—';
-                  const sCode = session.students?.student_code || session.student_profile?.student_code || session.student?.student_code || '';
-                  const tName = session.tutor_profile?.full_name || session.tutor_profile?.email || '—';
-                  const mName = session.students?.mentor_profile?.full_name || session.students?.mentor_profile?.email || '—';
-                  // The student's own Meet room (students.meet_link), nested by the
-                  // Sessions API. Only a real https URL gets a Join button.
-                  const meetLink = (session.students?.meet_link || '').trim();
-                  
-                  const start = new Date(session.start_time);
-                  const end = new Date(session.end_time);
-                  const dateStr = DATE_FORMAT.format(start);
-                  const timeStr = `${TIME_FORMAT.format(start)} - ${TIME_FORMAT.format(end)}`;
+                {filteredSessions.map((session) => (
+                  <tr 
+                    key={session.id} 
+                    className="hover:bg-[rgba(255,255,255,0.02)] border-b border-[rgba(255,255,255,0.08)] h-[54px] transition-colors"
+                  >
+                    {visibleColumns.map((c) => (
+                      <td key={c.id} className={`py-2 px-4 align-middle ${c.cellClass || ''}`}>{c.cell(session)}</td>
+                    ))}
 
-                  return (
-                    <tr 
-                      key={session.id} 
-                      className="hover:bg-[rgba(255,255,255,0.02)] border-b border-[rgba(255,255,255,0.08)] h-[54px] transition-colors"
-                    >
-                      <td className="py-2 px-4 align-middle">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-white text-sm">{session.title}</span>
-                          {session.series_id && (
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              Series Class #{session.class_number}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2 px-4 text-sm text-zinc-300 align-middle whitespace-nowrap">{dateStr}</td>
-                      <td className="py-2 px-4 text-sm text-zinc-300 align-middle whitespace-nowrap">{timeStr}</td>
-                      <td className="py-2 px-4 align-middle">
-                        <StatusBadge status={session.status} reason={session.cancellation_reason} />
-                      </td>
-                      <td className="py-2 px-4 align-middle">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium text-white text-sm">{sName}</span>
-                          <span className="text-xs text-[#a1a1aa] font-mono">{sCode}</span>
-                        </div>
-                      </td>
-                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{tName}</td>
-                      <td className="py-2 px-4 text-sm text-[#e4e4e7] align-middle">{mName}</td>
-                      <td className="py-2 px-4 align-middle">
-                        {isHttpsUrl(meetLink) ? (
-                          <a
-                            href={meetLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={meetLink}
-                            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white whitespace-nowrap transition-colors"
-                          >
-                            <Video className="w-3.5 h-3.5 shrink-0" />
-                            Join Meet
-                            <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-4 align-middle">
-                        <ResourceLink href={session.recording_link} icon={Video} label="Open recording" />
-                      </td>
-                      <td className="py-2 px-4 align-middle">
-                        <ResourceLink href={session.notes_link} icon={FileText} label="Open notes" />
-                      </td>
-                      <td className="py-2 px-4 align-middle">
-                        <ResourceLink href={session.homework_link} icon={BookOpen} label="Open homework" />
-                      </td>
-                      <td className="py-2 px-4 text-sm align-middle whitespace-nowrap">
-                        {session.rating != null ? (
-                          <span className="text-zinc-300">{session.rating}/5</span>
-                        ) : (
-                          <span className="text-zinc-500">—</span>
-                        )}
-                      </td>
-
-                      <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
-                        {userRole !== 'TUTOR' && (
-                          <StaffActionsDropdown
-                            items={[
-                              ...(activeTab === 'scheduled' ? [
-                                { label: 'Mark Attended', onClick: () => openModal('attend', session) },
-                                { label: 'Reschedule', onClick: () => openModal('reschedule', session) },
-                              ] : []),
-                              { label: 'Edit Resource Links', onClick: () => openModal('links', session) },
-                              ...(activeTab === 'scheduled' ? [
-                                { label: 'Cancel Session', onClick: () => openModal('cancel', session), danger: true },
-                              ] : []),
-                            ]}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
+                      {userRole !== 'TUTOR' && (
+                        <StaffActionsDropdown
+                          items={[
+                            ...(activeTab === 'scheduled' ? [
+                              { label: 'Mark Attended', onClick: () => openModal('attend', session) },
+                              { label: 'Reschedule', onClick: () => openModal('reschedule', session) },
+                            ] : []),
+                            { label: 'Edit Resource Links', onClick: () => openModal('links', session) },
+                            ...(activeTab === 'scheduled' ? [
+                              { label: 'Cancel Session', onClick: () => openModal('cancel', session), danger: true },
+                            ] : []),
+                          ]}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
