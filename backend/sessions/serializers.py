@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from students.models import Student
-from .models import Session
+from .models import Session, SessionContentField, SessionFile
 
 User = get_user_model()
 
@@ -22,6 +22,12 @@ class StudentBriefSerializer(serializers.ModelSerializer):
         # endpoint; it reaches exactly the callers who can already see the row.
         fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url', 'meet_link']
 
+class SessionFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionFile
+        fields = ['id', 'field', 'file_name', 'content_type', 'size_bytes', 'created_at']
+
+
 class SessionSerializer(serializers.ModelSerializer):
     student_id = serializers.PrimaryKeyRelatedField(
         source='student',
@@ -36,6 +42,9 @@ class SessionSerializer(serializers.ModelSerializer):
     content_complete = serializers.BooleanField(read_only=True)
     missing_content = serializers.ListField(child=serializers.CharField(), read_only=True)
     display_status = serializers.CharField(read_only=True)
+    # The upload (if any) behind each link: {notes|recording|homework: file or
+    # null}. `url` is the link column itself, which the upload wrote.
+    content_files = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
@@ -61,8 +70,17 @@ class SessionSerializer(serializers.ModelSerializer):
             'content_complete',
             'missing_content',
             'display_status',
+            'content_files',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
+
+    def get_content_files(self, instance):
+        out = {name: None for name in SessionContentField.values}
+        for sf in instance.files.all():
+            data = SessionFileSerializer(sf).data
+            data['url'] = getattr(instance, sf.link_field)
+            out[sf.field] = data
+        return out
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)

@@ -7,6 +7,7 @@ import {
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
+import { ContentInput, contentStateFor, contentError, contentPayload, formatBytes } from '../components/sessions/content-input';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { format } from 'date-fns';
@@ -107,18 +108,20 @@ function MissingBadge() {
 // URL truncated; a compact open-in-new-tab action keeps this wider table
 // usable. "—" when unset (or a Missing badge when the class is attended and
 // the item is required); a value that is not a web URL is shown as text.
-function ResourceLink({ href, icon: Icon, label, missing = false }) {
+function ResourceLink({ href, icon: Icon, label, missing = false, file = null }) {
   const url = (href || '').trim();
   if (!url) return missing ? <MissingBadge /> : <span className="text-zinc-500">—</span>;
   if (!/^https?:\/\/\S+$/i.test(url)) {
     return <span className="block max-w-40 truncate text-xs text-zinc-400" title={url}>{url}</span>;
   }
+  // An uploaded file opens through the same link; the hover text names it.
+  const title = file ? `${file.file_name} (${file.content_type}, ${formatBytes(file.size_bytes)})` : url;
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      title={url}
+      title={title}
       aria-label={label}
       className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white whitespace-nowrap transition-colors"
     >
@@ -168,10 +171,10 @@ export default function SessionsPage() {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleDuration, setRescheduleDuration] = useState(1.0);
 
-  // Form states for updating resources
-  const [recLink, setRecLink] = useState('');
-  const [notesLink, setNotesLink] = useState('');
-  const [hwLink, setHwLink] = useState('');
+  // Content dialog state per field: { mode: 'url' | 'file', url, file, existing }
+  // (see components/sessions/content-input.jsx). Set when a dialog opens.
+  const [content, setContent] = useState({ recording: null, notes: null, homework: null });
+  const setFieldContent = (field) => (next) => setContent((prev) => ({ ...prev, [field]: next }));
 
   // Form states for cancelling
   const [cancelReason, setCancelReason] = useState('');
@@ -264,10 +267,12 @@ export default function SessionsPage() {
     setModalError('');
     setSaving(false);
 
-    if (type === 'attend' && session) {
-      setRecLink(session.recording_link || '');
-      setNotesLink(session.notes_link || '');
-      setHwLink(session.homework_link || '');
+    if ((type === 'attend' || type === 'links' || type === 'notes') && session) {
+      setContent({
+        recording: contentStateFor(session, 'recording'),
+        notes: contentStateFor(session, 'notes'),
+        homework: contentStateFor(session, 'homework'),
+      });
     } else if (type === 'reschedule' && session) {
       // Local time formatting for datetime-local input
       const localTime = new Date(session.start_time);
@@ -278,12 +283,6 @@ export default function SessionsPage() {
       
       const durationHours = (new Date(session.end_time) - new Date(session.start_time)) / 3600000;
       setRescheduleDuration(durationHours);
-    } else if (type === 'links' && session) {
-      setRecLink(session.recording_link || '');
-      setNotesLink(session.notes_link || '');
-      setHwLink(session.homework_link || '');
-    } else if (type === 'notes' && session) {
-      setNotesLink(session.notes_link || '');
     } else if (type === 'cancel' && session) {
       setCancelReason('');
       setNeedMakeup(false);
@@ -319,22 +318,45 @@ export default function SessionsPage() {
     }
   };
 
+  const errorMessage = (err, fallback) =>
+    err.response?.data?.error || err.response?.data?.message || err.message || fallback;
+
+  // Validate the given content fields, upload every chosen file (each upload
+  // writes its own link server-side), and return the URL-mode fields to send
+  // in one PUT. Throws an Error with a user-facing message on bad input.
+  const submitContent = async (fields, { required = [] } = {}) => {
+    for (const field of fields) {
+      const err = contentError(content[field], { required: required.includes(field), label: CONTENT_LABEL[field] });
+      if (err) throw new Error(err);
+    }
+    const body = {};
+    for (const field of fields) {
+      const payload = contentPayload(content[field]);
+      if (payload.kind === 'file') {
+        const form = new FormData();
+        form.append('file', payload.file);
+        await api.post(`/api/sessions/${activeSession.id}/files/${field}/`, form);
+      } else if (payload.kind === 'url') {
+        body[`${field}_link`] = payload.value;
+      }
+    }
+    return body;
+  };
+
   const handleSaveLinks = async (e) => {
     e.preventDefault();
     setSaving(true);
     setModalError('');
 
     try {
-      await api.put('/api/sessions/', {
-        id: activeSession.id,
-        recording_link: recLink.trim() || null,
-        notes_link: notesLink.trim() || null,
-        homework_link: hwLink.trim() || null
-      });
+      const body = await submitContent(['recording', 'notes', 'homework']);
+      if (Object.keys(body).length > 0) {
+        await api.put('/api/sessions/', { id: activeSession.id, ...body });
+      }
       fetchSessions();
       closeModal();
     } catch (err) {
-      setModalError(err.response?.data?.error || 'Failed to save resource links.');
+      setModalError(errorMessage(err, 'Failed to save resource links.'));
     } finally {
       setSaving(false);
     }
@@ -389,31 +411,20 @@ export default function SessionsPage() {
   const handleMarkAttended = async (e) => {
     e.preventDefault();
 
-    // Attendance is recorded on its own. The mentor's two links (recording,
-    // homework) may come now or later and the notes come from the tutor; the
-    // API reports the class as Pending until all three exist. Whatever is
-    // typed here must still be a real https URL.
-    const rec = recLink.trim();
-    const hw = hwLink.trim();
-    if ((rec && !isHttpsUrl(rec)) || (hw && !isHttpsUrl(hw))) {
-      setModalError('Links must be valid https:// URLs.');
-      return;
-    }
-
+    // Attendance is recorded on its own. The mentor's two items (recording,
+    // homework) may come now or later, as a URL or an upload, and the notes
+    // come from the tutor; the API reports the class as Pending until all
+    // three exist.
     setSaving(true);
     setModalError('');
 
     try {
-      await api.put('/api/sessions/', {
-        id: activeSession.id,
-        status: 'ATTENDED',
-        recording_link: rec || null,
-        homework_link: hw || null
-      });
+      const body = await submitContent(['recording', 'homework']);
+      await api.put('/api/sessions/', { id: activeSession.id, status: 'ATTENDED', ...body });
       fetchSessions();
       closeModal();
     } catch (err) {
-      setModalError(err.response?.data?.error || 'Failed to mark session attended.');
+      setModalError(errorMessage(err, 'Failed to mark session attended.'));
     } finally {
       setSaving(false);
     }
@@ -423,21 +434,18 @@ export default function SessionsPage() {
   // API refuses anything else from a tutor.
   const handleSaveNotes = async (e) => {
     e.preventDefault();
-    const link = notesLink.trim();
-    if (!isHttpsUrl(link)) {
-      setModalError('Enter a valid https:// link to the class notes.');
-      return;
-    }
-
     setSaving(true);
     setModalError('');
 
     try {
-      await api.put('/api/sessions/', { id: activeSession.id, notes_link: link });
+      const body = await submitContent(['notes'], { required: ['notes'] });
+      if ('notes_link' in body) {
+        await api.put('/api/sessions/', { id: activeSession.id, notes_link: body.notes_link });
+      }
       fetchSessions();
       closeModal();
     } catch (err) {
-      setModalError(err.response?.data?.error || err.response?.data?.message || 'Failed to save the notes link.');
+      setModalError(errorMessage(err, 'Failed to save the notes.'));
     } finally {
       setSaving(false);
     }
@@ -590,9 +598,9 @@ export default function SessionsPage() {
     },
     // Attended-only columns. Each required item that is still absent gets the
     // Missing badge; rating is optional and stays "—" when unset.
-    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} /> },
-    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} /> },
-    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} /> },
+    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} file={s.content_files?.recording} /> },
+    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} file={s.content_files?.notes} /> },
+    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} file={s.content_files?.homework} /> },
     {
       id: 'rating',
       label: 'Rating',
@@ -860,27 +868,23 @@ export default function SessionsPage() {
                   The class shows as <span className="text-amber-400">Pending</span> until all three are available.
                 </p>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Recording Link <span className="text-zinc-600 normal-case tracking-normal font-medium">(optional)</span></label>
-                  <input
-                    type="url"
-                    placeholder="https://drive.google.com/..."
-                    value={recLink}
-                    onChange={(e) => setRecLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                </div>
+                <ContentInput
+                  label="Class Recording"
+                  optional
+                  placeholder="https://drive.google.com/..."
+                  value={content.recording}
+                  onChange={setFieldContent('recording')}
+                  disabled={saving}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Homework Assignment Link <span className="text-zinc-600 normal-case tracking-normal font-medium">(optional)</span></label>
-                  <input
-                    type="url"
-                    placeholder="https://classroom.google.com/..."
-                    value={hwLink}
-                    onChange={(e) => setHwLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                </div>
+                <ContentInput
+                  label="Homework Assignment"
+                  optional
+                  placeholder="https://classroom.google.com/..."
+                  value={content.homework}
+                  onChange={setFieldContent('homework')}
+                  disabled={saving}
+                />
 
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
                   <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes <span className="text-zinc-600 normal-case tracking-normal font-medium">(added by the tutor)</span></span>
@@ -921,20 +925,16 @@ export default function SessionsPage() {
                 {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
 
                 <p className="text-[11px] text-zinc-500 m-0">
-                  Link to your notes for this class. Once the recording and homework are in as well, the class shows as Attended.
+                  Paste a link to your notes or upload the file (PDF, image, or video). Once the recording and homework are in as well, the class shows as Attended.
                 </p>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://docs.google.com/..."
-                    value={notesLink}
-                    onChange={(e) => setNotesLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                    required
-                  />
-                </div>
+                <ContentInput
+                  label="Class Notes"
+                  placeholder="https://docs.google.com/..."
+                  value={content.notes}
+                  onChange={setFieldContent('notes')}
+                  disabled={saving}
+                />
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button
@@ -1022,38 +1022,33 @@ export default function SessionsPage() {
               <form onSubmit={handleSaveLinks} className="space-y-4">
                 {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Recording Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://drive.google.com/..."
-                    value={recLink}
-                    onChange={(e) => setRecLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                </div>
+                <p className="text-[11px] text-zinc-500 m-0">
+                  Each item can be a link or an uploaded file (PDF, image, or video).
+                </p>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://docs.google.com/..."
-                    value={notesLink}
-                    onChange={(e) => setNotesLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                </div>
+                <ContentInput
+                  label="Class Recording"
+                  placeholder="https://drive.google.com/..."
+                  value={content.recording}
+                  onChange={setFieldContent('recording')}
+                  disabled={saving}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Homework Assignment Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://classroom.google.com/..."
-                    value={hwLink}
-                    onChange={(e) => setHwLink(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  />
-                </div>
+                <ContentInput
+                  label="Class Notes"
+                  placeholder="https://docs.google.com/..."
+                  value={content.notes}
+                  onChange={setFieldContent('notes')}
+                  disabled={saving}
+                />
+
+                <ContentInput
+                  label="Homework Assignment"
+                  placeholder="https://classroom.google.com/..."
+                  value={content.homework}
+                  onChange={setFieldContent('homework')}
+                  disabled={saving}
+                />
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button

@@ -1,24 +1,27 @@
 import uuid
 import logging
+import os
 import re
 from datetime import timedelta
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 
 from students.models import Student
 from activity.utils import log_activity
 from core.authentication import CSRFExemptSessionAuthentication
-from core.permissions import IsStaffOrSelfStudent
+from core.permissions import IsStaffOrSelfStudent, IsStaffUser
 from core.querysets import scope_sessions_by_role
-from core.students import resolve_selected_student
+from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import TimezoneConversionError, is_valid_timezone
-from .models import Session, SessionStatusChoices
-from .serializers import SessionSerializer
+from .models import Session, SessionStatusChoices, SessionContentField, SessionFile
+from .serializers import SessionSerializer, SessionFileSerializer
 from .services import (
     ALLOWED_DURATIONS,
     MAX_SERIES_ITEMS,
@@ -29,6 +32,7 @@ from .services import (
     calculate_credits_used,
     find_conflict,
     apply_content_filter,
+    validate_content_upload,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,6 +50,18 @@ def staff_display_name(user):
     return user.full_name or user.email
 
 
+def drop_stale_files(session, changed_fields):
+    """
+    After a link column changes, remove the upload that used to stand behind
+    it unless the new value still points at that file. Keeps one set of bytes
+    per link and lets "replace the upload with a URL" free the storage.
+    """
+    names = {f[:-len('_link')] for f in changed_fields}
+    for sf in list(session.files.filter(field__in=names)):
+        if not sf.matches_link(getattr(session, sf.link_field)):
+            sf.delete()
+
+
 class SessionsView(APIView):
     """
     GET: List sessions.
@@ -56,7 +72,11 @@ class SessionsView(APIView):
     permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
 
     def get(self, request, *args, **kwargs):
-        queryset = Session.objects.select_related('student', 'student__profile', 'tutor').order_by('-start_time')
+        queryset = (
+            Session.objects.select_related('student', 'student__profile', 'tutor')
+            .prefetch_related('files')
+            .order_by('-start_time')
+        )
 
         # If the requester is a student, restrict to their own sessions;
         # mentors/tutors are scoped to their allocated students.
@@ -446,6 +466,8 @@ class SessionsView(APIView):
                         setattr(session, field, val)
 
             session.save()
+            if link_updates:
+                drop_stale_files(session, link_updates.keys())
 
         # Audit Logging
         action = None
@@ -532,8 +554,10 @@ class SessionsView(APIView):
             )
 
         before_notes = session.notes_link
-        session.notes_link = notes_link
-        session.save(update_fields=['notes_link', 'updated_at'])
+        with transaction.atomic():
+            session.notes_link = notes_link
+            session.save(update_fields=['notes_link', 'updated_at'])
+            drop_stale_files(session, ['notes_link'])
 
         if before_notes != notes_link:
             log_activity(
@@ -550,6 +574,205 @@ class SessionsView(APIView):
             {"success": True, "session": SessionSerializer(session).data},
             status=status.HTTP_200_OK
         )
+
+
+class SessionFileUploadView(APIView):
+    """
+    POST /api/sessions/<session_id>/files/<field>/  (multipart, one `file`)
+
+    Attach an uploaded PDF / image / video as the session's notes, recording
+    or homework. The bytes go to MEDIA_ROOT and the field's link column is
+    set to the download view's URL -- so from then on the row is treated
+    exactly as if that URL had been pasted (completion, filters, "Open").
+    Who may upload to a field mirrors who may set its link through PUT:
+    tutors -> notes on their allocated students' sessions; mentors -> any
+    field on their allocated students' sessions; admins -> any. Replaces a
+    previous upload for the same field.
+    """
+    authentication_classes = [CSRFExemptSessionAuthentication]
+    permission_classes = [IsAuthenticated, IsStaffUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, session_id, field, *args, **kwargs):
+        if field not in SessionContentField.values:
+            return Response({"error": "Unknown content field"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            session = Session.objects.select_related('student').get(id=session_id)
+        except Session.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        role = request.user.role
+        if role == 'TUTOR':
+            if field != SessionContentField.NOTES:
+                return Response(
+                    {"error": "Forbidden", "message": "Tutors can only upload notes."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            if session.student.tutor_id != request.user.id:
+                return Response(
+                    {"error": "Forbidden", "message": "You can only add notes for your allocated students' sessions."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        elif role == 'MENTOR' and session.student.mentor != request.user:
+            return Response(
+                {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if session.status == SessionStatusChoices.CANCELLED:
+            return Response(
+                {"error": "Content cannot be attached to a cancelled session."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        upload = request.FILES.get('file')
+        if upload is None:
+            return Response({"error": "A file is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            kind, content_type, extension = validate_content_upload(upload)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        link_field = f"{field}_link"
+        before_link = getattr(session, link_field)
+
+        with transaction.atomic():
+            # One upload per field: the previous one (and its bytes) goes away.
+            for old in list(session.files.filter(field=field)):
+                old.delete()
+            session_file = SessionFile(
+                session=session,
+                field=field,
+                file_name=os.path.basename(upload.name)[:255] or f"{field}{extension}",
+                content_type=content_type,
+                size_bytes=upload.size,
+                extension=extension,
+                uploaded_by=request.user,
+            )
+            session_file.file.save(f"{session_file.id}{extension}", upload, save=False)
+            session_file.save()
+            new_link = request.build_absolute_uri(session_file.link_path())
+            setattr(session, link_field, new_link)
+            session.save(update_fields=[link_field, 'updated_at'])
+
+        log_activity(
+            action='session.update_links',
+            entity_type='session',
+            entity_id=str(session.id),
+            entity_label=session.title,
+            student=session.student,
+            changes={link_field: {"old": before_link, "new": new_link}},
+            context={
+                "uploaded_file": session_file.file_name,
+                "content_type": content_type,
+                "size_bytes": upload.size,
+            },
+            request=request,
+        )
+
+        file_data = SessionFileSerializer(session_file).data
+        file_data['url'] = new_link
+        return Response(
+            {"success": True, "session": SessionSerializer(session).data, "file": file_data},
+            status=status.HTTP_200_OK
+        )
+
+
+_RANGE_RE = re.compile(r'^bytes=(\d*)-(\d*)$')
+_STREAM_CHUNK = 64 * 1024
+
+
+class SessionFileDownloadView(APIView):
+    """
+    GET /api/sessions/files/<file_id>/
+
+    Streams an uploaded file inline to anyone allowed to see the session it
+    belongs to: admins, the student's mentor/tutor, and the student's own
+    account -- the same scoping the sessions list applies. Honours single
+    byte-range requests so browsers can seek inside recordings.
+    """
+    authentication_classes = [CSRFExemptSessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_id, *args, **kwargs):
+        try:
+            session_file = SessionFile.objects.select_related('session', 'session__student').get(id=file_id)
+        except SessionFile.DoesNotExist:
+            return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.role == 'STUDENT':
+            allowed = get_usable_students(user).filter(id=session_file.session.student_id).exists()
+        else:
+            allowed = scope_sessions_by_role(
+                Session.objects.filter(id=session_file.session_id), user
+            ).exists()
+        if not allowed:
+            return Response(
+                {"error": "Forbidden", "message": "You do not have access to this file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            size = session_file.file.size
+        except (FileNotFoundError, OSError):
+            return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        response = self._ranged_response(request, session_file, size)
+        response['Accept-Ranges'] = 'bytes'
+        response['Content-Disposition'] = f'inline; filename="{self._ascii_name(session_file.file_name)}"'
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['Cache-Control'] = 'private, max-age=0'
+        return response
+
+    @staticmethod
+    def _ascii_name(name):
+        cleaned = ''.join(ch if 32 <= ord(ch) < 127 and ch not in '"\\' else '_' for ch in name)
+        return cleaned or 'file'
+
+    @staticmethod
+    def _ranged_response(request, session_file, size):
+        match = _RANGE_RE.match(request.META.get('HTTP_RANGE', '') or '')
+        if not match:
+            handle = session_file.file.open('rb')
+            response = FileResponse(handle, content_type=session_file.content_type)
+            response['Content-Length'] = str(size)
+            return response
+
+        first, last = match.groups()
+        if first == '' and last == '':
+            start, end = 0, size - 1
+        elif first == '':
+            # Suffix range: the last N bytes.
+            start, end = max(0, size - int(last)), size - 1
+        else:
+            start = int(first)
+            end = min(int(last), size - 1) if last else size - 1
+        if size == 0 or start >= size or start > end:
+            response = HttpResponse(status=416)
+            response['Content-Range'] = f'bytes */{size}'
+            return response
+
+        handle = session_file.file.open('rb')
+        handle.seek(start)
+        length = end - start + 1
+
+        def stream():
+            try:
+                remaining = length
+                while remaining > 0:
+                    chunk = handle.read(min(_STREAM_CHUNK, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+            finally:
+                handle.close()
+
+        response = StreamingHttpResponse(stream(), status=206, content_type=session_file.content_type)
+        response['Content-Range'] = f'bytes {start}-{end}/{size}'
+        response['Content-Length'] = str(length)
+        return response
 
 
 class CancelSeriesView(APIView):

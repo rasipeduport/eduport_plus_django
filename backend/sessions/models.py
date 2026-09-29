@@ -1,7 +1,12 @@
 import uuid
+from urllib.parse import urlparse
+
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.urls import reverse
 from django.utils import timezone
 from students.models import Student
 
@@ -91,3 +96,75 @@ class Session(models.Model):
         if self.status == SessionStatusChoices.ATTENDED and not self.content_complete:
             return 'pending'
         return self.status.lower()
+
+
+class SessionContentField(models.TextChoices):
+    NOTES = 'notes', 'Notes'
+    RECORDING = 'recording', 'Recording'
+    HOMEWORK = 'homework', 'Homework'
+
+
+def session_file_path(instance, filename):
+    """Storage key: session-content/<session>/<field>/<file id><ext>. The
+    original name lives on the row; the key stays short and safe."""
+    ext = instance.extension or ''
+    return f"session-content/{instance.session_id}/{instance.field}/{instance.id}{ext}"
+
+
+class SessionFile(models.Model):
+    """
+    An uploaded file standing behind one of a session's three content links.
+
+    The link column (``notes_link`` / ``recording_link`` / ``homework_link``)
+    stays the single source of truth for "what to open": an upload writes the
+    URL of the authenticated download view into it, exactly as a pasted URL
+    would be stored. This row only carries the bytes and their metadata, so
+    the dialogs can show the file's name and type and the download view can
+    authorise and stream it. At most one file per (session, field); replacing
+    the link with a URL (or a new upload) removes the old row and its bytes.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='files')
+    field = models.CharField(max_length=20, choices=SessionContentField.choices)
+    file = models.FileField(upload_to=session_file_path, max_length=512)
+    file_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size_bytes = models.BigIntegerField()
+    extension = models.CharField(max_length=16, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='uploaded_session_files',
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'session_files'
+        verbose_name = 'Session File'
+        verbose_name_plural = 'Session Files'
+        constraints = [
+            models.UniqueConstraint(fields=['session', 'field'], name='session_files_one_per_field'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_field_display()} for {self.session_id}: {self.file_name}"
+
+    @property
+    def link_field(self):
+        return f"{self.field}_link"
+
+    def link_path(self):
+        """URL path of the authenticated download view for this file."""
+        return reverse('sessions:session-file', args=[self.id])
+
+    def matches_link(self, value):
+        """Whether a stored link value still points at this file (host-agnostic)."""
+        if not value:
+            return False
+        return urlparse(value).path == self.link_path()
+
+
+@receiver(post_delete, sender=SessionFile)
+def _delete_session_file_bytes(sender, instance, **kwargs):
+    """Dropping the row drops the bytes too, including on cascade from the session."""
+    if instance.file:
+        instance.file.delete(save=False)

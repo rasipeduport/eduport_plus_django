@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Session
+from .models import Session, SessionFile
 
 class SessionAdmin(admin.ModelAdmin):
     list_display = ('title', 'student', 'tutor', 'start_time', 'end_time', 'status', 'rating')
@@ -18,3 +18,12 @@ class SessionAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 admin.site.register(Session, SessionAdmin)
+
+
+class SessionFileAdmin(admin.ModelAdmin):
+    list_display = ('file_name', 'field', 'session', 'content_type', 'size_bytes', 'uploaded_by', 'created_at')
+    list_filter = ('field', 'content_type')
+    search_fields = ('file_name', 'session__title', 'session__student__student_code')
+    readonly_fields = ('id', 'created_at')
+
+admin.site.register(SessionFile, SessionFileAdmin)

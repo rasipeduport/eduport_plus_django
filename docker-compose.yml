@@ -43,6 +43,10 @@ services:
       DB_PASSWORD: postgres
     ports:
       - "8000:8000"
+    # Uploaded session content (MEDIA_ROOT). Named volume so files survive
+    # image rebuilds, like pgdata does for the database.
+    volumes:
+      - media:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -78,3 +82,4 @@ services:
 
 volumes:
   pgdata:
+  media:

@@ -113,6 +113,20 @@ html:not(.dark) .legacy-ui {
     --tw-ring-color: #ffffff !important;
   }
 
+  /* Inline error banner and amber notice text inside the Sessions modals */
+  .text-red-400 {
+    color: #b91c1c !important; /* red-700 */
+  }
+  .bg-red-950\/40 {
+    background-color: #fef2f2 !important; /* red-50 */
+  }
+  .border-red-900\/50 {
+    border-color: #fecaca !important; /* red-200 */
+  }
+  .text-amber-400 {
+    color: #b45309 !important; /* amber-700 */
+  }
+
   /* Pill Badges in light mode */
   .bg-emerald-950\/80 {
     background-color: #ecfdf5 !important;

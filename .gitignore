@@ -29,6 +29,8 @@ Thumbs.db
 
 # Docker / build artifacts
 backend/staticfiles/
+# Uploaded session content (MEDIA_ROOT) when running natively
+backend/media/
 # Snapshot of the original dev machine's full pip freeze. Kept locally as a
 # reference only -- the real dependency list is backend/requirements.txt.
 backend/requirements.full.txt

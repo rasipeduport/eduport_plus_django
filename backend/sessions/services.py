@@ -5,6 +5,7 @@ These keep the (intricate) scheduling rules in one place: title normalisation,
 ISO datetime parsing, quota accounting, and conflict detection.
 """
 from datetime import datetime
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
@@ -149,3 +150,72 @@ def find_conflict(student, tutor, start_time, end_time, exclude_id=None):
     if exclude_id:
         conflicts = conflicts.exclude(id=exclude_id)
     return conflicts.first()
+
+
+# ------------------------------------------------------------ file uploads
+
+# Declared MIME type -> (kind, canonical extension). Only these may be
+# uploaded as session content; `kind` selects the size ceiling.
+CONTENT_TYPES = {
+    'application/pdf': ('document', '.pdf'),
+    'image/png': ('image', '.png'),
+    'image/jpeg': ('image', '.jpg'),
+    'image/webp': ('image', '.webp'),
+    'image/gif': ('image', '.gif'),
+    'image/heic': ('image', '.heic'),
+    'image/heif': ('image', '.heif'),
+    'video/mp4': ('video', '.mp4'),
+    'video/webm': ('video', '.webm'),
+    'video/quicktime': ('video', '.mov'),
+    'video/x-matroska': ('video', '.mkv'),
+}
+
+_SNIFF_BYTES = 16
+
+
+def _signature_matches(content_type, head):
+    """
+    Cheap magic-number check so a renamed .html cannot be stored and served
+    back as an image or a PDF. Container formats that all start with an ISO
+    'ftyp' box (mp4/mov/heic/heif) share one rule.
+    """
+    if content_type == 'application/pdf':
+        return head.startswith(b'%PDF')
+    if content_type == 'image/png':
+        return head.startswith(b'\x89PNG\r\n\x1a\n')
+    if content_type == 'image/jpeg':
+        return head.startswith(b'\xff\xd8\xff')
+    if content_type == 'image/gif':
+        return head.startswith((b'GIF87a', b'GIF89a'))
+    if content_type == 'image/webp':
+        return head.startswith(b'RIFF') and head[8:12] == b'WEBP'
+    if content_type in ('video/mp4', 'video/quicktime', 'image/heic', 'image/heif'):
+        return head[4:8] == b'ftyp'
+    if content_type in ('video/webm', 'video/x-matroska'):
+        return head.startswith(b'\x1a\x45\xdf\xa3')
+    return False
+
+
+def validate_content_upload(upload):
+    """
+    Check an uploaded file against the allowlist, the per-kind size ceiling
+    and its magic number. Returns ``(kind, content_type, extension)`` or
+    raises ValueError with a message meant for the user.
+    """
+    content_type = (upload.content_type or '').split(';')[0].strip().lower()
+    if content_type not in CONTENT_TYPES:
+        raise ValueError('Unsupported file type. Upload a PDF, an image, or a video.')
+    kind, extension = CONTENT_TYPES[content_type]
+
+    limit = settings.SESSION_CONTENT_MAX_BYTES[kind]
+    if upload.size == 0:
+        raise ValueError(f'"{upload.name}" is empty.')
+    if upload.size > limit:
+        raise ValueError(f'"{upload.name}" is larger than the {limit // (1024 * 1024)} MB limit for {kind}s.')
+
+    upload.seek(0)
+    head = upload.read(_SNIFF_BYTES)
+    upload.seek(0)
+    if not _signature_matches(content_type, head):
+        raise ValueError(f'"{upload.name}" does not look like a {content_type} file.')
+    return kind, content_type, extension

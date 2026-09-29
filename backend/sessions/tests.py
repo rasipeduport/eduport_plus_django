@@ -1,6 +1,11 @@
+import os
+import shutil
+import tempfile
 import uuid
 from datetime import timedelta
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
 from django.urls import reverse
 from rest_framework import status
@@ -9,7 +14,7 @@ from rest_framework.test import APITestCase
 from students.models import Student, StatusChoices
 from invitations.models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from activity.models import ActivityLog
-from sessions.models import Session, SessionStatusChoices
+from sessions.models import Session, SessionStatusChoices, SessionFile
 
 User = get_user_model()
 
@@ -1367,3 +1372,347 @@ class PostSessionWorkflowTests(APITestCase):
         other = self.make_session(SessionStatusChoices.SCHEDULED, title='Mover')
         res = self.put(self.mentor, {"id": str(other.id), "start_time": blocker.start_time.isoformat(), "duration_hours": 1})
         self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+
+
+_MEDIA_TMP = tempfile.mkdtemp(prefix='eduplus-test-media-')
+
+PDF_BYTES = b'%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n'
+PNG_BYTES = b'\x89PNG\r\n\x1a\n' + b'\x00' * 64
+MP4_BYTES = b'\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom' + bytes(range(256)) * 4
+
+
+@override_settings(MEDIA_ROOT=_MEDIA_TMP)
+class SessionContentUploadTests(APITestCase):
+    """
+    File uploads for the three content links. An upload stores the bytes
+    under MEDIA_ROOT, writes the authenticated download URL into the same
+    link column a pasted URL would use, and from then on counts as
+    "available" for Pending/Attended and the ?content= filter exactly like a
+    URL. Who may upload to a field mirrors who may set that link via PUT.
+    """
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(_MEDIA_TMP, ignore_errors=True)
+
+    def setUp(self):
+        self.admin = User.objects.create_user(email='up_admin@eduport.com', password='x', full_name='Up Admin', role='ADMIN', is_staff=True)
+        self.mentor = User.objects.create_user(email='up_mentor@eduport.com', password='x', full_name='Up Mentor', role='MENTOR', is_staff=True)
+        self.other_mentor = User.objects.create_user(email='up_mentor2@eduport.com', password='x', full_name='Up Mentor Two', role='MENTOR', is_staff=True)
+        self.tutor = User.objects.create_user(email='up_tutor@eduport.com', password='x', full_name='Up Tutor', role='TUTOR', is_staff=True)
+        self.other_tutor = User.objects.create_user(email='up_tutor2@eduport.com', password='x', full_name='Up Tutor Two', role='TUTOR', is_staff=True)
+        self.student_user = User.objects.create_user(email='up_student@eduport.com', password='x', full_name='Up Stu', role='STUDENT')
+        self.other_student_user = User.objects.create_user(email='up_student2@eduport.com', password='x', full_name='Up Stu Two', role='STUDENT')
+        self.student = Student.objects.create(
+            profile=self.student_user, student_code='EDPUP1', full_name='Up Stu',
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=20, status=StatusChoices.ACTIVE,
+        )
+        self.other_student = Student.objects.create(
+            profile=self.other_student_user, student_code='EDPUP2', full_name='Up Stu Two',
+            mentor=self.other_mentor, tutor=self.other_tutor, total_class_quota=20, status=StatusChoices.ACTIVE,
+        )
+        start = timezone.now() - timedelta(days=1)
+        self.session = Session.objects.create(
+            student=self.student, tutor=self.tutor, title='Upload Class',
+            start_time=start, end_time=start + timedelta(hours=1), status=SessionStatusChoices.ATTENDED,
+        )
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+
+    # -- helpers ---------------------------------------------------------
+
+    def upload_url(self, field, session=None):
+        return reverse('sessions:session-file-upload', args=[(session or self.session).id, field])
+
+    def upload(self, user, field, name='notes.pdf', content=PDF_BYTES, content_type='application/pdf', session=None):
+        self.client.force_authenticate(user=user)
+        payload = {'file': SimpleUploadedFile(name, content, content_type=content_type)}
+        return self.client.post(self.upload_url(field, session), payload, format='multipart')
+
+    def download(self, user, file_id, **headers):
+        self.client.force_authenticate(user=user)
+        return self.client.get(reverse('sessions:session-file', args=[file_id]), **headers)
+
+    @staticmethod
+    def stored_path(session_file):
+        return session_file.file.path
+
+    # -- upload: happy paths & permissions ---------------------------------
+
+    def test_tutor_upload_notes_pdf_sets_link_and_stores_file(self):
+        res = self.upload(self.tutor, 'notes')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        sf = SessionFile.objects.get(session=self.session, field='notes')
+        self.assertEqual(sf.file_name, 'notes.pdf')
+        self.assertEqual(sf.content_type, 'application/pdf')
+        self.assertEqual(sf.size_bytes, len(PDF_BYTES))
+        self.assertEqual(sf.uploaded_by, self.tutor)
+        self.assertTrue(os.path.exists(self.stored_path(sf)))
+        self.assertTrue(self.stored_path(sf).startswith(_MEDIA_TMP))
+        with open(self.stored_path(sf), 'rb') as fh:
+            self.assertEqual(fh.read(), PDF_BYTES)
+
+        self.session.refresh_from_db()
+        expected_link = 'http://testserver' + reverse('sessions:session-file', args=[sf.id])
+        self.assertEqual(self.session.notes_link, expected_link)
+        self.assertTrue(sf.matches_link(self.session.notes_link))
+
+        body = res.data['session']
+        self.assertEqual(body['notes_link'], expected_link)
+        self.assertEqual(body['content_files']['notes']['file_name'], 'notes.pdf')
+        self.assertEqual(body['content_files']['notes']['url'], expected_link)
+        self.assertIsNone(body['content_files']['recording'])
+        self.assertEqual(res.data['file']['url'], expected_link)
+
+        log = ActivityLog.objects.get(action='session.update_links', entity_id=str(self.session.id))
+        self.assertEqual(log.actor_role, 'TUTOR')
+        self.assertEqual(log.changes['notes_link'], {"old": None, "new": expected_link})
+        self.assertEqual(log.context['uploaded_file'], 'notes.pdf')
+
+    def test_mentor_uploads_recording_video_and_homework_image(self):
+        res = self.upload(self.mentor, 'recording', name='class.mp4', content=MP4_BYTES, content_type='video/mp4')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        res = self.upload(self.mentor, 'homework', name='hw.png', content=PNG_BYTES, content_type='image/png')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.session.refresh_from_db()
+        files = {sf.field: sf for sf in self.session.files.all()}
+        self.assertEqual(set(files), {'recording', 'homework'})
+        self.assertEqual(files['recording'].content_type, 'video/mp4')
+        self.assertEqual(files['recording'].extension, '.mp4')
+        self.assertTrue(files['recording'].matches_link(self.session.recording_link))
+        self.assertTrue(files['homework'].matches_link(self.session.homework_link))
+
+    def test_admin_can_upload_any_field(self):
+        for field, name, content, ctype in (
+            ('notes', 'n.pdf', PDF_BYTES, 'application/pdf'),
+            ('recording', 'r.mp4', MP4_BYTES, 'video/mp4'),
+            ('homework', 'h.png', PNG_BYTES, 'image/png'),
+        ):
+            res = self.upload(self.admin, field, name=name, content=content, content_type=ctype)
+            self.assertEqual(res.status_code, status.HTTP_200_OK, (field, res.data))
+
+    def test_tutor_cannot_upload_recording_or_homework(self):
+        for field in ('recording', 'homework'):
+            res = self.upload(self.tutor, field, name='x.png', content=PNG_BYTES, content_type='image/png')
+            self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN, field)
+        self.assertFalse(SessionFile.objects.exists())
+
+    def test_tutor_cannot_upload_notes_for_another_tutors_student(self):
+        start = timezone.now() - timedelta(days=1)
+        other = Session.objects.create(
+            student=self.other_student, tutor=self.other_tutor, title='Other',
+            start_time=start, end_time=start + timedelta(hours=1), status=SessionStatusChoices.ATTENDED,
+        )
+        res = self.upload(self.tutor, 'notes', session=other)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(SessionFile.objects.exists())
+
+    def test_other_mentor_and_student_cannot_upload(self):
+        res = self.upload(self.other_mentor, 'recording', name='r.mp4', content=MP4_BYTES, content_type='video/mp4')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        res = self.upload(self.student_user, 'notes')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(SessionFile.objects.exists())
+
+    # -- upload: validation ---------------------------------------------------
+
+    def test_unsupported_type_is_rejected(self):
+        res = self.upload(self.mentor, 'homework', name='hw.txt', content=b'hello', content_type='text/plain')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Unsupported file type', res.data['error'])
+        res = self.upload(self.mentor, 'homework', name='hw.html', content=b'<html>', content_type='text/html')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(SessionFile.objects.exists())
+
+    def test_mislabelled_file_is_rejected(self):
+        """A renamed HTML file declared as a PDF must not be stored and served back as one."""
+        res = self.upload(self.mentor, 'homework', name='hw.pdf', content=b'<html><script>1</script>', content_type='application/pdf')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('does not look like', res.data['error'])
+        res = self.upload(self.mentor, 'homework', name='pic.png', content=PDF_BYTES, content_type='image/png')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(SessionFile.objects.exists())
+
+    def test_size_limit_per_kind(self):
+        with override_settings(SESSION_CONTENT_MAX_BYTES={'document': 10, 'image': 10, 'video': 10 * 1024}):
+            res = self.upload(self.mentor, 'homework', name='big.pdf', content=PDF_BYTES, content_type='application/pdf')
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('larger than', res.data['error'])
+            res = self.upload(self.mentor, 'recording', name='v.mp4', content=MP4_BYTES, content_type='video/mp4')
+            self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_missing_file_empty_file_unknown_field_and_cancelled_session(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.post(self.upload_url('notes'), {}, format='multipart')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.upload(self.mentor, 'notes', content=b'')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        res = self.upload(self.mentor, 'rating')
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.session.status = SessionStatusChoices.CANCELLED
+        self.session.cancellation_reason = 'x'
+        self.session.save()
+        res = self.upload(self.mentor, 'notes')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(SessionFile.objects.exists())
+
+    def test_reupload_replaces_previous_file(self):
+        self.upload(self.mentor, 'homework', name='v1.png', content=PNG_BYTES, content_type='image/png')
+        first = SessionFile.objects.get(session=self.session, field='homework')
+        first_path = self.stored_path(first)
+        res = self.upload(self.mentor, 'homework', name='v2.pdf', content=PDF_BYTES, content_type='application/pdf')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(SessionFile.objects.filter(session=self.session, field='homework').count(), 1)
+        second = SessionFile.objects.get(session=self.session, field='homework')
+        self.assertNotEqual(first.id, second.id)
+        self.assertFalse(os.path.exists(first_path))
+        self.assertTrue(os.path.exists(self.stored_path(second)))
+        self.session.refresh_from_db()
+        self.assertTrue(second.matches_link(self.session.homework_link))
+
+    # -- download -------------------------------------------------------------
+
+    def test_download_streams_inline_to_allowed_users(self):
+        self.upload(self.mentor, 'recording', name='class.mp4', content=MP4_BYTES, content_type='video/mp4')
+        sf = SessionFile.objects.get(field='recording')
+        for user in (self.admin, self.mentor, self.tutor, self.student_user):
+            res = self.download(user, sf.id)
+            self.assertEqual(res.status_code, status.HTTP_200_OK, user.role)
+            self.assertEqual(res['Content-Type'], 'video/mp4')
+            self.assertEqual(res['Content-Length'], str(len(MP4_BYTES)))
+            self.assertEqual(res['Accept-Ranges'], 'bytes')
+            self.assertTrue(res['Content-Disposition'].startswith('inline;'))
+            self.assertIn('class.mp4', res['Content-Disposition'])
+            self.assertEqual(res['X-Content-Type-Options'], 'nosniff')
+            self.assertEqual(b''.join(res.streaming_content), MP4_BYTES)
+
+    def test_download_is_denied_outside_the_session_scope(self):
+        self.upload(self.mentor, 'notes')
+        sf = SessionFile.objects.get(field='notes')
+        for user in (self.other_mentor, self.other_tutor, self.other_student_user):
+            res = self.download(user, sf.id)
+            self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN, user.email)
+        self.client.force_authenticate(user=None)
+        res = self.client.get(reverse('sessions:session-file', args=[sf.id]))
+        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+        res = self.download(self.admin, uuid.uuid4())
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_download_honours_byte_ranges(self):
+        self.upload(self.mentor, 'recording', name='class.mp4', content=MP4_BYTES, content_type='video/mp4')
+        sf = SessionFile.objects.get(field='recording')
+        size = len(MP4_BYTES)
+
+        res = self.download(self.student_user, sf.id, HTTP_RANGE='bytes=10-19')
+        self.assertEqual(res.status_code, 206)
+        self.assertEqual(res['Content-Range'], f'bytes 10-19/{size}')
+        self.assertEqual(res['Content-Length'], '10')
+        self.assertEqual(b''.join(res.streaming_content), MP4_BYTES[10:20])
+
+        res = self.download(self.student_user, sf.id, HTTP_RANGE='bytes=100-')
+        self.assertEqual(res.status_code, 206)
+        self.assertEqual(b''.join(res.streaming_content), MP4_BYTES[100:])
+        self.assertEqual(res['Content-Range'], f'bytes 100-{size - 1}/{size}')
+
+        res = self.download(self.student_user, sf.id, HTTP_RANGE='bytes=-5')
+        self.assertEqual(res.status_code, 206)
+        self.assertEqual(b''.join(res.streaming_content), MP4_BYTES[-5:])
+
+        res = self.download(self.student_user, sf.id, HTTP_RANGE=f'bytes={size + 5}-')
+        self.assertEqual(res.status_code, 416)
+        self.assertEqual(res['Content-Range'], f'bytes */{size}')
+
+    # -- interplay with the link columns & completion ---------------------------
+
+    def test_upload_counts_as_available_for_completion_and_filters(self):
+        self.session.recording_link = 'https://example.com/rec'
+        self.session.homework_link = 'https://drive.google.com/hw'
+        self.session.save()
+        self.client.force_authenticate(user=self.mentor)
+        before = self.client.get(self.sessions_url).data['sessions'][0]
+        self.assertEqual(before['display_status'], 'pending')
+        self.assertEqual(before['missing_content'], ['notes'])
+
+        res = self.upload(self.tutor, 'notes')
+        self.assertEqual(res.data['session']['display_status'], 'attended')
+        self.assertTrue(res.data['session']['content_complete'])
+
+        self.client.force_authenticate(user=self.mentor)
+        self.assertEqual(len(self.client.get(self.sessions_url, {'content': 'missing_notes'}).data['sessions']), 0)
+        self.assertEqual(len(self.client.get(self.sessions_url, {'content': 'complete'}).data['sessions']), 1)
+
+    def test_mixed_uploads_and_url_complete_the_session(self):
+        """Notes = uploaded PDF, Recording = uploaded video, Homework = Drive URL -> Attended."""
+        self.upload(self.tutor, 'notes')
+        self.upload(self.mentor, 'recording', name='class.mp4', content=MP4_BYTES, content_type='video/mp4')
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "homework_link": "https://drive.google.com/hw"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['session']['display_status'], 'attended')
+        self.assertEqual(res.data['session']['missing_content'], [])
+        self.assertEqual(SessionFile.objects.filter(session=self.session).count(), 2)
+
+    def test_replacing_an_upload_with_a_url_removes_the_file(self):
+        self.upload(self.mentor, 'homework', name='hw.png', content=PNG_BYTES, content_type='image/png')
+        sf = SessionFile.objects.get(field='homework')
+        path = self.stored_path(sf)
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "homework_link": "https://classroom.google.com/hw"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertFalse(SessionFile.objects.filter(id=sf.id).exists())
+        self.assertFalse(os.path.exists(path))
+        self.assertIsNone(res.data['session']['content_files']['homework'])
+        self.assertEqual(res.data['session']['homework_link'], 'https://classroom.google.com/hw')
+
+    def test_saving_the_same_file_url_back_keeps_the_upload(self):
+        """The links dialog re-sends unchanged fields; that must not drop the upload."""
+        self.upload(self.mentor, 'homework', name='hw.png', content=PNG_BYTES, content_type='image/png')
+        sf = SessionFile.objects.get(field='homework')
+        self.session.refresh_from_db()
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.sessions_url,
+            {"id": str(self.session.id), "homework_link": self.session.homework_link, "recording_link": "https://example.com/rec"},
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertTrue(SessionFile.objects.filter(id=sf.id).exists())
+        self.assertTrue(os.path.exists(self.stored_path(sf)))
+
+    def test_clearing_the_link_and_tutor_url_replace_remove_uploads(self):
+        self.upload(self.tutor, 'notes')
+        sf = SessionFile.objects.get(field='notes')
+        path = self.stored_path(sf)
+        self.client.force_authenticate(user=self.tutor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "notes_link": "https://docs.google.com/n"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertFalse(SessionFile.objects.filter(id=sf.id).exists())
+        self.assertFalse(os.path.exists(path))
+
+        self.upload(self.mentor, 'recording', name='r.mp4', content=MP4_BYTES, content_type='video/mp4')
+        sf = SessionFile.objects.get(field='recording')
+        path = self.stored_path(sf)
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "recording_link": None}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertFalse(SessionFile.objects.filter(id=sf.id).exists())
+        self.assertFalse(os.path.exists(path))
+        self.assertEqual(res.data['session']['missing_content'], ['recording', 'homework'])
+
+    def test_deleting_the_session_removes_its_files(self):
+        self.upload(self.tutor, 'notes')
+        self.upload(self.mentor, 'homework', name='hw.png', content=PNG_BYTES, content_type='image/png')
+        paths = [self.stored_path(sf) for sf in SessionFile.objects.filter(session=self.session)]
+        self.assertEqual(len(paths), 2)
+        self.session.delete()
+        self.assertFalse(SessionFile.objects.exists())
+        for path in paths:
+            self.assertFalse(os.path.exists(path))
+
+    def test_url_links_are_untouched_by_the_upload_machinery(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(self.sessions_url, {"id": str(self.session.id), "recording_link": "https://example.com/rec"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['session']['recording_link'], 'https://example.com/rec')
+        self.assertEqual(res.data['session']['content_files'], {'notes': None, 'recording': None, 'homework': None})
+        self.assertFalse(SessionFile.objects.exists())

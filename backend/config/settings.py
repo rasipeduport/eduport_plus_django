@@ -173,6 +173,21 @@ STORAGES = {
     },
 }
 
+# Uploaded session content (notes / recording / homework files). Stored by the
+# default FileSystemStorage above under MEDIA_ROOT (a Docker volume in compose)
+# and served ONLY through the authenticated /api/sessions/files/<id>/ view --
+# there is deliberately no MEDIA_URL and nothing exposes this directory.
+MEDIA_ROOT = Path(env('MEDIA_ROOT', default=str(BASE_DIR / 'media')))
+
+# Per-kind upload ceilings, in bytes. 50 MiB for documents/images matches the
+# Hub's homework bucket; video recordings get more room. Override per
+# environment with SESSION_CONTENT_MAX_MB_<KIND>.
+SESSION_CONTENT_MAX_BYTES = {
+    'document': env.int('SESSION_CONTENT_MAX_MB_DOCUMENT', default=50) * 1024 * 1024,
+    'image': env.int('SESSION_CONTENT_MAX_MB_IMAGE', default=50) * 1024 * 1024,
+    'video': env.int('SESSION_CONTENT_MAX_MB_VIDEO', default=500) * 1024 * 1024,
+}
+
 # Custom Authentication User Model
 AUTH_USER_MODEL = 'accounts.User'
 
