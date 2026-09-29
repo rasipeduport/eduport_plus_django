@@ -465,8 +465,13 @@ export default function SessionsPage() {
   const filteredSessions = tableSource.filter(session => {
     const studentMatch = selectedStudentId ? (session.student_id === selectedStudentId || session.student?.id === selectedStudentId) : true;
     const tabMatch = session.status?.toLowerCase() === activeTab;
-    const title = searchTerm.trim().toLowerCase();
-    const titleMatch = !title || (session.title || '').toLowerCase().includes(title);
+    // The search box matches the session title or the student's name.
+    const term = searchTerm.trim().toLowerCase();
+    const studentName = session.students?.full_name || session.student_profile?.full_name || session.student?.full_name || '';
+    const titleMatch =
+      !term ||
+      (session.title || '').toLowerCase().includes(term) ||
+      studentName.toLowerCase().includes(term);
     const startMs = new Date(session.start_time).getTime();
     const dateMatch =
       !dateRange ||
@@ -653,7 +658,7 @@ export default function SessionsPage() {
           scoping comes only from ?student_id, shown in the banner above. */}
       <div className="flex flex-wrap items-center gap-2">
         <Input
-          placeholder="Filter by session title..."
+          placeholder="Filter by session title or student..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-xs"
