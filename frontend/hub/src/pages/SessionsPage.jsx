@@ -156,6 +156,9 @@ export default function SessionsPage() {
   // User role context
   const [userRole, setUserRole] = useState('ADMIN');
   const [currentUser, setCurrentUser] = useState(null);
+  // Admins can complete every post-session item themselves; mentors and
+  // tutors keep their split (recording + homework vs. notes).
+  const isAdmin = userRole === 'ADMIN';
 
   // Modals active state
   const [modalType, setModalType] = useState(null); // 'attend' | 'reschedule' | 'links' | 'cancel'
@@ -411,15 +414,15 @@ export default function SessionsPage() {
   const handleMarkAttended = async (e) => {
     e.preventDefault();
 
-    // Attendance is recorded on its own. The mentor's two items (recording,
-    // homework) may come now or later, as a URL or an upload, and the notes
-    // come from the tutor; the API reports the class as Pending until all
-    // three exist.
+    // Attendance is recorded on its own. Each item may come now or later, as
+    // a URL or an upload; the API reports the class as Pending until all
+    // three exist. A mentor supplies the recording and homework and the
+    // tutor the notes; an admin can supply all three here.
     setSaving(true);
     setModalError('');
 
     try {
-      const body = await submitContent(['recording', 'homework']);
+      const body = await submitContent(isAdmin ? ['recording', 'notes', 'homework'] : ['recording', 'homework']);
       await api.put('/api/sessions/', { id: activeSession.id, status: 'ATTENDED', ...body });
       fetchSessions();
       closeModal();
@@ -864,7 +867,9 @@ export default function SessionsPage() {
                 {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
 
                 <p className="text-[11px] text-zinc-500 m-0">
-                  Recording and homework can be added now or later; the tutor adds the notes.
+                  {isAdmin
+                    ? 'Recording, notes and homework can each be added now or later. '
+                    : 'Recording and homework can be added now or later; the tutor adds the notes. '}
                   The class shows as <span className="text-amber-400">Pending</span> until all three are available.
                 </p>
 
@@ -877,6 +882,17 @@ export default function SessionsPage() {
                   disabled={saving}
                 />
 
+                {isAdmin && (
+                  <ContentInput
+                    label="Class Notes"
+                    optional
+                    placeholder="https://docs.google.com/..."
+                    value={content.notes}
+                    onChange={setFieldContent('notes')}
+                    disabled={saving}
+                  />
+                )}
+
                 <ContentInput
                   label="Homework Assignment"
                   optional
@@ -886,12 +902,14 @@ export default function SessionsPage() {
                   disabled={saving}
                 />
 
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes <span className="text-zinc-600 normal-case tracking-normal font-medium">(added by the tutor)</span></span>
-                  {activeSession?.notes_link
-                    ? <Badge variant="success"><Check />Available</Badge>
-                    : <Badge variant="warning"><AlertTriangle />Not added yet</Badge>}
-                </div>
+                {!isAdmin && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Class Notes <span className="text-zinc-600 normal-case tracking-normal font-medium">(added by the tutor)</span></span>
+                    {activeSession?.notes_link
+                      ? <Badge variant="success"><Check />Available</Badge>
+                      : <Badge variant="warning"><AlertTriangle />Not added yet</Badge>}
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button
