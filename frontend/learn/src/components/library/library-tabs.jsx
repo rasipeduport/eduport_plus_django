@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Play, FileText, BookOpen, ChevronRight, Folder } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
+import { homeworkStatusBadge } from '../../lib/homework-status';
 import { cn } from '../../lib/utils';
 import { formatDate } from '../../lib/formatting';
 
@@ -40,8 +42,10 @@ export function LibraryTabs({ sessions }) {
 
   const items = useMemo(() => {
     if (!sessions) return [];
+    // Homework rows live on the lifecycle entity, not only on the link.
+    if (active === 'homework') return sessions.filter((s) => s.homework || s[cfg.field]);
     return sessions.filter((s) => s[cfg.field]);
-  }, [sessions, cfg.field]);
+  }, [sessions, cfg.field, active]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -82,12 +86,16 @@ export function LibraryTabs({ sessions }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((s) => (
-            <a
+          {items.map((s) => {
+            const hwBadge = active === 'homework' && s.homework ? homeworkStatusBadge(s.homework) : null;
+            const Wrapper = hwBadge ? Link : 'a';
+            const wrapperProps = hwBadge
+              ? { to: `/homework/${s.homework.id}` }
+              : { href: s[cfg.field], target: '_blank', rel: 'noopener noreferrer' };
+            return (
+            <Wrapper
               key={s.id}
-              href={s[cfg.field]}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...wrapperProps}
               className="block"
             >
               <Card interactive padding="md">
@@ -109,11 +117,15 @@ export function LibraryTabs({ sessions }) {
                       {s.tutor_profile?.full_name && ` · ${s.tutor_profile.full_name}`}
                     </p>
                   </div>
+                  {hwBadge && (
+                    <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold', hwBadge.className)}>{hwBadge.label}</span>
+                  )}
                   <ChevronRight className="text-text-muted h-5 w-5 shrink-0" />
                 </div>
               </Card>
-            </a>
-          ))}
+            </Wrapper>
+            );
+          })}
         </div>
       )}
     </div>

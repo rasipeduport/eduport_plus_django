@@ -1,6 +1,8 @@
 import { Calendar, Clock, User, GraduationCap, Play, FileText, BookOpen, ChevronDown, Star, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
+import { homeworkStatusBadge } from '../../lib/homework-status';
 import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useSessionRating } from '../../hooks/useSessionRating';
@@ -46,9 +48,13 @@ export function SessionCard({ session, isExpanded, onToggle }) {
           label: 'Homework',
           color: 'text-warning',
           bg: 'bg-warning-subtle',
-          hover: 'hover:border-warning/40 hover:bg-warning/5'
+          hover: 'hover:border-warning/40 hover:bg-warning/5',
+          // The lifecycle row behind the link: the tile opens the homework
+          // detail (submit / status / score) instead of the raw link.
+          to: session.homework ? `/homework/${session.homework.id}` : null,
+          sub: session.homework ? homeworkStatusBadge(session.homework).label : null
         }
-      ].map((r) => ({ ...r, missing: isMissing(r.key, r.href) }))
+      ].map((r) => ({ ...r, missing: r.to ? false : isMissing(r.key, r.href) }))
     : [];
   const missingCount = resourceLinks.filter((r) => r.missing).length;
 
@@ -161,8 +167,24 @@ export function SessionCard({ session, isExpanded, onToggle }) {
                 <div className="mb-4">
                   <div className="grid grid-cols-3 gap-3">
                     {resourceLinks.map(
-                      ({ key, href, icon: Icon, label, color, bg, hover, missing }) =>
-                        missing ? (
+                      ({ key, href, icon: Icon, label, color, bg, hover, missing, to, sub }) =>
+                        to ? (
+                          <Link
+                            key={key}
+                            to={to}
+                            className={cn(
+                              'group border-border-light bg-surface-muted flex flex-col items-center justify-center gap-2.5 rounded-xl border p-3 text-center transition-all duration-200',
+                              hover
+                            )}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110', bg)}>
+                              <Icon className={cn('h-4 w-4', color)} />
+                            </div>
+                            <span className="text-text-primary text-xs font-semibold">{label}</span>
+                            {sub && <span className="text-text-muted -mt-1.5 text-[11px]">{sub}</span>}
+                          </Link>
+                        ) : missing ? (
                           <div
                             key={key}
                             role="status"

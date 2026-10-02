@@ -45,6 +45,10 @@ class SessionSerializer(serializers.ModelSerializer):
     # The upload (if any) behind each link: {notes|recording|homework: file or
     # null}. `url` is the link column itself, which the upload wrote.
     content_files = serializers.SerializerMethodField()
+    # The homework lifecycle row behind the homework link (null until the
+    # attended session has homework content): what the Homework badge and
+    # the Learn tile read.
+    homework = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
@@ -71,8 +75,21 @@ class SessionSerializer(serializers.ModelSerializer):
             'missing_content',
             'display_status',
             'content_files',
+            'homework',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
+
+    def get_homework(self, instance):
+        hw = getattr(instance, 'homework', None)
+        if hw is None:
+            return None
+        return {
+            'id': str(hw.id),
+            'status': hw.status.lower(),
+            'score': hw.score,
+            'max_score': hw.max_score,
+            'submitted_at': hw.submitted_at.isoformat() if hw.submitted_at else None,
+        }
 
     def get_content_files(self, instance):
         out = {name: None for name in SessionContentField.values}

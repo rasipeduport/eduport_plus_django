@@ -1,4 +1,4 @@
-import { CalendarCheck, ClipboardList, Compass, GraduationCap, History, LayoutDashboard, Mail, Presentation, ShieldCheck } from 'lucide-react';
+import { BookOpen, CalendarCheck, ClipboardList, Compass, GraduationCap, History, LayoutDashboard, Mail, Presentation, ShieldCheck } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -9,6 +9,7 @@ const navMain = [
   { title: 'Students', url: '/students', icon: GraduationCap },
   { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
   { title: 'Exams', url: '/exams', icon: ClipboardList },
+  { title: 'Homework', url: '/homework', icon: BookOpen },
   { title: 'Admins', url: '/admins', icon: ShieldCheck },
   { title: 'Mentors', url: '/mentors', icon: Compass },
   { title: 'Tutors', url: '/tutors', icon: Presentation },
@@ -20,9 +21,9 @@ const navMain = [
 // pins it to their own entries); staff management and the invitation queue
 // stay admin-only, matching the route guards in App.jsx and the backend
 // permissions.
-const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/exams', '/activity']);
+const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/exams', '/homework', '/activity']);
 // Exams are mentor/admin only -- tutors are not involved.
-const TUTOR_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/activity']);
+const TUTOR_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/homework', '/activity']);
 
 export function AppSidebar({ user, logout, ...props }) {
   const items =

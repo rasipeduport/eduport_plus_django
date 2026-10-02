@@ -28,6 +28,9 @@ export const ACTION_LABELS = {
   'additional_exam.create': 'Additional exam assigned',
   'additional_exam.submit': 'Answer sheet submitted',
   'additional_exam.score': 'Additional exam scored',
+  'homework.assign': 'Homework assigned',
+  'homework.submit': 'Homework submitted',
+  'homework.score': 'Homework scored',
   'invitation.create': 'Invitation sent',
   'invitation.update_email': 'Invitation email changed',
   'invitation.withdraw': 'Invitation withdrawn',
@@ -144,6 +147,15 @@ export function describeActivity(row) {
     case 'exam.update_result': {
       const s = c.score;
       return s ? `Changed the score from ${formatValue(s.old)} to ${formatValue(s.new)}` : 'Updated the exam result';
+    }
+    case 'homework.assign':
+      return 'Assigned homework';
+    case 'homework.submit':
+      return 'Submitted homework';
+    case 'homework.score': {
+      const s = c.score?.new;
+      const m = c.max_score?.new;
+      return s != null && m != null ? `Scored homework ${s}/${m}` : 'Scored homework';
     }
     case 'additional_exam.create':
       return 'Assigned an additional exam';

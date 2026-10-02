@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'invitations',
     'activity',
     'exams',
+    'homework',
 ]
 
 MIDDLEWARE = [

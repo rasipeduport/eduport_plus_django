@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import StudentsPage from './pages/StudentsPage';
 import SessionsPage from './pages/SessionsPage';
 import ExamsPage from './pages/ExamsPage';
+import HomeworkPage from './pages/HomeworkPage';
 import InvitationsPage from './pages/InvitationsPage';
 import ActivityPage from './pages/ActivityPage';
 import AdminsPage from './pages/staff/AdminsPage';
@@ -30,6 +31,8 @@ export default function App() {
                     <Route path="/sessions" element={<SessionsPage />} />
                     {/* Exams are a mentor <-> student affair; tutors have no access. */}
                     <Route path="/exams" element={user?.role !== 'TUTOR' ? <ExamsPage /> : <Navigate to="/dashboard" replace />} />
+                    {/* Homework review for every staff role; the tutor grades. */}
+                    <Route path="/homework" element={<HomeworkPage />} />
                     <Route path="/admins" element={user?.role === 'ADMIN' ? <AdminsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/mentors" element={user?.role === 'ADMIN' ? <MentorsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/tutors" element={user?.role === 'ADMIN' ? <TutorsPage /> : <Navigate to="/dashboard" replace />} />

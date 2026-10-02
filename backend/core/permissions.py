@@ -80,3 +80,13 @@ class IsAdminMentorOrStudentRead(BasePermission):
         if request.user.role == 'STUDENT' and request.method == 'GET':
             return True
         return False
+
+
+class IsAdminOrTutor(BasePermission):
+    """Allows access only to users with the ADMIN or TUTOR roles, or superusers (homework grading)."""
+
+    def has_permission(self, request, view):
+        return (
+            _is_authenticated(request)
+            and (request.user.role in ('ADMIN', 'TUTOR') or request.user.is_superuser)
+        )

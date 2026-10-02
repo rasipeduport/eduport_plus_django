@@ -11,6 +11,7 @@ const breadcrumbConfig = {
   '/students': [{ label: 'Students' }],
   '/sessions': [{ label: 'Sessions' }],
   '/exams': [{ label: 'Exams' }],
+  '/homework': [{ label: 'Homework' }],
   '/admins': [{ label: 'Admins' }],
   '/mentors': [{ label: 'Mentors' }],
   '/tutors': [{ label: 'Tutors' }],

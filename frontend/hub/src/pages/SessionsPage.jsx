@@ -8,6 +8,8 @@ import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { StudentSectionTabs } from '../components/students/section-tabs';
+import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
+import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '../lib/homework-status';
 import { ContentInput, contentStateFor, contentError, contentPayload, formatBytes } from '../components/sessions/content-input';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
@@ -170,6 +172,8 @@ export default function SessionsPage() {
 
   // "New Session" drawer (Hub parity): its form state lives in the sheet.
   const [createOpen, setCreateOpen] = useState(false);
+  // Homework review drawer, opened from the HW Status badge on attended rows.
+  const [gradeHomeworkId, setGradeHomeworkId] = useState(null);
 
   // Form states for rescheduling
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -610,6 +614,21 @@ export default function SessionsPage() {
     { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} file={s.content_files?.recording} /> },
     { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} file={s.content_files?.notes} /> },
     { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} file={s.content_files?.homework} /> },
+    // The homework lifecycle behind the link (assigned -> submitted -> scored);
+    // the badge opens the same review sheet as the /homework page.
+    {
+      id: 'homework_status',
+      label: 'HW Status',
+      tabs: ['attended'],
+      cell: (s) =>
+        s.homework ? (
+          <button type="button" onClick={() => setGradeHomeworkId(s.homework.id)} className="cursor-pointer" title="Open homework review">
+            <Badge variant={HOMEWORK_STATUS_VARIANT[(s.homework.status || '').toLowerCase()] || 'secondary'}>{homeworkStatusLabel(s.homework)}</Badge>
+          </button>
+        ) : (
+          <span className="text-zinc-500">—</span>
+        ),
+    },
     {
       id: 'rating',
       label: 'Rating',
@@ -1195,6 +1214,14 @@ export default function SessionsPage() {
 
         </div>
       )}
+
+      <HomeworkGradeSheet
+        homeworkId={gradeHomeworkId}
+        open={Boolean(gradeHomeworkId)}
+        onOpenChange={(v) => !v && setGradeHomeworkId(null)}
+        onSaved={() => fetchSessions()}
+        canScore={userRole === 'ADMIN' || userRole === 'TUTOR'}
+      />
 
       {/* New Session drawer (Hub parity). Refetch students too: saving may
           have written the student's timezone. */}

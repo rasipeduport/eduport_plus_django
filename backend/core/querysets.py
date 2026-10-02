@@ -46,3 +46,16 @@ def scope_exams_by_role(qs, user):
     if user.role == 'TUTOR':
         return qs.none()
     return qs
+
+
+def scope_homework_by_role(qs, user):
+    """
+    Restrict a ``Homework`` queryset to the rows a staff member may see: the
+    mentor assigns it, the tutor grades it, so both see their allocated
+    students' homework; admins everything.
+    """
+    if user.role == 'MENTOR':
+        return qs.filter(student__mentor=user)
+    if user.role == 'TUTOR':
+        return qs.filter(student__tutor=user)
+    return qs

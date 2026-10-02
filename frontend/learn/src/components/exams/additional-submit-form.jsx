@@ -9,7 +9,7 @@ import { EXAM_ACCEPT, EXAM_MAX_FILES, EXAM_MAX_FILE_BYTES, formatBytes, isAllowe
  * One-shot answer-sheet upload (Learn AdditionalSubmitForm): pick photos or
  * a PDF, confirm, POST once. Photos are downscaled in the browser first.
  */
-export function AdditionalSubmitForm({ examId, onSubmitted }) {
+export function AdditionalSubmitForm({ examId, onSubmitted, submitUrl, successLabel = 'Answer sheet submitted' }) {
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
@@ -56,7 +56,7 @@ export function AdditionalSubmitForm({ examId, onSubmitted }) {
     try {
       const form = new FormData();
       files.forEach((f) => form.append('files', f));
-      await api.post(`/api/additional-exams/${examId}/submit/`, form);
+      await api.post(submitUrl || `/api/additional-exams/${examId}/submit/`, form);
       setDone(true);
       onSubmitted?.();
     } catch (err) {
@@ -71,7 +71,7 @@ export function AdditionalSubmitForm({ examId, onSubmitted }) {
     return (
       <div className="border-primary/15 bg-primary-subtle flex items-center gap-3 rounded-xl border px-4 py-3">
         <CheckCircle2 className="text-primary h-5 w-5" />
-        <p className="text-primary-hover text-sm font-semibold">Answer sheet submitted</p>
+        <p className="text-primary-hover text-sm font-semibold">{successLabel}</p>
       </div>
     );
   }

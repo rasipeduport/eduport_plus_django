@@ -396,6 +396,10 @@ def collect_score_entries(student):
                             row.end_time or row.created_at)
         if entry:
             entries.append(entry)
+    # Scored homework (the Learn scorecard's second series). Imported here:
+    # homework.services imports this module.
+    from homework.services import collect_homework_entries
+    entries.extend(collect_homework_entries(student))
     return entries
 
 

@@ -650,7 +650,9 @@ class StudentDetailView(APIView):
             )
 
         from exams.services import exam_history_exists
-        if Session.objects.filter(student=student).exists() or exam_history_exists(student):
+        from homework.services import homework_history_exists
+        if (Session.objects.filter(student=student).exists() or exam_history_exists(student)
+                or homework_history_exists(student)):
             return Response(
                 {
                     "error": "HAS_HISTORY",

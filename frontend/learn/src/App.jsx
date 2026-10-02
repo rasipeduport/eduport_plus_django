@@ -14,6 +14,7 @@ import ExamsPage from './pages/ExamsPage';
 import ExamDetailPage from './pages/ExamDetailPage';
 import AdditionalExamDetailPage from './pages/AdditionalExamDetailPage';
 import ScorecardPage from './pages/ScorecardPage';
+import HomeworkDetailPage from './pages/HomeworkDetailPage';
 
 // App Router Entry
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
                     <Route path="/exams/additional/:id" element={<AppShell><AdditionalExamDetailPage /></AppShell>} />
                     <Route path="/exams/:id" element={<AppShell><ExamDetailPage /></AppShell>} />
                     <Route path="/scorecard" element={<AppShell><ScorecardPage /></AppShell>} />
+                    <Route path="/homework/:id" element={<AppShell><HomeworkDetailPage /></AppShell>} />
                     <Route path="/library" element={<AppShell><LibraryPage /></AppShell>} />
                     <Route path="/profile" element={<AppShell><ProfilePage /></AppShell>} />
                     <Route path="/select-profile" element={<SelectProfilePage />} />

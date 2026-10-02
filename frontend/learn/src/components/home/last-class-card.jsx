@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, User, Play, FileText, BookOpen, Star, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
+import { homeworkStatusBadge } from '../../lib/homework-status';
 import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useSessionRating } from '../../hooks/useSessionRating';
@@ -37,9 +39,11 @@ export function LastClassCard({ session }) {
       label: 'Homework',
       color: 'text-warning',
       bg: 'bg-warning-subtle',
-      hover: 'hover:border-warning/40 hover:bg-warning/5'
+      hover: 'hover:border-warning/40 hover:bg-warning/5',
+      to: session.homework ? `/homework/${session.homework.id}` : null,
+      sub: session.homework ? homeworkStatusBadge(session.homework).label : null
     }
-  ].filter((r) => r.href);
+  ].filter((r) => r.href || r.to);
 
   return (
     <Card
@@ -159,7 +163,23 @@ export function LastClassCard({ session }) {
         {/* Resources */}
         {resources.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
-            {resources.map(({ href, icon: Icon, label, color, bg, hover }) => (
+            {resources.map(({ href, icon: Icon, label, color, bg, hover, to, sub }) =>
+              to ? (
+                <Link
+                  key={label}
+                  to={to}
+                  className={cn(
+                    'group border-border-light bg-surface-muted flex flex-col items-center justify-center gap-2.5 rounded-xl border p-3 text-center transition-all duration-200',
+                    hover
+                  )}
+                >
+                  <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110', bg)}>
+                    <Icon className={cn('h-4 w-4', color)} />
+                  </div>
+                  <span className="text-text-primary text-xs font-semibold">{label}</span>
+                  {sub && <span className="text-text-muted -mt-1.5 text-[11px]">{sub}</span>}
+                </Link>
+              ) : (
               <a
                 key={label}
                 href={href}
@@ -182,7 +202,8 @@ export function LastClassCard({ session }) {
                   {label}
                 </span>
               </a>
-            ))}
+              )
+            )}
           </div>
         )}
       </div>

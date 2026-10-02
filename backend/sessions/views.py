@@ -21,6 +21,7 @@ from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import TimezoneConversionError, is_valid_timezone
 from exams.services import find_exam_conflict_for_session
+from homework.services import HomeworkStateError, assert_assignment_editable, sync_homework_for_session
 from .models import Session, SessionStatusChoices, SessionContentField, SessionFile
 from .serializers import SessionSerializer, SessionFileSerializer
 from .services import (
@@ -74,7 +75,7 @@ class SessionsView(APIView):
 
     def get(self, request, *args, **kwargs):
         queryset = (
-            Session.objects.select_related('student', 'student__profile', 'tutor')
+            Session.objects.select_related('student', 'student__profile', 'tutor', 'homework')
             .prefetch_related('files')
             .order_by('-start_time')
         )
@@ -391,6 +392,13 @@ class SessionsView(APIView):
                 except ValueError as exc:
                     return Response({"error": f"{field} {exc}"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # The assignment behind a submitted or scored homework is locked.
+        if 'homework_link' in link_updates:
+            try:
+                assert_assignment_editable(session)
+            except HomeworkStateError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
+
         # Capture state before modifications. The tutor is recorded by display
         # name: `changes` is what the activity feed renders, and a raw UUID
         # there is unreadable. The ids go into `context` below instead.
@@ -482,6 +490,15 @@ class SessionsView(APIView):
             session.save()
             if link_updates:
                 drop_stale_files(session, link_updates.keys())
+
+        # An attended session with homework content gets its Homework row (the
+        # lifecycle the /homework page and Learn operate on). One row per
+        # session; a later change never creates a second one.
+        if 'homework_link' in link_updates or new_status == 'ATTENDED':
+            sync_homework_for_session(
+                session, request.user, request,
+                source='mark_attended' if new_status == 'ATTENDED' else 'links',
+            )
 
         # Audit Logging
         action = None
@@ -638,6 +655,11 @@ class SessionFileUploadView(APIView):
                 {"error": "Content cannot be attached to a cancelled session."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if field == SessionContentField.HOMEWORK:
+            try:
+                assert_assignment_editable(session)
+            except HomeworkStateError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
 
         upload = request.FILES.get('file')
         if upload is None:
@@ -668,6 +690,9 @@ class SessionFileUploadView(APIView):
             new_link = request.build_absolute_uri(session_file.link_path())
             setattr(session, link_field, new_link)
             session.save(update_fields=[link_field, 'updated_at'])
+
+        if field == SessionContentField.HOMEWORK:
+            sync_homework_for_session(session, request.user, request, source='upload')
 
         log_activity(
             action='session.update_links',

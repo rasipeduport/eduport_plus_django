@@ -21,6 +21,7 @@ const ENTITY_TYPES = [
   { value: 'session', label: 'Session' },
   { value: 'exam', label: 'Exam' },
   { value: 'additional_exam', label: 'Additional exam' },
+  { value: 'homework', label: 'Homework' },
   { value: 'invitation', label: 'Invitation' },
   { value: 'profile', label: 'User' },
 ];
@@ -30,6 +31,7 @@ const ENTITY_NOUN = {
   session: 'Session',
   exam: 'Exam',
   additional_exam: 'Additional exam',
+  homework: 'Homework',
   invitation: 'Invitation',
   profile: 'User',
 };

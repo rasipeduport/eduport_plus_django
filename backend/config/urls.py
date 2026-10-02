@@ -53,6 +53,8 @@ urlpatterns = [
     path('api/exams', include('exams.urls', namespace='exams')),
     path('api/additional-exams/', include('exams.additional_urls', namespace='additional_exams')),
     path('api/additional-exams', include('exams.additional_urls', namespace='additional_exams')),
+    path('api/homework/', include('homework.urls', namespace='homework')),
+    path('api/homework', include('homework.urls', namespace='homework')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
 ]
