@@ -4,7 +4,7 @@ import { FormDialog } from '@/components/form-dialog';
 import { Label } from '@/components/ui/label';
 import { TimezoneSelect } from '@/components/sessions/timezone-select';
 import api from '@/lib/api';
-import { DEFAULT_TIMEZONE, zonedWallTimeToUtc } from '@/lib/timezone';
+import { DEFAULT_TIMEZONE, MENTOR_TIMEZONE, formatDateInZone, formatTimeInZone, timezoneShortLabel, zonedWallTimeToUtc } from '@/lib/timezone';
 
 import { SlotEditor, emptySlot, slotFromExam, wallTimeFor } from './slot-editor';
 
@@ -25,6 +25,19 @@ export function RescheduleExamDialog({ exam, studentTimezone, open, onOpenChange
       setError('');
     }
   }
+
+  // Preview of the instant the slot names, in the student's zone and the
+  // mentor's (IST), like the session sheet's reference block.
+  const previewWall = wallTimeFor(slot);
+  let previewStart = null;
+  if (previewWall) {
+    try {
+      previewStart = zonedWallTimeToUtc(previewWall, timezone);
+    } catch {
+      previewStart = null;
+    }
+  }
+  const previewEnd = previewStart ? new Date(previewStart.getTime() + slot.duration * 3600000) : null;
 
   const handleConfirm = async () => {
     const wall = wallTimeFor(slot);
@@ -76,6 +89,22 @@ export function RescheduleExamDialog({ exam, studentTimezone, open, onOpenChange
           <TimezoneSelect value={timezone} onValueChange={setTimezone} disabled={pending} className="w-52" />
         </div>
         <SlotEditor slot={slot} onChange={setSlot} disabled={pending} />
+        {previewStart && previewEnd && (
+          <div className="bg-muted/40 text-muted-foreground rounded-md border px-3 py-2 text-xs">
+            <p>
+              Exam scheduled: <span className="text-foreground font-medium">{formatDateInZone(previewStart, timezone)}</span> ·{' '}
+              <span className="text-foreground font-medium">
+                {formatTimeInZone(previewStart, timezone)} – {formatTimeInZone(previewEnd, timezone)}
+              </span>{' '}
+              {timezoneShortLabel(timezone)}
+            </p>
+            <p className="mt-1">
+              Student time: <span className="text-foreground font-medium">{formatTimeInZone(previewStart, timezone)} {timezoneShortLabel(timezone)}</span>
+              {' · '}
+              Mentor time: <span className="text-foreground font-medium">{formatTimeInZone(previewStart, MENTOR_TIMEZONE)} {timezoneShortLabel(MENTOR_TIMEZONE)}</span>
+            </p>
+          </div>
+        )}
       </div>
     </FormDialog>
   );

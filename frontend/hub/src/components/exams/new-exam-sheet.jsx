@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TimezoneSelect } from '@/components/sessions/timezone-select';
 import api from '@/lib/api';
-import { DEFAULT_TIMEZONE, formatDateInZone, formatTimeInZone, timezoneShortLabel, zonedWallTimeToUtc } from '@/lib/timezone';
+import { DEFAULT_TIMEZONE, MENTOR_TIMEZONE, formatDateInZone, formatTimeInZone, timezoneShortLabel, zonedWallTimeToUtc } from '@/lib/timezone';
 
 import { SlotEditor, emptySlot, wallTimeFor } from './slot-editor';
 
@@ -19,7 +19,10 @@ import { SlotEditor, emptySlot, wallTimeFor } from './slot-editor';
  */
 export function NewExamSheet({ student, chapterNames, open, onOpenChange, onCreated }) {
   const studentId = student?.id ?? '';
-  const initialTimezone = student?.timezone || DEFAULT_TIMEZONE;
+  // Raw column: null when unset, which the sheet surfaces. Times are entered
+  // in the student's zone, falling back to IST exactly like the session sheet.
+  const studentTimezone = student?.timezone || null;
+  const initialTimezone = studentTimezone ?? DEFAULT_TIMEZONE;
 
   const [chapter, setChapter] = useState('');
   const [slot, setSlot] = useState(emptySlot());
@@ -150,7 +153,11 @@ export function NewExamSheet({ student, chapterNames, open, onOpenChange, onCrea
               <TimezoneSelect value={timezone} onValueChange={setTimezone} disabled={isSaving} className="w-56" />
             </div>
             <p className="text-muted-foreground -mt-1 text-xs">
-              {timezoneChanged ? "Enter the student's local time. Saving will update the student's timezone to this." : "Enter the student's local time."}
+              {!studentTimezone
+                ? 'This student has no timezone set. Enter times in the timezone you pick — saving will store it on the student.'
+                : timezoneChanged
+                  ? "Enter the student's local time. Saving will update the student's timezone to this."
+                  : "Enter the student's local time. Changing this updates the student's timezone."}
             </p>
             <SlotEditor slot={slot} onChange={setSlot} disabled={isSaving} />
           </div>
@@ -168,7 +175,27 @@ export function NewExamSheet({ student, chapterNames, open, onOpenChange, onCrea
           {error && <p className="text-destructive text-sm">{error}</p>}
         </form>
 
-        <div className="mt-auto flex gap-2 border-t px-4 py-3">
+        {/* Reference only, never an input: confirms what the mentor typed
+            against their own clock, so a Gulf 5 PM exam is visibly a 6:30 PM
+            IST commitment before it is booked (same as the session sheet). */}
+        {start && (
+          <div className="text-muted-foreground mt-auto space-y-0.5 px-4 pb-3 text-center text-xs">
+            <p>
+              Student time:{' '}
+              <span className="text-foreground font-medium">
+                {formatTimeInZone(start, timezone)} {timezoneShortLabel(timezone)}
+              </span>
+            </p>
+            <p>
+              Mentor time:{' '}
+              <span className="text-foreground font-medium">
+                {formatTimeInZone(start, MENTOR_TIMEZONE)} {timezoneShortLabel(MENTOR_TIMEZONE)}
+              </span>
+            </p>
+          </div>
+        )}
+
+        <div className={start ? 'flex gap-2 border-t px-4 py-3' : 'mt-auto flex gap-2 border-t px-4 py-3'}>
           <Button type="button" variant="outline" className="flex-1" onClick={() => handleOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
