@@ -20,6 +20,14 @@ export const ACTION_LABELS = {
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
+  'exam.create': 'Exam scheduled',
+  'exam.reschedule': 'Exam rescheduled',
+  'exam.cancel': 'Exam cancelled',
+  'exam.mark_attended': 'Exam marked attended',
+  'exam.update_result': 'Exam result updated',
+  'additional_exam.create': 'Additional exam assigned',
+  'additional_exam.submit': 'Answer sheet submitted',
+  'additional_exam.score': 'Additional exam scored',
   'invitation.create': 'Invitation sent',
   'invitation.update_email': 'Invitation email changed',
   'invitation.withdraw': 'Invitation withdrawn',
@@ -120,6 +128,32 @@ export function describeActivity(row) {
       return 'Rated the session';
     case 'session.update_links':
       return 'Updated the session links';
+    case 'exam.create':
+      return 'Scheduled a chapter exam';
+    case 'exam.reschedule':
+      return 'Rescheduled the exam';
+    case 'exam.cancel': {
+      const reason = reasonOf(row);
+      return reason ? `Cancelled the exam — ${reason}` : 'Cancelled the exam';
+    }
+    case 'exam.mark_attended': {
+      const s = c.score?.new;
+      const m = c.max_score?.new;
+      return s != null && m != null ? `Marked the exam attended — scored ${s}/${m}` : 'Marked the exam attended';
+    }
+    case 'exam.update_result': {
+      const s = c.score;
+      return s ? `Changed the score from ${formatValue(s.old)} to ${formatValue(s.new)}` : 'Updated the exam result';
+    }
+    case 'additional_exam.create':
+      return 'Assigned an additional exam';
+    case 'additional_exam.submit':
+      return 'Submitted the answer sheet';
+    case 'additional_exam.score': {
+      const s = c.score?.new;
+      const m = c.max_score?.new;
+      return s != null && m != null ? `Scored the additional exam ${s}/${m}` : 'Scored the additional exam';
+    }
     default:
       return actionLabel(row.action);
   }

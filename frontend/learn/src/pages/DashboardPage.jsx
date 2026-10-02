@@ -4,6 +4,9 @@ import { WelcomeSection } from '../components/home/welcome-section';
 import { ClassesSection } from '../components/home/classes-section';
 import { LiveClassCard } from '../components/home/live-class-card';
 import { LastClassCard } from '../components/home/last-class-card';
+import { LiveExamCard } from '../components/home/live-exam-card';
+import { PastExamCard } from '../components/home/past-exam-card';
+import { ScorecardHero } from '../components/scorecard/scorecard-hero';
 
 export default function DashboardPage() {
   const { selectedStudent, dashboardStats } = useStudent();
@@ -15,6 +18,15 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  // The "next live" slot shows whichever of the next session/exam is sooner;
+  // the "last recap" slot shows whichever attended one is more recent.
+  const nextSession = dashboardStats.next_session;
+  const nextExam = dashboardStats.next_exam;
+  const lastSession = dashboardStats.last_session;
+  const lastExam = dashboardStats.last_exam;
+  const nextIsExam = nextExam != null && (nextSession == null || nextExam.start_time < nextSession.start_time);
+  const lastIsExam = lastExam != null && (lastSession == null || lastExam.start_time > lastSession.start_time);
 
   return (
     <div className="space-y-5 md:space-y-6">
@@ -29,31 +41,38 @@ export default function DashboardPage() {
         loading={false}
       />
 
-      {/* Live Class */}
+      {/* Progress */}
+      <ScorecardHero refreshKey={`${lastExam?.id ?? ''}-${lastSession?.id ?? ''}`} />
+
+      {/* Live Class / Exam */}
       <section>
         <h2 className="text-text-primary text-base font-semibold">
-          Your Next Live Class
+          {nextIsExam ? 'Up next — your exam' : 'Your Next Live Class'}
         </h2>
         <p className="text-text-secondary mt-1 mb-3 text-sm">
-          Join your scheduled one-on-one learning session.
+          {nextIsExam ? 'Join the chapter exam with your mentor.' : 'Join your scheduled one-on-one learning session.'}
         </p>
-        <LiveClassCard
-          meetLink={selectedStudent?.meet_link}
-          nextSession={dashboardStats.next_session}
-          loading={false}
-        />
+        {nextIsExam ? (
+          <LiveExamCard meetLink={selectedStudent?.meet_link} exam={nextExam} />
+        ) : (
+          <LiveClassCard
+            meetLink={selectedStudent?.meet_link}
+            nextSession={nextSession}
+            loading={false}
+          />
+        )}
       </section>
 
-      {/* Last Class Recap */}
-      {dashboardStats.last_session && (
+      {/* Last Class / Exam Recap */}
+      {(lastSession || lastExam) && (
         <section>
           <h2 className="text-text-primary text-base font-semibold">
-            Last Class Recap
+            {lastIsExam ? 'Recent' : 'Last Class Recap'}
           </h2>
           <p className="text-text-secondary mt-1 mb-3 text-sm">
-            Review resources and rate your previous session.
+            {lastIsExam ? 'Your latest exam result.' : 'Review resources and rate your previous session.'}
           </p>
-          <LastClassCard session={dashboardStats.last_session} />
+          {lastIsExam ? <PastExamCard exam={lastExam} /> : <LastClassCard session={lastSession} />}
         </section>
       )}
     </div>

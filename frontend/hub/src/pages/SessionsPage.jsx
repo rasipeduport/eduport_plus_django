@@ -7,6 +7,7 @@ import {
 import api from '../lib/api';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
+import { StudentSectionTabs } from '../components/students/section-tabs';
 import { ContentInput, contentStateFor, contentError, contentPayload, formatBytes } from '../components/sessions/content-input';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
@@ -638,7 +639,10 @@ export default function SessionsPage() {
   return (
     <div className="flex flex-col gap-6 w-full max-w-full box-border">
       
-      {/* Banner when filtering by student */}
+      {/* Sessions | Exams switcher + banner when filtering by student */}
+      {selectedStudentId && (
+        <StudentSectionTabs studentId={selectedStudentId} active="sessions" canViewExams={userRole !== 'TUTOR'} />
+      )}
       {selectedStudentId && (
         <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">

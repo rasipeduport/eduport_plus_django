@@ -33,3 +33,16 @@ def scope_activity_by_role(qs, user):
     if user.role in ('MENTOR', 'TUTOR'):
         return qs.filter(actor_id=user.id)
     return qs
+
+
+def scope_exams_by_role(qs, user):
+    """
+    Restrict an ``Exam`` / ``AdditionalExam`` queryset to the rows a staff
+    member may see. Exams are a mentor <-> student affair: mentors see their
+    allocated students' exams, admins everything, tutors nothing at all.
+    """
+    if user.role == 'MENTOR':
+        return qs.filter(student__mentor=user)
+    if user.role == 'TUTOR':
+        return qs.none()
+    return qs

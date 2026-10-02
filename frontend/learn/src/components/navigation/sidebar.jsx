@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Folder, User } from 'lucide-react';
+import { Home, Calendar, ClipboardList, Folder, Trophy, User } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStudent } from '../student/student-context';
 import { Avatar } from '../ui/avatar';
@@ -7,6 +7,8 @@ import { Avatar } from '../ui/avatar';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
   { href: '/sessions', icon: Calendar, label: 'Sessions' },
+  { href: '/exams', icon: ClipboardList, label: 'Exams' },
+  { href: '/scorecard', icon: Trophy, label: 'Scores' },
   { href: '/library', icon: Folder, label: 'Library' },
   { href: '/profile', icon: User, label: 'Profile' }
 ];
@@ -37,7 +39,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-2 lg:p-3">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
           const Icon = item.icon;
           return (
             <Link key={item.href} to={item.href}>

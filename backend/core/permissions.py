@@ -63,3 +63,20 @@ class IsAdminOrMentor(BasePermission):
             _is_authenticated(request)
             and (request.user.role in ('ADMIN', 'MENTOR') or request.user.is_superuser)
         )
+
+
+class IsAdminMentorOrStudentRead(BasePermission):
+    """
+    Exam endpoints: admins and mentors may do anything (mentors are further
+    limited to their allocated students in the view); students may only read
+    (GET) their own exams; tutors have no exam permissions whatsoever.
+    """
+
+    def has_permission(self, request, view):
+        if not _is_authenticated(request):
+            return False
+        if request.user.role in ('ADMIN', 'MENTOR') or request.user.is_superuser:
+            return True
+        if request.user.role == 'STUDENT' and request.method == 'GET':
+            return True
+        return False

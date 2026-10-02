@@ -11,6 +11,8 @@ const FIELD_LABELS = {
   score: 'Score',
   max_score: 'Max score',
   feedback: 'Feedback',
+  chapter_name: 'Chapter',
+  title: 'Title',
   cancellation_reason: 'Cancellation reason',
   mentor: 'Mentor',
   tutor: 'Tutor',

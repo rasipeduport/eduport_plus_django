@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'sessions',
     'invitations',
     'activity',
+    'exams',
 ]
 
 MIDDLEWARE = [
@@ -182,6 +183,11 @@ MEDIA_ROOT = Path(env('MEDIA_ROOT', default=str(BASE_DIR / 'media')))
 # Per-kind upload ceilings, in bytes. 50 MiB for documents/images matches the
 # Hub's homework bucket; video recordings get more room. Override per
 # environment with SESSION_CONTENT_MAX_MB_<KIND>.
+# Exam question papers and answer sheets (exams app): PDF or image only,
+# 25 MiB each (the Hub's exam buckets), at most 10 files per request.
+EXAM_FILE_MAX_BYTES = env.int('EXAM_FILE_MAX_MB', default=25) * 1024 * 1024
+EXAM_MAX_FILES_PER_UPLOAD = 10
+
 SESSION_CONTENT_MAX_BYTES = {
     'document': env.int('SESSION_CONTENT_MAX_MB_DOCUMENT', default=50) * 1024 * 1024,
     'image': env.int('SESSION_CONTENT_MAX_MB_IMAGE', default=50) * 1024 * 1024,

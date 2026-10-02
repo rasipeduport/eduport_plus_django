@@ -20,6 +20,7 @@ from core.querysets import scope_sessions_by_role
 from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import TimezoneConversionError, is_valid_timezone
+from exams.services import find_exam_conflict_for_session
 from .models import Session, SessionStatusChoices, SessionContentField, SessionFile
 from .serializers import SessionSerializer, SessionFileSerializer
 from .services import (
@@ -234,6 +235,13 @@ class SessionsView(APIView):
                     {"error": f"{label} conflicts with \"{conflict.title}\". Choose a different time."},
                     status=status.HTTP_409_CONFLICT
                 )
+            # A class may not overlap one of the student's scheduled exams either.
+            exam_conflict = find_exam_conflict_for_session(student, v["start_time"], v["end_time"])
+            if exam_conflict:
+                return Response(
+                    {"error": f"{label} conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
+                    status=status.HTTP_409_CONFLICT
+                )
 
         # 4. Save sessions
         series_id = uuid.uuid4() if is_series else None
@@ -428,6 +436,12 @@ class SessionsView(APIView):
             if conflict:
                 return Response(
                     {"error": f"Time conflict with \"{conflict.title}\". Choose a different time."},
+                    status=status.HTTP_409_CONFLICT
+                )
+            exam_conflict = find_exam_conflict_for_session(session.student, new_start_time, new_end_time)
+            if exam_conflict:
+                return Response(
+                    {"error": f"Time conflict with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
                     status=status.HTTP_409_CONFLICT
                 )
 
@@ -889,6 +903,12 @@ class CancelSeriesView(APIView):
         if conflict:
             return Response(
                 {"error": f"Make-up class conflicts with \"{conflict.title}\". Choose a different time."},
+                status=status.HTTP_409_CONFLICT
+            )
+        exam_conflict = find_exam_conflict_for_session(student, new_last_start_time, new_last_end_time)
+        if exam_conflict:
+            return Response(
+                {"error": f"Make-up class conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
                 status=status.HTTP_409_CONFLICT
             )
 

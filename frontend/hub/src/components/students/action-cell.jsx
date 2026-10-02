@@ -51,9 +51,9 @@ export function ActionCell({ student, role, onChanged }) {
           <DropdownMenuItem asChild>
             <Link to={`/sessions?student_id=${student.id}`}>Manage Sessions</Link>
           </DropdownMenuItem>
-          {/* The exams module is not ported yet; the entry stays for parity
-              with the Hub menu and is enabled once /students/:id/exams exists. */}
-          <DropdownMenuItem disabled>Manage Exams</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to={`/exams?student_id=${student.id}`}>Manage Exams</Link>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setMeetLinkOpen(true)}>Edit Demo Link</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setTopupOpen(true)}>Top-up Class Quota</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem>

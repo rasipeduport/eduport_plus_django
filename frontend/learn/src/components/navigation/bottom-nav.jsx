@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Calendar, Folder, User } from 'lucide-react';
+import { Home, Calendar, ClipboardList, Folder, Trophy, User } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
   { href: '/sessions', icon: Calendar, label: 'Sessions' },
+  { href: '/exams', icon: ClipboardList, label: 'Exams' },
+  { href: '/scorecard', icon: Trophy, label: 'Scores' },
   { href: '/library', icon: Folder, label: 'Library' },
   { href: '/profile', icon: User, label: 'Profile' }
 ];
@@ -19,7 +21,7 @@ export function BottomNav() {
       <div className="border-border-light/80 bg-surface-elevated/90 shadow-nav rounded-t-2xl border-t backdrop-blur-xl">
         <div className="mx-auto flex max-w-md items-stretch justify-around px-6 py-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
             const Icon = item.icon;
 
             return (

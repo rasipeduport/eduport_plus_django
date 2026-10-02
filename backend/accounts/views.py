@@ -664,6 +664,8 @@ class StaffReassignView(APIView):
         students_mentor_reassigned = 0
         students_tutor_reassigned = 0
         sessions_repointed = 0
+        exams_repointed = 0
+        additional_exams_repointed = 0
 
         with transaction.atomic():
             mentor_students = Student.objects.filter(mentor=old_staff, status='ACTIVE')
@@ -707,6 +709,13 @@ class StaffReassignView(APIView):
                     )
 
             if need_mentor:
+                # Open exam work of the departing mentor's ACTIVE students moves
+                # too (before the student pointer flips -- the query keys off it).
+                from django.db.models import Q as _Q
+                from exams.services import handover_open_exams
+                exams_repointed, additional_exams_repointed = handover_open_exams(
+                    _Q(student__mentor=old_staff, student__status='ACTIVE'), new_mentor
+                )
                 students_mentor_reassigned = mentor_students.update(mentor=new_mentor)
 
             # Tutor handover: re-point open scheduled sessions first, then the
@@ -723,6 +732,8 @@ class StaffReassignView(APIView):
             "students_mentor_reassigned": students_mentor_reassigned,
             "students_tutor_reassigned": students_tutor_reassigned,
             "sessions_repointed": sessions_repointed,
+            "exams_repointed": exams_repointed,
+            "additional_exams_repointed": additional_exams_repointed,
         }
 
         log_activity(

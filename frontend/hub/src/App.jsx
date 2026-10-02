@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import StudentsPage from './pages/StudentsPage';
 import SessionsPage from './pages/SessionsPage';
+import ExamsPage from './pages/ExamsPage';
 import InvitationsPage from './pages/InvitationsPage';
 import ActivityPage from './pages/ActivityPage';
 import AdminsPage from './pages/staff/AdminsPage';
@@ -27,6 +28,8 @@ export default function App() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/students" element={<StudentsPage />} />
                     <Route path="/sessions" element={<SessionsPage />} />
+                    {/* Exams are a mentor <-> student affair; tutors have no access. */}
+                    <Route path="/exams" element={user?.role !== 'TUTOR' ? <ExamsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/admins" element={user?.role === 'ADMIN' ? <AdminsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/mentors" element={user?.role === 'ADMIN' ? <MentorsPage /> : <Navigate to="/dashboard" replace />} />
                     <Route path="/tutors" element={user?.role === 'ADMIN' ? <TutorsPage /> : <Navigate to="/dashboard" replace />} />

@@ -172,6 +172,17 @@ class StudentDashboardView(APIView):
             status=SessionStatusChoices.ATTENDED
         ).order_by('-start_time').first()
 
+        # Exams for the "Up next" / "Recent" slots (Learn compares them with
+        # the next/last session client-side).
+        from exams.models import Exam, ExamStatusChoices
+        from exams.serializers import ExamSerializer
+        next_exam = Exam.objects.filter(
+            student=student, status=ExamStatusChoices.SCHEDULED, start_time__gte=now
+        ).order_by('start_time').first()
+        last_exam = Exam.objects.filter(
+            student=student, status=ExamStatusChoices.ATTENDED
+        ).order_by('-start_time').first()
+
         return Response({
             "student_name": student.full_name or request.user.full_name or "",
             "mentor": student.mentor.full_name if student.mentor else None,
@@ -183,7 +194,9 @@ class StudentDashboardView(APIView):
             "scheduled_count": scheduled_count,
             "attended_count": attended_count,
             "next_session": SessionSerializer(next_sess).data if next_sess else None,
-            "last_session": SessionSerializer(last_sess).data if last_sess else None
+            "last_session": SessionSerializer(last_sess).data if last_sess else None,
+            "next_exam": ExamSerializer(next_exam, context={'request': request}).data if next_exam else None,
+            "last_exam": ExamSerializer(last_exam, context={'request': request}).data if last_exam else None,
         }, status=status.HTTP_200_OK)
 
 
@@ -487,6 +500,8 @@ class StudentReassignView(APIView):
             return err
 
         sessions_repointed = 0
+        exams_repointed = 0
+        additional_exams_repointed = 0
         with transaction.atomic():
             # Row lock on the student serialises two admins reassigning at once.
             student = Student.objects.select_for_update().filter(id=student_id).first()
@@ -531,6 +546,12 @@ class StudentReassignView(APIView):
 
             update_fields = ['updated_at']
             if mentor_changed:
+                # Open mentor work (scheduled chapter exams, assigned/submitted
+                # additional exams) follows the new mentor; completed work keeps
+                # its snapshot -- the Hub's reassign_student_staff RPC.
+                from django.db.models import Q as _Q
+                from exams.services import handover_open_exams
+                exams_repointed, additional_exams_repointed = handover_open_exams(_Q(student=student), new_mentor)
                 student.mentor = new_mentor
                 update_fields.append('mentor')
             if tutor_changed:
@@ -555,6 +576,8 @@ class StudentReassignView(APIView):
                 context={
                     "old_mentor_id": str(old_mentor.id) if old_mentor else None,
                     "new_mentor_id": str(new_mentor.id) if new_mentor else None,
+                    "exams_repointed": exams_repointed,
+                    "additional_exams_repointed": additional_exams_repointed,
                 },
                 request=request,
             )
@@ -582,6 +605,8 @@ class StudentReassignView(APIView):
                 "old_tutor": str(old_tutor.id) if old_tutor else None,
                 "new_tutor": str(student.tutor_id) if student.tutor_id else None,
                 "sessions_repointed": sessions_repointed,
+                "exams_repointed": exams_repointed,
+                "additional_exams_repointed": additional_exams_repointed,
             }
         }, status=status.HTTP_200_OK)
 
@@ -593,7 +618,7 @@ class StudentDetailView(APIView):
 
     Admin-only and narrow on purpose: the caller must retype the student_code,
     and the request is refused (409) when the student has ANY history — today
-    that means sessions; extend the guard when exams/homework are ported. For
+    that means sessions, chapter exams and additional exams (extend for homework). For
     a real student who has left, the status flow (expired) is the right tool.
     The linked sign-in account is left untouched (a parent account may own
     other students). The append-only activity log takes a snapshot in the
@@ -624,11 +649,12 @@ class StudentDetailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if Session.objects.filter(student=student).exists():
+        from exams.services import exam_history_exists
+        if Session.objects.filter(student=student).exists() or exam_history_exists(student):
             return Response(
                 {
                     "error": "HAS_HISTORY",
-                    "message": 'This student has sessions and cannot be permanently deleted. '
+                    "message": 'This student has sessions or exams and cannot be permanently deleted. '
                                'Set their status to "expired" instead.'
                 },
                 status=status.HTTP_409_CONFLICT
