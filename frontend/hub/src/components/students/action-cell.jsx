@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import { Eye, MoreHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EditStudentProfileSheet } from './edit-student-profile-sheet';
 import { EditMeetLinkModal } from './edit-meet-link-modal';
 import { TopupQuotaModal } from './topup-quota-modal';
@@ -20,11 +21,16 @@ import { StudentHistorySheet } from './student-history-sheet';
 import { PurgeStudentDialog } from './purge-student-dialog';
 
 /**
- * Row actions for the admin/mentor students table. Item order, separators
- * and labels follow the Hub's action cell; the admin-only block (reassign,
- * history, purge) is gated here and again by the API.
+ * Row actions for the admin/mentor students table: "View profile" next to the
+ * menu, then the menu itself. Item order, separators and labels follow the
+ * Hub's action cell; the admin-only block (reassign, history, purge) is gated
+ * here and again by the API.
+ *
+ * The profile page reuses this component for its header actions, with
+ * `showProfileLink={false}` -- every action a row offers is available there
+ * too, so nobody has to go back to the list to act on a student.
  */
-export function ActionCell({ student, role, onChanged }) {
+export function ActionCell({ student, role, onChanged, showProfileLink = true }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [meetLinkOpen, setMeetLinkOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
@@ -36,7 +42,22 @@ export function ActionCell({ student, role, onChanged }) {
   const isAdmin = role === 'admin';
 
   return (
-    <>
+    <div className="flex items-center justify-end gap-0.5">
+      {/* Hidden on the profile itself, where it would link to this page. */}
+      {showProfileLink ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8" asChild>
+              <Link to={`/students/${student.id}`}>
+                <Eye className="size-4" />
+                <span className="sr-only">View profile</span>
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>View profile</TooltipContent>
+        </Tooltip>
+      ) : null}
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
@@ -87,6 +108,6 @@ export function ActionCell({ student, role, onChanged }) {
           <PurgeStudentDialog student={student} open={purgeOpen} onOpenChange={setPurgeOpen} onSaved={onChanged} />
         </>
       ) : null}
-    </>
+    </div>
   );
 }

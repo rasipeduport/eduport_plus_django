@@ -90,6 +90,21 @@ class SessionsView(APIView):
         else:
             queryset = scope_sessions_by_role(queryset, request.user)
 
+        # One student's classes (the student profile's Sessions tab, and any
+        # caller that wants a single student's list). Applied after the role
+        # scoping, so it can only narrow what this caller may already see --
+        # the same contract as ?student_id= on the exams and homework lists.
+        student_id = request.query_params.get('student_id')
+        if student_id:
+            try:
+                uuid.UUID(str(student_id))
+            except (ValueError, TypeError, AttributeError):
+                return Response(
+                    {"error": "student_id must be a valid id"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            queryset = queryset.filter(student_id=student_id)
+
         # Post-session content filter (attended rows only), applied after the
         # role scoping and before pagination. Absent/blank means no filter.
         content = request.query_params.get('content')

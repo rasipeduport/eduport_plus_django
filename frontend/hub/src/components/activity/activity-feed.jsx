@@ -18,6 +18,7 @@ const ALL = '__all__';
 
 const ENTITY_TYPES = [
   { value: 'student', label: 'Student' },
+  { value: 'student_note', label: 'Student note' },
   { value: 'session', label: 'Session' },
   { value: 'exam', label: 'Exam' },
   { value: 'additional_exam', label: 'Additional exam' },
@@ -28,6 +29,7 @@ const ENTITY_TYPES = [
 
 const ENTITY_NOUN = {
   student: 'Student',
+  student_note: 'Note on',
   session: 'Session',
   exam: 'Exam',
   additional_exam: 'Additional exam',

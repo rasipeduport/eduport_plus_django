@@ -9,7 +9,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from students.models import Student
+from students.models import Student, StudentNote
+from students.serializers import StudentNoteSerializer
+from students.services import (
+    build_profile_stats,
+    profile_highlights,
+    redact_student_for_role,
+    serialize_student,
+)
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
@@ -227,43 +234,7 @@ class StudentListView(APIView):
         page_items, meta = paginate_queryset(request, queryset)
         source = queryset if page_items is None else page_items
 
-        data = []
-        for s in source:
-            data.append({
-                "id": str(s.id),
-                "student_code": s.student_code,
-                "full_name": s.full_name,
-                "mobile_number": s.mobile_number or "",
-                "country": s.country or "",
-                "state": s.state or "",
-                "school_name": s.school_name or "",
-                "grade": s.grade or "",
-                "syllabus": s.syllabus or "",
-                "admission_date": s.admission_date.isoformat() if s.admission_date else None,
-                "created_at": s.created_at.isoformat(),
-                "meet_link": s.meet_link or "",
-                "total_class_quota": s.total_class_quota,
-                "remarks_for_mentor": s.remarks_for_mentor or "",
-                "status": s.status.lower(),
-                "status_note": s.status_note or "",
-                # Raw value: the scheduling sheet tells "unset" (offer the IST
-                # default, say it is unset) apart from an explicit choice.
-                "timezone": s.timezone,
-                "profile": {
-                    "email": s.profile.email if s.profile else "",
-                    "avatar_url": s.profile.avatar_url if s.profile else None
-                } if s.profile else None,
-                "mentor_profile": {
-                    "id": str(s.mentor.id),
-                    "full_name": s.mentor.full_name or "",
-                    "email": s.mentor.email
-                } if s.mentor else None,
-                "tutor_profile": {
-                    "id": str(s.tutor.id),
-                    "full_name": s.tutor.full_name or "",
-                    "email": s.tutor.email
-                } if s.tutor else None,
-            })
+        data = [serialize_student(s) for s in source]
 
         if meta is not None:
             return Response({"results": data, **meta}, status=status.HTTP_200_OK)
@@ -680,4 +651,251 @@ class StudentDetailView(APIView):
             )
             student.delete()
 
+        return Response({"success": True}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------- profile
+
+def _visible_student(request, pk):
+    """
+    The student behind a profile URL, or None when this caller may not open
+    it. Deliberately the same scope as the students list: a mentor reaches
+    their allocated students, a tutor theirs and only while they are
+    active/inactive, an admin everyone.
+    """
+    queryset = scope_students_by_role(
+        Student.objects.select_related('profile', 'mentor', 'tutor'), request.user
+    )
+    if request.user.role == 'TUTOR' and not request.user.is_superuser:
+        queryset = queryset.filter(status__in=['ACTIVE', 'INACTIVE'])
+    return queryset.filter(pk=pk).first()
+
+
+def _not_found():
+    return Response(
+        {"error": "NOT_FOUND", "message": "Student not found."},
+        status=status.HTTP_404_NOT_FOUND
+    )
+
+
+class StudentProfileView(APIView):
+    """
+    GET /api/students/<id>/profile/ — the header and Overview tab of the Hub's
+    student profile in one request.
+
+    The per-tab lists are NOT included: the profile's Sessions, Exams,
+    Homework and Activity tabs each read the module's own endpoint with
+    ``?student_id=``, so the permission rules stay in one place per module and
+    opening the Overview does not pay for data nobody looked at. What this
+    endpoint adds is the cross-module arithmetic no single module owns: quota
+    balance, the status counters and the "next up" slots.
+
+    Fields a mentor's or tutor's students table does not show them are
+    stripped here rather than hidden in the browser (see
+    students.services.redact_student_for_role).
+    """
+    permission_classes = [IsAuthenticated, IsStaffUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def get(self, request, pk, *args, **kwargs):
+        student = _visible_student(request, pk)
+        if not student:
+            return _not_found()
+
+        return Response({
+            "student": redact_student_for_role(serialize_student(student), request.user),
+            "stats": build_profile_stats(student, request.user),
+            "highlights": profile_highlights(student, request.user),
+        }, status=status.HTTP_200_OK)
+
+
+# ------------------------------------------------------------------ notes
+
+# Long enough for a real handover note, short enough that the column stays a
+# note rather than a document.
+NOTE_MAX_LENGTH = 4000
+# What the activity log keeps of a note's text: enough to recognise the entry
+# without turning the audit trail into a second copy of every note.
+NOTE_EXCERPT_LENGTH = 500
+
+
+def _note_excerpt(body):
+    if not body:
+        return None
+    return body if len(body) <= NOTE_EXCERPT_LENGTH else f"{body[:NOTE_EXCERPT_LENGTH]}…"
+
+
+def _clean_note_body(raw):
+    """``(body, None)`` or ``(None, 400-response)``."""
+    if not isinstance(raw, str):
+        return None, Response(
+            {"error": "INVALID_INPUT", "message": "A note must be text."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    body = raw.strip()
+    if not body:
+        return None, Response(
+            {"error": "INVALID_INPUT", "message": "A note cannot be empty."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if len(body) > NOTE_MAX_LENGTH:
+        return None, Response(
+            {
+                "error": "INVALID_INPUT",
+                "message": f"A note cannot be longer than {NOTE_MAX_LENGTH} characters."
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    return body, None
+
+
+class StudentNoteListView(APIView):
+    """
+    GET  /api/students/<id>/notes/ — the student's internal notes, newest first.
+    POST /api/students/<id>/notes/ — add one (``{"body": "..."}``).
+
+    Staff-only and Hub-only: admins, mentors and tutors all read and write the
+    notes of a student they can already open, and no student-facing endpoint
+    ever returns them. Visibility therefore follows the profile itself — a
+    mentor cannot reach another mentor's student, so neither can they reach
+    their notes.
+    """
+    permission_classes = [IsAuthenticated, IsStaffUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def get(self, request, pk, *args, **kwargs):
+        student = _visible_student(request, pk)
+        if not student:
+            return _not_found()
+
+        queryset = StudentNote.objects.filter(student=student).order_by('-created_at')
+        page_items, meta = paginate_queryset(request, queryset)
+        source = queryset if page_items is None else page_items
+        data = StudentNoteSerializer(source, many=True, context={'request': request}).data
+        if meta is not None:
+            return Response({"notes": data, **meta}, status=status.HTTP_200_OK)
+        return Response({"notes": data}, status=status.HTTP_200_OK)
+
+    def post(self, request, pk, *args, **kwargs):
+        student = _visible_student(request, pk)
+        if not student:
+            return _not_found()
+
+        body, err = _clean_note_body(request.data.get("body"))
+        if err:
+            return err
+
+        note = StudentNote.objects.create(
+            student=student,
+            body=body,
+            author=request.user,
+            # Snapshotted so the note still says who wrote it after the
+            # author's account is gone (the activity log's trick).
+            author_name=request.user.full_name or request.user.email,
+            author_role=request.user.role,
+        )
+        log_activity(
+            action='student.note_add',
+            entity_type='student_note',
+            entity_id=str(note.id),
+            entity_label=student.full_name or student.student_code,
+            student=student,
+            changes={"note": {"old": None, "new": _note_excerpt(body)}},
+            request=request,
+        )
+        return Response(
+            {"note": StudentNoteSerializer(note, context={'request': request}).data},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class StudentNoteDetailView(APIView):
+    """
+    PATCH  /api/students/notes/<note_id>/ — the author corrects their own note.
+    DELETE /api/students/notes/<note_id>/ — the author, or any admin, removes it.
+
+    Both re-check that the note's student is still one this caller may open,
+    so a reassignment immediately closes the door on the old mentor or tutor.
+    """
+    permission_classes = [IsAuthenticated, IsStaffUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def _resolve(self, request, note_id):
+        """``(note, None)`` or ``(None, response)``."""
+        note = StudentNote.objects.select_related('student').filter(pk=note_id).first()
+        if not note:
+            return None, Response(
+                {"error": "NOT_FOUND", "message": "Note not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        if not _visible_student(request, note.student_id):
+            return None, Response(
+                {"error": "NOT_FOUND", "message": "Note not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return note, None
+
+    def patch(self, request, note_id, *args, **kwargs):
+        note, err = self._resolve(request, note_id)
+        if err:
+            return err
+        # Editing is the author's alone -- an admin who disagrees with a note
+        # can delete it, but must not rewrite someone else's words.
+        if note.author_id != request.user.id:
+            return Response(
+                {"error": "FORBIDDEN", "message": "Only the author can edit a note."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        body, berr = _clean_note_body(request.data.get("body"))
+        if berr:
+            return berr
+        if body == note.body:
+            return Response(
+                {"note": StudentNoteSerializer(note, context={'request': request}).data},
+                status=status.HTTP_200_OK
+            )
+
+        before = note.body
+        note.body = body
+        note.edited_at = timezone.now()
+        note.save(update_fields=['body', 'edited_at', 'updated_at'])
+        log_activity(
+            action='student.note_update',
+            entity_type='student_note',
+            entity_id=str(note.id),
+            entity_label=note.student.full_name or note.student.student_code,
+            student=note.student,
+            changes={"note": {"old": _note_excerpt(before), "new": _note_excerpt(body)}},
+            request=request,
+        )
+        return Response(
+            {"note": StudentNoteSerializer(note, context={'request': request}).data},
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request, note_id, *args, **kwargs):
+        note, err = self._resolve(request, note_id)
+        if err:
+            return err
+        is_admin = request.user.role == 'ADMIN' or request.user.is_superuser
+        if note.author_id != request.user.id and not is_admin:
+            return Response(
+                {"error": "FORBIDDEN", "message": "You can only delete your own notes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        student = note.student
+        body = note.body
+        note_id_str = str(note.id)
+        note.delete()
+        log_activity(
+            action='student.note_delete',
+            entity_type='student_note',
+            entity_id=note_id_str,
+            entity_label=student.full_name or student.student_code,
+            student=student,
+            changes={"note": {"old": _note_excerpt(body), "new": None}},
+            request=request,
+        )
         return Response({"success": True}, status=status.HTTP_200_OK)

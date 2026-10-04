@@ -31,7 +31,9 @@ export default function SidebarLayout({ user, logout, children }) {
     role: user?.role ?? null,
   };
 
-  const isPorted = PORTED_PATHS.has(pathname);
+  // The student profile (/students/<id>) is built on the design tokens like
+  // the students list it opens from, so it takes the raw layout too.
+  const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/');
 
   return (
     <SidebarProvider>

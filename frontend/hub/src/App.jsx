@@ -4,6 +4,7 @@ import SidebarLayout from './layout/SidebarLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import StudentsPage from './pages/StudentsPage';
+import StudentProfilePage from './pages/StudentProfilePage';
 import SessionsPage from './pages/SessionsPage';
 import ExamsPage from './pages/ExamsPage';
 import HomeworkPage from './pages/HomeworkPage';
@@ -28,6 +29,9 @@ export default function App() {
                   <Routes>
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/students" element={<StudentsPage />} />
+                    {/* One student's full record. Scoped by the API: a mentor
+                        or tutor opening someone else's student gets a 404. */}
+                    <Route path="/students/:studentId" element={<StudentProfilePage role={user?.role} />} />
                     <Route path="/sessions" element={<SessionsPage />} />
                     {/* Exams are a mentor <-> student affair; tutors have no access. */}
                     <Route path="/exams" element={user?.role !== 'TUTOR' ? <ExamsPage /> : <Navigate to="/dashboard" replace />} />

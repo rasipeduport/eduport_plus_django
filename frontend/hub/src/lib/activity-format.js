@@ -11,6 +11,9 @@ export const ACTION_LABELS = {
   'student.reassign_mentor': 'Mentor reassigned',
   'student.reassign_tutor': 'Tutor reassigned',
   'student.purge': 'Student purged',
+  'student.note_add': 'Note added',
+  'student.note_update': 'Note edited',
+  'student.note_delete': 'Note deleted',
   'session.create': 'Session created',
   'session.create_series': 'Series created',
   'session.update': 'Session updated',
@@ -113,6 +116,12 @@ export function describeActivity(row) {
     }
     case 'student.purge':
       return `Permanently removed ${row.entity_label ?? 'the student'}`;
+    case 'student.note_add':
+      return 'Added an internal note';
+    case 'student.note_update':
+      return 'Edited their internal note';
+    case 'student.note_delete':
+      return 'Deleted an internal note';
     case 'session.create':
       return 'Created a session';
     case 'session.create_series':
