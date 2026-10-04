@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student
+from .models import Student, StudentNote
 
 class StudentAdmin(admin.ModelAdmin):
     list_display = ('student_code', 'full_name', 'mobile_number', 'grade', 'status', 'mentor', 'tutor')
@@ -19,3 +19,14 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 admin.site.register(Student, StudentAdmin)
+
+
+class StudentNoteAdmin(admin.ModelAdmin):
+    list_display = ('student', 'author_name', 'author_role', 'created_at', 'edited_at')
+    list_filter = ('author_role',)
+    search_fields = ('student__student_code', 'student__full_name', 'author_name', 'body')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at', 'edited_at')
+
+
+admin.site.register(StudentNote, StudentNoteAdmin)

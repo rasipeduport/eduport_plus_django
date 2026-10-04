@@ -639,3 +639,327 @@ class StudentTimezoneTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.student.refresh_from_db()
         self.assertIsNone(self.student.timezone)
+
+
+class StudentProfileAPITests(APITestCase):
+    """GET /api/students/<id>/profile/ — the Hub student profile's header and Overview."""
+
+    def setUp(self):
+        from django.utils import timezone as dj_timezone
+        import datetime as dt
+
+        self.admin = User.objects.create_user(
+            email="profile-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.mentor = User.objects.create_user(
+            email="profile-mentor@eduport.com", password="pw", full_name="Mentor One", role="MENTOR")
+        self.other_mentor = User.objects.create_user(
+            email="profile-mentor2@eduport.com", password="pw", full_name="Mentor Two", role="MENTOR")
+        self.tutor = User.objects.create_user(
+            email="profile-tutor@eduport.com", password="pw", full_name="Tutor One", role="TUTOR")
+        self.other_tutor = User.objects.create_user(
+            email="profile-tutor2@eduport.com", password="pw", full_name="Tutor Two", role="TUTOR")
+        self.parent = User.objects.create_user(
+            email="profile-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+
+        self.student = Student.objects.create(
+            profile=self.parent,
+            student_code="EDP00100",
+            full_name="Profile Student",
+            mobile_number="+971500000000",
+            country="UAE",
+            state="Dubai",
+            school_name="Test School",
+            grade="10",
+            syllabus="CBSE",
+            mentor=self.mentor,
+            tutor=self.tutor,
+            total_class_quota=10,
+        )
+        self.url = reverse('students:student-profile', args=[self.student.id])
+
+        # Two attended classes (2h), one upcoming scheduled (1h), one cancelled
+        # (never counted against quota).
+        from sessions.models import Session
+        now = dj_timezone.now()
+        self.attended = Session.objects.create(
+            student=self.student, title="Past One", tutor=self.tutor,
+            start_time=now - dt.timedelta(days=3), end_time=now - dt.timedelta(days=3, hours=-1),
+            status='ATTENDED', notes_link="https://notes.example/1",
+            recording_link="https://rec.example/1", homework_link="https://hw.example/1",
+        )
+        # Attended but missing content -> "pending" in the derived counters.
+        Session.objects.create(
+            student=self.student, title="Past Two", tutor=self.tutor,
+            start_time=now - dt.timedelta(days=2), end_time=now - dt.timedelta(days=2, hours=-1),
+            status='ATTENDED', notes_link="https://notes.example/2",
+        )
+        self.upcoming = Session.objects.create(
+            student=self.student, title="Next One", tutor=self.tutor,
+            start_time=now + dt.timedelta(days=2), end_time=now + dt.timedelta(days=2, hours=1),
+            status='SCHEDULED',
+        )
+        Session.objects.create(
+            student=self.student, title="Dropped", tutor=self.tutor,
+            start_time=now + dt.timedelta(days=4), end_time=now + dt.timedelta(days=4, hours=2),
+            status='CANCELLED', cancellation_reason="Student travelling",
+        )
+
+        from exams.models import Exam
+        Exam.objects.create(
+            student=self.student, mentor=self.mentor, chapter_name="Algebra",
+            start_time=now - dt.timedelta(days=5), end_time=now - dt.timedelta(days=5, hours=-1),
+            status='ATTENDED', score=8, max_score=10,
+        )
+        Exam.objects.create(
+            student=self.student, mentor=self.mentor, chapter_name="Geometry",
+            start_time=now + dt.timedelta(days=6), end_time=now + dt.timedelta(days=6, hours=1),
+            status='SCHEDULED',
+        )
+
+    def test_admin_sees_every_field_and_the_counters(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        student = res.data["student"]
+        self.assertEqual(student["student_code"], "EDP00100")
+        self.assertEqual(student["state"], "Dubai")
+        self.assertEqual(student["profile"]["email"], "profile-parent@eduport.com")
+        self.assertEqual(student["mentor_profile"]["full_name"], "Mentor One")
+        self.assertEqual(student["tutor_profile"]["full_name"], "Tutor One")
+
+        stats = res.data["stats"]
+        # 3 non-cancelled classes of one hour each.
+        self.assertEqual(stats["quota"], {"purchased": 10, "used_hours": 3.0, "remaining_hours": 7.0})
+        self.assertEqual(stats["sessions"]["total"], 4)
+        self.assertEqual(stats["sessions"]["attended"], 2)
+        self.assertEqual(stats["sessions"]["scheduled"], 1)
+        self.assertEqual(stats["sessions"]["cancelled"], 1)
+        self.assertEqual(stats["sessions"]["upcoming"], 1)
+        # One attended class is still missing its recording and homework.
+        self.assertEqual(stats["sessions"]["pending"], 1)
+        self.assertEqual(stats["exams"]["chapter"]["attended"], 1)
+        self.assertEqual(stats["exams"]["chapter"]["scored"], 1)
+        self.assertEqual(stats["exams"]["chapter"]["average_pct"], 80.0)
+        self.assertEqual(stats["homework"]["total"], 0)
+
+        highlights = res.data["highlights"]
+        self.assertEqual(highlights["next_session"]["title"], "Next One")
+        self.assertEqual(highlights["last_session"]["title"], "Past Two")
+        self.assertEqual(highlights["next_exam"]["chapter_name"], "Geometry")
+
+    def test_mentor_opens_own_student_with_the_full_row(self):
+        """
+        A mentor's payload stays exactly the list endpoint's row: their view
+        hides email and state the way their columns do, but "Edit Profile"
+        posts back every field it is handed, so the payload must be complete.
+        """
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        student = res.data["student"]
+        self.assertEqual(student["state"], "Dubai")
+        self.assertEqual(student["profile"]["email"], "profile-parent@eduport.com")
+        self.assertEqual(student["mobile_number"], "+971500000000")
+        self.assertIn("quota", res.data["stats"])
+        self.assertIsNotNone(res.data["stats"]["exams"])
+
+    def test_other_mentor_gets_404(self):
+        self.client.force_authenticate(user=self.other_mentor)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_tutor_gets_the_narrow_profile_and_no_exams(self):
+        self.client.force_authenticate(user=self.tutor)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        student = res.data["student"]
+        self.assertEqual(student["full_name"], "Profile Student")
+        self.assertEqual(student["grade"], "10")
+        for withheld in ("mobile_number", "country", "state", "school_name",
+                         "total_class_quota", "remarks_for_mentor", "admission_date"):
+            self.assertNotIn(withheld, student)
+        self.assertNotIn("email", student["profile"])
+        # No quota block, and exams read as "no access" rather than "none".
+        self.assertNotIn("quota", res.data["stats"])
+        self.assertIsNone(res.data["stats"]["exams"])
+        self.assertIsNone(res.data["highlights"]["next_exam"])
+
+    def test_other_tutor_and_expired_student_get_404(self):
+        self.client.force_authenticate(user=self.other_tutor)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+
+        # A tutor's list is limited to active/inactive students; the profile
+        # follows the same rule.
+        self.student.status = 'EXPIRED'
+        self.student.status_note = "Course finished"
+        self.student.save()
+        self.client.force_authenticate(user=self.tutor)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+        # The admin can still open them.
+        self.client.force_authenticate(user=self.admin)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_200_OK)
+
+    def test_students_and_anonymous_are_refused(self):
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=self.parent)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unknown_student_is_404(self):
+        import uuid as _uuid
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(reverse('students:student-profile', args=[_uuid.uuid4()]))
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_sessions_list_filters_by_student(self):
+        """The profile's Sessions tab reads ?student_id= on the sessions list."""
+        other_student = Student.objects.create(
+            profile=self.parent, student_code="EDP00101", full_name="Someone Else",
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=5,
+        )
+        from sessions.models import Session
+        from django.utils import timezone as dj_timezone
+        import datetime as dt
+        Session.objects.create(
+            student=other_student, title="Not Mine", tutor=self.tutor,
+            start_time=dj_timezone.now() + dt.timedelta(days=1),
+            end_time=dj_timezone.now() + dt.timedelta(days=1, hours=1),
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get('/api/sessions/', {"student_id": str(self.student.id)})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["sessions"]), 4)
+        self.assertNotIn("Not Mine", [s["title"] for s in res.data["sessions"]])
+
+        res = self.client.get('/api/sessions/', {"student_id": "not-a-uuid"})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class StudentNoteAPITests(APITestCase):
+    """The profile's Notes tab: internal, staff-only, Hub-only."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="note-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.mentor = User.objects.create_user(
+            email="note-mentor@eduport.com", password="pw", full_name="Mentor One", role="MENTOR")
+        self.other_mentor = User.objects.create_user(
+            email="note-mentor2@eduport.com", password="pw", full_name="Mentor Two", role="MENTOR")
+        self.tutor = User.objects.create_user(
+            email="note-tutor@eduport.com", password="pw", full_name="Tutor One", role="TUTOR")
+        self.parent = User.objects.create_user(
+            email="note-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="EDP00200", full_name="Noted Student",
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=8,
+        )
+        self.list_url = reverse('students:student-notes', args=[self.student.id])
+
+    def _detail_url(self, note_id):
+        return reverse('students:student-note-detail', args=[note_id])
+
+    def _add(self, user, body="Needs extra attention on algebra."):
+        self.client.force_authenticate(user=user)
+        return self.client.post(self.list_url, {"body": body}, format='json')
+
+    def test_every_staff_role_can_add_and_read(self):
+        from activity.models import ActivityLog
+        from students.models import StudentNote
+
+        for user, role in ((self.admin, 'ADMIN'), (self.mentor, 'MENTOR'), (self.tutor, 'TUTOR')):
+            with self.subTest(role=role):
+                res = self._add(user, f"Note from {role}")
+                self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+                self.assertEqual(res.data["note"]["author_role"], role)
+                self.assertEqual(res.data["note"]["author_name"], user.full_name)
+                self.assertTrue(res.data["note"]["can_edit"])
+
+        self.assertEqual(StudentNote.objects.filter(student=self.student).count(), 3)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # Newest first.
+        self.assertEqual([n["author_role"] for n in res.data["notes"]], ['TUTOR', 'MENTOR', 'ADMIN'])
+        self.assertEqual(ActivityLog.objects.filter(action='student.note_add').count(), 3)
+
+    def test_blank_and_overlong_notes_are_rejected(self):
+        for bad in ("", "   ", None, 42, "x" * 4001):
+            with self.subTest(value=bad):
+                res = self._add(self.admin, bad)
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        from students.models import StudentNote
+        self.assertEqual(StudentNote.objects.count(), 0)
+
+    def test_only_the_author_can_edit(self):
+        from activity.models import ActivityLog
+        note_id = self._add(self.mentor, "First draft").data["note"]["id"]
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.patch(self._detail_url(note_id), {"body": "Rewritten"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.patch(self._detail_url(note_id), {"body": "Second draft"}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["note"]["body"], "Second draft")
+        self.assertIsNotNone(res.data["note"]["edited_at"])
+        log = ActivityLog.objects.filter(action='student.note_update').first()
+        self.assertEqual(log.changes["note"], {"old": "First draft", "new": "Second draft"})
+
+    def test_author_or_admin_can_delete(self):
+        from students.models import StudentNote
+
+        mentor_note = self._add(self.mentor, "Mentor's note").data["note"]["id"]
+        tutor_note = self._add(self.tutor, "Tutor's note").data["note"]["id"]
+
+        # A tutor cannot remove the mentor's note...
+        self.client.force_authenticate(user=self.tutor)
+        res = self.client.delete(self._detail_url(mentor_note))
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        # ...but can remove their own.
+        res = self.client.delete(self._detail_url(tutor_note))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        # An admin can remove anyone's.
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.delete(self._detail_url(mentor_note))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(StudentNote.objects.count(), 0)
+
+        from activity.models import ActivityLog
+        self.assertEqual(ActivityLog.objects.filter(action='student.note_delete').count(), 2)
+
+    def test_notes_follow_the_profile_scope(self):
+        note_id = self._add(self.mentor).data["note"]["id"]
+
+        # Another mentor can neither list nor touch them.
+        self.client.force_authenticate(user=self.other_mentor)
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.post(self.list_url, {"body": "x"}, format='json').status_code,
+                         status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.patch(self._detail_url(note_id), {"body": "x"}, format='json').status_code,
+                         status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.delete(self._detail_url(note_id)).status_code,
+                         status.HTTP_404_NOT_FOUND)
+
+        # Reassigning the student closes the door on the previous mentor.
+        self.student.mentor = self.other_mentor
+        self.student.save()
+        self.client.force_authenticate(user=self.mentor)
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_notes_are_never_student_facing(self):
+        self._add(self.mentor)
+        self.client.force_authenticate(user=self.parent)
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.post(self.list_url, {"body": "hi"}, format='json').status_code,
+                         status.HTTP_403_FORBIDDEN)
+
+    def test_notes_go_with_the_student(self):
+        from students.models import StudentNote
+        self._add(self.admin)
+        self.assertEqual(StudentNote.objects.count(), 1)
+        self.student.delete()
+        self.assertEqual(StudentNote.objects.count(), 0)
