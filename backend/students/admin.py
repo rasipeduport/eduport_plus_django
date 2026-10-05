@@ -12,11 +12,15 @@ class StudentAdmin(admin.ModelAdmin):
         ('Academic Info', {'fields': ('school_name', 'grade', 'syllabus', 'admission_date')}),
         ('Contact Info', {'fields': ('mobile_number', 'country', 'state', 'timezone')}),
         ('Staff Assignment', {'fields': ('mentor', 'tutor', 'meet_link')}),
+        # total_class_quota is read-only: it is synced from the enrolment
+        # sheet (students.quota_sync), and an edit here would be reverted by
+        # the next sync run. Shown rather than hidden so an operator can still
+        # see the figure the sheet produced.
         ('Quota & Remarks', {'fields': ('total_class_quota', 'remarks_for_mentor')}),
         ('Status', {'fields': ('status', 'status_note')}),
         ('Metadata', {'fields': ('created_at', 'updated_at')}),
     )
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'total_class_quota')
 
 admin.site.register(Student, StudentAdmin)
 

@@ -1,5 +1,11 @@
-from django.urls import reverse
+import datetime as dt
+from io import StringIO
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone as dj_timezone
 from rest_framework.test import APITestCase
 from rest_framework import status
 from students.models import Student
@@ -134,11 +140,12 @@ class DashboardAPITests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["student_code"], "EDP00009")
         
-        # Test student update (PUT /api/students/)
+        # Test student update (PUT /api/students/). total_class_quota is
+        # deliberately absent: it is sheet-synced and refused here (covered by
+        # QuotaIsReadOnlyOverTheApiTests below).
         payload = {
             "id": str(self.student.id),
             "meet_link": "https://meet.google.com/xxx-yyyy-zzz",
-            "total_class_quota": 20,
             "status": "INACTIVE",
             "status_note": "A temporary pause"
         }
@@ -148,9 +155,10 @@ class DashboardAPITests(APITestCase):
         # Verify database reflects updates
         self.student.refresh_from_db()
         self.assertEqual(self.student.meet_link, "https://meet.google.com/xxx-yyyy-zzz")
-        self.assertEqual(self.student.total_class_quota, 20)
         self.assertEqual(self.student.status, "INACTIVE")
         self.assertEqual(self.student.status_note, "A temporary pause")
+        # Untouched by the PUT -- only the sheet sync writes it.
+        self.assertEqual(self.student.total_class_quota, 15)
 
 
 
@@ -963,3 +971,680 @@ class StudentNoteAPITests(APITestCase):
         self.assertEqual(StudentNote.objects.count(), 1)
         self.student.delete()
         self.assertEqual(StudentNote.objects.count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Enrolment-sheet quota sync (students.quota_sync)
+# ---------------------------------------------------------------------------
+
+def _sheet_row(code='', paid='', purchased=''):
+    """
+    One A3:AB row with only the three columns the sync cares about filled in.
+    Written positionally so the test breaks if an index constant moves.
+    """
+    from invitations.sheets import (
+        COL_CLASSES_PAID_FOR,
+        COL_CLASSES_PURCHASED,
+        COL_STUDENT_CODE,
+    )
+
+    row = [''] * (COL_STUDENT_CODE + 1)
+    row[COL_STUDENT_CODE] = code
+    row[COL_CLASSES_PAID_FOR] = paid
+    row[COL_CLASSES_PURCHASED] = purchased
+    return row
+
+
+class QuotaSyncFromSheetTests(TestCase):
+    """
+    Column O ("No of classes paid for") is the only source of
+    ``total_class_quota``. Column N ("Actual No of classes purchased") is
+    display data in the sheet and must never reach the quota.
+    """
+
+    def setUp(self):
+        self.parent = User.objects.create_user(
+            email="sync-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+
+    def _student(self, code, quota=0):
+        return Student.objects.create(
+            profile=self.parent, student_code=code, full_name=f"Student {code}",
+            total_class_quota=quota,
+        )
+
+    def _sync(self, rows, **kwargs):
+        from students import quota_sync
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows', return_value=rows
+        ):
+            return quota_sync.sync_student_quotas_from_sheet(**kwargs)
+
+    def test_single_row_sets_the_quota(self):
+        student = self._student("EPS00001", quota=0)
+        report = self._sync([_sheet_row("EPS00001", paid="10")])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 10)
+        self.assertEqual(report.students_updated, 1)
+        self.assertFalse(report.failed)
+
+    def test_duplicate_code_sums_the_paid_values(self):
+        student = self._student("EPS00001", quota=0)
+        report = self._sync([
+            _sheet_row("EPS00001", paid="10"),
+            _sheet_row("EPS00001", paid="14"),
+        ])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 24)
+        self.assertEqual(report.duplicate_codes, ["EPS00001"])
+
+    def test_several_duplicate_rows_sum(self):
+        student = self._student("EPS00001", quota=0)
+        self._sync([
+            _sheet_row("EPS00001", paid="15"),
+            _sheet_row("EPS00001", paid="15"),
+        ])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 30)
+
+    def test_non_numeric_value_is_skipped_and_reported(self):
+        student = self._student("EPS00001", quota=0)
+        report = self._sync([
+            _sheet_row("EPS00001", paid="Token"),
+            _sheet_row("EPS00001", paid="10"),
+        ])
+
+        student.refresh_from_db()
+        # "Token" contributes nothing -- it is not silently read as 0.
+        self.assertEqual(student.total_class_quota, 10)
+        self.assertEqual(report.non_numeric_values, [["EPS00001", "Token"]])
+
+    def test_a_code_whose_only_value_is_non_numeric_is_left_alone(self):
+        student = self._student("EPS00001", quota=7)
+        report = self._sync([_sheet_row("EPS00001", paid="Token")])
+
+        student.refresh_from_db()
+        # Not zeroed: "Token" is not a statement that nothing was paid for.
+        self.assertEqual(student.total_class_quota, 7)
+        self.assertEqual(report.codes_without_numeric_value, ["EPS00001"])
+        self.assertEqual(report.students_updated, 0)
+
+    def test_explicit_zero_is_a_real_value(self):
+        student = self._student("EPS00001", quota=12)
+        self._sync([_sheet_row("EPS00001", paid="0")])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 0)
+
+    def test_zero_contributes_zero_to_a_sum(self):
+        student = self._student("EPS00001", quota=0)
+        self._sync([
+            _sheet_row("EPS00001", paid="0"),
+            _sheet_row("EPS00001", paid="8"),
+        ])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 8)
+
+    def test_blank_value_is_skipped_without_zeroing(self):
+        student = self._student("EPS00001", quota=9)
+        report = self._sync([_sheet_row("EPS00001", paid="   ")])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 9)
+        self.assertEqual(report.codes_without_numeric_value, ["EPS00001"])
+        # A blank cell is not a data-entry error, so it is not reported as one.
+        self.assertEqual(report.non_numeric_values, [])
+
+    def test_sheet_code_with_no_student_is_skipped(self):
+        report = self._sync([_sheet_row("EPS99999", paid="10")])
+
+        self.assertEqual(report.codes_not_in_db, ["EPS99999"])
+        self.assertEqual(report.students_updated, 0)
+
+    def test_row_without_a_code_is_skipped(self):
+        student = self._student("EPS00001", quota=5)
+        report = self._sync([
+            _sheet_row("", paid="99"),
+            _sheet_row("   ", paid="99"),
+            _sheet_row("EPS00001", paid="10"),
+        ])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 10)
+        self.assertEqual(report.rows_without_code, 2)
+
+    def test_student_absent_from_the_sheet_keeps_its_quota(self):
+        in_sheet = self._student("EPS00001", quota=0)
+        absent = self._student("EPS00002", quota=6)
+        report = self._sync([_sheet_row("EPS00001", paid="10")])
+
+        in_sheet.refresh_from_db()
+        absent.refresh_from_db()
+        self.assertEqual(in_sheet.total_class_quota, 10)
+        self.assertEqual(absent.total_class_quota, 6)
+        self.assertEqual(report.students_not_in_sheet, 1)
+
+    def test_sheets_failure_changes_nothing(self):
+        from students import quota_sync
+        student = self._student("EPS00001", quota=11)
+
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            side_effect=RuntimeError("Google is down"),
+        ):
+            report = quota_sync.sync_student_quotas_from_sheet()
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 11)
+        self.assertTrue(report.failed)
+        self.assertIn("Google is down", report.error)
+        self.assertEqual(report.students_updated, 0)
+
+    def test_purchased_column_is_never_used_for_the_quota(self):
+        """The audited live row: EDP00041 has N=72 and O=8. It must become 8."""
+        student = self._student("EDP00041", quota=10)
+        self._sync([_sheet_row("EDP00041", paid="8", purchased="72")])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 8)
+
+    def test_codes_match_case_and_whitespace_insensitively(self):
+        student = self._student("EDP00041", quota=0)
+        self._sync([_sheet_row("  edp00041 ", paid="8")])
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 8)
+
+    def test_unchanged_quota_is_counted_not_rewritten(self):
+        student = self._student("EPS00001", quota=10)
+        before = student.updated_at
+        report = self._sync([_sheet_row("EPS00001", paid="10")])
+
+        student.refresh_from_db()
+        self.assertEqual(report.students_unchanged, 1)
+        self.assertEqual(report.students_updated, 0)
+        self.assertEqual(student.updated_at, before)
+
+    def test_a_write_bumps_updated_at(self):
+        """bulk_update skips auto_now, so the sync sets the column itself."""
+        student = self._student("EPS00001", quota=0)
+        before = student.updated_at
+        self._sync([_sheet_row("EPS00001", paid="10")])
+
+        student.refresh_from_db()
+        self.assertGreater(student.updated_at, before)
+
+    def test_dry_run_reports_without_writing(self):
+        student = self._student("EPS00001", quota=3)
+        report = self._sync([_sheet_row("EPS00001", paid="10")], dry_run=True)
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 3)
+        self.assertEqual(report.students_updated, 1)
+        self.assertEqual(report.changes, [["EPS00001", 3, 10]])
+
+    def test_one_sheet_call_per_sync(self):
+        from students import quota_sync
+        self._student("EPS00001")
+        self._student("EPS00002")
+
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            return_value=[_sheet_row("EPS00001", paid="1"), _sheet_row("EPS00002", paid="2")],
+        ) as fetch:
+            quota_sync.sync_student_quotas_from_sheet()
+
+        self.assertEqual(fetch.call_count, 1)
+
+    def test_management_command_and_task_share_the_service(self):
+        """Neither entry point may carry its own copy of the sync logic."""
+        from django.core.management import call_command
+        from students import tasks
+
+        student = self._student("EPS00001", quota=0)
+        with patch(
+            'students.quota_sync.GoogleSheetsService.fetch_enrollment_rows',
+            return_value=[_sheet_row("EPS00001", paid="10")],
+        ):
+            call_command('sync_student_quotas', stdout=StringIO())
+            student.refresh_from_db()
+            self.assertEqual(student.total_class_quota, 10)
+
+            Student.objects.filter(pk=student.pk).update(total_class_quota=0)
+            result = tasks.sync_student_quotas()
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 10)
+        self.assertEqual(result['students_updated'], 1)
+        self.assertFalse(result['failed'])
+
+    def test_command_reports_a_sheets_failure_on_stderr(self):
+        err = StringIO()
+        with patch(
+            'students.quota_sync.GoogleSheetsService.fetch_enrollment_rows',
+            side_effect=RuntimeError("Google is down"),
+        ):
+            from django.core.management import call_command
+            call_command('sync_student_quotas', stdout=StringIO(), stderr=err)
+
+        self.assertIn("Quota sync failed", err.getvalue())
+
+
+class QuotaIsReadOnlyOverTheApiTests(APITestCase):
+    """
+    The sheet is the source of truth, so the old manual top-up write path is
+    refused rather than quietly overwritten by the next sync.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="ro-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.mentor = User.objects.create_user(
+            email="ro-mentor@eduport.com", password="pw", full_name="Mentor", role="MENTOR")
+        self.parent = User.objects.create_user(
+            email="ro-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="EDP00200", full_name="Read Only",
+            mentor=self.mentor, total_class_quota=10,
+        )
+        self.url = reverse('students:student-list')
+
+    def test_admin_cannot_set_the_quota(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.put(
+            self.url, {"id": str(self.student.id), "total_class_quota": 25}, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data['error'], 'QUOTA_READ_ONLY')
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 10)
+
+    def test_mentor_cannot_set_the_quota(self):
+        self.client.force_authenticate(user=self.mentor)
+        res = self.client.put(
+            self.url, {"id": str(self.student.id), "total_class_quota": 25}, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 10)
+
+    def test_the_refusal_does_not_half_apply_the_rest_of_the_payload(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.put(self.url, {
+            "id": str(self.student.id),
+            "meet_link": "https://meet.google.com/aaa-bbbb-ccc",
+            "total_class_quota": 25,
+        }, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 10)
+        self.assertIsNone(self.student.meet_link)
+
+    def test_a_payload_without_quota_still_works(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.put(
+            self.url,
+            {"id": str(self.student.id), "meet_link": "https://meet.google.com/aaa-bbbb-ccc"},
+            format='json',
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.meet_link, "https://meet.google.com/aaa-bbbb-ccc")
+
+    def test_no_quota_activity_entry_is_written_any_more(self):
+        from activity.models import ActivityLog
+
+        self.client.force_authenticate(user=self.admin)
+        self.client.put(
+            self.url, {"id": str(self.student.id), "total_class_quota": 25}, format='json')
+
+        self.assertFalse(ActivityLog.objects.filter(action='student.update_quota').exists())
+
+    def test_historical_quota_entries_still_read_back(self):
+        """
+        Retiring the write path must not retire the history: entries written
+        before the sync existed still have to come back from /api/activity/.
+        """
+        from activity.models import ActivityLog
+
+        ActivityLog.objects.create(
+            actor=self.admin, actor_email=self.admin.email, actor_name="Admin",
+            actor_role="ADMIN", action='student.update_quota', entity_type='student',
+            entity_id=str(self.student.id), entity_label=self.student.full_name,
+            student=self.student, changes={"total_class_quota": {"old": 5, "new": 10}},
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(reverse('activity:activity-logs-list'))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        quota_entries = [
+            e for e in res.data['results'] if e['action'] == 'student.update_quota'
+        ]
+        self.assertEqual(len(quota_entries), 1)
+        self.assertEqual(quota_entries[0]['changes'], {"total_class_quota": {"old": 5, "new": 10}})
+
+
+class SyncedQuotaFeedsTheExistingHourArithmeticTests(APITestCase):
+    """
+    Only the SOURCE of the quota changed. Consumption is still measured in
+    hours by the duration of non-cancelled sessions, and the profile still
+    reports purchased / used / remaining off that same figure.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="hours-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.mentor = User.objects.create_user(
+            email="hours-mentor@eduport.com", password="pw", full_name="Mentor", role="MENTOR")
+        self.tutor = User.objects.create_user(
+            email="hours-tutor@eduport.com", password="pw", full_name="Tutor", role="TUTOR")
+        self.parent = User.objects.create_user(
+            email="hours-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="EDP00300", full_name="Hours Student",
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=0,
+        )
+
+    def _sync(self, paid):
+        from students import quota_sync
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            return_value=[_sheet_row("EDP00300", paid=paid)],
+        ):
+            return quota_sync.sync_student_quotas_from_sheet()
+
+    def _book(self, hours, offset_days, status_value='SCHEDULED'):
+        from sessions.models import Session
+        start = dj_timezone.now() + dt.timedelta(days=offset_days)
+        return Session.objects.create(
+            student=self.student, title=f"Class {offset_days}", tutor=self.tutor,
+            start_time=start, end_time=start + dt.timedelta(hours=hours), status=status_value,
+        )
+
+    def test_used_hours_stay_duration_based_after_a_sync(self):
+        from sessions.services import calculate_credits_used
+
+        self._sync("10")
+        self._book(1, 1)
+        self._book(1.5, 2)
+        self._book(0.5, 3)
+        # Cancelled hours are still released.
+        self._book(2, 4, status_value='CANCELLED')
+
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 10)
+        self.assertEqual(calculate_credits_used(self.student), 3.0)
+
+    def test_profile_reports_the_synced_quota(self):
+        self._sync("10")
+        self._book(1, 1)
+        self._book(1.5, 2)
+        self._book(0.5, 3)
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(reverse('students:student-profile', args=[self.student.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            res.data['stats']['quota'],
+            {"purchased": 10, "used_hours": 3.0, "remaining_hours": 7.0},
+        )
+
+    def test_session_creation_is_enforced_against_the_synced_quota(self):
+        self._sync("2")
+        self.client.force_authenticate(user=self.mentor)
+        url = reverse('sessions:sessions-list-create-update')
+        start = dj_timezone.now() + dt.timedelta(days=5)
+
+        # 2 hours of quota: a 2-hour class fits, a second one does not.
+        ok = self.client.post(url, {
+            "student_id": str(self.student.id), "base_title": "Fits", "series": False,
+            "items": [{"start_time": start.isoformat(), "duration_hours": 2}],
+        }, format='json')
+        self.assertEqual(ok.status_code, status.HTTP_200_OK, ok.data)
+
+        over = self.client.post(url, {
+            "student_id": str(self.student.id), "base_title": "Over", "series": False,
+            "items": [{"start_time": (start + dt.timedelta(days=1)).isoformat(),
+                       "duration_hours": 0.5}],
+        }, format='json')
+        self.assertEqual(over.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('credits', over.data['error'])
+
+    def test_a_sync_below_hours_already_used_keeps_the_sessions(self):
+        """
+        A lowered sheet figure must not touch existing bookings. The profile
+        shows the overdraft, exactly as it did when a quota was lowered by hand.
+        """
+        self._sync("10")
+        self._book(2, 1)
+        self._book(2, 2)
+
+        self._sync("2")
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 2)
+
+        from sessions.models import Session, SessionStatusChoices
+        self.assertEqual(
+            Session.objects.filter(student=self.student, status=SessionStatusChoices.SCHEDULED).count(),
+            2,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(reverse('students:student-profile', args=[self.student.id]))
+        self.assertEqual(
+            res.data['stats']['quota'],
+            {"purchased": 2, "used_hours": 4.0, "remaining_hours": -2.0},
+        )
+
+
+class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
+    """
+    A newly enrolled student must be able to book immediately, so the quota is
+    read from the sheet at invitation time rather than waiting for the next
+    scheduled sync. Both paths go through ``quota_sync``, so the duplicate-row
+    sum and the "Token" rule behave identically in each.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="enrol-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.lookup_url = reverse('invitations:lookup-student')
+        self.create_url = reverse('invitations:create-invitation')
+        self.client.force_authenticate(user=self.admin)
+
+    def _profile_row(self, code, paid, purchased='', email='razi@example.com', name='Razi'):
+        from invitations.sheets import (
+            COL_CLASSES_PAID_FOR,
+            COL_CLASSES_PURCHASED,
+            COL_STUDENT_CODE,
+        )
+
+        row = [''] * (COL_STUDENT_CODE + 1)
+        row[1] = name            # B full_name
+        row[3] = email           # D email
+        row[8] = '10'            # I grade
+        row[COL_CLASSES_PURCHASED] = purchased
+        row[COL_CLASSES_PAID_FOR] = paid
+        row[COL_STUDENT_CODE] = code
+        return row
+
+    def _enrol(self, rows, code='EDP00041', email='razi@example.com'):
+        """Invite, then sign the parent in, which is what creates the Student."""
+        from accounts.services import UserProvisioningService
+
+        with patch(
+            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
+        ):
+            res = self.client.post(self.create_url, {
+                "role": "STUDENT", "email": email,
+                "student_code": code, "full_name": "Razi",
+            }, format='json')
+        self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
+
+        parent = User.objects.create_user(
+            email=email, password="pw", full_name="Razi Parent", role="STUDENT")
+        UserProvisioningService.attach_pending_students(parent)
+        return Student.objects.get(student_code=code)
+
+    def test_new_student_starts_at_the_sheets_paid_figure(self):
+        """The reported gap: EDP00041 with O=8 must enrol at 8, not 0."""
+        student = self._enrol([self._profile_row('EDP00041', paid='8', purchased='72')])
+        self.assertEqual(student.total_class_quota, 8)
+
+    def test_purchased_column_does_not_leak_into_the_initial_quota(self):
+        student = self._enrol([self._profile_row('EDP00041', paid='8', purchased='72')])
+        self.assertNotEqual(student.total_class_quota, 72)
+
+    def test_duplicate_rows_are_summed_at_enrolment_too(self):
+        student = self._enrol([
+            self._profile_row('EDP00041', paid='10'),
+            self._profile_row('EDP00041', paid='14'),
+        ])
+        self.assertEqual(student.total_class_quota, 24)
+
+    def test_token_is_ignored_at_enrolment_too(self):
+        student = self._enrol([
+            self._profile_row('EDP00041', paid='Token'),
+            self._profile_row('EDP00041', paid='10'),
+        ])
+        self.assertEqual(student.total_class_quota, 10)
+
+    def test_a_code_with_only_token_enrols_at_zero(self):
+        """Nothing paid for is the safe start; the sync will not lower it further."""
+        student = self._enrol([self._profile_row('EDP00041', paid='Token')])
+        self.assertEqual(student.total_class_quota, 0)
+
+    def test_explicit_zero_enrols_at_zero(self):
+        student = self._enrol([self._profile_row('EDP00041', paid='0')])
+        self.assertEqual(student.total_class_quota, 0)
+
+    def test_sheets_failure_does_not_block_enrolment(self):
+        """Google being down must not stop a student being invited."""
+        from accounts.services import UserProvisioningService
+
+        with patch(
+            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows',
+            side_effect=RuntimeError("Google is down"),
+        ):
+            res = self.client.post(self.create_url, {
+                "role": "STUDENT", "email": "down@example.com",
+                "student_code": "EDP00041", "full_name": "Razi",
+            }, format='json')
+        self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
+
+        parent = User.objects.create_user(
+            email="down@example.com", password="pw", full_name="P", role="STUDENT")
+        UserProvisioningService.attach_pending_students(parent)
+        student = Student.objects.get(student_code="EDP00041")
+        self.assertEqual(student.total_class_quota, 0)
+
+    def test_quota_is_never_taken_from_the_request_body(self):
+        """
+        The retired manual top-up must not come back through the invitation
+        form: a client-supplied figure is ignored in favour of the sheet's.
+        """
+        from accounts.services import UserProvisioningService
+
+        rows = [self._profile_row('EDP00041', paid='8')]
+        with patch(
+            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
+        ):
+            self.client.post(self.create_url, {
+                "role": "STUDENT", "email": "razi@example.com",
+                "student_code": "EDP00041", "full_name": "Razi",
+                "total_class_quota": 999,
+            }, format='json')
+
+        invitation = Invitation.objects.get(extra_data__student_code='EDP00041')
+        self.assertEqual(invitation.extra_data['total_class_quota'], 8)
+
+        parent = User.objects.create_user(
+            email="razi@example.com", password="pw", full_name="P", role="STUDENT")
+        UserProvisioningService.attach_pending_students(parent)
+        self.assertEqual(Student.objects.get(student_code='EDP00041').total_class_quota, 8)
+
+    def test_lookup_reports_the_paid_figure_for_the_enrolment_form(self):
+        rows = [self._profile_row('EDP00041', paid='8', purchased='72')]
+        with patch(
+            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
+        ) as fetch:
+            res = self.client.post(self.lookup_url, {"student_code": "EDP00041"}, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['student_data']['classes_paid_for'], 8)
+        # Profile fields and the quota come from ONE fetch of the same snapshot.
+        self.assertEqual(fetch.call_count, 1)
+
+    def test_an_invitation_predating_this_key_still_enrols(self):
+        """Backward compatibility: extra_data written before the key existed."""
+        from accounts.services import UserProvisioningService
+
+        Invitation.objects.create(
+            email="legacy@example.com", role=InvitationRoleChoices.STUDENT,
+            status=InvitationStatusChoices.PENDING,
+            extra_data={"student_code": "EDP00099", "full_name": "Legacy"},
+        )
+        parent = User.objects.create_user(
+            email="legacy@example.com", password="pw", full_name="P", role="STUDENT")
+        UserProvisioningService.attach_pending_students(parent)
+
+        self.assertEqual(Student.objects.get(student_code="EDP00099").total_class_quota, 0)
+
+    def test_periodic_sync_still_takes_over_when_the_sheet_changes(self):
+        """
+        Enrolment seeds the figure; the sync owns every later change. Both must
+        agree while the sheet is unchanged, and the sync must win once it moves.
+        """
+        from students import quota_sync
+
+        student = self._enrol([self._profile_row('EDP00041', paid='8')])
+        self.assertEqual(student.total_class_quota, 8)
+
+        # Sheet unchanged -> the sync is a no-op, not a rewrite.
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            return_value=[self._profile_row('EDP00041', paid='8')],
+        ):
+            report = quota_sync.sync_student_quotas_from_sheet()
+        self.assertEqual(report.students_unchanged, 1)
+        self.assertEqual(report.students_updated, 0)
+
+        # Sales records another payment -> the sync raises the quota.
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            return_value=[
+                self._profile_row('EDP00041', paid='8'),
+                self._profile_row('EDP00041', paid='7'),
+            ],
+        ):
+            report = quota_sync.sync_student_quotas_from_sheet()
+
+        student.refresh_from_db()
+        self.assertEqual(student.total_class_quota, 15)
+        self.assertEqual(report.changes, [['EDP00041', 8, 15]])
+
+    def test_enrolment_and_sync_agree_on_every_shape_of_cell(self):
+        """
+        The anti-duplication guard: one reduction, so both entry points must
+        produce the same number for the same rows.
+        """
+        from students import quota_sync
+
+        cases = [
+            ([('8', '')], 8),
+            ([('10', ''), ('14', '')], 24),
+            ([('15', ''), ('15', '')], 30),
+            ([('Token', ''), ('10', '')], 10),
+            ([('0', '')], 0),
+        ]
+        for paid_values, expected in cases:
+            with self.subTest(paid_values=paid_values):
+                rows = [self._profile_row('EDP00041', paid=p, purchased=n) for p, n in paid_values]
+                via_enrolment = quota_sync.quota_for_code(rows, 'EDP00041')
+                self.assertEqual(0 if via_enrolment is None else via_enrolment, expected)

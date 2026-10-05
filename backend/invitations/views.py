@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,8 +12,46 @@ from activity.utils import log_activity
 from .models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from .sheets import GoogleSheetsService
 from students.models import Student
+from students.quota_sync import quota_for_code
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
+
+
+def _sheet_quota_for(student_code):
+    """
+    The class quota the enrolment sheet states for ``student_code``, as the
+    integer ``Student.total_class_quota`` is initialised with.
+
+    Read SERVER-SIDE, from the sheet, on purpose: the quota must not be
+    accepted from the request body, or the retired manual top-up would be back
+    in a new shape (and would be overwritten by the next sync anyway).
+
+    Returns 0 -- never None -- for a code the sheet has no number for, since
+    the column is NOT NULL and "nothing paid for" is the safe starting point.
+    A Sheets failure also yields 0 rather than blocking the invitation: the
+    hourly sync corrects it, and refusing to enrol a student because Google is
+    briefly unavailable would be the worse trade.
+    """
+    try:
+        rows = GoogleSheetsService.fetch_enrollment_rows()
+    except Exception as exc:
+        logger.warning(
+            "Could not read the enrolment sheet while inviting %s; starting the "
+            "student at 0 classes. The scheduled quota sync will correct it. (%s)",
+            student_code, exc,
+        )
+        return 0
+
+    quota = quota_for_code(rows, student_code)
+    if quota is None:
+        logger.info(
+            "Enrolment sheet states no numeric \"classes paid for\" value for %s; "
+            "starting the student at 0 classes.", student_code,
+        )
+        return 0
+    return quota
 
 
 def _find_student_invitation(email, student_code, status_filter=None):
@@ -45,14 +85,24 @@ class LookupStudentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Query Google Sheets using the production mapping
+        # Query Google Sheets using the production mapping. One fetch, then
+        # both reads off the same snapshot: the profile fields and the class
+        # quota the student will be created with.
         try:
-            student_data = GoogleSheetsService.lookup_student_by_code(student_code)
+            rows = GoogleSheetsService.fetch_enrollment_rows()
+            student_data = GoogleSheetsService.lookup_student_by_code(student_code, rows=rows)
         except Exception as e:
             return Response(
                 {"error": "SHEETS_API_ERROR", "message": f"Google Sheets lookup failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+        if student_data:
+            # Informational for the enrolment form. The value the Student is
+            # actually created with is re-read server-side at invitation time
+            # (_sheet_quota_for), never taken back from the client.
+            quota = quota_for_code(rows, student_data.get("student_code") or student_code)
+            student_data["classes_paid_for"] = 0 if quota is None else quota
 
         if not student_data:
             return Response(
@@ -258,7 +308,15 @@ class CreateInvitationView(APIView):
                     "remarks": data.get("remarks", ""),
                     "mentor_id": mentor_id,
                     "tutor_id": tutor_id,
-                    "meet_link": data.get("meet_link", "")
+                    "meet_link": data.get("meet_link", ""),
+                    # Initial class quota, straight from the sheet's
+                    # "No of classes paid for" column. Consumed by
+                    # accounts.services._create_student_from_invitation when
+                    # the parent first signs in, so a newly enrolled student
+                    # can book immediately instead of sitting at 0 until the
+                    # next scheduled sync. The sync remains the source of
+                    # truth for every later change.
+                    "total_class_quota": _sheet_quota_for(student_code),
                 }
 
                 # Match an existing PENDING invitation for THIS child only, so a

@@ -19,6 +19,11 @@ psycopg[binary]==3.3.3
 google-auth==2.49.2
 gspread==6.1.4
 
+# Background jobs: the scheduled enrolment-sheet quota sync
+# (students.tasks + config/celery.py). Redis is the broker.
+celery==5.4.0
+redis==5.2.1
+
 # Serving
 gunicorn==23.0.0
 whitenoise==6.6.0

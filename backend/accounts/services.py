@@ -35,6 +35,14 @@ def parse_admission_date(date_str):
     logger.warning(f"Could not parse admission date string: '{date_str}'")
     return None
 
+def _as_int(value, default=0):
+    """A JSON-sourced number as an int, falling back rather than raising."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class UserProvisioningService:
     @staticmethod
     def _create_student_from_invitation(user: User, invitation: Invitation, google_name: str) -> Student:
@@ -52,6 +60,13 @@ class UserProvisioningService:
 
         fullname = extra_data.get("full_name") or google_name or invitation.email.split("@")[0]
         admission_date = parse_admission_date(extra_data.get("admission_date"))
+
+        # Class quota as the enrolment sheet stated it when the invitation was
+        # created (invitations.views._sheet_quota_for -> column O, "No of
+        # classes paid for"). Coerced here because extra_data is JSON and an
+        # invitation written before this key existed simply has no value --
+        # the column is NOT NULL, and the scheduled sync corrects it either way.
+        initial_quota = _as_int(extra_data.get("total_class_quota"))
 
         # Resolve Mentor and Tutor if IDs are provided
         mentor = None
@@ -81,7 +96,7 @@ class UserProvisioningService:
             grade=extra_data.get("grade"),
             syllabus=extra_data.get("syllabus"),
             admission_date=admission_date,
-            total_class_quota=extra_data.get("total_class_quota", 0),
+            total_class_quota=initial_quota,
             mentor=mentor,
             tutor=tutor,
             meet_link=extra_data.get("meet_link", ""),

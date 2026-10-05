@@ -212,8 +212,10 @@ class StudentListView(APIView):
     GET /api/students/ - List students
       - ADMIN/MENTOR: See all students.
       - TUTOR: See assigned students where status in ('ACTIVE', 'INACTIVE').
-    PUT /api/students/ - Update student details (meet link, class quota, status,
-      and the profile fields behind the Hub's "Edit Profile" sheet)
+    PUT /api/students/ - Update student details (meet link, timezone, status,
+      and the profile fields behind the Hub's "Edit Profile" sheet). Class
+      quota is NOT settable here -- it is synced from the enrolment sheet
+      (students.quota_sync) and a request carrying it is refused.
       - ADMIN/MENTOR: Allowed (mentors only for their allocated students).
     """
     authentication_classes = [CSRFExemptSessionAuthentication]
@@ -270,7 +272,6 @@ class StudentListView(APIView):
             
         # Capture before-state for activity logging
         before_meet_link = student.meet_link
-        before_quota = student.total_class_quota
         before_status = student.status
         before_timezone = student.timezone
 
@@ -278,15 +279,23 @@ class StudentListView(APIView):
         if "meet_link" in request.data:
             student.meet_link = request.data.get("meet_link")
 
+        # Class quota is no longer typed in. It is synced from the enrolment
+        # sheet's "No of classes paid for" column (students.quota_sync, run
+        # hourly by Celery beat), so a value accepted here would survive only
+        # until the next tick. The attempt is refused rather than silently
+        # discarded, so a caller still sending it finds out straight away.
         if "total_class_quota" in request.data:
-            try:
-                quota = int(request.data.get("total_class_quota"))
-                student.total_class_quota = quota
-            except (ValueError, TypeError):
-                return Response(
-                    {"error": "INVALID_INPUT", "message": "total_class_quota must be an integer."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            return Response(
+                {
+                    "error": "QUOTA_READ_ONLY",
+                    "message": (
+                        "Class quota is synced from the enrolment sheet and cannot be set "
+                        "here. Update \"No of classes paid for\" in the sheet instead; the "
+                        "change is picked up within the hour."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # IANA zone the student's sessions are scheduled in (the "New Session"
         # sheet writes it back when the mentor picks a different one). Checked
@@ -394,17 +403,6 @@ class StudentListView(APIView):
                 entity_label=student.full_name,
                 student=student,
                 changes={"meet_link": {"old": before_meet_link or "", "new": student.meet_link or ""}},
-                request=request,
-            )
-
-        if "total_class_quota" in request.data and student.total_class_quota != before_quota:
-            log_activity(
-                action='student.update_quota',
-                entity_type='student',
-                entity_id=str(student.id),
-                entity_label=student.full_name,
-                student=student,
-                changes={"total_class_quota": {"old": before_quota, "new": student.total_class_quota}},
                 request=request,
             )
 

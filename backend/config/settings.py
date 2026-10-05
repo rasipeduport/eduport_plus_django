@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 import environ
+from celery.schedules import crontab
 from pathlib import Path
 
 from core.settings_guards import mock_auth_enabled, validate_production_settings
@@ -346,6 +347,44 @@ GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_SHEET_ID = env('GOOGLE_SHEET_ID', default='')
 GOOGLE_SERVICE_ACCOUNT_EMAIL = env('GOOGLE_SERVICE_ACCOUNT_EMAIL', default='')
 GOOGLE_PRIVATE_KEY = env('GOOGLE_PRIVATE_KEY', default='')
+
+# ---------------------------------------------------------------------------
+# Celery (background jobs)
+# ---------------------------------------------------------------------------
+# One job: the enrolment-sheet class-quota sync (students.tasks). No result
+# backend -- nothing waits on a return value, and the task logs its own
+# summary -- and no django-celery-beat, so the schedule below needs no tables
+# and no migrations.
+# Defaults to a Redis on the host, the same way DB_HOST defaults to localhost:
+# this is the value `manage.py runserver` / `celery -A config worker` want when
+# run natively. Compose overrides it to `redis://redis:6379/0` on all three
+# services, because inside the compose network the broker is the `redis`
+# service, not localhost. Production supplies its own URL (with credentials)
+# through the platform's secret store -- never through a tracked file.
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_TIMEZONE = TIME_ZONE
+# Keep a stuck Sheets call from pinning a worker forever: the sync itself
+# aborts without writing, so being killed mid-fetch is safe.
+CELERY_TASK_SOFT_TIME_LIMIT = env.int('CELERY_TASK_SOFT_TIME_LIMIT', default=300)
+CELERY_TASK_TIME_LIMIT = env.int('CELERY_TASK_TIME_LIMIT', default=360)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Runs tasks inline, in-process, with no broker. Tests set this; so can local
+# development when Redis is not running.
+CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
+
+# Hourly at :20 by default. The sheet is edited by hand whenever a payment
+# lands, so an hour is about the longest a mentor should have to wait before a
+# top-up lets them book; one Google API call per run makes it cheap.
+CELERY_BEAT_SCHEDULE = {
+    'sync-student-quotas-from-sheet': {
+        'task': 'students.tasks.sync_student_quotas',
+        'schedule': crontab(
+            minute=env('QUOTA_SYNC_CRON_MINUTE', default='20'),
+            hour=env('QUOTA_SYNC_CRON_HOUR', default='*'),
+        ),
+    },
+}
 
 # Email Configuration
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')

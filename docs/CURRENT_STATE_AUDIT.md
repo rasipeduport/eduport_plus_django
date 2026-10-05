@@ -132,7 +132,7 @@ Roles are one `role` column on `User`: `ADMIN`, `MENTOR`, `TUTOR`, `STUDENT`. Tw
 - Create: only via invitation (admin UI): verify student code against the Google Sheet → pick mentor, tutor, Meet link → tick "WhatsApp group created" → POST. The `Student` row materialises on the parent's first Google login.
 - Edit profile (admin/owning mentor): name, mobile, country, state, school, grade, syllabus, admission date, remarks. Code and email immutable. Logs `student.update_details` with a diff.
 - Edit demo link: stores `https://meet.google.com/<code>`. Logs `student.update_meet_link`.
-- Top-up quota: adds N to `total_class_quota`. Logs `student.update_quota`.
+- Top-up quota: REMOVED. `total_class_quota` is sheet-synced (`students.quota_sync`); the API refuses it and no UI sets it. Historical `student.update_quota` entries still render.
 - Change status: ACTIVE/INACTIVE/EXPIRED; note required for INACTIVE/EXPIRED, cleared on ACTIVE. Logs `student.update_status`.
 - Timezone: written by the New Session sheet when a different zone is picked. Logs `student.update_timezone`.
 - Reassign mentor/tutor (admin): both final values sent (null = unassign); replacements must be active staff of the right role; SCHEDULED sessions follow the new tutor. Logs `student.reassign_mentor` / `student.reassign_tutor`.
@@ -275,7 +275,7 @@ IMPLEMENTED (minimal).
 | Session credits | PARTIAL | `Student.total_class_quota` (int hours). Used credits are computed on demand as the summed duration of all non-cancelled sessions (SCHEDULED + ATTENDED). Creation refused beyond the remaining balance. Cancel releases hours. Reschedule duration changes and make-up classes are not quota-checked. No ledger, no per-session credit record. |
 | Credit balance | PARTIAL | Shown in the Hub New Session drawer ("Quota balance: X / Y credits left"). Learn shows Purchased / Scheduled / Attended counts, not a remaining balance. |
 | Credit deduction | PARTIAL | Implicit through the computation; no deduction event or history. |
-| Top-up | IMPLEMENTED | Admin/mentor adds N to the quota (Hub "Top-up Class Quota"); logged. |
+| Top-up | REMOVED | The manual Hub "Top-up Class Quota" dialog and its write path are gone. `Student.total_class_quota` is synced from the enrolment sheet's column O ("No of classes paid for") by `students.quota_sync`, hourly via Celery beat; `PUT /api/students/` refuses `total_class_quota` with `QUOTA_READ_ONLY` and the Django admin field is read-only. |
 | Payment gateway | NOT IMPLEMENTED | No code, settings or dependency. |
 | Purchase flow | NOT IMPLEMENTED | — |
 | Refunds / invoices / pricing | NOT IMPLEMENTED | — |
@@ -339,7 +339,7 @@ Cardinality: User 1:N Student (parent), User 1:N Student (mentor), User 1:N Stud
 
 **Students**
 - `GET /api/students/` — staff, role-scoped, optional pagination
-- `PUT /api/students/` — admin / owning mentor: meet_link, total_class_quota, timezone, status (+note), profile fields, admission_date
+- `PUT /api/students/` — admin / owning mentor: meet_link, timezone, status (+note), profile fields, admission_date. `total_class_quota` is rejected (`QUOTA_READ_ONLY`): it is sheet-synced.
 - `POST /api/students/reassign/` — admin: one student's mentor / tutor
 - `DELETE /api/students/<id>/` — admin: purge (confirm_code; no sessions)
 - `GET /api/dashboard/stats/` — staff dashboard

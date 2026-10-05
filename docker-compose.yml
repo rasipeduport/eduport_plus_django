@@ -34,13 +34,18 @@ services:
     env_file:
       - ./backend/.env
     # `environment:` wins over `env_file:`. Only Docker-internal networking
-    # differs: inside the compose network Postgres is db:5432, not localhost:5433.
+    # differs: inside the compose network Postgres is db:5432, not localhost:5433,
+    # and the Celery broker is redis:6379, not localhost:6379. Django itself
+    # never blocks on Redis (nothing in a request enqueues a task), but it
+    # carries the same broker URL as the worker and beat so the three can never
+    # disagree about where the queue is.
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: eduplus
       DB_USER: postgres
       DB_PASSWORD: postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     # Uploaded session content (MEDIA_ROOT). Named volume so files survive
@@ -56,6 +61,77 @@ services:
       timeout: 5s
       retries: 10
       start_period: 40s
+    restart: unless-stopped
+
+  # Celery broker. Only the worker and beat talk to it -- nothing is cached
+  # here and nothing in a web request depends on it, so losing Redis delays
+  # the quota sync and nothing else.
+  redis:
+    image: redis:7-alpine
+    container_name: eduplus-redis
+    # Host 6380 so it won't collide with a local Redis on 6379 -- the same
+    # trick the db service uses with 5433. Bound to the loopback explicitly,
+    # unlike Postgres: this Redis has no password (it does not need one inside
+    # the compose network), so it must not be reachable from the LAN.
+    ports:
+      - "127.0.0.1:6380:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # The enrolment-sheet quota sync runs here. Both services reuse the backend
+  # image and override its entrypoint: migrations and collectstatic belong to
+  # the `backend` service alone, and these wait for it to be healthy so the
+  # schema is already in place.
+  worker:
+    build:
+      context: ./backend
+    container_name: eduplus-worker
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: eduplus
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+    entrypoint: []
+    command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=2"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ./backend
+    container_name: eduplus-beat
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: eduplus
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+    entrypoint: []
+    # The schedule is a static dict in settings.CELERY_BEAT_SCHEDULE, so beat
+    # only needs its own tick file -- kept in /tmp, which is writable by the
+    # image's unprivileged `app` user.
+    command: ["celery", "-A", "config", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   # No build args: Vite picks up frontend/<app>/.env from the build context,

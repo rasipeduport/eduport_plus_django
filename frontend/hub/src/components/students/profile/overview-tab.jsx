@@ -31,7 +31,11 @@ function formatMoment(value) {
   return Number.isNaN(date.getTime()) ? EMPTY : format(date, DATE_TIME);
 }
 
-/** Quota is bought and spent in hours, exactly as the scheduling sheet shows it. */
+/**
+ * Purchased comes from the enrolment sheet's "No of classes paid for" column
+ * (synced hourly); used and remaining are hours of booked classes, exactly as
+ * the scheduling sheet shows them.
+ */
 function QuotaBar({ quota }) {
   const purchased = quota.purchased || 0;
   const used = quota.used_hours || 0;
@@ -63,7 +67,7 @@ function QuotaBar({ quota }) {
         </div>
         <p className="text-muted-foreground mt-2 text-xs">
           {purchased === 0
-            ? 'No quota purchased yet — top it up before booking classes.'
+            ? 'Nothing paid for yet — set "No of classes paid for" in the enrolment sheet before booking classes.'
             : over
               ? `Over the purchased quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
               : `${formatNumber(used)} of ${formatNumber(purchased)} hrs booked. Cancelled classes are not counted.`}

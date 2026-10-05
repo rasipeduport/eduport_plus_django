@@ -14,7 +14,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EditStudentProfileSheet } from './edit-student-profile-sheet';
 import { EditMeetLinkModal } from './edit-meet-link-modal';
-import { TopupQuotaModal } from './topup-quota-modal';
 import { ChangeStatusDialog } from './change-status-dialog';
 import { ReassignStaffDialog } from './reassign-staff-dialog';
 import { StudentHistorySheet } from './student-history-sheet';
@@ -29,11 +28,14 @@ import { PurgeStudentDialog } from './purge-student-dialog';
  * The profile page reuses this component for its header actions, with
  * `showProfileLink={false}` -- every action a row offers is available there
  * too, so nobody has to go back to the list to act on a student.
+ *
+ * There is deliberately no "Top-up Class Quota" item: the quota is synced
+ * from the enrolment sheet's "No of classes paid for" column, and
+ * PUT /api/students/ now refuses `total_class_quota` outright.
  */
 export function ActionCell({ student, role, onChanged, showProfileLink = true }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [meetLinkOpen, setMeetLinkOpen] = useState(false);
-  const [topupOpen, setTopupOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -76,7 +78,6 @@ export function ActionCell({ student, role, onChanged, showProfileLink = true })
             <Link to={`/exams?student_id=${student.id}`}>Manage Exams</Link>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setMeetLinkOpen(true)}>Edit Demo Link</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setTopupOpen(true)}>Top-up Class Quota</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem>
           {isAdmin ? (
             <>
@@ -94,7 +95,6 @@ export function ActionCell({ student, role, onChanged, showProfileLink = true })
 
       <EditStudentProfileSheet student={student} open={profileOpen} onOpenChange={setProfileOpen} onSaved={onChanged} />
       <EditMeetLinkModal student={student} open={meetLinkOpen} onOpenChange={setMeetLinkOpen} onSaved={onChanged} />
-      <TopupQuotaModal student={student} open={topupOpen} onOpenChange={setTopupOpen} onSaved={onChanged} />
       <ChangeStatusDialog student={student} open={statusOpen} onOpenChange={setStatusOpen} onSaved={onChanged} />
       {isAdmin ? (
         <>
