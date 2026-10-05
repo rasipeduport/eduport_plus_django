@@ -1,7 +1,9 @@
-import { CalendarCheck, CalendarClock, ClipboardList, Mail, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarCheck, CalendarClock, ClipboardList, Loader2, Mail, Phone, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone';
 import { EMPTY, FieldCard, StatTile } from './profile-primitives';
@@ -35,16 +37,56 @@ function formatMoment(value) {
  * Purchased comes from the enrolment sheet's "No of classes paid for" column
  * (synced hourly); used and remaining are hours of booked classes, exactly as
  * the scheduling sheet shows them.
+ *
+ * "Sync from sheet" asks the API to re-read the sheet for this student right
+ * now, for when a payment has just been recorded and the hourly sync is too
+ * slow to wait for. The API does the reading and the arithmetic; this only
+ * reports what came back and asks the page to repaint.
  */
-function QuotaBar({ quota }) {
+function QuotaBar({ quota, studentId, onSynced }) {
+  const [syncing, setSyncing] = useState(false);
+  // { tone: 'success' | 'warning' | 'destructive', text } or null. Inline
+  // rather than a toast, matching how every dialog in the Hub reports.
+  const [notice, setNotice] = useState(null);
+
   const purchased = quota.purchased || 0;
   const used = quota.used_hours || 0;
   const over = quota.remaining_hours < 0;
   const pct = purchased > 0 ? Math.min(100, (used / purchased) * 100) : 0;
 
+  const handleSync = async () => {
+    setSyncing(true);
+    setNotice(null);
+    try {
+      const res = await api.post(`/api/students/${studentId}/sync-quota/`);
+      setNotice({
+        tone: res.data.status === 'no_value' ? 'warning' : 'success',
+        text: res.data.message,
+      });
+      // Refetch the profile so every quota-derived number (this card, the
+      // headline tile) comes from the same response, not a local patch.
+      onSynced?.();
+    } catch (err) {
+      setNotice({
+        tone: 'destructive',
+        text: err.response?.data?.message || 'Could not sync the quota from the enrolment sheet.',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <FieldCard
       title="Class quota"
+      action={
+        studentId ? (
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+            {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            {syncing ? 'Syncing…' : 'Sync from sheet'}
+          </Button>
+        ) : null
+      }
       fields={[
         { label: 'Purchased', value: `${formatNumber(purchased)} hrs` },
         { label: 'Used', value: `${formatNumber(used)} hrs` },
@@ -72,6 +114,19 @@ function QuotaBar({ quota }) {
               ? `Over the purchased quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
               : `${formatNumber(used)} of ${formatNumber(purchased)} hrs booked. Cancelled classes are not counted.`}
         </p>
+        {notice ? (
+          <p
+            role="status"
+            className={cn(
+              'mt-2 text-xs',
+              notice.tone === 'destructive' && 'text-destructive',
+              notice.tone === 'warning' && 'text-warning',
+              notice.tone === 'success' && 'text-success'
+            )}
+          >
+            {notice.text}
+          </p>
+        ) : null}
       </div>
     </FieldCard>
   );
@@ -152,7 +207,7 @@ function StaffLine({ profile }) {
  * then quota and what happens next. Fields the caller's role is not served
  * (a tutor gets no contact details or quota) are dropped, not blanked.
  */
-export function OverviewTab({ student, stats, highlights, role, onOpenTab }) {
+export function OverviewTab({ student, stats, highlights, role, onOpenTab, onSynced }) {
   const isAdmin = role === 'admin';
   const has = (key) => key in student;
   const quota = stats.quota ?? null;
@@ -272,7 +327,7 @@ export function OverviewTab({ student, stats, highlights, role, onOpenTab }) {
         ) : null}
         <FieldCard title="Academic" fields={academicFields} />
         <FieldCard title="Assigned staff" fields={staffFields} />
-        {quota ? <QuotaBar quota={quota} /> : null}
+        {quota ? <QuotaBar quota={quota} studentId={student.id} onSynced={onSynced} /> : null}
         <NextUp highlights={highlights} onOpenTab={onOpenTab} />
         {has('remarks_for_mentor') && student.remarks_for_mentor ? (
           <FieldCard title="Remarks for mentor" fields={[]} className="sm:col-span-2">

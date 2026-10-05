@@ -18,6 +18,15 @@ student, still consumed in HOURS by ``sessions.services.calculate_credits_used``
 (a 1.5-hour class still costs 1.5), and still read from Postgres on every
 request -- no API path talks to Google.
 
+Three callers, one calculation:
+
+    sync_student_quotas_from_sheet   hourly (Celery beat) -- every student,
+                                     the reconciliation of record
+    sync_one_student_quota           on demand -- one student, from the
+                                     profile's "Sync from sheet" button
+    quota_for_code                   enrolment -- the figure a new student
+                                     starts with (invitations.views)
+
 Written to fail safe, in this order:
 
     fetch the whole sheet once
@@ -366,8 +375,77 @@ def sync_student_quotas_from_sheet(dry_run=False):
     # Every decision is made by here, so the write is one short transaction:
     # a run either lands completely or not at all.
     if updates and not dry_run:
-        with transaction.atomic():
-            Student.objects.bulk_update(updates, ['total_class_quota', 'updated_at'])
+        _write_quotas(updates)
 
     _log_summary(report)
     return report
+
+
+def _write_quotas(students):
+    """
+    Persist already-decided quota changes. The one write path, shared by the
+    full sync and the single-student sync, so both stamp ``updated_at`` the
+    same way (bulk_update does not fire ``auto_now``) and both land atomically.
+    """
+    with transaction.atomic():
+        Student.objects.bulk_update(students, ['total_class_quota', 'updated_at'])
+
+
+# ------------------------------------------------------- single-student sync
+
+# Outcomes of sync_one_student_quota, for the caller's response and the log.
+TARGETED_UPDATED = 'updated'
+TARGETED_UNCHANGED = 'unchanged'
+TARGETED_NOT_ENROLLED = 'not_enrolled'
+TARGETED_NO_VALUE = 'no_value'
+TARGETED_FAILED = 'failed'
+
+
+def sync_one_student_quota(student_code):
+    """
+    Re-read ONE student's quota from the sheet and store it -- the profile's
+    manual "Sync from sheet" button. Same ``quota_for_code`` the enrolment
+    flow uses, same ``_reduce_values`` the hourly sync uses, same
+    ``_write_quotas``: there is still exactly one quota calculation and one
+    write path.
+
+    Returns one of the ``TARGETED_*`` outcomes. Never raises: an unreadable
+    sheet is reported as ``TARGETED_FAILED`` with the stored quota untouched,
+    and the hourly sync reconciles later.
+
+    The code is only a key. The quota is always what the sheet says right now.
+    """
+    key = (student_code or '').strip().upper()
+    student = Student.objects.filter(student_code__iexact=key).first() if key else None
+    if student is None:
+        logger.info("Single-student quota sync: %r is not an enrolled student; nothing to do.", key)
+        return TARGETED_NOT_ENROLLED
+
+    try:
+        rows = GoogleSheetsService.fetch_enrollment_rows()
+    except Exception:
+        logger.exception(
+            "Single-student quota sync for %s ABORTED: the enrolment sheet could not be read. "
+            "Quota left unchanged; the scheduled sync will reconcile.", key,
+        )
+        return TARGETED_FAILED
+
+    quota = quota_for_code(rows, key)
+    if quota is None:
+        # Same rule as the full sync: no numeric figure is not a zero.
+        logger.warning(
+            "Single-student quota sync: the sheet states no numeric classes-paid-for "
+            "value for %s; quota left unchanged.", key,
+        )
+        return TARGETED_NO_VALUE
+
+    if quota == student.total_class_quota:
+        logger.info("Single-student quota sync: %s already at %s.", key, quota)
+        return TARGETED_UNCHANGED
+
+    old = student.total_class_quota
+    student.total_class_quota = quota
+    student.updated_at = timezone.now()
+    _write_quotas([student])
+    logger.info("Single-student quota sync: %s total_class_quota %s -> %s.", key, old, quota)
+    return TARGETED_UPDATED

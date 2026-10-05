@@ -14,8 +14,16 @@ from students.serializers import StudentNoteSerializer
 from students.services import (
     build_profile_stats,
     profile_highlights,
+    quota_stats,
     redact_student_for_role,
     serialize_student,
+)
+from students.quota_sync import (
+    TARGETED_FAILED,
+    TARGETED_NO_VALUE,
+    TARGETED_UNCHANGED,
+    TARGETED_UPDATED,
+    sync_one_student_quota,
 )
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
@@ -704,6 +712,69 @@ class StudentProfileView(APIView):
             "student": redact_student_for_role(serialize_student(student), request.user),
             "stats": build_profile_stats(student, request.user),
             "highlights": profile_highlights(student, request.user),
+        }, status=status.HTTP_200_OK)
+
+
+class StudentQuotaSyncView(APIView):
+    """
+    POST /api/students/<id>/sync-quota/ -- the profile's "Sync from sheet"
+    button. Re-reads the enrolment sheet for this one student, stores what
+    column O ("No of classes paid for") now says, and returns the refreshed
+    quota block.
+
+    Thin on purpose: the read, the duplicate-row sum, the "Token" rule and the
+    write are all ``students.quota_sync.sync_one_student_quota`` -- the same
+    code the hourly sync and enrolment run -- and the returned numbers come
+    from the same ``quota_stats`` the profile renders. Nothing in the request
+    body is read: the sheet is the only source of the figure.
+
+    Synchronous, unlike the scheduled path: a person is waiting on the button
+    and wants the number back, and one Sheets call per click is cheap.
+
+    Tutors are refused outright. The profile already strips the quota block
+    from their view, so letting them trigger a sync would be an action on a
+    number they are not shown.
+    """
+    permission_classes = [IsAuthenticated, IsStaffUser]
+    authentication_classes = [CSRFExemptSessionAuthentication]
+
+    def post(self, request, pk, *args, **kwargs):
+        if request.user.role == 'TUTOR' and not request.user.is_superuser:
+            return Response(
+                {"error": "FORBIDDEN", "message": "Tutors cannot sync a student's class quota."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        student = _visible_student(request, pk)
+        if not student:
+            return _not_found()
+
+        outcome = sync_one_student_quota(student.student_code)
+
+        if outcome == TARGETED_FAILED:
+            return Response(
+                {
+                    "error": "SHEETS_API_ERROR",
+                    "message": "The enrolment sheet could not be read. The quota was left unchanged; try again in a moment.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # sync_one_student_quota wrote through its own query; reload so the
+        # block below reflects the stored value, not this view's stale copy.
+        student.refresh_from_db(fields=['total_class_quota'])
+        messages = {
+            TARGETED_UPDATED: f"Quota updated from the enrolment sheet: {student.total_class_quota} hrs.",
+            TARGETED_UNCHANGED: f"Already up to date with the enrolment sheet ({student.total_class_quota} hrs).",
+            TARGETED_NO_VALUE: (
+                "The enrolment sheet has no numeric \"No of classes paid for\" value for "
+                f"{student.student_code}; the quota was left at {student.total_class_quota} hrs."
+            ),
+        }
+        return Response({
+            "status": outcome,
+            "message": messages.get(outcome, "Quota sync finished."),
+            "quota": quota_stats(student),
         }, status=status.HTTP_200_OK)
 
 

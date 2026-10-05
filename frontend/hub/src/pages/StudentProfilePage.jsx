@@ -227,6 +227,7 @@ export default function StudentProfilePage({ role: userRole = 'ADMIN' }) {
               highlights={highlights}
               role={role}
               onOpenTab={setTab}
+              onSynced={refresh}
             />
           </TabsContent>
 

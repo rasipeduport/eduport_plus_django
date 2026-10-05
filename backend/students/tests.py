@@ -1648,3 +1648,146 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
                 rows = [self._profile_row('EDP00041', paid=p, purchased=n) for p, n in paid_values]
                 via_enrolment = quota_sync.quota_for_code(rows, 'EDP00041')
                 self.assertEqual(0 if via_enrolment is None else via_enrolment, expected)
+
+
+# ---------------------------------------------------------------------------
+# Manual "Sync from sheet" on the student profile (StudentQuotaSyncView)
+# ---------------------------------------------------------------------------
+
+class ManualQuotaSyncTests(APITestCase):
+    """
+    The profile button. Same reading, same arithmetic, same write as the
+    hourly sync -- the view only adds the caller's permission and the
+    refreshed quota block for the cards.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="ms-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
+        self.mentor = User.objects.create_user(
+            email="ms-mentor@eduport.com", password="pw", full_name="Mentor", role="MENTOR")
+        self.other_mentor = User.objects.create_user(
+            email="ms-mentor2@eduport.com", password="pw", full_name="Mentor Two", role="MENTOR")
+        self.tutor = User.objects.create_user(
+            email="ms-tutor@eduport.com", password="pw", full_name="Tutor", role="TUTOR")
+        self.parent = User.objects.create_user(
+            email="ms-parent@eduport.com", password="pw", full_name="Parent", role="STUDENT")
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="EDP00041", full_name="Dona",
+            mentor=self.mentor, tutor=self.tutor, total_class_quota=8,
+        )
+        self.url = reverse('students:student-quota-sync', args=[self.student.id])
+
+    def _sync(self, rows, user=None, **post_kwargs):
+        from students import quota_sync
+        self.client.force_authenticate(user=user or self.admin)
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows', return_value=rows
+        ) as fetch:
+            res = self.client.post(self.url, **post_kwargs)
+        self.student.refresh_from_db()
+        return res, fetch
+
+    def _rows(self, *paid):
+        return [_sheet_row("EDP00041", paid=p) for p in paid]
+
+    def _book(self, hours):
+        from sessions.models import Session
+        start = dj_timezone.now() + dt.timedelta(days=3)
+        Session.objects.create(
+            student=self.student, title="Class", tutor=self.tutor,
+            start_time=start, end_time=start + dt.timedelta(hours=hours), status='SCHEDULED',
+        )
+
+    def test_admin_sync_updates_and_returns_the_refreshed_quota_block(self):
+        self._book(1.5)
+        res, fetch = self._sync(self._rows("12"))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['status'], 'updated')
+        self.assertEqual(self.student.total_class_quota, 12)
+        # The returned block is the profile's own arithmetic: hours, untouched.
+        self.assertEqual(res.data['quota'], {"purchased": 12, "used_hours": 1.5, "remaining_hours": 10.5})
+        self.assertEqual(fetch.call_count, 1)
+
+    def test_returned_block_matches_the_profile_endpoint(self):
+        self._book(1)
+        res, _ = self._sync(self._rows("10"))
+        profile = self.client.get(reverse('students:student-profile', args=[self.student.id]))
+        self.assertEqual(res.data['quota'], profile.data['stats']['quota'])
+
+    def test_duplicate_rows_are_summed(self):
+        res, _ = self._sync(self._rows("10", "14"))
+        self.assertEqual(res.data['status'], 'updated')
+        self.assertEqual(self.student.total_class_quota, 24)
+
+    def test_token_is_ignored(self):
+        res, _ = self._sync(self._rows("Token", "10"))
+        self.assertEqual(self.student.total_class_quota, 10)
+
+    def test_unchanged_when_the_sheet_agrees(self):
+        res, _ = self._sync(self._rows("8"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['status'], 'unchanged')
+        self.assertEqual(self.student.total_class_quota, 8)
+
+    def test_no_numeric_value_leaves_the_quota_and_says_so(self):
+        res, _ = self._sync(self._rows("Token"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['status'], 'no_value')
+        self.assertIn('left at 8', res.data['message'])
+        self.assertEqual(self.student.total_class_quota, 8)
+
+    def test_explicit_zero_is_applied(self):
+        res, _ = self._sync(self._rows("0"))
+        self.assertEqual(res.data['status'], 'updated')
+        self.assertEqual(self.student.total_class_quota, 0)
+
+    def test_sheet_failure_is_reported_and_changes_nothing(self):
+        from students import quota_sync
+        self.client.force_authenticate(user=self.admin)
+        with patch.object(
+            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
+            side_effect=RuntimeError("Google is down"),
+        ):
+            res = self.client.post(self.url)
+
+        self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(res.data['error'], 'SHEETS_API_ERROR')
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.total_class_quota, 8)
+
+    def test_request_body_is_never_the_source(self):
+        res, _ = self._sync(self._rows("12"), data={"total_class_quota": 999, "quota": 999}, format='json')
+        self.assertEqual(self.student.total_class_quota, 12)
+
+    def test_owning_mentor_may_sync(self):
+        res, _ = self._sync(self._rows("12"), user=self.mentor)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.student.total_class_quota, 12)
+
+    def test_other_mentor_gets_not_found_and_no_sheet_read(self):
+        res, fetch = self._sync(self._rows("12"), user=self.other_mentor)
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        fetch.assert_not_called()
+        self.assertEqual(self.student.total_class_quota, 8)
+
+    def test_tutor_is_refused_and_no_sheet_read(self):
+        res, fetch = self._sync(self._rows("12"), user=self.tutor)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        fetch.assert_not_called()
+        self.assertEqual(self.student.total_class_quota, 8)
+
+    def test_anonymous_is_refused(self):
+        res = self.client.post(self.url)
+        self.assertIn(res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    def test_hourly_sync_is_a_no_op_after_a_manual_sync(self):
+        """One write path: the manual button and the scheduler cannot fight."""
+        from students import quota_sync
+        rows = self._rows("Token", "10", "14")
+        self._sync(rows)
+        self.assertEqual(self.student.total_class_quota, 24)
+        with patch.object(quota_sync.GoogleSheetsService, 'fetch_enrollment_rows', return_value=rows):
+            report = quota_sync.sync_student_quotas_from_sheet()
+        self.assertEqual((report.students_updated, report.students_unchanged), (0, 1))

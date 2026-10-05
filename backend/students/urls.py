@@ -4,6 +4,7 @@ from .views import (
     StudentReassignView,
     StudentDetailView,
     StudentProfileView,
+    StudentQuotaSyncView,
     StudentNoteListView,
     StudentNoteDetailView,
 )
@@ -20,6 +21,8 @@ urlpatterns = [
     path('notes/<uuid:note_id>', StudentNoteDetailView.as_view()),
     path('<uuid:pk>/profile/', StudentProfileView.as_view(), name='student-profile'),
     path('<uuid:pk>/profile', StudentProfileView.as_view()),
+    path('<uuid:pk>/sync-quota/', StudentQuotaSyncView.as_view(), name='student-quota-sync'),
+    path('<uuid:pk>/sync-quota', StudentQuotaSyncView.as_view()),
     path('<uuid:pk>/notes/', StudentNoteListView.as_view(), name='student-notes'),
     path('<uuid:pk>/notes', StudentNoteListView.as_view()),
     path('<uuid:pk>/', StudentDetailView.as_view(), name='student-detail'),

@@ -129,6 +129,15 @@ def _quota_stats(student):
     }
 
 
+def quota_stats(student):
+    """
+    The profile's quota block on its own -- what the manual "Sync from sheet"
+    action returns so the cards can repaint without a second profile fetch.
+    Same function, same numbers as ``build_profile_stats()['quota']``.
+    """
+    return _quota_stats(student)
+
+
 def _exam_stats(student, user):
     """
     Chapter + additional exam counters, or ``None`` for a caller with no exam
