@@ -9,7 +9,7 @@ import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
-import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '../lib/homework-status';
+import { HOMEWORK_STATUS_VARIANT, homeworkBadgeLabel } from '../lib/homework-status';
 import { ContentInput, contentStateFor, contentError, contentPayload, formatBytes } from '../components/sessions/content-input';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
@@ -623,7 +623,7 @@ export default function SessionsPage() {
       cell: (s) =>
         s.homework ? (
           <button type="button" onClick={() => setGradeHomeworkId(s.homework.id)} className="cursor-pointer" title="Open homework review">
-            <Badge variant={HOMEWORK_STATUS_VARIANT[(s.homework.status || '').toLowerCase()] || 'secondary'}>{homeworkStatusLabel(s.homework)}</Badge>
+            <Badge variant={HOMEWORK_STATUS_VARIANT[(s.homework.status || '').toLowerCase()] || 'secondary'}>{homeworkBadgeLabel(s.homework)}</Badge>
           </button>
         ) : (
           <span className="text-zinc-500">—</span>

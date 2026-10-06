@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
+import { ResultCell } from '../components/exams/result-cell';
 import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '../lib/homework-status';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -222,8 +223,8 @@ export default function HomeworkPage() {
                     <td className="py-2 px-4 align-middle text-sm text-zinc-300 whitespace-nowrap">
                       {r.submitted_at ? DATETIME_FORMAT.format(new Date(r.submitted_at)) : <span className="text-zinc-500">—</span>}
                     </td>
-                    <td className="py-2 px-4 align-middle text-sm text-zinc-300 tabular-nums">
-                      {status === 'scored' && r.score != null && r.max_score != null ? `${r.score}/${r.max_score}` : <span className="text-zinc-500">—</span>}
+                    <td className="py-2 px-4 align-middle text-sm whitespace-nowrap tabular-nums">
+                      {status === 'scored' ? <ResultCell score={r.score} maxScore={r.max_score} /> : <span className="text-zinc-500">—</span>}
                     </td>
                     <td className="py-2 px-4 align-middle text-right">
                       <button

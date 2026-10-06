@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { FileGallery } from '@/components/exams/file-gallery';
 import api from '@/lib/api';
 import { isScoreValid, formatBytes } from '@/lib/exam-status';
-import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '@/lib/homework-status';
+import { HOMEWORK_STATUS_VARIANT, homeworkBadgeLabel } from '@/lib/homework-status';
 
 /**
  * Homework review / grade drawer (the Hub's GradeSheet): the assignment the
@@ -90,7 +90,7 @@ export function HomeworkGradeSheet({ homeworkId, open, onOpenChange, onSaved, ca
                   {hw.students?.full_name}
                   {hw.students?.student_code ? ` · ${hw.students.student_code}` : ''}
                 </span>
-                <Badge variant={HOMEWORK_STATUS_VARIANT[status] || 'secondary'}>{homeworkStatusLabel(hw)}</Badge>
+                <Badge variant={HOMEWORK_STATUS_VARIANT[status] || 'secondary'}>{homeworkBadgeLabel(hw)}</Badge>
               </span>
             ) : (
               'Loading…'

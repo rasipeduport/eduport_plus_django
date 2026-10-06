@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ResultCell } from '@/components/exams/result-cell';
 import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '@/lib/homework-status';
 import { EMPTY, EmptyState, ProfileTable, SectionHeading, Td } from './profile-primitives';
 
@@ -69,9 +70,9 @@ export function HomeworkTab({ homework, stats, canScore, onOpen }) {
                 <Td className="text-muted-foreground text-sm whitespace-nowrap">
                   {row.submitted_at ? format(new Date(row.submitted_at), 'd MMM, h:mm a') : EMPTY}
                 </Td>
-                <Td className="text-sm whitespace-nowrap tabular-nums">
-                  {status === 'scored' && row.score != null ? (
-                    `${row.score}/${row.max_score}`
+                <Td className="text-sm whitespace-nowrap">
+                  {status === 'scored' ? (
+                    <ResultCell score={row.score} maxScore={row.max_score} />
                   ) : (
                     <span className="text-muted-foreground">{EMPTY}</span>
                   )}

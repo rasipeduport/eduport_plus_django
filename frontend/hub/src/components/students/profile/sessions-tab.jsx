@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '@/lib/homework-status';
+import { HOMEWORK_STATUS_VARIANT, homeworkBadgeLabel } from '@/lib/homework-status';
 import {
   SESSION_CONTENT_LABEL,
   sessionHours,
@@ -150,7 +150,7 @@ export function SessionsTab({ sessions, studentId, onOpenHomework }) {
                     className="cursor-pointer"
                   >
                     <Badge variant={HOMEWORK_STATUS_VARIANT[session.homework.status] || 'secondary'}>
-                      {homeworkStatusLabel(session.homework)}
+                      {homeworkBadgeLabel(session.homework)}
                     </Badge>
                   </button>
                 ) : (
