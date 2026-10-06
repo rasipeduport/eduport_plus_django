@@ -29,7 +29,7 @@ import { RescheduleExamDialog } from '../components/exams/reschedule-exam-dialog
 import { CancelExamDialog } from '../components/exams/cancel-exam-dialog';
 import { AdditionalExamGradeSheet } from '../components/exams/additional-exam-grade-sheet';
 import { AdditionalExamsTable } from '../components/exams/additional-exams-table';
-import { EXAM_STATUS_VARIANT, examStatusLabel, isHttpsUrl } from '../lib/exam-status';
+import { EXAM_STATUS_VARIANT, examStatusLabel, formatBytes, isHttpsUrl } from '../lib/exam-status';
 
 // Same browser-local formats as the sessions table.
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -71,6 +71,40 @@ function RecordingLink({ href }) {
       Open
       <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
     </a>
+  );
+}
+
+/** Question paper files as chips matching RecordingLink; each opens the download in a new tab. */
+function QuestionPaperFiles({ exam }) {
+  const files = (exam.files || []).filter((f) => f?.url);
+  if (files.length === 0) {
+    if (exam.file_count > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 text-zinc-300">
+          <FileText className="w-3.5 h-3.5 text-zinc-400" />
+          {exam.file_count} {exam.file_count === 1 ? 'file' : 'files'}
+        </span>
+      );
+    }
+    return <span className="text-zinc-500">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {files.map((file, index) => (
+        <a
+          key={file.id ?? index}
+          href={file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={file.file_name ? `${file.file_name} (${formatBytes(file.size_bytes)})` : undefined}
+          className="inline-flex items-center gap-1.5 h-7 max-w-44 px-2.5 rounded-md border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 hover:text-white transition-colors"
+        >
+          <FileText className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{files.length === 1 ? '1 file' : file.file_name || `File ${index + 1}`}</span>
+          <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -271,15 +305,7 @@ export default function ExamsPage() {
       id: 'question_paper',
       label: 'Question Paper',
       cellClass: 'text-sm whitespace-nowrap',
-      cell: (e) =>
-        e.file_count > 0 ? (
-          <span className="inline-flex items-center gap-1 text-zinc-300">
-            <FileText className="w-3.5 h-3.5 text-zinc-400" />
-            {e.file_count} {e.file_count === 1 ? 'file' : 'files'}
-          </span>
-        ) : (
-          <span className="text-zinc-500">—</span>
-        ),
+      cell: (e) => <QuestionPaperFiles exam={e} />,
     },
     { id: 'recording', label: 'Recording', cell: (e) => <RecordingLink href={e.recording_link} /> },
   ];

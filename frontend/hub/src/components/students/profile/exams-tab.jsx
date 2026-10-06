@@ -11,6 +11,7 @@ import {
   EXAM_STATUS_VARIANT,
   additionalExamStatusLabel,
   examStatusLabel,
+  formatBytes,
   isHttpsUrl,
 } from '@/lib/exam-status';
 import { EMPTY, EmptyState, ProfileTable, SectionHeading, Td } from './profile-primitives';
@@ -31,6 +32,43 @@ const ADDITIONAL_COLUMNS = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'actions', label: '', className: 'w-24' },
 ];
+
+/**
+ * The chapter exam's question paper files as chips; each opens the
+ * authenticated download in a new tab. Falls back to a plain count when the
+ * row carries only `file_count` (it should not, but the column must not break).
+ */
+function QuestionPaperCell({ exam }) {
+  const files = (exam.files || []).filter((f) => f?.url);
+  if (files.length === 0) {
+    if (exam.file_count > 0) {
+      return (
+        <span className="text-muted-foreground inline-flex items-center gap-1 whitespace-nowrap">
+          <FileText className="size-3.5" />
+          {exam.file_count} {exam.file_count === 1 ? 'file' : 'files'}
+        </span>
+      );
+    }
+    return <span className="text-muted-foreground">{EMPTY}</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {files.map((file, index) => (
+        <a
+          key={file.id ?? index}
+          href={file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={file.file_name ? `${file.file_name} (${formatBytes(file.size_bytes)})` : undefined}
+          className="hover:bg-accent inline-flex max-w-44 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors"
+        >
+          <FileText className="size-3 shrink-0" />
+          <span className="truncate">{files.length === 1 ? '1 file' : file.file_name || `File ${index + 1}`}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Exams tab: the chapter exams the mentor ran with this student and the
@@ -100,15 +138,8 @@ export function ExamsTab({ exams, additionalExams, stats, studentId, onOpenAddit
                   <Td>
                     <ResultCell score={exam.score} maxScore={exam.max_score} />
                   </Td>
-                  <Td className="text-muted-foreground text-sm whitespace-nowrap">
-                    {exam.file_count > 0 ? (
-                      <span className="inline-flex items-center gap-1">
-                        <FileText className="size-3.5" />
-                        {exam.file_count} {exam.file_count === 1 ? 'file' : 'files'}
-                      </span>
-                    ) : (
-                      EMPTY
-                    )}
+                  <Td className="text-sm">
+                    <QuestionPaperCell exam={exam} />
                   </Td>
                   <Td>
                     {recording && isHttpsUrl(recording) ? (
