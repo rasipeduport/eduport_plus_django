@@ -11,6 +11,8 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_exempt
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -462,7 +464,11 @@ class ExamResultView(APIView):
 
 
 class _FileDownloadBase(APIView):
-    """Streams an uploaded exam file to anyone allowed to see its exam."""
+    """Streams an uploaded exam file to anyone allowed to see its exam.
+
+    Learn renders PDFs inside an iframe, so the concrete download views below
+    are the only endpoints exempt from the global ``X-Frame-Options: DENY``.
+    """
     authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
     model = None
@@ -495,6 +501,7 @@ class _FileDownloadBase(APIView):
         return response
 
 
+@method_decorator(xframe_options_exempt, name='dispatch')
 class ExamFileDownloadView(_FileDownloadBase):
     """GET /api/exams/files/<file_id>/"""
     model = ExamFile
@@ -502,6 +509,7 @@ class ExamFileDownloadView(_FileDownloadBase):
     parent_attr = 'exam'
 
 
+@method_decorator(xframe_options_exempt, name='dispatch')
 class AdditionalExamFileDownloadView(_FileDownloadBase):
     """GET /api/additional-exams/files/<file_id>/ -- question papers and answer sheets."""
     model = AdditionalExamFile

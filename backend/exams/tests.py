@@ -580,6 +580,26 @@ class FileTests(ExamTestBase):
         self.assertEqual(res.status_code, 206)
         self.assertEqual(b''.join(res.streaming_content), b'%PDF')
 
+    def test_file_downloads_are_frame_exempt_but_nothing_else_is(self):
+        """Learn embeds exam PDFs in an iframe; only the two file views may drop X-Frame-Options."""
+        chapter = self.make_exam()
+        additional = self.make_additional()
+        self.client.force_authenticate(user=self.admin)
+        self.client.post(self.result_url(chapter), {'score': '1', 'max_score': '2', 'files': [pdf()]}, format='multipart')
+        chapter_file = reverse('exams:exam-file', args=[ExamFile.objects.get().id])
+        additional_file = reverse('additional_exams:additional-exam-file', args=[AdditionalExamFile.objects.get().id])
+        for url in (chapter_file, additional_file):
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 200, url)
+            self.assertNotIn('X-Frame-Options', res, url)
+        # A forbidden file response is exempt too, but still carries no file body.
+        self.client.force_authenticate(user=self.tutor)
+        self.assertEqual(self.client.get(chapter_file).status_code, 403)
+        self.client.force_authenticate(user=self.admin)
+        for url in (reverse('exams:exams-list-create-update'), reverse('exams:exam-detail', args=[chapter.id]),
+                    reverse('additional_exams:additional-exam-detail', args=[additional.id])):
+            self.assertEqual(self.client.get(url)['X-Frame-Options'], 'DENY', url)
+
     def test_answer_sheet_visibility_and_cascade_cleanup(self):
         exam = self.make_additional()
         self.as_student()
