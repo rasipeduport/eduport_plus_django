@@ -1,7 +1,7 @@
 import shutil
 import tempfile
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
@@ -537,7 +537,7 @@ class ScorecardTests(ExamTestBase):
         entries = [
             score_entry('exam', 'A', 40, 50, now - timedelta(days=2)),   # 80
             score_entry('exam', 'B', 30, 50, now - timedelta(days=10)),  # 60
-            score_entry('exam', 'C', 50, 50, now - timedelta(days=60)),  # previous window
+            score_entry('exam', 'C', 50, 50, now - timedelta(days=45)),  # previous 30-day window
         ]
         card = build_scorecard(entries, 'month', now=now, zone='Asia/Kolkata')
         self.assertEqual(card['overall'], 70)
@@ -554,6 +554,31 @@ class ScorecardTests(ExamTestBase):
         self.assertEqual(allc['overall'], 80)
         self.assertIsNone(allc['delta'])
         self.assertIsNone(build_scorecard([], 'month', now=now)['overall'])
+
+    def test_month_window_is_exactly_30_days(self):
+        tz = ZoneInfo('Asia/Kolkata')
+        now = datetime(2026, 10, 6, 15, 0, tzinfo=tz)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        window_start = today - timedelta(days=29)
+        inside = score_entry('exam', 'In', 40, 50, window_start + timedelta(minutes=1))    # 80, day 30 of 30
+        outside = score_entry('exam', 'Out', 10, 50, window_start - timedelta(minutes=1))  # 20, day 31
+        card = build_scorecard([inside, outside], 'month', now=now, zone='Asia/Kolkata')
+        self.assertEqual(card['overall'], 80)
+        self.assertEqual(card['total_count'], 1)
+        self.assertEqual(card['lifetime_count'], 2)
+        self.assertEqual([e['label'] for e in card['recent']], ['In'])
+        # The day-31 score is the previous window, so it drives the delta only.
+        self.assertEqual(card['delta'], 60)
+        # Five 6-day buckets tile the 30 days exactly, oldest first.
+        keys = [b['key'] for b in card['buckets']]
+        self.assertEqual(keys, [(window_start + timedelta(days=6 * k)).date().isoformat() for k in range(5)])
+        self.assertEqual(card['buckets'][0]['label'], '7 Sep')
+        self.assertEqual([b['exam'] for b in card['buckets']], [80, None, None, None, None])
+        # A score on the window's first and last day both land in a bucket.
+        latest = score_entry('exam', 'Now', 50, 50, now - timedelta(hours=1))
+        card = build_scorecard([inside, latest], 'month', now=now, zone='Asia/Kolkata')
+        self.assertEqual([b['exam'] for b in card['buckets']], [80, None, None, None, 100])
+        self.assertEqual(card['overall'], 90)
 
     def test_endpoint_excludes_additional_and_unattended(self):
         self.make_exam(status='ATTENDED', score=9, max_score=10, start_time=timezone.now() - timedelta(days=1), end_time=timezone.now() - timedelta(hours=23))

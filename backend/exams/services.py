@@ -421,8 +421,8 @@ def _buckets(range_key, now, tz, earliest):
         end_of_today = today + timedelta(days=1)
         out = []
         for k in range(5):
-            end = end_of_today - timedelta(days=7 * (4 - k))
-            start = end - timedelta(days=7)
+            end = end_of_today - timedelta(days=6 * (4 - k))
+            start = end - timedelta(days=6)
             out.append({'key': start.date().isoformat(), 'label': f'{start.day} {start.strftime("%b")}',
                         'start': start, 'end': end})
         return out
@@ -468,7 +468,7 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
     elif buckets:
         window_start = buckets[0]['start']
     else:
-        window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 34)
+        window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 29)
 
     in_window = [e for e in entries if window_start is None or e['scored_at'] >= window_start]
     overall = _round_or_none(_mean([e['pct'] for e in in_window]))
