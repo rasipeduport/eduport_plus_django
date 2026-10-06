@@ -24,6 +24,7 @@ import { StudentSectionTabs } from '../components/students/section-tabs';
 import { NewExamSheet } from '../components/exams/new-exam-sheet';
 import { NewAdditionalExamSheet } from '../components/exams/new-additional-exam-sheet';
 import { MarkResultDialog } from '../components/exams/mark-result-dialog';
+import { ResultCell } from '../components/exams/result-cell';
 import { RescheduleExamDialog } from '../components/exams/reschedule-exam-dialog';
 import { CancelExamDialog } from '../components/exams/cancel-exam-dialog';
 import { AdditionalExamGradeSheet } from '../components/exams/additional-exam-grade-sheet';
@@ -264,12 +265,7 @@ export default function ExamsPage() {
       id: 'score',
       label: 'Score',
       cellClass: 'text-sm whitespace-nowrap tabular-nums',
-      cell: (e) =>
-        (e.status || '').toLowerCase() === 'attended' && e.score != null && e.max_score != null ? (
-          <span className="text-zinc-300">{e.score}/{e.max_score}</span>
-        ) : (
-          <span className="text-zinc-500">—</span>
-        ),
+      cell: (e) => <ResultCell score={e.score} maxScore={e.max_score} />,
     },
     {
       id: 'question_paper',

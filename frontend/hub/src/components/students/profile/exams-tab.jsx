@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ResultCell } from '@/components/exams/result-cell';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   ADDITIONAL_STATUS_VARIANT,
@@ -30,22 +31,6 @@ const ADDITIONAL_COLUMNS = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'actions', label: '', className: 'w-24' },
 ];
-
-function pct(score, maxScore) {
-  if (score == null || !maxScore) return null;
-  return Math.round((score / maxScore) * 100);
-}
-
-function ResultCell({ score, maxScore }) {
-  const percentage = pct(score, maxScore);
-  if (percentage == null) return <span className="text-muted-foreground">{EMPTY}</span>;
-  return (
-    <span className="whitespace-nowrap tabular-nums">
-      {score}/{maxScore}
-      <span className="text-muted-foreground ml-1.5 text-xs">{percentage}%</span>
-    </span>
-  );
-}
 
 /**
  * Exams tab: the chapter exams the mentor ran with this student and the

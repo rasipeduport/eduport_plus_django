@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import api from '@/lib/api';
 import { ADDITIONAL_STATUS_VARIANT, additionalExamStatusLabel, isScoreValid } from '@/lib/exam-status';
+import { ResultCell } from './result-cell';
 
 import { FileGallery } from './file-gallery';
 
@@ -147,7 +148,7 @@ export function AdditionalExamGradeSheet({ examId, open, onOpenChange, onSaved }
                 <section className="flex flex-col gap-2">
                   <Label>Result</Label>
                   <p className="text-2xl font-semibold tabular-nums">
-                    {exam.score}/{exam.max_score}
+                    <ResultCell score={exam.score} maxScore={exam.max_score} className="font-semibold" />
                   </p>
                   {exam.feedback && <p className="text-muted-foreground text-sm whitespace-pre-wrap">{exam.feedback}</p>}
                   {exam.scored_by_profile && (

@@ -2,6 +2,7 @@ import { ClipboardList } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { ADDITIONAL_STATUS_VARIANT, additionalExamStatusLabel } from '@/lib/exam-status';
+import { ResultCell } from './result-cell';
 
 /** Card table of a student's additional exams (the Hub's AdditionalExamsTable). */
 export function AdditionalExamsTable({ rows, showStudent = false, onOpen }) {
@@ -41,8 +42,8 @@ export function AdditionalExamsTable({ rows, showStudent = false, onOpen }) {
                   <td className="py-2 px-4 align-middle">
                     <Badge variant={ADDITIONAL_STATUS_VARIANT[status] || 'secondary'}>{additionalExamStatusLabel(r)}</Badge>
                   </td>
-                  <td className="py-2 px-4 align-middle text-zinc-300 tabular-nums">
-                    {status === 'scored' && r.score != null && r.max_score != null ? `${r.score}/${r.max_score}` : <span className="text-zinc-500">—</span>}
+                  <td className="py-2 px-4 align-middle">
+                    <ResultCell score={r.score} maxScore={r.max_score} />
                   </td>
                   <td className="py-2 px-4 align-middle text-zinc-300 whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="py-2 px-4 align-middle text-right">
