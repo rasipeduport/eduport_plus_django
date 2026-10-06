@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import api from '../lib/api';
 import { Card } from '../components/ui/card';
@@ -14,6 +14,11 @@ import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 /** Homework detail (Learn /homework/[id]): the assignment, the one-shot submit, the status, the score. */
 export default function HomeworkDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  // Opened from the scorecard's recent list: the back link returns there.
+  const fromScorecard = location.state?.from === '/scorecard';
+  const backTo = fromScorecard ? '/scorecard' : '/sessions';
+  const backLabel = fromScorecard ? 'Scorecard' : 'Sessions';
   const { reloadStats } = useStudent();
   const [hw, setHw] = useState(null);
   const [notFound, setNotFound] = useState(false);
@@ -48,8 +53,8 @@ export default function HomeworkDetailPage() {
   if (notFound || !hw) {
     return (
       <div className="space-y-4">
-        <Link to="/sessions" className="text-text-muted inline-flex items-center gap-1 text-sm">
-          <ArrowLeft className="h-4 w-4" /> Sessions
+        <Link to={backTo} className="text-text-muted inline-flex items-center gap-1 text-sm">
+          <ArrowLeft className="h-4 w-4" /> {backLabel}
         </Link>
         <p className="text-text-primary text-sm font-semibold">Homework not found.</p>
       </div>
@@ -62,8 +67,8 @@ export default function HomeworkDetailPage() {
 
   return (
     <div className="space-y-5 md:space-y-6">
-      <Link to="/sessions" className="text-text-muted hover:text-text-primary inline-flex items-center gap-1 text-sm">
-        <ArrowLeft className="h-4 w-4" /> Sessions
+      <Link to={backTo} className="text-text-muted hover:text-text-primary inline-flex items-center gap-1 text-sm">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
       </Link>
 
       <section>

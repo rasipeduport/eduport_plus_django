@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, re_path
-from exams.views import ScorecardView
+from exams.views import ScorecardView, StudentScoresView
 from students.views import StaffDashboardStatsView, StudentDashboardView
 from accounts.views import (
     MentorListView,
@@ -57,4 +57,6 @@ urlpatterns = [
     path('api/homework', include('homework.urls', namespace='homework')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
+    path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),
+    path('api/student/scores', StudentScoresView.as_view()),
 ]

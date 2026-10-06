@@ -23,7 +23,7 @@ from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsAdminOrMentor, IsAdminMentorOrStudentRead, IsStudentUser
 from core.querysets import scope_exams_by_role
 from core.students import get_account_students, get_usable_students, resolve_selected_student
-from core.pagination import paginate_queryset
+from core.pagination import paginate_list, paginate_queryset
 from sessions.views import SessionFileDownloadView
 from .models import (
     Exam,
@@ -49,7 +49,10 @@ from .services import (
     assert_exam_transition,
     assert_additional_exam_transition,
     collect_score_entries,
+    RECENT_PAGE_SIZE,
     build_scorecard,
+    entries_in_window,
+    serialize_entry,
     student_zone,
     SCORECARD_RANGES,
 )
@@ -735,3 +738,25 @@ class ScorecardView(APIView):
             range_key = 'month'
         entries = collect_score_entries(student)
         return Response(build_scorecard(entries, range_key, zone=student_zone(student)), status=status.HTTP_200_OK)
+
+
+class StudentScoresView(APIView):
+    """
+    GET /api/student/scores/?range=week|month|all&page=&page_size= -- the
+    scorecard's completed results (chapter exams, additional exams, homework)
+    merged, newest first, paged. Same persona and window rules as the
+    scorecard; page 1 with the default size equals the scorecard's ``recent``.
+    """
+    authentication_classes = [CSRFExemptSessionAuthentication]
+    permission_classes = [IsAuthenticated, IsStudentUser]
+
+    def get(self, request, *args, **kwargs):
+        student = resolve_selected_student(request)
+        if not student:
+            return _student_persona_error(request)
+        range_key = request.query_params.get('range') or 'month'
+        if range_key not in SCORECARD_RANGES:
+            range_key = 'month'
+        entries = entries_in_window(collect_score_entries(student), range_key, zone=student_zone(student))
+        page_items, meta = paginate_list(request, entries, default_page_size=RECENT_PAGE_SIZE)
+        return Response({**meta, "results": [serialize_entry(e) for e in page_items]}, status=status.HTTP_200_OK)

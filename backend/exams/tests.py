@@ -13,13 +13,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from activity.models import ActivityLog
+from homework.models import Homework
 from students.models import Student, StatusChoices
 from sessions.models import Session, SessionStatusChoices
 from .models import (
     Exam, ExamStatusChoices, ExamFile,
     AdditionalExam, AdditionalExamStatusChoices, AdditionalExamFile,
 )
-from .services import build_scorecard, derive_chapter_names, validate_score, score_entry
+from .services import RECENT_PAGE_SIZE, build_scorecard, derive_chapter_names, entries_in_window, serialize_entry, validate_score, score_entry
 
 User = get_user_model()
 
@@ -373,6 +374,122 @@ class PermissionTests(ExamTestBase):
         self.assertEqual(self.client.get(reverse('student-scorecard')).status_code, 403)
 
 
+class StudentScoresTests(ExamTestBase):
+    """GET /api/student/scores/: the scorecard's completed results, merged and paged."""
+
+    def scored_exam(self, days_ago, score=1, max_score=2, student=None, **kw):
+        end = timezone.now() - timedelta(days=days_ago)
+        return self.make_exam(student=student or self.student, status='ATTENDED', score=score, max_score=max_score,
+                              start_time=end - timedelta(hours=1), end_time=end, chapter_name=f'Exam {days_ago}d', **kw)
+
+    def scored_additional(self, days_ago, score=1, max_score=2, student=None):
+        return self.make_additional(student=student or self.student, status='SCORED', score=score, max_score=max_score,
+                                    scored_at=timezone.now() - timedelta(days=days_ago), title=f'Worksheet {days_ago}d')
+
+    def scored_homework(self, days_ago, score=1, max_score=2):
+        session = Session.objects.create(student=self.student, title=f'HW session {days_ago}', tutor=self.tutor,
+                                         start_time=timezone.now() - timedelta(days=days_ago + 1),
+                                         end_time=timezone.now() - timedelta(days=days_ago + 1, hours=-1),
+                                         status=SessionStatusChoices.ATTENDED, homework_link='https://hw.example/x')
+        return Homework.objects.create(session=session, student=self.student, assigned_by=self.mentor, status='SCORED',
+                                       score=score, max_score=max_score, scored_at=timezone.now() - timedelta(days=days_ago))
+
+    def test_recent_entries_carry_ids_for_all_three_kinds(self):
+        ex = self.scored_exam(1)
+        add = self.scored_additional(2)
+        hw = self.scored_homework(3)
+        self.as_student()
+        recent = self.client.get(reverse('student-scorecard')).data['recent']
+        self.assertEqual([(e['category'], e['id']) for e in recent],
+                         [('exam', str(ex.id)), ('additional_exam', str(add.id)), ('homework', str(hw.id))])
+
+    def test_merged_newest_first_and_paged(self):
+        # 10 completed items, interleaved kinds, distinct ages 1..10 days.
+        made = {}
+        for d in range(1, 11):
+            if d % 3 == 0:
+                made[d] = ('homework', self.scored_homework(d))
+            elif d % 3 == 1:
+                made[d] = ('exam', self.scored_exam(d))
+            else:
+                made[d] = ('additional_exam', self.scored_additional(d))
+        self.as_student()
+        p1 = self.client.get(reverse('student-scores'), {'range': 'all'})
+        self.assertEqual(p1.status_code, 200)
+        n = RECENT_PAGE_SIZE
+        self.assertEqual((p1.data['count'], p1.data['page'], p1.data['page_size']), (10, 1, n))
+        self.assertEqual([(e['category'], e['id']) for e in p1.data['results']],
+                         [(made[d][0], str(made[d][1].id)) for d in range(1, n + 1)])
+        self.assertEqual(set(p1.data['results'][0]), {'id', 'category', 'label', 'score', 'max_score', 'pct', 'scored_at'})
+        p2 = self.client.get(reverse('student-scores'), {'range': 'all', 'page': 2}).data
+        self.assertEqual((p2['count'], p2['page'], p2['page_size']), (10, 2, n))
+        self.assertEqual([e['id'] for e in p2['results']], [str(made[d][1].id) for d in range(n + 1, min(2 * n, 10) + 1)])
+        self.assertFalse({e['id'] for e in p1.data['results']} & {e['id'] for e in p2['results']})
+        # Page 1 is exactly the scorecard's recent list.
+        card = self.client.get(reverse('student-scorecard'), {'range': 'all'}).data
+        self.assertEqual(card['recent'], p1.data['results'])
+        self.assertEqual(card['total_count'], p1.data['count'])
+        # page_size is honoured and capped.
+        self.assertEqual(len(self.client.get(reverse('student-scores'), {'range': 'all', 'page_size': 2}).data['results']), 2)
+        self.assertEqual(self.client.get(reverse('student-scores'), {'range': 'all', 'page_size': 999}).data['page_size'], 200)
+
+    def test_range_filtering_matches_scorecard(self):
+        self.scored_exam(2)            # week
+        self.scored_homework(10)       # month
+        self.scored_additional(40)     # all
+        self.as_student()
+        for range_key, expected in (('week', 1), ('month', 2), ('all', 3), ('bogus', 2)):
+            res = self.client.get(reverse('student-scores'), {'range': range_key}).data
+            card = self.client.get(reverse('student-scorecard'), {'range': range_key}).data
+            self.assertEqual(res['count'], expected, range_key)
+            self.assertEqual(len(res['results']), expected, range_key)
+            self.assertEqual(res['count'], card['total_count'], range_key)
+            self.assertEqual(res['results'], card['recent'], range_key)
+
+    def test_entries_in_window_uses_the_scorecard_window(self):
+        now = timezone.now()
+        entries = [
+            score_entry('exam', 'A', 1, 2, now - timedelta(days=2), entry_id='a'),
+            score_entry('homework', 'B', 1, 2, now - timedelta(days=10), entry_id='b'),
+            score_entry('additional_exam', 'C', 1, 2, now - timedelta(days=40), entry_id='c'),
+        ]
+        for range_key in ('week', 'month', 'all'):
+            card = build_scorecard(entries, range_key, now=now, zone='Asia/Kolkata')
+            listed = entries_in_window(entries, range_key, now=now, zone='Asia/Kolkata')
+            self.assertEqual([e['id'] for e in listed], [e['id'] for e in card['recent']], range_key)
+            self.assertEqual(len(listed), card['total_count'], range_key)
+
+    def test_unscored_rows_are_excluded(self):
+        self.scored_exam(1)
+        self.make_exam()                                                   # scheduled
+        self.make_exam(status='CANCELLED', cancellation_reason='x')
+        self.make_additional()                                             # assigned
+        self.make_additional(status='SUBMITTED', submitted_at=timezone.now())
+        self.make_additional(status='SCORED', score=1, max_score=2)        # scored but no scored_at
+        self.as_student()
+        res = self.client.get(reverse('student-scores'), {'range': 'all'}).data
+        self.assertEqual(res['count'], 1)
+        self.assertEqual(res['results'][0]['category'], 'exam')
+
+    def test_persona_and_staff_rules_match_scorecard(self):
+        mine = self.scored_exam(1)
+        theirs = self.scored_exam(1, student=self.foreign, mentor=self.mentor2)
+        # The other family sees only its own student's scores.
+        self.client.force_authenticate(user=self.other_parent)
+        self.client.cookies['ep-student-id'] = str(self.foreign.id)
+        res = self.client.get(reverse('student-scores'), {'range': 'all'}).data
+        self.assertEqual([e['id'] for e in res['results']], [str(theirs.id)])
+        # A cookie naming someone else's student is ignored, never honoured.
+        self.client.cookies['ep-student-id'] = str(mine.student_id)
+        res = self.client.get(reverse('student-scores'), {'range': 'all'}).data
+        self.assertEqual([e['id'] for e in res['results']], [str(theirs.id)])
+        # Staff get the same answer as the scorecard: forbidden.
+        for user in (self.mentor, self.admin, self.tutor):
+            self.client.force_authenticate(user=user)
+            self.assertEqual(self.client.get(reverse('student-scores')).status_code, 403, user.role)
+            self.assertEqual(self.client.get(reverse('student-scorecard')).status_code, 403, user.role)
+
+
 class AdditionalExamTests(ExamTestBase):
     def test_create_requires_file_and_logs(self):
         self.client.force_authenticate(user=self.mentor)
@@ -652,7 +769,9 @@ class ScorecardTests(ExamTestBase):
         # Delta: 23.75 - 50 = -26.25 -> -26, from the unrounded marks-based figures.
         self.assertEqual(card['delta'], -26)
         # Individual recent scores keep their own percentage.
-        by_label = {(e['label'], e['score']): e['pct'] for e in card['recent']}
+        # Individual scores keep their own percentage (the full window, not just the recent slice).
+        listed = [serialize_entry(e) for e in entries_in_window(entries, 'week', now=now, zone='Asia/Kolkata')]
+        by_label = {(e['label'], e['score']): e['pct'] for e in listed}
         self.assertEqual(by_label[('E1', 25)], 50)
         self.assertEqual(by_label[('E2', 10)], 10)
         self.assertEqual(by_label[('Worksheet', 1)], 1)

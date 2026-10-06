@@ -345,6 +345,11 @@ SCORECARD_RANGES = ('week', 'month', 'all')
 
 CATEGORY_LABELS = {'homework': 'Homework', 'exam': 'Chapter Exams', 'additional_exam': 'Additional Exams'}
 
+# Rows in the scorecard's recent list, and the page size of /api/student/scores/
+# (page 1 there equals the recent list). The Learn RecentScores component
+# uses the same number. Set to 3 while verifying the View more flow.
+RECENT_PAGE_SIZE = 8
+
 
 def student_zone(student):
     zone = getattr(student, 'timezone', None)
@@ -372,15 +377,18 @@ def _round_or_none(value):
     return None if value is None else _js_round(value)
 
 
-def score_entry(category, label, score, max_score, scored_at):
+def score_entry(category, label, score, max_score, scored_at, entry_id=None):
     """
     Normalise one score row (Learn ``toEntry``); None when unusable. ``pct``
     is this item's own unrounded percentage, shown (rounded) in the recent
     list; the aggregates are computed from ``score`` and ``max_score``.
+    ``entry_id`` is the source row's id, so the Learn app can open the
+    matching exam / additional exam / homework page.
     """
     if score is None or max_score is None or max_score <= 0 or not scored_at:
         return None
     return {
+        'id': str(entry_id) if entry_id is not None else None,
         'category': category,
         'label': label,
         'score': score,
@@ -402,14 +410,15 @@ def collect_score_entries(student):
     ).only('score', 'max_score', 'end_time', 'created_at', 'chapter_name')
     for row in rows:
         entry = score_entry('exam', row.chapter_name or 'Chapter Exam', row.score, row.max_score,
-                            row.end_time or row.created_at)
+                            row.end_time or row.created_at, entry_id=row.id)
         if entry:
             entries.append(entry)
     add_rows = AdditionalExam.objects.filter(
         student=student, status=AdditionalExamStatusChoices.SCORED, scored_at__isnull=False
     ).only('score', 'max_score', 'scored_at', 'title')
     for row in add_rows:
-        entry = score_entry('additional_exam', row.title or 'Additional Exam', row.score, row.max_score, row.scored_at)
+        entry = score_entry('additional_exam', row.title or 'Additional Exam', row.score, row.max_score, row.scored_at,
+                            entry_id=row.id)
         if entry:
             entries.append(entry)
     # Scored homework. Imported here: homework.services imports this module.
@@ -463,6 +472,52 @@ def _marks_pct_in_range(entries, start, end):
     return _marks_pct(e for e in entries if start <= e['scored_at'] < end)
 
 
+def _newest_first(entries):
+    """Global newest-first order shared by the recent list and the scores page."""
+    return sorted(entries, key=lambda e: (e['scored_at'], e.get('id') or ''), reverse=True)
+
+
+def scorecard_window(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
+    """
+    The one place the range is turned into a window. Returns
+    ``(range_key, now, buckets, window_start)``; ``window_start`` is None for
+    'all'. Both the scorecard and the paged scores list go through here so
+    their result sets can never disagree.
+    """
+    if range_key not in SCORECARD_RANGES:
+        range_key = 'month'
+    now = now or timezone.now()
+    tz = ZoneInfo(zone)
+    earliest = min((e['scored_at'] for e in entries), default=None)
+    buckets = _buckets(range_key, now, tz, earliest)
+    if range_key == 'all':
+        window_start = None
+    elif buckets:
+        window_start = buckets[0]['start']
+    else:
+        window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 29)
+    return range_key, now, buckets, window_start
+
+
+def entries_in_window(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
+    """The entries the range covers, newest first (the scores list)."""
+    _, _, _, window_start = scorecard_window(entries, range_key, now, zone)
+    return _newest_first(e for e in entries if window_start is None or e['scored_at'] >= window_start)
+
+
+def serialize_entry(e):
+    """One score row as the API returns it: the item's own rounded percentage."""
+    return {
+        'id': e.get('id'),
+        'category': e['category'],
+        'label': e['label'],
+        'score': e['score'],
+        'max_score': e['max_score'],
+        'pct': _js_round(e['pct']),
+        'scored_at': e['scored_at'].isoformat(),
+    }
+
+
 def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
     """
     Learn ``buildScorecard``, marks-weighted: every aggregate (overall, the
@@ -471,20 +526,8 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
     covers, rounded once. Individual entries keep their own percentage for
     the recent list. Bucket edges are computed in the student's zone.
     """
-    if range_key not in SCORECARD_RANGES:
-        range_key = 'month'
-    now = now or timezone.now()
-    tz = ZoneInfo(zone)
-    entries = sorted(entries, key=lambda e: e['scored_at'])
-    earliest = entries[0]['scored_at'] if entries else None
-    buckets = _buckets(range_key, now, tz, earliest)
-
-    if range_key == 'all':
-        window_start = None
-    elif buckets:
-        window_start = buckets[0]['start']
-    else:
-        window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 29)
+    entries = list(entries)
+    range_key, now, buckets, window_start = scorecard_window(entries, range_key, now, zone)
 
     in_window = [e for e in entries if window_start is None or e['scored_at'] >= window_start]
     current_pct = _marks_pct(in_window)
@@ -515,7 +558,7 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
             point[category] = _round_or_none(_marks_pct_in_range(by_category[category], b['start'], b['end']))
         chart.append(point)
 
-    recent = sorted(in_window, key=lambda e: e['scored_at'], reverse=True)[:8]
+    recent = _newest_first(in_window)[:RECENT_PAGE_SIZE]
     return {
         'range': range_key,
         'overall': overall,
@@ -524,15 +567,5 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
         'total_count': len(in_window),
         'categories': categories,
         'buckets': chart,
-        'recent': [
-            {
-                'category': e['category'],
-                'label': e['label'],
-                'score': e['score'],
-                'max_score': e['max_score'],
-                'pct': _js_round(e['pct']),
-                'scored_at': e['scored_at'].isoformat(),
-            }
-            for e in recent
-        ],
+        'recent': [serialize_entry(e) for e in recent],
     }

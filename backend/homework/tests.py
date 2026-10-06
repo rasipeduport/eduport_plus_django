@@ -332,7 +332,8 @@ class IntegrationTests(HomeworkTestBase):
         self.score(hw, score=9, max_score=10)
         Exam.objects.create(student=self.student, mentor=self.mentor, chapter_name='Real Numbers', status='ATTENDED',
                             score=7, max_score=10, start_time=timezone.now() - timedelta(days=1), end_time=timezone.now() - timedelta(hours=23))
-        self.assertEqual(len(collect_homework_entries(self.student)), 1)
+        entries = collect_homework_entries(self.student)
+        self.assertEqual([e['id'] for e in entries], [str(hw.id)])
         self.as_student()
         res = self.client.get(reverse('student-scorecard'))
         self.assertEqual(res.status_code, 200)

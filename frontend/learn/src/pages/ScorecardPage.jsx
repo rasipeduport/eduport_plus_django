@@ -86,7 +86,7 @@ export default function ScorecardPage() {
           </Card>
           <div className="space-y-4 md:col-span-2">
             <CategoryBreakdown categories={card.categories || []} />
-            <RecentScores entries={card.recent || []} />
+            <RecentScores key={range} entries={card.recent || []} range={range} totalCount={card.total_count || 0} />
           </div>
         </div>
       )}

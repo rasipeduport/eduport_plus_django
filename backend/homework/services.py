@@ -161,7 +161,7 @@ def collect_homework_entries(student):
         student=student, status=HomeworkStatusChoices.SCORED, scored_at__isnull=False
     ).only('score', 'max_score', 'scored_at')
     for row in rows:
-        entry = score_entry('homework', 'Homework', row.score, row.max_score, row.scored_at)
+        entry = score_entry('homework', 'Homework', row.score, row.max_score, row.scored_at, entry_id=row.id)
         if entry:
             entries.append(entry)
     return entries

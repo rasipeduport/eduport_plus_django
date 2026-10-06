@@ -42,6 +42,19 @@ export function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Where a scorecard entry opens: the existing detail page for its kind. */
+export function resultPath(entry) {
+  if (!entry?.id) return null;
+  switch (entry.category) {
+    case 'homework':
+      return `/homework/${entry.id}`;
+    case 'additional_exam':
+      return `/exams/additional/${entry.id}`;
+    default:
+      return `/exams/${entry.id}`;
+  }
+}
+
 /** Colour tone for a percentage (Learn scoreTone): >= 80 success, >= 60 warning, else danger. */
 export function scoreTone(pct) {
   if (pct >= 80) return { key: 'success', text: 'text-primary-hover', bg: 'bg-primary-subtle', border: 'border-primary/15', stroke: 'var(--color-primary)' };

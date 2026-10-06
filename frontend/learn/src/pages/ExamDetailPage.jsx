@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, GraduationCap, Loader2, Play } from 'lucide-react';
 import api from '../lib/api';
 import { Card } from '../components/ui/card';
@@ -13,6 +13,11 @@ const FULL_DATE = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'nu
 /** Chapter exam detail (Learn /exams/[id]): score, recording, question paper. */
 export default function ExamDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  // Opened from the scorecard's recent list: the back link returns there.
+  const fromScorecard = location.state?.from === '/scorecard';
+  const backTo = fromScorecard ? '/scorecard' : '/exams';
+  const backLabel = fromScorecard ? 'Scorecard' : 'Exams';
   const [exam, setExam] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,8 +51,8 @@ export default function ExamDetailPage() {
   if (notFound || !exam) {
     return (
       <div className="space-y-4">
-        <Link to="/exams" className="text-text-muted inline-flex items-center gap-1 text-sm">
-          <ArrowLeft className="h-4 w-4" /> Exams
+        <Link to={backTo} className="text-text-muted inline-flex items-center gap-1 text-sm">
+          <ArrowLeft className="h-4 w-4" /> {backLabel}
         </Link>
         <p className="text-text-primary text-sm font-semibold">Exam not found.</p>
       </div>
@@ -60,8 +65,8 @@ export default function ExamDetailPage() {
 
   return (
     <div className="space-y-5 md:space-y-6">
-      <Link to="/exams" className="text-text-muted hover:text-text-primary inline-flex items-center gap-1 text-sm">
-        <ArrowLeft className="h-4 w-4" /> Exams
+      <Link to={backTo} className="text-text-muted hover:text-text-primary inline-flex items-center gap-1 text-sm">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
       </Link>
 
       <section>
