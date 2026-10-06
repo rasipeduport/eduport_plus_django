@@ -599,13 +599,73 @@ class ScorecardTests(ExamTestBase):
         self.assertEqual([b['exam'] for b in card['buckets']], [80, None, None, None, 100])
         self.assertEqual(card['overall'], 90)
 
-    def test_endpoint_excludes_additional_and_unattended(self):
-        self.make_exam(status='ATTENDED', score=9, max_score=10, start_time=timezone.now() - timedelta(days=1), end_time=timezone.now() - timedelta(hours=23))
+    def test_endpoint_includes_scored_additional_excludes_unattended(self):
+        now = timezone.now()
+        self.make_exam(status='ATTENDED', score=9, max_score=10, start_time=now - timedelta(days=1), end_time=now - timedelta(hours=23))
         self.make_exam()  # scheduled, no score
-        self.make_additional(status='SCORED', score=1, max_score=10)
+        self.make_additional(status='SCORED', score=1, max_score=10, scored_at=now - timedelta(hours=2))
+        self.make_additional(status='SCORED', score=5, max_score=10)                       # no scored_at: ignored
+        self.make_additional(status='SUBMITTED', submitted_at=now)                         # not scored
+        self.make_additional(status='SCORED', score=10, max_score=10, scored_at=now - timedelta(days=40))  # outside month
         self.as_student()
         res = self.client.get(reverse('student-scorecard'), {'range': 'bogus'})
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data['range'], 'month')
-        self.assertEqual(res.data['overall'], 90)
-        self.assertEqual(res.data['lifetime_count'], 1)
+        self.assertEqual(res.data['overall'], 50)       # (9 + 1) / (10 + 10)
+        self.assertEqual(res.data['total_count'], 2)
+        self.assertEqual(res.data['lifetime_count'], 3)
+        self.assertEqual([c['category'] for c in res.data['categories']], ['homework', 'exam', 'additional_exam'])
+        add = res.data['categories'][2]
+        self.assertEqual((add['label'], add['avg'], add['count']), ('Additional Exams', 10, 1))
+        self.assertEqual(res.data['recent'][0]['label'], 'Worksheet 1')
+        self.assertEqual(res.data['recent'][0]['category'], 'additional_exam')
+        self.assertIn('additional_exam', res.data['buckets'][-1])
+        allc = self.client.get(reverse('student-scorecard'), {'range': 'all'}).data
+        self.assertEqual((allc['total_count'], allc['overall']), (3, 67))  # 20 / 30
+
+    def test_aggregates_are_marks_based(self):
+        now = timezone.now()
+        d = now - timedelta(days=1)
+        entries = [
+            score_entry('exam', 'E1', 25, 50, d),
+            score_entry('exam', 'E2', 10, 100, d),
+            score_entry('homework', 'Homework', 9, 10, d),
+            score_entry('homework', 'Homework', 1, 90, d),
+            score_entry('additional_exam', 'Worksheet', 1, 100, d),
+            score_entry('additional_exam', 'Worksheet', 49, 50, d),
+            score_entry('exam', 'Prev', 30, 60, now - timedelta(days=9)),  # previous week: 50
+        ]
+        card = build_scorecard(entries, 'week', now=now, zone='Asia/Kolkata')
+        cats = {c['category']: c for c in card['categories']}
+        # 25/50 + 10/100 -> 35/150 = 23.33 -> 23 (an item-mean would say 30).
+        self.assertEqual((cats['exam']['avg'], cats['exam']['count']), (23, 2))
+        # 9/10 + 1/90 -> 10/100 = 10 (item-mean 45.6).
+        self.assertEqual((cats['homework']['avg'], cats['homework']['count']), (10, 2))
+        # 1/100 + 49/50 -> 50/150 = 33.33 -> 33 (item-mean 49.5).
+        self.assertEqual((cats['additional_exam']['avg'], cats['additional_exam']['count']), (33, 2))
+        # Overall across all three: 95/400 = 23.75 -> 24 (item-mean 30.9).
+        self.assertEqual(card['overall'], 24)
+        # Same bucket holds every item, so the bucket values match the tiles.
+        filled = [b for b in card['buckets'] if b['exam'] is not None]
+        self.assertEqual(len(filled), 1)
+        self.assertEqual((filled[0]['exam'], filled[0]['homework'], filled[0]['additional_exam']), (23, 10, 33))
+        # Delta: 23.75 - 50 = -26.25 -> -26, from the unrounded marks-based figures.
+        self.assertEqual(card['delta'], -26)
+        # Individual recent scores keep their own percentage.
+        by_label = {(e['label'], e['score']): e['pct'] for e in card['recent']}
+        self.assertEqual(by_label[('E1', 25)], 50)
+        self.assertEqual(by_label[('E2', 10)], 10)
+        self.assertEqual(by_label[('Worksheet', 1)], 1)
+
+    def test_empty_categories_are_null(self):
+        now = timezone.now()
+        card = build_scorecard([score_entry('exam', 'E', 25, 50, now - timedelta(days=1))], 'week', now=now, zone='Asia/Kolkata')
+        cats = {c['category']: c for c in card['categories']}
+        self.assertEqual((cats['homework']['avg'], cats['homework']['count']), (None, 0))
+        self.assertEqual((cats['additional_exam']['avg'], cats['additional_exam']['count']), (None, 0))
+        self.assertEqual(cats['exam']['avg'], 50)
+        self.assertTrue(all(b['homework'] is None and b['additional_exam'] is None for b in card['buckets']))
+        self.assertIsNone(card['delta'])
+        empty = build_scorecard([], 'week', now=now)
+        self.assertIsNone(empty['overall'])
+        self.assertTrue(all(c['avg'] is None and c['count'] == 0 for c in empty['categories']))

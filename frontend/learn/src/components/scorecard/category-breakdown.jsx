@@ -1,16 +1,17 @@
 import { motion } from 'framer-motion';
-import { BookOpen, ClipboardList } from 'lucide-react';
+import { BookOpen, ClipboardCheck, ClipboardList } from 'lucide-react';
 import { Card } from '../ui/card';
 
 const META = {
   homework: { icon: BookOpen, color: 'text-info', bg: 'bg-info-subtle', bar: 'bg-info' },
   exam: { icon: ClipboardList, color: 'text-primary', bg: 'bg-primary-subtle', bar: 'bg-primary' },
+  additional_exam: { icon: ClipboardCheck, color: 'text-warning', bg: 'bg-warning-subtle', bar: 'bg-warning' },
 };
 
-/** Homework vs Chapter Exams average tiles (Learn CategoryBreakdown). */
+/** Homework / Chapter Exams / Additional Exams marks-based tiles (Learn CategoryBreakdown). */
 export function CategoryBreakdown({ categories }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
       {categories.map((stat) => {
         const m = META[stat.category] || META.exam;
         const Icon = m.icon;

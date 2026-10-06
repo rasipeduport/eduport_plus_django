@@ -3,6 +3,7 @@ import { useState } from 'react';
 const SERIES = [
   { key: 'exam', label: 'Chapter Exams', color: 'var(--color-primary)' },
   { key: 'homework', label: 'Homework', color: 'var(--color-info)' },
+  { key: 'additional_exam', label: 'Additional Exams', color: 'var(--color-warning)' },
 ];
 
 /** Hand-rolled SVG trend: one line per category over the buckets; null buckets break the line (Learn ProgressChart). */

@@ -343,7 +343,7 @@ def exam_history_exists(student):
 
 SCORECARD_RANGES = ('week', 'month', 'all')
 
-CATEGORY_LABELS = {'homework': 'Homework', 'exam': 'Chapter Exams'}
+CATEGORY_LABELS = {'homework': 'Homework', 'exam': 'Chapter Exams', 'additional_exam': 'Additional Exams'}
 
 
 def student_zone(student):
@@ -356,11 +356,16 @@ def _js_round(value):
     return int(math.floor(value + 0.5))
 
 
-def _mean(values):
-    values = [v for v in values if v is not None]
-    if not values:
+def _marks_pct(entries):
+    """
+    Marks-based percentage of a group of entries: total score over total
+    maximum, so a 10-mark worksheet and a 100-mark exam weigh by their marks
+    rather than one item each. None for an empty group.
+    """
+    entries = list(entries)
+    if not entries:
         return None
-    return sum(values) / len(values)
+    return sum(e['score'] for e in entries) / sum(e['max_score'] for e in entries) * 100
 
 
 def _round_or_none(value):
@@ -370,8 +375,8 @@ def _round_or_none(value):
 def score_entry(category, label, score, max_score, scored_at):
     """
     Normalise one score row (Learn ``toEntry``); None when unusable. ``pct``
-    keeps its full precision -- every average is taken over raw percentages
-    and rounded once, at the value that is actually returned.
+    is this item's own unrounded percentage, shown (rounded) in the recent
+    list; the aggregates are computed from ``score`` and ``max_score``.
     """
     if score is None or max_score is None or max_score <= 0 or not scored_at:
         return None
@@ -387,9 +392,9 @@ def score_entry(category, label, score, max_score, scored_at):
 
 def collect_score_entries(student):
     """
-    The student's final scores: attended chapter exams, timestamped by the
-    exam's end time (Learn ``getScorecard``). Additional exams never count.
-    Homework is not ported yet; its rows would be appended here.
+    The student's final scores: attended chapter exams timestamped by the
+    exam's end time (Learn ``getScorecard``), scored additional exams and
+    scored homework, both timestamped by the moment they were scored.
     """
     entries = []
     rows = Exam.objects.filter(
@@ -400,8 +405,14 @@ def collect_score_entries(student):
                             row.end_time or row.created_at)
         if entry:
             entries.append(entry)
-    # Scored homework (the Learn scorecard's second series). Imported here:
-    # homework.services imports this module.
+    add_rows = AdditionalExam.objects.filter(
+        student=student, status=AdditionalExamStatusChoices.SCORED, scored_at__isnull=False
+    ).only('score', 'max_score', 'scored_at', 'title')
+    for row in add_rows:
+        entry = score_entry('additional_exam', row.title or 'Additional Exam', row.score, row.max_score, row.scored_at)
+        if entry:
+            entries.append(entry)
+    # Scored homework. Imported here: homework.services imports this module.
     from homework.services import collect_homework_entries
     entries.extend(collect_homework_entries(student))
     return entries
@@ -448,16 +459,17 @@ def _buckets(range_key, now, tz, earliest):
     return out
 
 
-def _avg_in_range(entries, start, end):
-    return _mean([e['pct'] for e in entries if start <= e['scored_at'] < end])
+def _marks_pct_in_range(entries, start, end):
+    return _marks_pct(e for e in entries if start <= e['scored_at'] < end)
 
 
 def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
     """
-    Learn ``buildScorecard``: percentages per entry, an unweighted mean over
-    the window, the delta against the previous equal-length window, per-
-    category averages, chart buckets and the 8 most recent scores. Bucket
-    edges are computed in the student's zone.
+    Learn ``buildScorecard``, marks-weighted: every aggregate (overall, the
+    category tiles, the chart buckets and the delta against the previous
+    equal-length window) is total score over total maximum for the items it
+    covers, rounded once. Individual entries keep their own percentage for
+    the recent list. Bucket edges are computed in the student's zone.
     """
     if range_key not in SCORECARD_RANGES:
         range_key = 'month'
@@ -475,34 +487,33 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
         window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 29)
 
     in_window = [e for e in entries if window_start is None or e['scored_at'] >= window_start]
-    current_avg = _mean([e['pct'] for e in in_window])
-    overall = _round_or_none(current_avg)
+    current_pct = _marks_pct(in_window)
+    overall = _round_or_none(current_pct)
 
     delta = None
     if range_key != 'all' and in_window and window_start is not None:
         window_len = now - window_start
-        prev_avg = _avg_in_range(entries, window_start - window_len, window_start)
-        if prev_avg is not None and current_avg is not None:
-            delta = _js_round(current_avg - prev_avg)
+        prev_pct = _marks_pct_in_range(entries, window_start - window_len, window_start)
+        if prev_pct is not None and current_pct is not None:
+            delta = _js_round(current_pct - prev_pct)
 
-    categories = []
-    for category in ('homework', 'exam'):
-        items = [e for e in in_window if e['category'] == category]
-        categories.append({
+    by_category = {c: [e for e in in_window if e['category'] == c] for c in CATEGORY_LABELS}
+    categories = [
+        {
             'category': category,
-            'label': CATEGORY_LABELS[category],
-            'avg': _round_or_none(_mean([e['pct'] for e in items])),
-            'count': len(items),
-        })
+            'label': label,
+            'avg': _round_or_none(_marks_pct(by_category[category])),
+            'count': len(by_category[category]),
+        }
+        for category, label in CATEGORY_LABELS.items()
+    ]
 
     chart = []
     for b in buckets:
-        chart.append({
-            'key': b['key'],
-            'label': b['label'],
-            'homework': _round_or_none(_avg_in_range([e for e in in_window if e['category'] == 'homework'], b['start'], b['end'])),
-            'exam': _round_or_none(_avg_in_range([e for e in in_window if e['category'] == 'exam'], b['start'], b['end'])),
-        })
+        point = {'key': b['key'], 'label': b['label']}
+        for category in CATEGORY_LABELS:
+            point[category] = _round_or_none(_marks_pct_in_range(by_category[category], b['start'], b['end']))
+        chart.append(point)
 
     recent = sorted(in_window, key=lambda e: e['scored_at'], reverse=True)[:8]
     return {
