@@ -89,9 +89,9 @@ export function SessionCard({ session, isExpanded, onToggle }) {
 
         {/* Content */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1">
-              <p className="text-text-primary line-clamp-2 text-[15px] leading-snug font-semibold">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 flex-1 basis-32">
+              <p className="text-text-primary line-clamp-2 text-[15px] leading-snug font-semibold break-words">
                 {session.title}
               </p>
               {/* Meta row */}
@@ -117,10 +117,10 @@ export function SessionCard({ session, isExpanded, onToggle }) {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="ml-auto flex shrink-0 items-center gap-3">
               <span
                 className={cn(
-                  'shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                  'shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap',
                   session.status === 'cancelled'
                     ? 'border-danger/15 bg-danger-subtle text-danger'
                     : attended
@@ -246,7 +246,7 @@ export function SessionCard({ session, isExpanded, onToggle }) {
                   className="overflow-hidden"
                 >
                   <div
-                    className="border-primary/10 bg-primary-subtle/70 flex items-center justify-between rounded-xl border px-4 py-3"
+                    className="border-primary/10 bg-primary-subtle/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-4 py-3"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="text-primary-hover text-sm font-semibold">
@@ -273,7 +273,7 @@ export function SessionCard({ session, isExpanded, onToggle }) {
                             onMouseLeave={() => setHoverRating(0)}
                             disabled={isSubmitting}
                             className={cn(
-                              'transition-transform hover:scale-110 focus:outline-none cursor-pointer',
+                              'flex h-9 w-8 items-center justify-center rounded-full transition-transform hover:scale-110 focus:outline-none cursor-pointer',
                               isSubmitting && 'cursor-not-allowed opacity-50'
                             )}
                           >
@@ -292,7 +292,7 @@ export function SessionCard({ session, isExpanded, onToggle }) {
                   </div>
                 </motion.div>
               ) : (
-                <div className="border-border-light bg-surface-muted/50 flex items-center justify-between rounded-xl border px-4 py-3">
+                <div className="border-border-light bg-surface-muted/50 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-4 py-3">
                   <div className="text-text-muted text-sm font-medium">
                     Your rating
                   </div>

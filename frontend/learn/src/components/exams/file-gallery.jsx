@@ -40,14 +40,14 @@ export function FileGallery({ files, emptyText = 'No files.' }) {
       </div>
 
       {active && (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-black/90" onClick={() => setActive(null)}>
+        <div className="safe-area-top safe-area-bottom fixed inset-0 z-[60] flex flex-col bg-black/90" onClick={() => setActive(null)}>
           <div className="flex items-center justify-between px-4 py-3 text-white">
-            <span className="truncate text-sm">{active.file_name}</span>
-            <div className="flex items-center gap-3">
-              <a href={active.url} target="_blank" rel="noopener noreferrer" className="text-xs underline" onClick={(e) => e.stopPropagation()}>
+            <span className="min-w-0 flex-1 truncate text-sm">{active.file_name}</span>
+            <div className="flex shrink-0 items-center gap-1">
+              <a href={active.url} target="_blank" rel="noopener noreferrer" className="px-2 py-2 text-xs underline" onClick={(e) => e.stopPropagation()}>
                 Open
               </a>
-              <button type="button" aria-label="Close" onClick={() => setActive(null)} className="cursor-pointer">
+              <button type="button" aria-label="Close" onClick={() => setActive(null)} className="flex h-9 w-9 items-center justify-center rounded-full cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>

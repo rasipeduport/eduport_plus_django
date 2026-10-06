@@ -94,7 +94,7 @@ export function AdditionalSubmitForm({ examId, onSubmitted, submitUrl, successLa
               <span className="text-text-primary min-w-0 flex-1 truncate">{f.name}</span>
               <span className="text-text-muted shrink-0">{formatBytes(f.size)}</span>
               {!confirming && (
-                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-text-muted hover:text-text-primary cursor-pointer">
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-text-muted hover:text-text-primary -my-1 -mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md cursor-pointer">
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}

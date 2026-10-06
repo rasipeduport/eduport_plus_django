@@ -80,6 +80,10 @@ body {
     min-height: 100dvh;
     line-height: 1.6;
     margin: 0;
+    /* Anything wider than the viewport is a layout bug, never a feature:
+       clip it instead of letting the page scroll sideways. Fixed elements
+       (bottom nav, viewers) are unaffected. */
+    overflow-x: clip;
 }
 
 /* ─── Selection ─── */

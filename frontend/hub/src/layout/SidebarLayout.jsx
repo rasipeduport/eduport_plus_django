@@ -19,6 +19,11 @@ const PORTED_PATHS = new Set([
   '/activity',
 ]);
 
+// Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon
+// rail so the content keeps the width; it can still be expanded. Desktop
+// keeps the full sidebar. Phones use the sheet and ignore this value.
+const defaultSidebarOpen = () => (typeof window === 'undefined' ? true : window.innerWidth >= 1024);
+
 // Protected layout: collapsible sidebar + breadcrumb header.
 export default function SidebarLayout({ user, logout, children }) {
   const { pathname } = useLocation();
@@ -36,11 +41,11 @@ export default function SidebarLayout({ user, logout, children }) {
   const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/');
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultSidebarOpen()}>
       <AppSidebar user={userData} logout={logout} />
       <SidebarInset className="min-w-0">
         <AppHeader />
-        {isPorted ? children : <div className="legacy-ui px-6 pt-22 pb-6">{children}</div>}
+        {isPorted ? children : <div className="legacy-ui px-4 pt-22 pb-6 sm:px-6">{children}</div>}
       </SidebarInset>
     </SidebarProvider>
   );

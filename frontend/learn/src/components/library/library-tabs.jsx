@@ -50,7 +50,7 @@ export function LibraryTabs({ sessions }) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Tabs */}
-      <div className="border-border-light bg-surface-muted inline-flex rounded-xl border p-1">
+      <div role="tablist" className="border-border-light bg-surface-muted inline-flex w-full rounded-xl border p-1 sm:w-auto">
         {TABS.map((tab) => {
           const isActive = active === tab;
           return (
@@ -59,7 +59,7 @@ export function LibraryTabs({ sessions }) {
               type="button"
               onClick={() => setActive(tab)}
               className={cn(
-                'rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer',
+                'min-h-10 flex-1 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer sm:flex-none lg:min-h-0',
                 isActive
                   ? 'bg-surface-elevated text-text-primary shadow-card'
                   : 'text-text-muted hover:text-text-secondary'
@@ -85,7 +85,7 @@ export function LibraryTabs({ sessions }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-4 md:max-lg:space-y-0">
           {items.map((s) => {
             const hwBadge = active === 'homework' && s.homework ? homeworkStatusBadge(s.homework) : null;
             const Wrapper = hwBadge ? Link : 'a';
@@ -118,7 +118,7 @@ export function LibraryTabs({ sessions }) {
                     </p>
                   </div>
                   {hwBadge && (
-                    <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold', hwBadge.className)}>{hwBadge.label}</span>
+                    <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', hwBadge.className)}>{hwBadge.label}</span>
                   )}
                   <ChevronRight className="text-text-muted h-5 w-5 shrink-0" />
                 </div>

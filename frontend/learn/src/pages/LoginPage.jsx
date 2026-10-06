@@ -38,7 +38,8 @@ export default function LoginPage() {
           {
             theme: 'filled_black',
             size: 'large',
-            width: '320',
+            // GIS only takes a pixel width: fit the card instead of a fixed 320px.
+            width: String(Math.min(320, Math.max(200, btnEl.clientWidth || 320))),
             shape: 'pill',
             text: 'continue_with',
             logo_alignment: 'left'

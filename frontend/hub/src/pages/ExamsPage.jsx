@@ -330,7 +330,7 @@ export default function ExamsPage() {
       {selectedStudentId && (
         <>
           <StudentSectionTabs studentId={selectedStudentId} active="exams" />
-          <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
+          <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
               <span className="font-semibold text-zinc-900 dark:text-white">Filtering:</span>
               <span>Exams for {getStudentName(selectedStudentId)}</span>
@@ -504,7 +504,7 @@ export default function ExamsPage() {
 
       {/* Additional exams */}
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Additional Exams</h2>
           <span className="text-xs text-zinc-500">Question paper from the mentor, answer sheet from the student, scored X/Y.</span>
         </div>

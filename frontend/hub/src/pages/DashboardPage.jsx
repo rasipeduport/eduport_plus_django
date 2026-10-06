@@ -41,10 +41,10 @@ export default function DashboardPage() {
     <div className="container mx-auto flex flex-col gap-6 px-4 py-16">
       <SectionCards stats={stats} />
       <div className="flex flex-col gap-6 md:flex-row">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <SignupsChart data={stats?.signup_data ?? []} />
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <RecentSignups data={stats?.recent_signups ?? []} />
         </div>
       </div>

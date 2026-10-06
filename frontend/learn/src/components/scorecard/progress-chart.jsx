@@ -37,7 +37,7 @@ export function ProgressChart({ buckets }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {visible.map((s) => (
           <span key={s.key} className="text-text-muted inline-flex items-center gap-1.5 text-xs">
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />

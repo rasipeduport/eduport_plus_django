@@ -42,10 +42,15 @@ export function Sidebar() {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
           const Icon = item.icon;
           return (
-            <Link key={item.href} to={item.href}>
+            <Link
+              key={item.href}
+              to={item.href}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+            >
               <div
                 className={cn(
-                  'flex items-center justify-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 lg:justify-start',
+                  'group relative flex items-center justify-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 lg:justify-start',
                   'hover:bg-surface-muted',
                   isActive
                     ? 'bg-accent-muted text-primary font-semibold'
@@ -59,6 +64,10 @@ export function Sidebar() {
                   className="shrink-0"
                 />
                 <span className="hidden text-sm lg:block">
+                  {item.label}
+                </span>
+                {/* Label tooltip for the icon-only rail (tablet width) */}
+                <span className="bg-primary text-primary-foreground shadow-card pointer-events-none absolute top-1/2 left-full z-50 ml-2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 lg:hidden">
                   {item.label}
                 </span>
               </div>

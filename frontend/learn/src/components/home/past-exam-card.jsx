@@ -23,13 +23,13 @@ export function PastExamCard({ exam }) {
             <ClipboardList className="text-primary h-5 w-5" />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="text-text-primary inline-flex items-center gap-1.5 text-sm font-semibold">
             <Clock className="text-text-muted h-4 w-4" />
             {timeLabel}
           </div>
-          <div className="flex items-center gap-2">
-            <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', badge.className)}>{badge.label}</span>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', badge.className)}>{badge.label}</span>
             <ChevronRight className="text-text-muted h-4 w-4" />
           </div>
         </div>

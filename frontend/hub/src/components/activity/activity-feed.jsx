@@ -94,6 +94,7 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <form
+          className="min-w-0 flex-1 basis-full sm:flex-none sm:basis-auto"
           onSubmit={(event) => {
             event.preventDefault();
             navigate({ q: q || null });
@@ -103,7 +104,7 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
             placeholder="Search actor or target…"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            className="max-w-xs"
+            className="w-full sm:max-w-xs"
           />
         </form>
 
@@ -227,8 +228,8 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-muted-foreground text-sm whitespace-nowrap">
           {total === 0 ? 'No results' : `Showing ${startRow}–${endRow} of ${total}`}
         </p>
         <div className="flex items-center gap-2">
@@ -240,7 +241,7 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
           >
             Previous
           </Button>
-          <span className="text-sm">
+          <span className="text-sm whitespace-nowrap">
             Page {page} of {totalPages}
           </span>
           <Button
@@ -260,7 +261,7 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
 function FilterSelect({ placeholder, value, onChange, options }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="w-[160px]">
+      <SelectTrigger size="sm" className="min-w-0 flex-1 basis-36 sm:w-[160px] sm:flex-none sm:basis-auto">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

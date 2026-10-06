@@ -94,7 +94,7 @@ export function LastClassCard({ session }) {
               exit={{ opacity: 0, height: 0 }}
               className="mb-4 overflow-hidden"
             >
-              <div className="border-primary/10 bg-primary-subtle/70 flex items-center justify-between rounded-xl border px-4 py-3">
+              <div className="border-primary/10 bg-primary-subtle/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-4 py-3">
                 <div className="text-primary-hover text-sm font-semibold">
                   {showSuccess
                     ? 'Thanks for rating!'
@@ -118,7 +118,7 @@ export function LastClassCard({ session }) {
                         onMouseLeave={() => setHoverRating(0)}
                         disabled={isSubmitting}
                         className={cn(
-                          'transition-transform hover:scale-110 focus:outline-none cursor-pointer',
+                          'flex h-9 w-8 items-center justify-center rounded-full transition-transform hover:scale-110 focus:outline-none cursor-pointer',
                           isSubmitting && 'cursor-not-allowed opacity-50'
                         )}
                       >
@@ -141,7 +141,7 @@ export function LastClassCard({ session }) {
 
         {/* Rating state when already rated */}
         {isRated && !showSuccess && (
-          <div className="border-border-light bg-surface-muted/50 flex items-center justify-between rounded-xl border px-4 py-3 mb-4">
+          <div className="border-border-light bg-surface-muted/50 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-4 py-3 mb-4">
             <div className="text-text-muted text-sm font-medium">
               Your rating
             </div>

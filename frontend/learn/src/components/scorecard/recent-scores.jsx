@@ -68,7 +68,7 @@ export function RecentScores({ entries, range, totalCount = 0 }) {
                   {CATEGORY_LABEL[e.category] || 'Chapter exam'} · {formatDate(e.scored_at)}
                 </p>
               </div>
-              <span className={cn('shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums', tone.bg, tone.text, tone.border)}>
+              <span className={cn('shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap', tone.bg, tone.text, tone.border)}>
                 {e.score}/{e.max_score} · {e.pct}%
               </span>
               {to && <ChevronRight className="text-text-muted h-4 w-4 shrink-0" />}

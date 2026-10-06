@@ -19,14 +19,14 @@ export function SessionsList({ sessions }) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Tabs */}
-      <div className="border-border-light bg-surface-muted inline-flex rounded-xl border p-1">
+      <div role="tablist" className="border-border-light bg-surface-muted inline-flex w-full rounded-xl border p-1 sm:w-auto">
         {tabs.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              'rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer',
+              'min-h-10 flex-1 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer sm:flex-none lg:min-h-0',
               activeTab === tab
                 ? 'bg-surface-elevated text-text-primary shadow-card'
                 : 'text-text-muted hover:text-text-secondary'
@@ -52,7 +52,7 @@ export function SessionsList({ sessions }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-4 md:max-lg:space-y-0">
           {filtered.map((session) => (
             <SessionCard
               key={session.id}

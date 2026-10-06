@@ -52,11 +52,11 @@ export function MentorCard({ mentorName, mentorEmail, mentorPhone }) {
       <h3 className="text-text-secondary mb-3 text-sm font-semibold">
         Your Mentor
       </h3>
-      <div className="flex items-center gap-3.5">
+      <div className="flex flex-wrap items-center gap-3.5">
         <div className="bg-primary-subtle flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
           <GraduationCap className="text-primary h-5 w-5" />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-28">
           <p className="text-text-primary truncate text-sm font-semibold">
             {name}
           </p>
@@ -70,6 +70,7 @@ export function MentorCard({ mentorName, mentorEmail, mentorPhone }) {
         <Button
           variant="primary"
           size="sm"
+          className="ml-auto shrink-0"
           icon={<WhatsappIcon className="h-4 w-4" />}
           disabled={!waLink}
           onClick={() => waLink && window.open(waLink, '_blank')}

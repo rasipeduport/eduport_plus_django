@@ -77,14 +77,14 @@ export default function ScorecardPage() {
           </div>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-start">
-          <Card padding="md" className="flex items-center justify-center">
+        <div className="grid min-w-0 gap-4 md:grid-cols-[auto_1fr] md:items-start">
+          <Card padding="md" className="flex min-w-0 items-center justify-center">
             <ScoreRing value={card.overall} delta={card.delta} label={RANGE_LABEL[range]} />
           </Card>
-          <Card padding="md">
+          <Card padding="md" className="min-w-0">
             <ProgressChart buckets={card.buckets || []} />
           </Card>
-          <div className="space-y-4 md:col-span-2">
+          <div className="min-w-0 space-y-4 md:col-span-2">
             <CategoryBreakdown categories={card.categories || []} />
             <RecentScores key={range} entries={card.recent || []} range={range} totalCount={card.total_count || 0} />
           </div>

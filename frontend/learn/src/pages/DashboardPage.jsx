@@ -7,6 +7,7 @@ import { LastClassCard } from '../components/home/last-class-card';
 import { LiveExamCard } from '../components/home/live-exam-card';
 import { PastExamCard } from '../components/home/past-exam-card';
 import { ScorecardHero } from '../components/scorecard/scorecard-hero';
+import { cn } from '../lib/utils';
 
 export default function DashboardPage() {
   const { selectedStudent, dashboardStats } = useStudent();
@@ -44,6 +45,13 @@ export default function DashboardPage() {
       {/* Progress */}
       <ScorecardHero refreshKey={`${lastExam?.id ?? ''}-${lastSession?.id ?? ''}`} />
 
+      {/* Up next + recap: side by side at tablet width, stacked on phones and desktop */}
+      <div
+        className={cn(
+          'space-y-5 md:space-y-6',
+          (lastSession || lastExam) && 'md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-6 md:max-lg:space-y-0'
+        )}
+      >
       {/* Live Class / Exam */}
       <section>
         <h2 className="text-text-primary text-base font-semibold">
@@ -75,6 +83,7 @@ export default function DashboardPage() {
           {lastIsExam ? <PastExamCard exam={lastExam} /> : <LastClassCard session={lastSession} />}
         </section>
       )}
+      </div>
     </div>
   );
 }

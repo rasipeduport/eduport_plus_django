@@ -64,12 +64,12 @@ export function DataTable({
 
   return (
     <div className="overflow-hidden rounded-md border">
-      <div className="flex items-center gap-2 px-2 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-2 py-2">
         <Input
           placeholder={filterPlaceholder}
           value={table.getColumn(filterColumn)?.getFilterValue() ?? ''}
           onChange={(event) => table.getColumn(filterColumn)?.setFilterValue(event.target.value)}
-          className="max-w-md"
+          className="min-w-36 flex-1 sm:max-w-md"
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -94,7 +94,7 @@ export function DataTable({
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        {actions && <div className="ml-auto">{actions}</div>}
+        {actions && <div className="ml-auto shrink-0">{actions}</div>}
       </div>
       <Table>
         <TableHeader>

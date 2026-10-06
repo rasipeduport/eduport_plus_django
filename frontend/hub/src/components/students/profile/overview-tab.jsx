@@ -175,9 +175,12 @@ function NextUp({ highlights, onOpenTab }) {
             <row.icon className="text-muted-foreground size-4 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{row.title}</p>
-              <p className="text-muted-foreground text-xs">{row.label}</p>
+              <p className="text-muted-foreground text-xs">
+                {row.label}
+                <span className="sm:hidden"> · {row.when}</span>
+              </p>
             </div>
-            <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">{row.when}</span>
+            <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:inline">{row.when}</span>
             <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onOpenTab(row.tab)}>
               Open
             </Button>

@@ -19,8 +19,13 @@ export default function StaffActionsDropdown({ items, label = 'Actions' }) {
   const openMenu = (e) => {
     e.stopPropagation();
     const rect = btnRef.current.getBoundingClientRect();
+    // Open upwards when the menu would run off the bottom of a short
+    // (phone) viewport; the estimate is the label row plus one row per item.
+    const estimatedHeight = 44 + items.length * 30;
+    const fitsBelow = rect.bottom + 4 + estimatedHeight <= window.innerHeight;
     setPos({
-      top: rect.bottom + 4,
+      top: fitsBelow ? rect.bottom + 4 : undefined,
+      bottom: fitsBelow ? undefined : window.innerHeight - rect.top + 4,
       right: window.innerWidth - rect.right,
     });
     setOpen((v) => !v);
@@ -42,7 +47,8 @@ export default function StaffActionsDropdown({ items, label = 'Actions' }) {
       <button
         ref={btnRef}
         onClick={openMenu}
-        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+        className="-m-1 flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+        aria-label="Row actions"
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -50,7 +56,7 @@ export default function StaffActionsDropdown({ items, label = 'Actions' }) {
       {open && createPortal(
         <div
           ref={menuRef}
-          style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
+          style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, right: pos.right, zIndex: 9999 }}
           className="legacy-ui w-48 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#1e1e24] rounded-lg shadow-xl py-1 text-left animate-fadeIn"
         >
           <div className="px-3 py-1.5 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest border-b border-zinc-100 dark:border-[#1e1e24]/70 mb-1">

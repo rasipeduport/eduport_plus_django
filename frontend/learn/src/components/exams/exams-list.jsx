@@ -30,14 +30,14 @@ export function ExamsList({ exams, additionalExams, meetLink }) {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="border-border-light bg-surface-muted inline-flex rounded-xl border p-1">
+      <div role="tablist" className="border-border-light bg-surface-muted inline-flex w-full rounded-xl border p-1 sm:w-auto">
         {tabs.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              'rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer',
+              'min-h-10 flex-1 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-150 cursor-pointer sm:flex-none lg:min-h-0',
               activeTab === tab ? 'bg-surface-elevated text-text-primary shadow-card' : 'text-text-muted hover:text-text-secondary'
             )}
           >
@@ -58,17 +58,21 @@ export function ExamsList({ exams, additionalExams, meetLink }) {
           {filteredExams.length > 0 && (
             <section className="space-y-3">
               {showHeaders && <h2 className="text-text-secondary text-xs font-semibold uppercase tracking-wide">Chapter Exams</h2>}
-              {filteredExams.map((exam) => (
-                <ExamCard key={exam.id} exam={exam} meetLink={meetLink} />
-              ))}
+              <div className="space-y-3 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-4 md:max-lg:space-y-0">
+                {filteredExams.map((exam) => (
+                  <ExamCard key={exam.id} exam={exam} meetLink={meetLink} />
+                ))}
+              </div>
             </section>
           )}
           {filteredAdditional.length > 0 && (
             <section className="space-y-3">
               {showHeaders && <h2 className="text-text-secondary text-xs font-semibold uppercase tracking-wide">Additional Exams</h2>}
-              {filteredAdditional.map((exam) => (
-                <AdditionalExamCard key={exam.id} exam={exam} />
-              ))}
+              <div className="space-y-3 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-4 md:max-lg:space-y-0">
+                {filteredAdditional.map((exam) => (
+                  <AdditionalExamCard key={exam.id} exam={exam} />
+                ))}
+              </div>
             </section>
           )}
         </div>

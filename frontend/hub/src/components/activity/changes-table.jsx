@@ -33,7 +33,7 @@ export function ChangesTable({ changes }) {
   return (
     <div className="divide-y rounded-md border text-sm">
       {entries.map(([key, change]) => (
-        <div key={key} className="grid grid-cols-[130px_1fr] gap-3 px-3 py-2">
+        <div key={key} className="grid grid-cols-[6.5rem_1fr] gap-3 sm:grid-cols-[130px_1fr] px-3 py-2">
           <span className="text-muted-foreground">{fieldLabel(key)}</span>
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>

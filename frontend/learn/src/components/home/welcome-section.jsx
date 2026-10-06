@@ -2,7 +2,7 @@ export function WelcomeSection({ studentName }) {
   const firstName = studentName ? studentName.split(' ')[0] : 'Student';
 
   return (
-    <div className="from-primary to-primary-hover relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br px-5 pt-12 pb-10 md:px-7 md:pt-14 md:pb-12 shadow-md">
+    <div className="from-primary to-primary-hover relative -mx-4 -mt-4 overflow-hidden rounded-b-[2rem] bg-gradient-to-br px-5 pt-12 pb-10 shadow-md md:mx-0 md:mt-0 md:px-7 md:pt-14 md:pb-12">
       {/* Decorative orbs */}
       <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-accent/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/5 blur-2xl" />

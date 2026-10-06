@@ -163,12 +163,12 @@ export default function HomeworkPage() {
 
       {error && <div className="bg-red-950/40 text-red-400 text-xs p-3 rounded-lg border border-red-900/50">{error}</div>}
 
-      <div className="flex border-b border-zinc-200 dark:border-[rgba(255,255,255,0.08)] gap-6">
+      <div className="flex gap-4 overflow-x-auto border-b border-zinc-200 dark:border-[rgba(255,255,255,0.08)] sm:gap-6">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`pb-3 text-sm font-medium transition-colors relative cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap pb-3 text-sm font-medium transition-colors relative cursor-pointer ${
               tab === t.key ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
             }`}
           >

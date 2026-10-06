@@ -72,7 +72,7 @@ export default function ExamDetailPage() {
       <section>
         <p className="text-text-muted text-[11px] font-semibold uppercase tracking-wide">Chapter Exam</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="text-text-primary text-xl font-bold md:text-2xl">{exam.chapter_name}</h1>
+          <h1 className="text-text-primary min-w-0 text-xl font-bold break-words md:text-2xl">{exam.chapter_name}</h1>
           <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', badge.className)}>{badge.label}</span>
         </div>
         <div className="text-text-muted mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

@@ -27,15 +27,18 @@ export default function ProfilePage() {
         avatarUrl={null}
       />
 
-      {/* Student Information Details Card */}
-      <StudentInfoCard info={info} />
+      {/* Info + mentor: two columns at tablet width, stacked on phones and desktop */}
+      <div className="space-y-5 md:space-y-6 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-6 md:max-lg:space-y-0">
+        {/* Student Information Details Card */}
+        <StudentInfoCard info={info} />
 
-      {/* Assigned Mentor Card */}
-      <MentorCard
-        mentorName={dashboardStats?.mentor}
-        mentorEmail={dashboardStats?.mentor_email}
-        mentorPhone={dashboardStats?.mentor_phone}
-      />
+        {/* Assigned Mentor Card */}
+        <MentorCard
+          mentorName={dashboardStats?.mentor}
+          mentorEmail={dashboardStats?.mentor_email}
+          mentorPhone={dashboardStats?.mentor_phone}
+        />
+      </div>
 
       {/* Log out actions */}
       <div className="space-y-3 pb-4">

@@ -22,8 +22,8 @@ export function ExamCard({ exam, meetLink }) {
         <ClipboardList className={cn('h-5 w-5', attended ? 'text-primary' : 'text-info')} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 basis-32">
             <p className="text-text-muted text-[11px] font-semibold uppercase tracking-wide">Chapter Exam</p>
             <p className="text-text-primary line-clamp-2 text-[15px] leading-snug font-semibold">{exam.chapter_name}</p>
             <div className="text-text-muted mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -39,8 +39,8 @@ export function ExamCard({ exam, meetLink }) {
               )}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold', badge.className)}>{badge.label}</span>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', badge.className)}>{badge.label}</span>
             {attended && <ChevronRight className="text-text-muted h-4 w-4" />}
           </div>
         </div>

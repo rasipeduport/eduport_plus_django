@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav className="safe-area-bottom fixed right-0 bottom-0 left-0 z-50 md:hidden">
       <div className="border-border-light/80 bg-surface-elevated/90 shadow-nav rounded-t-2xl border-t backdrop-blur-xl">
-        <div className="mx-auto flex max-w-md items-stretch justify-around px-6 py-2">
+        <div className="mx-auto flex max-w-md items-stretch justify-around px-3 py-2 sm:px-6">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
             const Icon = item.icon;

@@ -663,7 +663,7 @@ export default function SessionsPage() {
         <StudentSectionTabs studentId={selectedStudentId} active="sessions" canViewExams={userRole !== 'TUTOR'} />
       )}
       {selectedStudentId && (
-        <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
             <span className="font-semibold text-zinc-900 dark:text-white">Filtering:</span>
             <span>Sessions for {getStudentName(selectedStudentId)}</span>
@@ -801,12 +801,12 @@ export default function SessionsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-zinc-200 dark:border-[rgba(255,255,255,0.08)] gap-6">
+      <div className="flex gap-4 overflow-x-auto border-b border-zinc-200 dark:border-[rgba(255,255,255,0.08)] sm:gap-6">
         {['scheduled', 'attended', 'cancelled'].map((tab) => (
           <button
             key={tab}
             onClick={() => switchTab(tab)}
-            className={`pb-3 text-sm font-medium transition-colors relative capitalize cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap pb-3 text-sm font-medium transition-colors relative capitalize cursor-pointer ${
               activeTab === tab 
                 ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white' 
                 : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
@@ -887,7 +887,7 @@ export default function SessionsPage() {
           
           {/* Mark Attended Modal — captures required resource links */}
           {modalType === 'attend' && (
-            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">Mark Session Attended</h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
@@ -963,7 +963,7 @@ export default function SessionsPage() {
 
           {/* Tutor: Add / Update Notes Link */}
           {modalType === 'notes' && (
-            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">{activeSession?.notes_link ? 'Update Notes Link' : 'Add Notes Link'}</h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
@@ -1006,7 +1006,7 @@ export default function SessionsPage() {
 
           {/* 2. Reschedule Modal */}
           {modalType === 'reschedule' && (
-            <div className="w-full max-w-sm bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-sm bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">Reschedule Session</h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
@@ -1061,7 +1061,7 @@ export default function SessionsPage() {
 
           {/* 3. Resource Links Modal */}
           {modalType === 'links' && (
-            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">Edit Resource Links</h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
@@ -1120,7 +1120,7 @@ export default function SessionsPage() {
 
           {/* 4. Cancel Session Modal */}
           {modalType === 'cancel' && (
-            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">Cancel Session</h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
