@@ -530,7 +530,7 @@ class ScorecardTests(ExamTestBase):
     def test_validate_score_and_entry(self):
         self.assertEqual(validate_score('7', 10), (7, 10))
         self.assertIsNone(score_entry('exam', 'x', 1, 0, timezone.now()))
-        self.assertEqual(score_entry('exam', 'x', 1, 3, timezone.now())['pct'], 33)
+        self.assertAlmostEqual(score_entry('exam', 'x', 1, 3, timezone.now())['pct'], 100 / 3)
 
     def test_build_scorecard_month(self):
         now = timezone.now()
@@ -554,6 +554,25 @@ class ScorecardTests(ExamTestBase):
         self.assertEqual(allc['overall'], 80)
         self.assertIsNone(allc['delta'])
         self.assertIsNone(build_scorecard([], 'month', now=now)['overall'])
+
+    def test_averages_round_once(self):
+        # 1/8 = 12.5 and 3/8 = 37.5 average to exactly 25. Rounding each item
+        # first (13 + 38) would give 25.5 -> 26.
+        now = timezone.now()
+        entries = [
+            score_entry('exam', 'A', 1, 8, now - timedelta(days=1)),
+            score_entry('exam', 'B', 3, 8, now - timedelta(days=1)),
+            score_entry('exam', 'P', 7, 40, now - timedelta(days=9)),  # previous week: 17.5
+        ]
+        card = build_scorecard(entries, 'week', now=now, zone='Asia/Kolkata')
+        self.assertEqual(card['overall'], 25)
+        self.assertEqual(card['categories'][1]['avg'], 25)
+        self.assertEqual([b['exam'] for b in card['buckets'] if b['exam'] is not None], [25])
+        # Delta from the unrounded means: 25.0 - 17.5 = 7.5 -> 8 (26 - 17.5 would give 9).
+        self.assertEqual(card['delta'], 8)
+        # Per-item display values are still rounded half-up, and still integers.
+        self.assertEqual([e['pct'] for e in card['recent']], [13, 38])
+        self.assertTrue(all(isinstance(e['pct'], int) for e in card['recent']))
 
     def test_month_window_is_exactly_30_days(self):
         tz = ZoneInfo('Asia/Kolkata')

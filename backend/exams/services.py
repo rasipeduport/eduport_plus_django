@@ -368,7 +368,11 @@ def _round_or_none(value):
 
 
 def score_entry(category, label, score, max_score, scored_at):
-    """Normalise one score row (Learn ``toEntry``); None when unusable."""
+    """
+    Normalise one score row (Learn ``toEntry``); None when unusable. ``pct``
+    keeps its full precision -- every average is taken over raw percentages
+    and rounded once, at the value that is actually returned.
+    """
     if score is None or max_score is None or max_score <= 0 or not scored_at:
         return None
     return {
@@ -376,7 +380,7 @@ def score_entry(category, label, score, max_score, scored_at):
         'label': label,
         'score': score,
         'max_score': max_score,
-        'pct': _js_round(score / max_score * 100),
+        'pct': score / max_score * 100,
         'scored_at': scored_at,
     }
 
@@ -471,14 +475,15 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
         window_start = _day_start(now, tz) - timedelta(days=6 if range_key == 'week' else 29)
 
     in_window = [e for e in entries if window_start is None or e['scored_at'] >= window_start]
-    overall = _round_or_none(_mean([e['pct'] for e in in_window]))
+    current_avg = _mean([e['pct'] for e in in_window])
+    overall = _round_or_none(current_avg)
 
     delta = None
     if range_key != 'all' and in_window and window_start is not None:
         window_len = now - window_start
         prev_avg = _avg_in_range(entries, window_start - window_len, window_start)
-        if prev_avg is not None and overall is not None:
-            delta = _js_round(overall - prev_avg)
+        if prev_avg is not None and current_avg is not None:
+            delta = _js_round(current_avg - prev_avg)
 
     categories = []
     for category in ('homework', 'exam'):
@@ -514,7 +519,7 @@ def build_scorecard(entries, range_key, now=None, zone=DEFAULT_TIMEZONE):
                 'label': e['label'],
                 'score': e['score'],
                 'max_score': e['max_score'],
-                'pct': e['pct'],
+                'pct': _js_round(e['pct']),
                 'scored_at': e['scored_at'].isoformat(),
             }
             for e in recent
