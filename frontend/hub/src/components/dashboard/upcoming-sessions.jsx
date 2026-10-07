@@ -1,23 +1,16 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, CalendarOff, Clock, Video } from 'lucide-react';
-import { format, isToday } from 'date-fns';
+import { format } from 'date-fns';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { isHttpsUrl } from '@/lib/exam-status';
+import { remainingToday } from '@/lib/session-day';
 import { sessionHours } from '@/lib/session-status';
 import { getInitials } from '@/lib/utils';
-import { Panel, PanelEmpty } from './dashboard-primitives';
+import { Panel, PanelEmpty, ScrollList } from './dashboard-primitives';
 
-const MAX_ROWS = 5;
-
-/** The next scheduled classes (not yet ended), soonest first. */
-export function upcomingSessions(sessions) {
-  const now = Date.now();
-  return sessions
-    .filter((s) => (s.status || '').toLowerCase() === 'scheduled' && new Date(s.end_time).getTime() >= now)
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-}
+const MAX_VISIBLE = 5;
 
 function SessionRow({ session, grade }) {
   const student = session.students || {};
@@ -80,26 +73,23 @@ function SessionRow({ session, grade }) {
 }
 
 /**
- * The next few scheduled classes across the caller's students. Grades come
- * from the students list (the session payload carries only the student's
- * name, avatar and meet room).
+ * Today's classes that are still to come, across the caller's students --
+ * only today's: tomorrow's never fill the list, however short it is. Grades
+ * come from the students list (the session payload carries only the
+ * student's name, avatar and meet room).
  */
 export function UpcomingSessions({ sessions, students }) {
-  const rows = upcomingSessions(sessions).slice(0, MAX_ROWS);
+  const now = new Date();
+  const rows = remainingToday(sessions, now);
   const gradeOf = new Map(students.map((s) => [s.id, s.grade]));
   const gradeByCode = new Map(students.map((s) => [s.student_code, s.grade]));
 
-  const first = rows[0] ? new Date(rows[0].start_time) : null;
-  const subtitle = first
-    ? `${isToday(first) ? 'Today' : 'Next up'} · ${format(first, 'EEEE, d MMM yyyy')}`
-    : 'Nothing scheduled ahead';
-
   return (
-    <Panel icon={CalendarDays} title="Upcoming Sessions" subtitle={subtitle} actionTo="/sessions">
+    <Panel icon={CalendarDays} title="Upcoming Sessions" subtitle={`Today · ${format(now, 'EEEE, d MMM yyyy')}`} actionTo="/sessions">
       {rows.length === 0 ? (
-        <PanelEmpty icon={CalendarOff} message="No upcoming sessions." hint="Classes you book will show up here, soonest first." />
+        <PanelEmpty icon={CalendarOff} message="No upcoming sessions" hint="Nothing else is scheduled for today." />
       ) : (
-        <ul className="divide-y">
+        <ScrollList maxRows={MAX_VISIBLE} total={rows.length} className="divide-y">
           {rows.map((session) => (
             <SessionRow
               key={session.id}
@@ -107,7 +97,7 @@ export function UpcomingSessions({ sessions, students }) {
               grade={gradeOf.get(session.student_id) ?? gradeByCode.get(session.students?.student_code) ?? null}
             />
           ))}
-        </ul>
+        </ScrollList>
       )}
     </Panel>
   );

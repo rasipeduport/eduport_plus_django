@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { AlertCircle, CalendarCheck, ChevronRight, TrendingUp, UserCheck, Users } from 'lucide-react';
 
+import { remainingToday, sessionsToday } from '@/lib/session-day';
 import { cn } from '@/lib/utils';
 import { ToneIcon } from './dashboard-primitives';
 
@@ -52,14 +53,10 @@ export function KpiCards({ stats, students, sessions, attentionTotal }) {
   const thisWeek = (stats?.signup_data ?? []).reduce((sum, d) => sum + (d.signups || 0), 0);
   const activePct = total > 0 ? Math.round((active / total) * 100) : 0;
 
-  const now = Date.now();
-  const scheduled = sessions.filter((s) => (s.status || '').toLowerCase() === 'scheduled');
-  const upcoming = scheduled.filter((s) => new Date(s.end_time).getTime() >= now);
-  const today = new Date();
-  const classesToday = scheduled.filter((s) => {
-    const d = new Date(s.start_time);
-    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
-  }).length;
+  // Same local-day rule as the Upcoming Sessions panel, so the two agree.
+  const now = new Date();
+  const classesToday = sessionsToday(sessions, now).length;
+  const remaining = remainingToday(sessions, now).length;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -85,7 +82,7 @@ export function KpiCards({ stats, students, sessions, attentionTotal }) {
         tone="warning"
         label="Classes Today"
         value={classesToday}
-        hint={`${upcoming.length} upcoming`}
+        hint={classesToday === 0 ? 'None scheduled' : remaining === 0 ? 'All done for today' : `${remaining} still to come`}
         to="/sessions"
       />
       <Tile
