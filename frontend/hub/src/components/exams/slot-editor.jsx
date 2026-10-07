@@ -17,7 +17,8 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart
 export const DURATIONS = [0.5, 1, 1.5, 2];
 
 const HOUR_OPTIONS = HOURS.map((h) => ({ value: String(h), label: String(h) }));
-const MINUTE_OPTIONS = MINUTES.map((m) => ({ value: m, label: m }));
+/** The 5-minute grid every scheduling form offers. */
+export const MINUTE_OPTIONS = MINUTES.map((m) => ({ value: m, label: m }));
 
 export const emptySlot = () => ({ date: undefined, hour: '', minute: '', meridiem: '', duration: 1 });
 
@@ -56,7 +57,9 @@ export function slotFromExam(exam, zone) {
   };
 }
 
-export function SlotEditor({ slot, onChange, disabled = false }) {
+// `minuteOptions` defaults to the 5-minute grid; a caller editing an existing
+// slot may pass a list that also carries that slot's exact minute.
+export function SlotEditor({ slot, onChange, disabled = false, minuteOptions = MINUTE_OPTIONS }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const set = (key, value) => onChange({ ...slot, [key]: value });
 
@@ -92,7 +95,7 @@ export function SlotEditor({ slot, onChange, disabled = false }) {
           <div className="flex items-center gap-1.5">
             <TimeSelect ariaLabel="Hour" value={slot.hour} onValueChange={(v) => set('hour', v)} options={HOUR_OPTIONS} placeholder="HH" className="w-20" disabled={disabled} />
             <span className="text-muted-foreground">:</span>
-            <TimeSelect ariaLabel="Minute" value={slot.minute} onValueChange={(v) => set('minute', v)} options={MINUTE_OPTIONS} placeholder="MM" className="w-20" disabled={disabled} />
+            <TimeSelect ariaLabel="Minute" value={slot.minute} onValueChange={(v) => set('minute', v)} options={minuteOptions} placeholder="MM" className="w-20" disabled={disabled} />
             <ButtonGroup className="ml-1">
               <Button type="button" size="sm" variant={slot.meridiem === 'AM' ? 'default' : 'outline'} onClick={() => set('meridiem', 'AM')} disabled={disabled}>
                 AM

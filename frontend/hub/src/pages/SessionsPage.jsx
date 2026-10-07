@@ -9,6 +9,7 @@ import { describeApiError } from '../lib/api-errors';
 import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
+import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
 import { SchedulingError } from '../components/sessions/scheduling-error';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
@@ -179,10 +180,6 @@ export default function SessionsPage() {
   // Homework review drawer, opened from the HW Status badge on attended rows.
   const [gradeHomeworkId, setGradeHomeworkId] = useState(null);
 
-  // Form states for rescheduling
-  const [rescheduleTime, setRescheduleTime] = useState('');
-  const [rescheduleDuration, setRescheduleDuration] = useState(1.0);
-
   // Content dialog state per field: { mode: 'url' | 'file', url, file, existing }
   // (see components/sessions/content-input.jsx). Set when a dialog opens.
   const [content, setContent] = useState({ recording: null, notes: null, homework: null });
@@ -285,16 +282,6 @@ export default function SessionsPage() {
         notes: contentStateFor(session, 'notes'),
         homework: contentStateFor(session, 'homework'),
       });
-    } else if (type === 'reschedule' && session) {
-      // Local time formatting for datetime-local input
-      const localTime = new Date(session.start_time);
-      const tzOffset = localTime.getTimezoneOffset() * 60000; // offset in milliseconds
-      const localISOTime = new Date(localTime.getTime() - tzOffset).toISOString().slice(0, 16);
-      
-      setRescheduleTime(localISOTime);
-      
-      const durationHours = (new Date(session.end_time) - new Date(session.start_time)) / 3600000;
-      setRescheduleDuration(durationHours);
     } else if (type === 'cancel' && session) {
       setCancelReason('');
       setNeedMakeup(false);
@@ -307,27 +294,6 @@ export default function SessionsPage() {
     setModalType(null);
     setActiveSession(null);
     setModalError('');
-  };
-
-  const handleReschedule = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setModalError('');
-
-    const startUtc = new Date(rescheduleTime).toISOString();
-    try {
-      await api.put('/api/sessions/', {
-        id: activeSession.id,
-        start_time: startUtc,
-        duration_hours: Number(rescheduleDuration)
-      });
-      fetchSessions();
-      closeModal();
-    } catch (err) {
-      setModalError(describeApiError(err, 'Failed to reschedule session.'));
-    } finally {
-      setSaving(false);
-    }
   };
 
   const errorMessage = (err, fallback) =>
@@ -885,8 +851,9 @@ export default function SessionsPage() {
           )}
       </div>
 
-      {/* Modals & Sheets Overlay */}
-      {modalType && (
+      {/* Modals & Sheets Overlay. Reschedule is a design-system dialog below,
+          so it is left out of this legacy overlay. */}
+      {modalType && modalType !== 'reschedule' && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-4">
           
           {/* Mark Attended Modal — captures required resource links */}
@@ -1002,61 +969,6 @@ export default function SessionsPage() {
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
                     Save Notes
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* 2. Reschedule Modal */}
-          {modalType === 'reschedule' && (
-            <div className="w-full max-w-sm bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
-              <h3 className="text-base font-semibold text-white m-0">Reschedule Session</h3>
-              <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
-
-              <form onSubmit={handleReschedule} className="space-y-4">
-                <SchedulingError error={modalError} legacy />
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">New Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={rescheduleTime}
-                    onChange={(e) => setRescheduleTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Duration</label>
-                  <select
-                    value={rescheduleDuration}
-                    onChange={(e) => setRescheduleDuration(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-                  >
-                    {ALLOWED_DURATIONS.map(d => (
-                      <option key={d.value} value={d.value}>{d.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white border border-white/10 rounded-lg hover:bg-white/10 transition-all"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    Reschedule
                   </button>
                 </div>
               </form>
@@ -1225,6 +1137,16 @@ export default function SessionsPage() {
         onOpenChange={(v) => !v && setGradeHomeworkId(null)}
         onSaved={() => fetchSessions()}
         canScore={userRole === 'ADMIN' || userRole === 'TUTOR'}
+      />
+
+      {/* Reschedule: the student's stored zone governs the time entered; the
+          dialog never writes the student, so only sessions need refetching. */}
+      <RescheduleSessionDialog
+        session={activeSession}
+        studentTimezone={students.find((s) => s.id === activeSession?.student_id)?.timezone}
+        open={modalType === 'reschedule'}
+        onOpenChange={(v) => !v && closeModal()}
+        onSaved={() => fetchSessions()}
       />
 
       {/* New Session drawer (Hub parity). Refetch students too: saving may
