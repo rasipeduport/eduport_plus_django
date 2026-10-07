@@ -1,15 +1,19 @@
 import os
 import shutil
 import tempfile
+import threading
+import time
 import uuid
 from datetime import timedelta
+from unittest import mock, skipUnless
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
+from django.db import connection
+from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from students.models import Student, StatusChoices
 from invitations.models import Invitation, InvitationStatusChoices, InvitationRoleChoices
@@ -1716,3 +1720,327 @@ class SessionContentUploadTests(APITestCase):
         self.assertEqual(res.data['session']['recording_link'], 'https://example.com/rec')
         self.assertEqual(res.data['session']['content_files'], {'notes': None, 'recording': None, 'homework': None})
         self.assertFalse(SessionFile.objects.exists())
+
+
+class TutorAvailabilityTests(APITestCase):
+    """
+    Tutor-level availability. A slot is blocked by any SCHEDULED session of
+    the same tutor (whoever the student is) or of the same student, over the
+    half-open window [start, end): touching sessions are fine, a one-minute
+    overlap is not. Status, not the clock, decides whether a row blocks: an
+    ATTENDED or CANCELLED row never does, and a SCHEDULED row only blocks
+    its own window. Tutor swaps are checked against the *new* tutor, classes
+    in one series request are checked against each other, and a make-up
+    class may take the slot of the class it replaces.
+    """
+
+    def setUp(self):
+        self.mentor = User.objects.create_user(email='ta_mentor@eduport.com', password='x', full_name='Ta Mentor', role='MENTOR', is_staff=True)
+        self.tutor_a = User.objects.create_user(email='ta_anu@eduport.com', password='x', full_name='Anu', role='TUTOR', is_staff=True)
+        self.tutor_b = User.objects.create_user(email='ta_binu@eduport.com', password='x', full_name='Binu', role='TUTOR', is_staff=True)
+        self.student1 = self.make_student('EDPTA1', 'Rahul', self.tutor_a)
+        self.student2 = self.make_student('EDPTA2', 'Sara', self.tutor_a)
+        self.student3 = self.make_student('EDPTA3', 'Tom', self.tutor_b)
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+        self.cancel_url = reverse('sessions:cancel-series')
+        self.client.force_authenticate(user=self.mentor)
+        # "2:00 PM" in the examples -- absolute instants, a few days out.
+        self.two = (timezone.now() + timedelta(days=4)).replace(hour=14, minute=0, second=0, microsecond=0)
+        self.three = self.two + timedelta(hours=1)
+
+    def make_student(self, code, name, tutor):
+        return Student.objects.create(
+            profile=User.objects.create_user(email=f'{code.lower()}@eduport.com', password='x', full_name=name, role='STUDENT'),
+            student_code=code, full_name=name, mentor=self.mentor, tutor=tutor,
+            total_class_quota=30, status=StatusChoices.ACTIVE,
+        )
+
+    def existing(self, student, start, end, status_value=SessionStatusChoices.SCHEDULED, title='Existing', tutor=None):
+        return Session.objects.create(
+            student=student, tutor=tutor or student.tutor, title=title,
+            start_time=start, end_time=end, status=status_value,
+        )
+
+    def book(self, student, start, hours=1, title='New Class'):
+        payload = {
+            "student_id": str(student.id), "base_title": title, "series": False,
+            "items": [{"start_time": start.isoformat(), "duration_hours": hours}],
+        }
+        return self.client.post(self.sessions_url, payload, format='json')
+
+    def book_series(self, student, starts, hours=1, title='Series'):
+        payload = {
+            "student_id": str(student.id), "base_title": title, "series": True,
+            "items": [{"start_time": s.isoformat(), "duration_hours": hours} for s in starts],
+        }
+        return self.client.post(self.sessions_url, payload, format='json')
+
+    def put(self, payload):
+        return self.client.put(self.sessions_url, payload, format='json')
+
+    # ---------------------------------------------------------- tutor conflicts
+
+    def test_same_tutor_other_student_overlap_is_blocked(self):
+        self.existing(self.student1, self.two, self.three, title='Algebra')
+        res = self.book(self.student2, self.two + timedelta(minutes=30))
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'TUTOR_SESSION_CONFLICT')
+        self.assertEqual(res.data['conflict']['type'], 'tutor')
+        self.assertEqual(res.data['conflict']['student_name'], 'Rahul')
+        self.assertEqual(res.data['conflict']['tutor_name'], 'Anu')
+        self.assertEqual(res.data['conflict']['start_time'], self.two.isoformat())
+        self.assertEqual(res.data['conflict']['end_time'], self.three.isoformat())
+        self.assertIn('conflicts with "Algebra"', res.data['error'])
+        self.assertIn('tutor Anu is already scheduled with Rahul', res.data['error'])
+        self.assertIn('Choose a different time or tutor', res.data['error'])
+        self.assertEqual(Session.objects.filter(student=self.student2).count(), 0)
+
+    def test_same_tutor_other_student_exact_boundary_is_allowed(self):
+        self.existing(self.student1, self.two, self.three)
+        res = self.book(self.student2, self.three)  # 3:00 -> 4:00 after 2:00 -> 3:00
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        res = self.book(self.student2, self.two - timedelta(hours=1))  # 1:00 -> 2:00 before it
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_same_tutor_other_student_one_minute_overlap_is_blocked(self):
+        self.existing(self.student1, self.two, self.three)
+        res = self.book(self.student2, self.three - timedelta(minutes=1))  # 2:59 -> 3:59
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'TUTOR_SESSION_CONFLICT')
+
+    def test_conflict_message_shows_the_window_in_the_scheduling_zone(self):
+        self.existing(self.student1, self.two, self.three)
+        res = self.book(self.student2, self.two)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        # Students default to IST: 14:00 UTC reads 7:30 PM there.
+        self.assertIn('from 7:30 PM to 8:30 PM IST on', res.data['error'])
+        self.assertEqual(res.data['conflict']['timezone'], 'Asia/Kolkata')
+
+    # -------------------------------------------------------- student conflicts
+
+    def test_same_student_overlap_is_blocked(self):
+        self.existing(self.student1, self.two, self.three, title='Algebra')
+        res = self.book(self.student1, self.two + timedelta(minutes=30))
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'STUDENT_SESSION_CONFLICT')
+        self.assertEqual(res.data['conflict']['type'], 'student')
+        self.assertIn('this student already has a session scheduled', res.data['error'])
+
+    def test_same_student_exact_boundary_is_allowed(self):
+        self.existing(self.student1, self.two, self.three)
+        res = self.book(self.student1, self.three)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    # ------------------------------------------------------ status / time rules
+
+    def test_scheduled_overlap_blocks_tutor(self):
+        self.existing(self.student1, self.two, self.three, SessionStatusChoices.SCHEDULED)
+        self.assertEqual(self.book(self.student2, self.two).status_code, status.HTTP_409_CONFLICT)
+
+    def test_attended_overlap_does_not_block_tutor(self):
+        self.existing(self.student1, self.two, self.three, SessionStatusChoices.ATTENDED)
+        self.assertEqual(self.book(self.student2, self.two).status_code, status.HTTP_200_OK)
+
+    def test_cancelled_overlap_does_not_block_tutor(self):
+        self.existing(self.student1, self.two, self.three, SessionStatusChoices.CANCELLED)
+        self.assertEqual(self.book(self.student2, self.two).status_code, status.HTTP_200_OK)
+
+    def test_unattended_scheduled_session_stops_blocking_after_its_end(self):
+        # Ended an hour ago, never marked attended: still SCHEDULED in the DB.
+        now = timezone.now().replace(second=0, microsecond=0)
+        self.existing(self.student1, now - timedelta(hours=2), now - timedelta(hours=1))
+        res = self.book(self.student2, now - timedelta(hours=1))   # starts exactly at its end
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        res = self.book(self.student2, now)                        # any time after
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_marking_attended_early_frees_the_tutor_immediately(self):
+        first = self.existing(self.student1, self.two, self.three)
+        # Still blocks while scheduled...
+        self.assertEqual(self.book(self.student2, self.two + timedelta(minutes=45)).status_code, status.HTTP_409_CONFLICT)
+        # ...mark attended "at 2:40": the 2:45 booking for the same tutor goes through.
+        res = self.put({"id": str(first.id), "status": "attended"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        res = self.book(self.student2, self.two + timedelta(minutes=45))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    # ------------------------------------------------------- tutor reassignment
+
+    def test_change_to_available_tutor_is_allowed(self):
+        mine = self.existing(self.student1, self.two, self.three)
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        mine.refresh_from_db()
+        self.assertEqual(mine.tutor, self.tutor_b)
+
+    def test_change_to_tutor_with_overlapping_session_is_blocked(self):
+        self.existing(self.student3, self.two, self.three, title='Tom Class')   # Binu busy 2-3
+        mine = self.existing(self.student1, self.two, self.three)              # Anu, 2-3
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'TUTOR_SESSION_CONFLICT')
+        self.assertIn('tutor Binu is already scheduled with Tom', res.data['error'])
+        mine.refresh_from_db()
+        self.assertEqual(mine.tutor, self.tutor_a)
+
+    def test_change_to_tutor_busy_only_at_the_boundary_is_allowed(self):
+        self.existing(self.student3, self.three, self.three + timedelta(hours=1))  # Binu busy 3-4
+        mine = self.existing(self.student1, self.two, self.three)                  # 2-3
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_resending_the_same_tutor_is_not_a_conflict_with_itself(self):
+        mine = self.existing(self.student1, self.two, self.three)
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_a.id), "title": "Renamed"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_reschedule_and_tutor_change_together_check_the_new_tutor_at_the_new_time(self):
+        self.existing(self.student3, self.two, self.three)        # Binu busy 2-3
+        mine = self.existing(self.student1, self.two + timedelta(hours=3), self.three + timedelta(hours=3))
+        res = self.put({
+            "id": str(mine.id), "tutor": str(self.tutor_b.id),
+            "start_time": (self.two + timedelta(minutes=30)).isoformat(), "duration_hours": 1,
+        })
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'TUTOR_SESSION_CONFLICT')
+
+    def test_tutor_change_on_attended_session_is_rejected(self):
+        # History keeps its attribution snapshot, as the student-level
+        # reassignment flows already do; the per-session field follows suit.
+        mine = self.existing(self.student1, self.two, self.three, SessionStatusChoices.ATTENDED)
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.assertEqual(res.data['error'], 'Tutor can only be changed for scheduled sessions.')
+        mine.refresh_from_db()
+        self.assertEqual(mine.tutor, self.tutor_a)
+        self.assertFalse(ActivityLog.objects.filter(entity_id=str(mine.id)).exists())
+
+    def test_tutor_change_on_cancelled_session_is_rejected(self):
+        mine = self.existing(self.student1, self.two, self.three, SessionStatusChoices.CANCELLED)
+        res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.assertEqual(res.data['error'], 'Tutor can only be changed for scheduled sessions.')
+        mine.refresh_from_db()
+        self.assertEqual(mine.tutor, self.tutor_a)
+
+    def test_tutor_change_with_unknown_id_is_rejected(self):
+        mine = self.existing(self.student1, self.two, self.three)
+        self.assertEqual(self.put({"id": str(mine.id), "tutor": str(uuid.uuid4())}).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.put({"id": str(mine.id), "tutor": "not-a-uuid"}).status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ------------------------------------------------------------------ series
+
+    def test_overlapping_classes_inside_one_series_request_are_rejected(self):
+        res = self.book_series(self.student1, [self.two, self.two + timedelta(minutes=30)])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.assertEqual(res.data['code'], 'SERIES_ITEMS_OVERLAP')
+        self.assertIn('Class 2 overlaps Class 1', res.data['error'])
+        self.assertEqual(Session.objects.count(), 0)
+
+    def test_overlapping_classes_are_caught_whatever_their_order(self):
+        res = self.book_series(self.student1, [self.three, self.two + timedelta(minutes=30), self.two - timedelta(hours=5)])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.assertIn('Class 2 overlaps Class 1', res.data['error'])
+        self.assertEqual(Session.objects.count(), 0)
+
+    def test_back_to_back_classes_inside_one_series_request_are_allowed(self):
+        res = self.book_series(self.student1, [self.two, self.three])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(Session.objects.filter(student=self.student1).count(), 2)
+
+    def test_series_class_against_other_student_of_same_tutor_is_blocked(self):
+        self.existing(self.student1, self.three, self.three + timedelta(hours=1), title='Rahul Class')
+        res = self.book_series(self.student2, [self.two, self.three])
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertIn('Class 2 conflicts with "Rahul Class"', res.data['error'])
+        self.assertEqual(Session.objects.filter(student=self.student2).count(), 0)
+
+    # ------------------------------------------------------------- make-up class
+
+    def test_make_up_class_may_take_the_slot_of_the_class_it_replaces(self):
+        res = self.book_series(self.student1, [self.two, self.two + timedelta(days=1), self.two + timedelta(days=2)])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        first = Session.objects.get(student=self.student1, class_number=1)
+        res = self.client.post(self.cancel_url, {
+            "session_id": str(first.id), "cancellation_reason": "Tutor ill",
+            "new_last_start_time": first.start_time.isoformat(), "new_last_duration_hours": 1,
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data['renumberedCount'], 2)
+        first.refresh_from_db()
+        self.assertEqual(first.status, SessionStatusChoices.CANCELLED)
+        makeup = Session.objects.get(id=res.data['newSession']['id'])
+        self.assertEqual(makeup.start_time, first.start_time)
+        self.assertEqual(makeup.class_number, 3)
+
+    def test_make_up_class_is_still_blocked_by_another_scheduled_class(self):
+        self.book_series(self.student1, [self.two, self.two + timedelta(days=1)])
+        self.existing(self.student2, self.two + timedelta(days=5), self.three + timedelta(days=5), title='Sara Class')
+        first = Session.objects.get(student=self.student1, class_number=1)
+        res = self.client.post(self.cancel_url, {
+            "session_id": str(first.id), "cancellation_reason": "Tutor ill",
+            "new_last_start_time": (self.two + timedelta(days=5)).isoformat(), "new_last_duration_hours": 1,
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'TUTOR_SESSION_CONFLICT')
+        first.refresh_from_db()
+        self.assertEqual(first.status, SessionStatusChoices.SCHEDULED)
+
+
+@skipUnless(connection.vendor == 'postgresql', 'advisory locks are PostgreSQL-only')
+class ConcurrentBookingTests(TransactionTestCase):
+    """
+    Two bookings for the same tutor racing each other must end as one 200
+    and one 409, never two overlapping rows. ``find_conflict`` is slowed
+    down so that, without the advisory lock in the views, both requests
+    would pass the check before either inserts.
+    """
+
+    def setUp(self):
+        self.mentor = User.objects.create_user(email='cb_mentor@eduport.com', password='x', full_name='Cb Mentor', role='MENTOR', is_staff=True)
+        self.tutor = User.objects.create_user(email='cb_tutor@eduport.com', password='x', full_name='Cb Tutor', role='TUTOR', is_staff=True)
+        self.students = []
+        for i in (1, 2):
+            self.students.append(Student.objects.create(
+                profile=User.objects.create_user(email=f'cb_s{i}@eduport.com', password='x', full_name=f'Cb Stu {i}', role='STUDENT'),
+                student_code=f'EDPCB{i}', full_name=f'Cb Stu {i}', mentor=self.mentor, tutor=self.tutor,
+                total_class_quota=10, status=StatusChoices.ACTIVE,
+            ))
+        self.sessions_url = reverse('sessions:sessions-list-create-update')
+        self.start = (timezone.now() + timedelta(days=5)).replace(hour=14, minute=0, second=0, microsecond=0)
+
+    def test_concurrent_bookings_for_one_tutor_cannot_both_succeed(self):
+        from sessions import views as session_views
+        real_find_conflict = session_views.find_conflict
+
+        def slow_find_conflict(*args, **kwargs):
+            found = real_find_conflict(*args, **kwargs)
+            time.sleep(0.5)
+            return found
+
+        barrier = threading.Barrier(2)
+        results = {}
+
+        def book(student):
+            try:
+                client = APIClient()
+                client.force_authenticate(user=self.mentor)
+                payload = {
+                    "student_id": str(student.id), "base_title": f"Race {student.student_code}", "series": False,
+                    "items": [{"start_time": self.start.isoformat(), "duration_hours": 1}],
+                }
+                barrier.wait(timeout=10)
+                res = client.post(self.sessions_url, payload, format='json')
+                results[student.student_code] = res.status_code
+            finally:
+                connection.close()
+
+        with mock.patch.object(session_views, 'find_conflict', slow_find_conflict):
+            threads = [threading.Thread(target=book, args=(s,)) for s in self.students]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=30)
+
+        self.assertEqual(sorted(results.values()), [200, 409], results)
+        self.assertEqual(Session.objects.filter(tutor=self.tutor, status=SessionStatusChoices.SCHEDULED).count(), 1)

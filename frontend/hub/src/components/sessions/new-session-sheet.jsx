@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import api from '@/lib/api';
+import { describeApiError } from '@/lib/api-errors';
 import { cn, normalizeTitle } from '@/lib/utils';
 import {
   DEFAULT_TIMEZONE,
@@ -21,6 +22,7 @@ import {
   zonedWallTimeToUtc,
 } from '@/lib/timezone';
 
+import { SchedulingError } from './scheduling-error';
 import { TimeSelect } from './time-select';
 import { TimezoneSelect } from './timezone-select';
 
@@ -445,11 +447,9 @@ export function NewSessionSheet({ student, creditsUsed = 0, open, onOpenChange, 
           items,
         });
       } catch (err) {
-        setError(
-          err.response
-            ? err.response.data?.error || err.response.data?.message || 'Failed to create session(s).'
-            : 'Network error. Please try again.'
-        );
+        // A 409 names the session that blocks the slot (tutor or student);
+        // the API's text and the conflict details are shown as they came.
+        setError(err.response ? describeApiError(err, 'Failed to create session(s).') : 'Network error. Please try again.');
         return;
       }
 
@@ -591,7 +591,7 @@ export function NewSessionSheet({ student, creditsUsed = 0, open, onOpenChange, 
             </div>
           )}
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          <SchedulingError error={error} />
         </form>
 
         <div className="mt-auto px-4 pb-3">

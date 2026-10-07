@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from datetime import timedelta
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
@@ -33,6 +34,10 @@ from .services import (
     resolve_start_time,
     calculate_credits_used,
     find_conflict,
+    find_internal_overlap,
+    lock_scheduling,
+    conflict_response_data,
+    SERIES_ITEMS_OVERLAP,
     apply_content_filter,
     validate_content_upload,
 )
@@ -242,28 +247,48 @@ class SessionsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 3. Conflict Checks (overlap: same student OR same tutor)
-        for i, v in enumerate(validated_items):
-            label = f"Class {i + 1}" if is_series else "This session"
-            conflict = find_conflict(student, student.tutor, v["start_time"], v["end_time"])
-            if conflict:
-                return Response(
-                    {"error": f"{label} conflicts with \"{conflict.title}\". Choose a different time."},
-                    status=status.HTTP_409_CONFLICT
-                )
-            # A class may not overlap one of the student's scheduled exams either.
-            exam_conflict = find_exam_conflict_for_session(student, v["start_time"], v["end_time"])
-            if exam_conflict:
-                return Response(
-                    {"error": f"{label} conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
-                    status=status.HTTP_409_CONFLICT
-                )
+        # 3a. Classes within one request must not overlap each other either:
+        # the database check below only sees rows that already exist, so a
+        # series with two classes in the same slot would otherwise be saved.
+        overlap = find_internal_overlap([(v["start_time"], v["end_time"]) for v in validated_items])
+        if overlap:
+            first, second = overlap
+            return Response(
+                {
+                    "error": (
+                        f"Class {second + 1} overlaps Class {first + 1}. Classes in a series must not "
+                        f"overlap each other (back-to-back classes are fine)."
+                    ),
+                    "code": SERIES_ITEMS_OVERLAP,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # 4. Save sessions
+        # 3b + 4. Conflict checks and the inserts share one transaction and
+        # one advisory lock per student/tutor: a concurrent booking for the
+        # same tutor waits for this one to commit and then sees its rows.
+        message_zone = timezone_name or student.timezone
         series_id = uuid.uuid4() if is_series else None
         created_sessions = []
-        
+
         with transaction.atomic():
+            lock_scheduling(student.id, student.tutor_id)
+            for i, v in enumerate(validated_items):
+                label = f"Class {i + 1}" if is_series else "This session"
+                conflict = find_conflict(student, student.tutor, v["start_time"], v["end_time"])
+                if conflict:
+                    return Response(
+                        conflict_response_data(conflict, student, message_zone, label),
+                        status=status.HTTP_409_CONFLICT
+                    )
+                # A class may not overlap one of the student's scheduled exams either.
+                exam_conflict = find_exam_conflict_for_session(student, v["start_time"], v["end_time"])
+                if exam_conflict:
+                    return Response(
+                        {"error": f"{label} conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
+                        status=status.HTTP_409_CONFLICT
+                    )
+
             for idx, v in enumerate(validated_items):
                 sess = Session.objects.create(
                     student=student,
@@ -451,30 +476,71 @@ class SessionsView(APIView):
                 )
             new_end_time = new_start_time + timedelta(hours=duration)
 
-        # Check Scheduling Conflicts on Rescheduling (same student OR same tutor)
-        if new_start_time and new_end_time:
-            conflict = find_conflict(
-                session.student, session.tutor, new_start_time, new_end_time, exclude_id=session.id
-            )
-            if conflict:
+        # A tutor change is resolved before the conflict check so the check
+        # runs against the tutor the session will actually have, not the one
+        # it had. Only a real change (different id) triggers the check.
+        new_tutor = session.tutor
+        tutor_changed = False
+        if 'tutor' in data:
+            # The tutor on an attended or cancelled session is a historical
+            # attribution snapshot: the student-level reassignment flows
+            # (students.StudentReassignView, accounts.StaffReassignView) hand
+            # over SCHEDULED sessions only and leave history untouched, and
+            # the per-session field follows the same rule. Judged on the
+            # status the session has now, before this request's own
+            # status change (marking attended while correcting the tutor
+            # of a scheduled class stays possible).
+            if session.status != SessionStatusChoices.SCHEDULED:
                 return Response(
-                    {"error": f"Time conflict with \"{conflict.title}\". Choose a different time."},
-                    status=status.HTTP_409_CONFLICT
+                    {"error": "Tutor can only be changed for scheduled sessions."},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-            exam_conflict = find_exam_conflict_for_session(session.student, new_start_time, new_end_time)
-            if exam_conflict:
-                return Response(
-                    {"error": f"Time conflict with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
-                    status=status.HTTP_409_CONFLICT
-                )
+            tutor_val = data.get("tutor")
+            if tutor_val is None:
+                new_tutor = None
+            else:
+                try:
+                    new_tutor = User.objects.get(id=tutor_val)
+                except (User.DoesNotExist, ValueError, ValidationError):
+                    return Response(
+                        {"error": f"Tutor with ID '{tutor_val}' not found"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            tutor_changed = (new_tutor.id if new_tutor else None) != session.tutor_id
+
+        # The window the session will occupy after this update.
+        effective_start = new_start_time or session.start_time
+        effective_end = new_end_time or session.end_time
+        needs_conflict_check = bool(new_start_time) or tutor_changed
 
         # Apply Updates
         allowed_fields = [
             'status', 'title', 'tutor', 'recording_link', 'notes_link',
             'homework_link', 'rating', 'cancellation_reason'
         ]
-        
+
         with transaction.atomic():
+            # Scheduling conflicts (same student OR same tutor) are checked
+            # under the same lock the create path takes, so a reschedule or a
+            # tutor swap cannot race a concurrent booking.
+            if needs_conflict_check:
+                lock_scheduling(session.student_id, new_tutor.id if new_tutor else None)
+                conflict = find_conflict(
+                    session.student, new_tutor, effective_start, effective_end, exclude_id=session.id
+                )
+                if conflict:
+                    return Response(
+                        conflict_response_data(conflict, session.student, None, "This session"),
+                        status=status.HTTP_409_CONFLICT
+                    )
+            if new_start_time and new_end_time:
+                exam_conflict = find_exam_conflict_for_session(session.student, new_start_time, new_end_time)
+                if exam_conflict:
+                    return Response(
+                        {"error": f"Time conflict with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
+                        status=status.HTTP_409_CONFLICT
+                    )
+
             if new_start_time and new_end_time:
                 session.start_time = new_start_time
                 session.end_time = new_end_time
@@ -485,16 +551,7 @@ class SessionsView(APIView):
                     if field == 'status':
                         session.status = new_status
                     elif field == 'tutor':
-                        if val is None:
-                            session.tutor = None
-                        else:
-                            try:
-                                session.tutor = User.objects.get(id=val)
-                            except User.DoesNotExist:
-                                return Response(
-                                    {"error": f"Tutor with ID '{val}' not found"},
-                                    status=status.HTTP_400_BAD_REQUEST
-                                )
+                        session.tutor = new_tutor
                     elif field == 'title' and val:
                         session.title = normalize_title(val)
                     elif field in link_updates:
@@ -937,23 +994,30 @@ class CancelSeriesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Conflict check for the new make-up session (same student OR same tutor)
         new_last_end_time = new_last_start_time + timedelta(hours=new_last_duration)
-        conflict = find_conflict(student, student.tutor, new_last_start_time, new_last_end_time)
-        if conflict:
-            return Response(
-                {"error": f"Make-up class conflicts with \"{conflict.title}\". Choose a different time."},
-                status=status.HTTP_409_CONFLICT
-            )
-        exam_conflict = find_exam_conflict_for_session(student, new_last_start_time, new_last_end_time)
-        if exam_conflict:
-            return Response(
-                {"error": f"Make-up class conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
-                status=status.HTTP_409_CONFLICT
-            )
 
-        # Perform shifting, renumbering, and creation within a database transaction
+        # Conflict check, shifting, renumbering and creation share one
+        # transaction and the scheduling lock (see lock_scheduling).
         with transaction.atomic():
+            lock_scheduling(student.id, student.tutor_id)
+            # The class being cancelled is excluded: the slot it frees is
+            # exactly where a make-up class may legitimately be placed.
+            conflict = find_conflict(
+                student, student.tutor, new_last_start_time, new_last_end_time,
+                exclude_id=target_session.id,
+            )
+            if conflict:
+                return Response(
+                    conflict_response_data(conflict, student, None, "The make-up class"),
+                    status=status.HTTP_409_CONFLICT
+                )
+            exam_conflict = find_exam_conflict_for_session(student, new_last_start_time, new_last_end_time)
+            if exam_conflict:
+                return Response(
+                    {"error": f"Make-up class conflicts with the exam \"{exam_conflict.chapter_name}\". Choose a different time."},
+                    status=status.HTTP_409_CONFLICT
+                )
+
             # 1. Cancel target session
             target_session.status = SessionStatusChoices.CANCELLED
             target_session.cancellation_reason = cancellation_reason

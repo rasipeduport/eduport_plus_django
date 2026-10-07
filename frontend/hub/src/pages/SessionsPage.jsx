@@ -5,8 +5,10 @@ import {
   BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink, ChevronDown, X
 } from 'lucide-react';
 import api from '../lib/api';
+import { describeApiError } from '../lib/api-errors';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
+import { SchedulingError } from '../components/sessions/scheduling-error';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
 import { HOMEWORK_STATUS_VARIANT, homeworkBadgeLabel } from '../lib/homework-status';
@@ -320,7 +322,7 @@ export default function SessionsPage() {
       fetchSessions();
       closeModal();
     } catch (err) {
-      setModalError(err.response?.data?.error || 'Failed to reschedule session.');
+      setModalError(describeApiError(err, 'Failed to reschedule session.'));
     } finally {
       setSaving(false);
     }
@@ -394,7 +396,7 @@ export default function SessionsPage() {
         fetchSessions();
         closeModal();
       } catch (err) {
-        setModalError(err.response?.data?.error || 'Failed to cancel and shift series.');
+        setModalError(describeApiError(err, 'Failed to cancel and shift series.'));
       } finally {
         setSaving(false);
       }
@@ -892,7 +894,7 @@ export default function SessionsPage() {
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleMarkAttended} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+                <SchedulingError error={modalError} legacy />
 
                 <p className="text-[11px] text-zinc-500 m-0">
                   {isAdmin
@@ -968,7 +970,7 @@ export default function SessionsPage() {
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleSaveNotes} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+                <SchedulingError error={modalError} legacy />
 
                 <p className="text-[11px] text-zinc-500 m-0">
                   Paste a link to your notes or upload the file (PDF, image, or video). Once the recording and homework are in as well, the class shows as Attended.
@@ -1011,7 +1013,7 @@ export default function SessionsPage() {
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleReschedule} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+                <SchedulingError error={modalError} legacy />
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">New Date & Time</label>
@@ -1066,7 +1068,7 @@ export default function SessionsPage() {
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleSaveLinks} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+                <SchedulingError error={modalError} legacy />
 
                 <p className="text-[11px] text-zinc-500 m-0">
                   Each item can be a link or an uploaded file (PDF, image, or video).
@@ -1125,7 +1127,7 @@ export default function SessionsPage() {
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleCancelSession} className="space-y-4">
-                {modalError && <p className="text-xs text-red-400 bg-red-950/40 p-2 rounded border border-red-900/50 m-0">{modalError}</p>}
+                <SchedulingError error={modalError} legacy />
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">Reason for Cancellation</label>

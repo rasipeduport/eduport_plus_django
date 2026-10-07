@@ -5,11 +5,14 @@ These keep the (intricate) scheduling rules in one place: title normalisation,
 ISO datetime parsing, quota accounting, and conflict detection.
 """
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from django.conf import settings
+from django.db import connection
 from django.db.models import Q
 from django.utils import timezone
 
-from core.timezones import TimezoneConversionError, zoned_wall_time_to_utc
+from core.timezones import DEFAULT_TIMEZONE, TimezoneConversionError, is_valid_timezone, zoned_wall_time_to_utc
 from .models import Session, SessionStatusChoices
 
 ALLOWED_DURATIONS = [0.5, 1, 1.5, 2]
@@ -150,6 +153,126 @@ def find_conflict(student, tutor, start_time, end_time, exclude_id=None):
     if exclude_id:
         conflicts = conflicts.exclude(id=exclude_id)
     return conflicts.first()
+
+
+def find_internal_overlap(windows):
+    """
+    First pair of windows in one booking request that overlap each other,
+    as ``(earlier_index, later_index)``, or None. ``windows`` is a list of
+    ``(start_time, end_time)`` in request order. Same half-open rule as
+    ``find_conflict``: touching windows (3:00 end, 3:00 start) do not overlap.
+    """
+    ordered = sorted(range(len(windows)), key=lambda i: windows[i][0])
+    for pos in range(1, len(ordered)):
+        prev, cur = ordered[pos - 1], ordered[pos]
+        if windows[cur][0] < windows[prev][1]:
+            return (min(prev, cur), max(prev, cur))
+    return None
+
+
+# Advisory-lock key classes: the (int, int) form of pg_advisory_xact_lock
+# takes a class and a key, so a student's and a tutor's queues never collide.
+_LOCK_CLASS_STUDENT = 1
+_LOCK_CLASS_TUTOR = 2
+
+
+def lock_scheduling(student_id, tutor_id):
+    """
+    Serialise bookings for one student and one tutor for the rest of the
+    current transaction.
+
+    ``find_conflict`` is a check-then-insert, so two requests racing each
+    other can both see an empty slot and both write into it. Taking a
+    transaction-scoped PostgreSQL advisory lock on the student and on the
+    tutor before the check makes the second request wait until the first has
+    committed; its conflict query then sees the new row. Advisory locks need
+    no extension, no schema change and no clean-up of historical rows, which
+    is why they are used instead of an exclusion constraint. Keys are taken
+    in a fixed order so two requests sharing both parties cannot deadlock.
+    Must be called inside ``transaction.atomic()``; a no-op off PostgreSQL.
+    """
+    if connection.vendor != 'postgresql':
+        return
+    keys = [(_LOCK_CLASS_STUDENT, str(student_id))]
+    if tutor_id:
+        keys.append((_LOCK_CLASS_TUTOR, str(tutor_id)))
+    with connection.cursor() as cursor:
+        for lock_class, key in sorted(keys):
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, hashtext(%s))", [lock_class, key])
+
+
+# ------------------------------------------------------------ conflict replies
+
+TUTOR_SESSION_CONFLICT = 'TUTOR_SESSION_CONFLICT'
+SERIES_ITEMS_OVERLAP = 'SERIES_ITEMS_OVERLAP'
+STUDENT_SESSION_CONFLICT = 'STUDENT_SESSION_CONFLICT'
+
+
+def _staff_name(user):
+    if not user:
+        return None
+    return user.full_name or user.email
+
+
+def _format_window(start_time, end_time, zone_name):
+    """"2:00 PM to 3:00 PM IST on Mon 12 Oct 2026" in the zone the mentor schedules in."""
+    tz = ZoneInfo(zone_name)
+    start = start_time.astimezone(tz)
+    end = end_time.astimezone(tz)
+
+    def clock(dt):
+        return f"{(dt.hour % 12) or 12}:{dt.minute:02d} {'AM' if dt.hour < 12 else 'PM'}"
+
+    label = start.strftime('%Z') or zone_name
+    day = f"{start:%a} {start.day} {start:%b} {start.year}"
+    return f"{clock(start)} to {clock(end)} {label} on {day}"
+
+
+def conflict_response_data(conflict, student, zone_name=None, label=None):
+    """
+    Body of the 409 answered when ``conflict`` (a SCHEDULED session returned
+    by ``find_conflict``) blocks a booking for ``student``.
+
+    The sessions API has always answered errors as ``{"error": <text>}``, and
+    the SPAs print that text, so the human-readable message stays in
+    ``error``; ``code`` and ``conflict`` are added beside it for clients that
+    want to tell a tutor clash from a student clash without parsing text.
+    Times are rendered in ``zone_name`` (the zone the mentor is scheduling
+    in, falling back to the student's zone, then IST).
+    """
+    if not zone_name or not is_valid_timezone(zone_name):
+        zone_name = student.timezone if is_valid_timezone(getattr(student, 'timezone', None)) else DEFAULT_TIMEZONE
+    window = _format_window(conflict.start_time, conflict.end_time, zone_name)
+    prefix = f"{label} conflicts" if label else "This conflicts"
+
+    if conflict.student_id == student.id:
+        code = STUDENT_SESSION_CONFLICT
+        message = (
+            f'{prefix} with "{conflict.title}": this student already has a session scheduled '
+            f'from {window}. Choose a different time.'
+        )
+    else:
+        code = TUTOR_SESSION_CONFLICT
+        tutor_name = _staff_name(conflict.tutor) or 'The tutor'
+        message = (
+            f'{prefix} with "{conflict.title}": tutor {tutor_name} is already scheduled with '
+            f'{conflict.student.full_name} from {window}. Choose a different time or tutor.'
+        )
+
+    return {
+        "error": message,
+        "code": code,
+        "conflict": {
+            "type": 'student' if code == STUDENT_SESSION_CONFLICT else 'tutor',
+            "session_id": str(conflict.id),
+            "title": conflict.title,
+            "start_time": conflict.start_time.isoformat(),
+            "end_time": conflict.end_time.isoformat(),
+            "student_name": conflict.student.full_name,
+            "tutor_name": _staff_name(conflict.tutor),
+            "timezone": zone_name,
+        },
+    }
 
 
 # ------------------------------------------------------------ file uploads
