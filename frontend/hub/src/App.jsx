@@ -27,7 +27,7 @@ export default function App() {
               {({ user, logout }) => (
                 <SidebarLayout user={user} logout={logout}>
                   <Routes>
-                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/dashboard" element={<DashboardPage user={user} />} />
                     <Route path="/students" element={<StudentsPage />} />
                     {/* One student's full record. Scoped by the API: a mentor
                         or tutor opening someone else's student gets a 404. */}
