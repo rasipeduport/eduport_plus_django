@@ -45,7 +45,7 @@ export function attentionItems({ homework, sessions, additionalExams, stats, rol
     items.push({
       key: 'exams',
       icon: ClipboardList,
-      label: 'Unscored exams',
+      label: 'Additional exams awaiting review',
       count: additionalExams.filter((e) => (e.status || '').toLowerCase() === 'submitted').length,
       to: '/exams',
     });
