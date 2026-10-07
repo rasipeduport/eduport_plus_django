@@ -121,7 +121,7 @@ export default function DashboardPage({ user }) {
           </div>
 
           <div className="grid min-w-0 gap-4 md:grid-cols-[3fr_2fr] md:items-start">
-            <SignupsChart data={data.stats?.signup_data ?? []} />
+            <SignupsChart students={data.students} />
             <RecentActivity rows={data.activity} />
           </div>
 
