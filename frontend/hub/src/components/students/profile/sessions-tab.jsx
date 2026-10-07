@@ -1,6 +1,6 @@
 import { CalendarCheck, ExternalLink, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { MENTOR_TIMEZONE, formatShortDateInZone, formatTimeInZone } from '@/lib/timezone';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -120,9 +120,9 @@ export function SessionsTab({ sessions, studentId, onOpenHomework }) {
           renderRow={(session) => (
             <>
               <Td className="whitespace-nowrap">
-                <span className="block text-sm">{format(new Date(session.start_time), 'd MMM yyyy')}</span>
+                <span className="block text-sm">{formatShortDateInZone(session.start_time, MENTOR_TIMEZONE)}</span>
                 <span className="text-muted-foreground text-xs">
-                  {format(new Date(session.start_time), 'h:mm a')} – {format(new Date(session.end_time), 'h:mm a')}
+                  {formatTimeInZone(session.start_time, MENTOR_TIMEZONE)} – {formatTimeInZone(session.end_time, MENTOR_TIMEZONE)}
                 </span>
               </Td>
               <Td>

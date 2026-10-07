@@ -1,6 +1,7 @@
 import { ClipboardList, ExternalLink, FileText, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { MENTOR_TIMEZONE, formatShortDateInZone, formatTimeInZone } from '@/lib/timezone';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -111,9 +112,9 @@ export function ExamsTab({ exams, additionalExams, stats, studentId, onOpenAddit
               return (
                 <>
                   <Td className="whitespace-nowrap">
-                    <span className="block text-sm">{format(new Date(exam.start_time), 'd MMM yyyy')}</span>
+                    <span className="block text-sm">{formatShortDateInZone(exam.start_time, MENTOR_TIMEZONE)}</span>
                     <span className="text-muted-foreground text-xs">
-                      {format(new Date(exam.start_time), 'h:mm a')}
+                      {formatTimeInZone(exam.start_time, MENTOR_TIMEZONE)}
                     </span>
                   </Td>
                   <Td>

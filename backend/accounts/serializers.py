@@ -34,6 +34,9 @@ class StudentSerializer(serializers.ModelSerializer):
             'admission_date',
             'total_class_quota',
             'meet_link',
-            'status'
+            'status',
+            # IANA zone the student's classes are scheduled in; Learn renders
+            # every session time in it (null = caller falls back to IST).
+            'timezone',
         ]
         read_only_fields = ['student_code', 'status']

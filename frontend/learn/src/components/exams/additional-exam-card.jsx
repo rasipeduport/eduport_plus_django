@@ -4,9 +4,11 @@ import { Card } from '../ui/card';
 import { cn } from '../../lib/utils';
 import { additionalExamStatusBadge } from '../../lib/exam-status';
 import { formatDate } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 
 /** One additional exam in the Exams list (Learn AdditionalExamCard); always opens the detail. */
 export function AdditionalExamCard({ exam }) {
+  const zone = useStudentZone();
   const badge = additionalExamStatusBadge(exam);
   return (
     <Link to={`/exams/additional/${exam.id}`} className="block">
@@ -20,7 +22,7 @@ export function AdditionalExamCard({ exam }) {
               <div className="min-w-0 flex-1 basis-32">
                 <p className="text-text-muted text-[11px] font-semibold uppercase tracking-wide">Additional Exam</p>
                 <p className="text-text-primary line-clamp-2 text-[15px] leading-snug font-semibold">{exam.title}</p>
-                <p className="text-text-muted mt-1.5 text-xs">Assigned {formatDate(exam.created_at)}</p>
+                <p className="text-text-muted mt-1.5 text-xs">Assigned {formatDate(exam.created_at, zone)}</p>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', badge.className)}>{badge.label}</span>

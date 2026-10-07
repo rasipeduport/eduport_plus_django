@@ -5,6 +5,7 @@ import { Card } from '../ui/card';
 import { homeworkStatusBadge } from '../../lib/homework-status';
 import { cn } from '../../lib/utils';
 import { formatDate } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 
 const TAB_CONFIG = {
   recording: {
@@ -36,6 +37,7 @@ const TAB_CONFIG = {
 const TABS = ['recording', 'notes', 'homework'];
 
 export function LibraryTabs({ sessions }) {
+  const zone = useStudentZone();
   const [active, setActive] = useState('recording');
   const cfg = TAB_CONFIG[active];
   const Icon = cfg.icon;
@@ -113,7 +115,7 @@ export function LibraryTabs({ sessions }) {
                       {s.title}
                     </p>
                     <p className="text-text-muted mt-0.5 truncate text-xs">
-                      {formatDate(s.start_time)}
+                      {formatDate(s.start_time, zone)}
                       {s.tutor_profile?.full_name && ` · ${s.tutor_profile.full_name}`}
                     </p>
                   </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDownUp, BookOpen, ChevronDown, Loader2, X } from 'lucide-react';
 
 import api from '../lib/api';
+import { mentorZoneFormatter } from '../lib/timezone';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -18,8 +19,9 @@ import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet'
 import { ResultCell } from '../components/exams/result-cell';
 import { HOMEWORK_STATUS_VARIANT, homeworkStatusLabel } from '../lib/homework-status';
 
-const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const DATETIME_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+// Staff read class and submission times in IST (MENTOR_TIMEZONE), not the device's zone.
+const DATE_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', year: 'numeric' });
+const DATETIME_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 // Status tabs as the Hub's homework page names them.
 const TABS = [

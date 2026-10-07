@@ -2,8 +2,10 @@ import { CalendarOff, Clock, Link as LinkIcon, User, Video } from 'lucide-react'
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { formatSessionDateTime } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 
 export function LiveClassCard({ meetLink, nextSession, loading }) {
+  const zone = useStudentZone();
   if (loading) {
     return (
       <div className="bg-surface-muted h-56 animate-pulse rounded-2xl" />
@@ -32,7 +34,8 @@ export function LiveClassCard({ meetLink, nextSession, loading }) {
 
   const { dateLabel, timeLabel } = formatSessionDateTime(
     nextSession.start_time,
-    nextSession.end_time
+    nextSession.end_time,
+    zone
   );
 
   return (

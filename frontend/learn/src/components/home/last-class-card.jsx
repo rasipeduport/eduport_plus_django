@@ -5,12 +5,15 @@ import { Card } from '../ui/card';
 import { homeworkStatusBadge } from '../../lib/homework-status';
 import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 import { useSessionRating } from '../../hooks/useSessionRating';
 
 export function LastClassCard({ session }) {
+  const zone = useStudentZone();
   const { dateLabel, timeLabel } = formatSessionDateTime(
     session.start_time,
     session.end_time,
+    zone,
     { relative: 'past' }
   );
 

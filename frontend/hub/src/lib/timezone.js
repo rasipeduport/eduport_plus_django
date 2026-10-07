@@ -181,6 +181,25 @@ export function formatTimeInZone(instant, zone) {
   }).format(instant instanceof Date ? instant : new Date(instant));
 }
 
+/** `10 Aug 2026` in the given zone -- the profile tabs' compact date. */
+export function formatShortDateInZone(instant, zone) {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: zone,
+  }).format(instant instanceof Date ? instant : new Date(instant));
+}
+
+/**
+ * An `Intl.DateTimeFormat` pinned to en-US and MENTOR_TIMEZONE for the staff
+ * tables: a session scheduled at 12:30 PM Dubai reads 2:00 PM IST on every
+ * staff device, whatever zone that device is set to.
+ */
+export function mentorZoneFormatter(options) {
+  return new Intl.DateTimeFormat('en-US', { ...options, timeZone: MENTOR_TIMEZONE });
+}
+
 /** `Mon, 10 Aug 2026` in the given zone (date-fns would use the browser's). */
 export function formatDateInZone(instant, zone) {
   return new Intl.DateTimeFormat('en-GB', {

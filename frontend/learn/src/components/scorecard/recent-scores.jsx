@@ -6,6 +6,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { formatDate } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 import { resultPath, scoreTone } from '../../lib/exam-status';
 
 const CATEGORY_LABEL = { homework: 'Homework', exam: 'Chapter exam', additional_exam: 'Additional exam' };
@@ -17,6 +18,7 @@ const PAGE_SIZE = 8; // keep equal to RECENT_PAGE_SIZE in backend/exams/services
  * Mount with `key={range}` so a range change starts over from page 1.
  */
 export function RecentScores({ entries, range, totalCount = 0 }) {
+  const zone = useStudentZone();
   const [extra, setExtra] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,7 @@ export function RecentScores({ entries, range, totalCount = 0 }) {
               <div className="min-w-0 flex-1">
                 <p className="text-text-primary truncate text-sm font-semibold">{e.label}</p>
                 <p className="text-text-muted text-xs">
-                  {CATEGORY_LABEL[e.category] || 'Chapter exam'} · {formatDate(e.scored_at)}
+                  {CATEGORY_LABEL[e.category] || 'Chapter exam'} · {formatDate(e.scored_at, zone)}
                 </p>
               </div>
               <span className={cn('shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap', tone.bg, tone.text, tone.border)}>

@@ -3,11 +3,13 @@ import { ChevronRight, ClipboardList, Clock } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 import { examStatusBadge } from '../../lib/exam-status';
 
 /** "Recent" recap card for the last attended exam (Learn PastExamCard). */
 export function PastExamCard({ exam }) {
-  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, { relative: 'past' });
+  const zone = useStudentZone();
+  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, zone, { relative: 'past' });
   const badge = examStatusBadge(exam);
   return (
     <Link to={`/exams/${exam.id}`} className="block">

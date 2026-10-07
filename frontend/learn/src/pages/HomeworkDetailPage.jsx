@@ -19,7 +19,7 @@ export default function HomeworkDetailPage() {
   const fromScorecard = location.state?.from === '/scorecard';
   const backTo = fromScorecard ? '/scorecard' : '/sessions';
   const backLabel = fromScorecard ? 'Scorecard' : 'Sessions';
-  const { reloadStats } = useStudent();
+  const { reloadStats, timezone: zone } = useStudent();
   const [hw, setHw] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export default function HomeworkDetailPage() {
           <h1 className="text-text-primary min-w-0 text-xl font-bold break-words md:text-2xl">{hw.session?.title}</h1>
           <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', badge.className)}>{badge.label}</span>
         </div>
-        {hw.session?.start_time && <p className="text-text-muted mt-1 text-xs">Class on {formatDate(hw.session.start_time)}</p>}
+        {hw.session?.start_time && <p className="text-text-muted mt-1 text-xs">Class on {formatDate(hw.session.start_time, zone)}</p>}
       </section>
 
       <section className="space-y-3">

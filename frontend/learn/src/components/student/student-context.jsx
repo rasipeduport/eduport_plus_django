@@ -9,3 +9,8 @@ export function useStudent() {
   }
   return context;
 }
+
+/** The IANA zone every date/time on the student's pages is rendered in. */
+export function useStudentZone() {
+  return useStudent().timezone;
+}

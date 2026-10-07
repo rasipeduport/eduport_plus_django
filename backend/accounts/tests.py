@@ -216,6 +216,18 @@ class GoogleAuthenticationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["user"]["email"], self.student_email)
         self.assertEqual(response.data["student_profile"]["student_code"], self.student_code)
+        # Learn renders session times in the student's zone, so /me must carry it.
+        self.assertIn("timezone", response.data["student_profile"])
+
+    def test_me_carries_the_student_timezone(self):
+        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
+        self.client.post(self.login_url, {"credential": mock_token})
+        Student.objects.filter(student_code=self.student_code).update(timezone='Asia/Dubai')
+
+        response = self.client.get(self.me_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["student_profile"]["timezone"], 'Asia/Dubai')
+        self.assertEqual(response.data["student_profiles"][0]["timezone"], 'Asia/Dubai')
 
 class StaffManagementTests(APITestCase):
     def setUp(self):

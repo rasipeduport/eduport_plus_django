@@ -7,11 +7,13 @@ import { FileGallery } from '../components/exams/file-gallery';
 import { cn } from '../lib/utils';
 import { examStatusBadge } from '../lib/exam-status';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
+import { useStudentZone } from '../components/student/student-context';
+import { formatFullDateTime } from '../lib/formatting';
 
-const FULL_DATE = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 /** Chapter exam detail (Learn /exams/[id]): score, recording, question paper. */
 export default function ExamDetailPage() {
+  const zone = useStudentZone();
   const { id } = useParams();
   const location = useLocation();
   // Opened from the scorecard's recent list: the back link returns there.
@@ -78,7 +80,7 @@ export default function ExamDetailPage() {
         <div className="text-text-muted mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            {FULL_DATE.format(new Date(exam.start_time))}
+            {formatFullDateTime(exam.start_time, zone)}
           </span>
           {exam.mentor_profile?.full_name && (
             <span className="inline-flex items-center gap-1">

@@ -4,6 +4,7 @@ import { Loader2, Calendar, ClipboardList, Video, ExternalLink, ChevronDown, X, 
 import { format } from 'date-fns';
 
 import api from '../lib/api';
+import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
@@ -32,8 +33,9 @@ import { AdditionalExamsTable } from '../components/exams/additional-exams-table
 import { EXAM_STATUS_VARIANT, examStatusLabel, formatBytes, isHttpsUrl } from '../lib/exam-status';
 
 // Same browser-local formats as the sessions table.
-const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+// Staff read every exam in IST (MENTOR_TIMEZONE), not the device's zone.
+const DATE_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', year: 'numeric' });
+const TIME_FORMAT = mentorZoneFormatter({ hour: 'numeric', minute: '2-digit', hour12: true });
 
 const STATUS_OPTIONS = ['scheduled', 'attended', 'cancelled'];
 

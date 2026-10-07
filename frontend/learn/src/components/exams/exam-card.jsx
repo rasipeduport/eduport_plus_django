@@ -4,14 +4,16 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 import { examStatusBadge } from '../../lib/exam-status';
 
 /** One chapter exam in the Exams list (Learn ExamCard). */
 export function ExamCard({ exam, meetLink }) {
+  const zone = useStudentZone();
   const status = (exam.status || '').toLowerCase();
   const attended = status === 'attended';
   const scheduled = status === 'scheduled';
-  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, {
+  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, zone, {
     relative: scheduled ? 'future' : 'past',
   });
   const badge = examStatusBadge(exam);

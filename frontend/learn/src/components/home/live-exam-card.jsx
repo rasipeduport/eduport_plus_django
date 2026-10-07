@@ -2,10 +2,12 @@ import { Clock, GraduationCap, Link as LinkIcon, Video } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { formatSessionDateTime } from '../../lib/formatting';
+import { useStudentZone } from '../student/student-context';
 
 /** "Up next — your exam" hero (Learn LiveExamCard): the exam joins the student's own meet room. */
 export function LiveExamCard({ meetLink, exam }) {
-  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time);
+  const zone = useStudentZone();
+  const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, zone);
   return (
     <Card className="relative" style={{ backgroundImage: 'radial-gradient(circle at top right, rgb(255 214 91 / 0.16), transparent 55%)' }}>
       <div>

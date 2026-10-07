@@ -1,5 +1,6 @@
 import { BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
+import { MENTOR_TIMEZONE, formatShortDateInZone } from '@/lib/timezone';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ export function HomeworkTab({ homework, stats, canScore, onOpen }) {
                     {row.session?.title || EMPTY}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    {row.session?.start_time ? format(new Date(row.session.start_time), 'd MMM yyyy') : ''}
+                    {row.session?.start_time ? formatShortDateInZone(row.session.start_time, MENTOR_TIMEZONE) : ''}
                   </span>
                 </Td>
                 <Td>

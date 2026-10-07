@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { describeApiError } from '../lib/api-errors';
+import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { SchedulingError } from '../components/sessions/scheduling-error';
@@ -43,8 +44,9 @@ const MEET_PREFIX = 'https://meet.google.com/';
 const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
 
 // Hub-style table formats. Times stay browser-local, as this table always was.
-const DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+// Staff read every session in IST (MENTOR_TIMEZONE), not the device's zone.
+const DATE_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', year: 'numeric' });
+const TIME_FORMAT = mentorZoneFormatter({ hour: 'numeric', minute: '2-digit', hour12: true });
 
 // `display_status` from the API: the attendance status, except that an
 // attended class whose notes/recording/homework are not all in reads as
