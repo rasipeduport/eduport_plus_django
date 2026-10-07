@@ -40,16 +40,16 @@ html:not(.dark) .legacy-ui {
 
   /* Border overrides */
   .border-\[rgba\(255\,255\,255\,0\.08\)\] {
-    border-color: #e4e4e7 !important; /* zinc-200 */
+    border-color: var(--border) !important;
   }
   .border-\[\#1e1e24\],
   .border-\[\#27272a\],
   .border-white\/5,
   .border-white\/10 {
-    border-color: #e4e4e7 !important;
+    border-color: var(--border) !important;
   }
   .divide-white\/5 > :not(:last-child) {
-    border-color: #e4e4e7 !important;
+    border-color: var(--border) !important;
   }
 
   /* Text color overrides */
@@ -141,7 +141,7 @@ html:not(.dark) .legacy-ui {
   .bg-zinc-900\/80 {
     background-color: #f4f4f5 !important;
     color: #3f3f46 !important;
-    border-color: #e4e4e7 !important;
+    border-color: var(--border) !important;
   }
 }
 
