@@ -11,6 +11,7 @@ __pycache__/
 # ...but the template carries no secrets and must be committed,
 # otherwise nobody cloning knows which variables the project needs.
 !.env.example
+!.env.dev.example
 
 # React
 frontend/hub/node_modules/
