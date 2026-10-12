@@ -3,16 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <!-- Avatars are served from Google's CDN; warm the connection while the
          app bundle and the first API calls are still in flight. -->
     <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
     <link rel="preconnect" href="https://lh3.googleusercontent.com" />
     <title>Eduport Plus Learn</title>
+
+    <!-- ── PWA ──────────────────────────────────────────────────────────── -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0e101c" />
+    <meta
+      name="description"
+      content="One-On-One Personalised Math Tutoring, designed to help your child excel in Maths."
+    />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- iOS: no manifest support, so the standalone hints live in meta tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Eduport Plus" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icons/apple-touch-icon.png"
+    />
+
     <!-- Google Identity Services SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
-  <body class="bg-gray-50 text-gray-900 font-sans antialiased">
+  <body
+    class="safe-area-top safe-area-bottom bg-gray-50 text-gray-900 font-sans antialiased"
+  >
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

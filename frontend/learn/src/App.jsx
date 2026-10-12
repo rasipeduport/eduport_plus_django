@@ -15,6 +15,8 @@ import ExamDetailPage from './pages/ExamDetailPage';
 import AdditionalExamDetailPage from './pages/AdditionalExamDetailPage';
 import ScorecardPage from './pages/ScorecardPage';
 import HomeworkDetailPage from './pages/HomeworkDetailPage';
+import { ServiceWorkerRegister } from './components/pwa/service-worker-register';
+import { InstallPrompt } from './components/pwa/install-prompt';
 
 // App Router Entry
 export default function App() {
@@ -57,6 +59,10 @@ export default function App() {
           }
         />
       </Routes>
+
+      {/* ── PWA: offline fallback worker + Add to Home Screen nudge ── */}
+      <ServiceWorkerRegister />
+      <InstallPrompt />
     </BrowserRouter>
   );
 }
