@@ -29,8 +29,13 @@ x-django-env: &django-env
 
   CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?https origins of the DEV Hub and Learn}
   CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?https origins of the DEV Hub and Learn}
-  SESSION_COOKIE_SECURE: "True"
-  CSRF_COOKIE_SECURE: "True"
+  # TEMPORARY: the DEV domain is the generated sslip.io hostname, which is
+  # HTTP-only. A Secure cookie is never sent over plaintext, so leaving these
+  # True means the session cookie is set but never returned and every
+  # authenticated request fails. Set both back to "True" the moment DEV gets
+  # a real HTTPS domain.
+  SESSION_COOKIE_SECURE: "False"
+  CSRF_COOKIE_SECURE: "False"
   # SESSION_COOKIE_DOMAIN is intentionally unset: a parent domain shared with
   # production would make the two environments' session cookies collide.
 
@@ -123,19 +128,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 40s
-    labels:
-      # Remove this block if the domain is attached from Dokploy's Domains UI.
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - traefik.http.services.eduport-dev-api.loadbalancer.server.port=8000
-      - traefik.http.routers.eduport-dev-api.rule=Host(`${API_DOMAIN:?public hostname for the DEV API}`)
-      - traefik.http.routers.eduport-dev-api.entrypoints=websecure
-      - traefik.http.routers.eduport-dev-api.tls=true
-      - traefik.http.routers.eduport-dev-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.eduport-dev-api-web.rule=Host(`${API_DOMAIN}`)
-      - traefik.http.routers.eduport-dev-api-web.entrypoints=web
-      - traefik.http.routers.eduport-dev-api-web.middlewares=eduport-dev-api-https
-      - traefik.http.middlewares.eduport-dev-api-https.redirectscheme.scheme=https
+    # Routing is owned by Dokploy's Domains UI: point it at this service on
+    # port 8000. Do not add Traefik labels here -- two sources would define
+    # the same router twice.
 
   # entrypoint: [] -- migrations and collectstatic are the backend's job alone.
   worker:
