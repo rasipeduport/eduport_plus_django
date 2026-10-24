@@ -1,3 +1,5 @@
+import uuid
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -79,6 +81,22 @@ class ActivityLogListView(APIView):
         actor_id = params.get('actor') or params.get('actor_id')
         if actor_id:
             queryset = queryset.filter(actor_id=actor_id)
+
+        # One account's history (the Hub's Team details page): what they did,
+        # and what was done to their profile -- role changes, password resets,
+        # deactivation. Like every filter it only narrows the scope above.
+        subject = params.get('subject')
+        if subject:
+            try:
+                subject_id = uuid.UUID(str(subject))
+            except ValueError:
+                return Response(
+                    {"error": "INVALID_INPUT", "message": "subject must be a valid account id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(
+                Q(actor_id=subject_id) | Q(entity_type='profile', entity_id=str(subject_id))
+            )
 
         from_date = params.get('from')
         if from_date:

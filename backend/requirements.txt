@@ -5,8 +5,9 @@
 # NOT from the old freeze dump, which claimed 5.1.5 and would break migrations.
 Django==6.0.6
 
-# API layer
-djangorestframework>=3.16.1
+# API layer. Pinned to the version the verified image resolved: there is no
+# lock file, so a floating ">=" would let each rebuild pick a different DRF.
+djangorestframework==3.18.1
 django-cors-headers==4.7.0
 
 # Settings / .env loading (config/settings.py: `import environ`)

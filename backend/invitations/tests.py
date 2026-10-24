@@ -6,6 +6,7 @@ from rest_framework import status
 from unittest.mock import patch
 from .models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from students.models import Student
+from activity.models import ActivityLog
 
 User = get_user_model()
 
@@ -377,26 +378,71 @@ class InvitationFlowTests(APITestCase):
         self.assertFalse(Invitation.objects.filter(id=a.id).exists())
         self.assertTrue(Invitation.objects.filter(id=b.id).exists())
 
-    def test_create_staff_invitation_sends_hub_email(self):
+    def test_staff_invitations_are_refused_and_nothing_is_sent(self):
+        # Staff accounts are created in Team now: no staff role is invited.
         self.client.force_authenticate(user=self.admin_user)
-        payload = {
-            "email": "invited_tutor@eduport.com",
-            "role": "TUTOR",
-            "full_name": "Tutor Tim",
-            "mobile_number": "+919876543211"
-        }
-        # Clear outbox
         mail.outbox.clear()
-        
-        response = self.client.post(self.create_url, payload)
+        for role in ("ADMIN", "MENTOR", "TUTOR", "tutor"):
+            with self.subTest(role=role):
+                response = self.client.post(self.create_url, {
+                    "email": "invited_staff@eduport.com", "role": role, "full_name": "Staff Sam",
+                })
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(response.data["error"], "STAFF_INVITATIONS_RETIRED")
+        self.assertFalse(Invitation.objects.filter(email="invited_staff@eduport.com").exists())
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(ActivityLog.objects.filter(action="invitation.create").exists())
+
+    def test_a_staff_role_never_rewrites_a_student_invitation(self):
+        student_invitation = Invitation.objects.create(
+            email="parent.pat@gmail.com", role=InvitationRoleChoices.STUDENT,
+            status=InvitationStatusChoices.PENDING, extra_data={"student_code": "EDP00500", "full_name": "Kid"},
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(self.create_url, {"email": "parent.pat@gmail.com", "role": "MENTOR"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        student_invitation.refresh_from_db()
+        self.assertEqual(student_invitation.role, InvitationRoleChoices.STUDENT)
+        self.assertEqual(student_invitation.extra_data["student_code"], "EDP00500")
+
+    def test_a_legacy_staff_invitation_can_be_withdrawn_but_not_edited(self):
+        legacy = Invitation.objects.create(
+            email="legacy_tutor@eduport.com", role=InvitationRoleChoices.TUTOR,
+            status=InvitationStatusChoices.PENDING, extra_data={"full_name": "Legacy Tutor"},
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        list_url = reverse('invitations:create-invitation')
+        mail.outbox.clear()
+
+        listed = self.client.get(list_url)
+        self.assertIn(str(legacy.id), [row["id"] for row in listed.data])
+
+        # Editing would re-send an invitation nobody can redeem any more.
+        edit = self.client.patch(list_url, {"id": str(legacy.id), "new_email": "new_tutor@eduport.com"}, format='json')
+        self.assertEqual(edit.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(edit.data["error"], "STAFF_INVITATIONS_RETIRED")
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.email, "legacy_tutor@eduport.com")
+        self.assertEqual(len(mail.outbox), 0)
+
+        withdraw = self.client.delete(list_url, {"id": str(legacy.id)}, format='json')
+        self.assertEqual(withdraw.status_code, status.HTTP_200_OK)
+        self.assertFalse(Invitation.objects.filter(id=legacy.id).exists())
+
+    def test_the_hubs_student_invitation_still_works(self):
+        # The Hub's form sends the role in lower case.
+        self.client.force_authenticate(user=self.admin_user)
+        mail.outbox.clear()
+        response = self.client.post(self.create_url, {
+            "role": "student", "email": "New.Parent@gmail.com", "student_code": "EDP00777", "full_name": "Kid Seven",
+        }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        
-        # Verify email was sent and contains the Hub URL instead of Learn URL
+        invitation = Invitation.objects.get(email="new.parent@gmail.com")
+        self.assertEqual(invitation.role, InvitationRoleChoices.STUDENT)
+        self.assertEqual(invitation.status, InvitationStatusChoices.PENDING)
+        self.assertEqual(invitation.extra_data["student_code"], "EDP00777")
         self.assertEqual(len(mail.outbox), 1)
-        sent_email = mail.outbox[0]
-        self.assertEqual(sent_email.to, ["invited_tutor@eduport.com"])
-        self.assertIn("Tutor", sent_email.subject)
-        self.assertIn("http://localhost:3000/login?email=invited_tutor@eduport.com", sent_email.body)
+        self.assertIn("http://localhost:3001/login?email=new.parent@gmail.com", mail.outbox[0].body)
 
 
 

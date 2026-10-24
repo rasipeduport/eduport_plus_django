@@ -43,18 +43,18 @@ urlpatterns = [
     path('api/users/<uuid:pk>/status', StaffStatusView.as_view()),
     path('api/users/<uuid:pk>/reassign/', StaffReassignView.as_view(), name='user-reassign'),
     path('api/users/<uuid:pk>/reassign', StaffReassignView.as_view()),
+    # Team Management: staff accounts for administrators (accounts/team.py).
+    path('api/team/', include('accounts.team_urls', namespace='team')),
+    # Each app is included once, under its trailing-slash root. The slash-less
+    # duplicates (`api/students`, ...) registered the same namespace twice
+    # (urls.W005) and no SPA caller used them: every endpoint string in both
+    # frontends ends with a slash, and APPEND_SLASH still redirects a stray GET.
     path('api/students/', include('students.urls', namespace='students')),
-    path('api/students', include('students.urls', namespace='students')),
     path('api/sessions/', include('sessions.urls', namespace='sessions')),
-    path('api/sessions', include('sessions.urls', namespace='sessions')),
     path('api/activity/', include('activity.urls', namespace='activity')),
-    path('api/activity', include('activity.urls', namespace='activity')),
     path('api/exams/', include('exams.urls', namespace='exams')),
-    path('api/exams', include('exams.urls', namespace='exams')),
     path('api/additional-exams/', include('exams.additional_urls', namespace='additional_exams')),
-    path('api/additional-exams', include('exams.additional_urls', namespace='additional_exams')),
     path('api/homework/', include('homework.urls', namespace='homework')),
-    path('api/homework', include('homework.urls', namespace='homework')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
     path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),

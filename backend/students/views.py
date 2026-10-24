@@ -29,7 +29,6 @@ from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsAdminUser, IsStaffUser, IsStudentUser
 from core.querysets import scope_students_by_role
 from core.students import get_account_students, get_usable_students, resolve_selected_student
@@ -226,7 +225,6 @@ class StudentListView(APIView):
       (students.quota_sync) and a request carrying it is refused.
       - ADMIN/MENTOR: Allowed (mentors only for their allocated students).
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffUser]
 
     def get(self, request, *args, **kwargs):
@@ -458,7 +456,6 @@ class StudentReassignView(APIView):
     handover is a different flow: accounts.StaffReassignView.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, *args, **kwargs):
         student_id, err = _parse_uuid(request.data.get("id"), "id")
@@ -603,7 +600,6 @@ class StudentDetailView(APIView):
     outlives the row.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def delete(self, request, pk, *args, **kwargs):
         student = Student.objects.filter(pk=pk).first()
@@ -701,7 +697,6 @@ class StudentProfileView(APIView):
     students.services.redact_student_for_role).
     """
     permission_classes = [IsAuthenticated, IsStaffUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def get(self, request, pk, *args, **kwargs):
         student = _visible_student(request, pk)
@@ -736,7 +731,6 @@ class StudentQuotaSyncView(APIView):
     number they are not shown.
     """
     permission_classes = [IsAuthenticated, IsStaffUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, pk, *args, **kwargs):
         if request.user.role == 'TUTOR' and not request.user.is_superuser:
@@ -830,7 +824,6 @@ class StudentNoteListView(APIView):
     their notes.
     """
     permission_classes = [IsAuthenticated, IsStaffUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def get(self, request, pk, *args, **kwargs):
         student = _visible_student(request, pk)
@@ -887,7 +880,6 @@ class StudentNoteDetailView(APIView):
     so a reassignment immediately closes the door on the old mentor or tutor.
     """
     permission_classes = [IsAuthenticated, IsStaffUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def _resolve(self, request, note_id):
         """``(note, None)`` or ``(None, response)``."""

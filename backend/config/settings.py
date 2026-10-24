@@ -15,7 +15,7 @@ import environ
 from celery.schedules import crontab
 from pathlib import Path
 
-from core.settings_guards import mock_auth_enabled, validate_production_settings
+from core.settings_guards import validate_cookie_and_origin_settings, validate_production_settings
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,6 +90,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Needs request.user, so it sits directly after AuthenticationMiddleware:
+    # a user holding a temporary password can reach nothing but the
+    # password-change flow, in the API and the Django admin alike.
+    'accounts.middleware.PasswordChangeRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -132,18 +136,14 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
+# Deliberately simple: a minimum length and nothing else (no similarity,
+# common-password or all-digits checks). Brute force is held back by the
+# per-account lockout and the per-address login throttle, not by these rules.
+# The Hub states and pre-checks the same rule (src/lib/password-policy.js).
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        'OPTIONS': {'min_length': 8},
     },
 ]
 
@@ -199,23 +199,51 @@ SESSION_CONTENT_MAX_BYTES = {
 # Custom Authentication User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# The "mock:" Google credential shortcut used for dev/test logins. It skips
-# token verification entirely and logs in as whatever email the caller supplies,
-# so it is gated on DEBUG *as well as* its own flag: with DEBUG=False the answer
-# is False no matter what the environment says. Opt in explicitly for local dev.
-ALLOW_MOCK_AUTH = mock_auth_enabled(
-    debug=DEBUG,
-    env_flag=env.bool('ALLOW_MOCK_AUTH', default=False),
-)
+# ---------------------------------------------------------------------------
+# Login protection
+# ---------------------------------------------------------------------------
+# Every password check (API login, Django admin login) goes through
+# accounts.backends.LockoutModelBackend: after LOGIN_MAX_FAILURES consecutive
+# wrong passwords an account is locked for LOGIN_LOCKOUT_SECONDS, counted in
+# the database. Django's ModelBackend stays listed second only because existing
+# sessions record its path and get_user() restores a session only through a
+# backend listed here; the lockout backend refuses every failed password check
+# outright, so ModelBackend is never asked to check one.
+#
+# Nothing on the login path uses Redis (it serves Celery only). The per-address
+# rate limits in REST_FRAMEWORK below count in Django's default local-memory
+# cache, per gunicorn worker, so they are approximate (see accounts/throttles.py).
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.LockoutModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+LOGIN_MAX_FAILURES = env.int('LOGIN_MAX_FAILURES', default=5)
+LOGIN_LOCKOUT_SECONDS = env.int('LOGIN_LOCKOUT_SECONDS', default=15 * 60)
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
+    # SessionAuthentication enforces CSRF on every unsafe request from a
+    # logged-in session. No view may opt out (core/authentication.py and its
+    # CSRF-exempt class were removed in Phase 2).
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # How many reverse proxies in front of Django append to X-Forwarded-For.
+    # The client address used by the login throttle and the audit log is the
+    # entry those proxies added; anything further left is client-supplied and
+    # ignored. 0 (the default) ignores the header and uses the socket address,
+    # which is correct when nothing proxies the API (the local stack). Behind
+    # one TLS-terminating proxy that APPENDS the header, set NUM_PROXIES=1.
+    'NUM_PROXIES': env.int('NUM_PROXIES', default=0),
+    # Scoped rates for the throttle classes in accounts/throttles.py. DRF
+    # periods are s/m/h/d: "10/min" is ten per minute per client address.
+    'DEFAULT_THROTTLE_RATES': {
+        'login_ip': env('LOGIN_THROTTLE_IP_RATE', default='10/min'),
+        'password_change': env('PASSWORD_CHANGE_THROTTLE_RATE', default='10/hour'),
+    },
     # The browsable API renders interactive write forms for every endpoint --
     # a development tool. Production serves JSON only.
     'DEFAULT_RENDERER_CLASSES': (
@@ -234,14 +262,42 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = 'Lax'
 
+# Session lifetime: no time limit of our own. Staff and student sessions last
+# until logout, deactivation (is_active=False ends every session on its next
+# request) or a password change (the session hash no longer matches). Django
+# always gives a session an expiry -- two weeks by default -- so it is set to
+# 400 days, the longest the cookie standard lets a browser keep a cookie
+# (RFC 6265bis; Chrome and Edge cap anything longer). Set at login only;
+# requests do not re-save the session.
+# Expired rows are purged daily by accounts.tasks.clear_expired_sessions.
+SESSION_COOKIE_AGE = 400 * 24 * 60 * 60
+
 CSRF_COOKIE_DOMAIN = env('SESSION_COOKIE_DOMAIN', default=None)
 CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=SESSION_COOKIE_SECURE)
 CSRF_COOKIE_HTTPONLY = False  # Allows Axios frontend to read the CSRF token from cookie
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+# JSON instead of Django's HTML page when a login POST fails the CSRF check.
+CSRF_FAILURE_VIEW = 'core.csrf.csrf_failure'
 
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+
+# Development-only opt-out. A local stack served over plain http:// cannot use
+# Secure cookies; the guard below refuses to boot with DEBUG=False and
+# insecure cookies unless this is explicitly True. Never set it in production.
+ALLOW_INSECURE_COOKIES = env.bool('ALLOW_INSECURE_COOKIES', default=False)
+
+# Raises ImproperlyConfigured when DEBUG is off and the login cookies would
+# travel over plain HTTP, or when no SPA origin is allowed at all.
+validate_cookie_and_origin_settings(
+    debug=DEBUG,
+    session_cookie_secure=SESSION_COOKIE_SECURE,
+    csrf_cookie_secure=CSRF_COOKIE_SECURE,
+    allow_insecure_cookies=ALLOW_INSECURE_COOKIES,
+    cors_allowed_origins=CORS_ALLOWED_ORIGINS,
+    csrf_trusted_origins=CSRF_TRUSTED_ORIGINS,
+)
 
 # ---------------------------------------------------------------------------
 # Transport security
@@ -383,6 +439,12 @@ CELERY_BEAT_SCHEDULE = {
             minute=env('QUOTA_SYNC_CRON_MINUTE', default='20'),
             hour=env('QUOTA_SYNC_CRON_HOUR', default='*'),
         ),
+    },
+    # Database sessions are only ignored once expired, never deleted, so the
+    # table is purged nightly (`manage.py clearsessions`).
+    'clear-expired-sessions': {
+        'task': 'accounts.tasks.clear_expired_sessions',
+        'schedule': crontab(minute='30', hour='3'),
     },
 }
 

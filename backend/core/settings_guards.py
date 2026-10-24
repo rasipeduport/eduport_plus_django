@@ -6,7 +6,13 @@ Nothing here may import ``django.conf.settings`` -- these functions run *while*
 the settings module is still being evaluated.
 """
 
+from urllib.parse import urlsplit
+
 from django.core.exceptions import ImproperlyConfigured
+
+# Hosts a plain-HTTP development stack is served from. ALLOW_INSECURE_COOKIES
+# is only honoured when every browser origin is one of these over http://.
+LOCAL_DEV_HOSTS = frozenset({'localhost', '127.0.0.1', '::1'})
 
 # Django's ``startproject`` marks its throwaway key with this prefix. A key that
 # still carries it has never been rotated, so it must never reach production.
@@ -50,14 +56,70 @@ def validate_production_settings(*, debug, secret_key, allowed_hosts):
         )
 
 
-def mock_auth_enabled(*, debug, env_flag):
-    """
-    Whether the ``mock:`` login shortcut is available.
+def _is_local_http_origin(origin):
+    try:
+        parts = urlsplit(origin)
+    except ValueError:
+        return False
+    return parts.scheme == 'http' and (parts.hostname or '') in LOCAL_DEV_HOSTS
 
-    Mock auth skips Google token verification entirely and logs in as whatever
-    email the caller puts in the credential string, so it is gated on DEBUG *as
-    well as* its own flag. Setting ALLOW_MOCK_AUTH=True in a production
-    environment therefore cannot turn it on -- the answer is False whenever
-    DEBUG is off, whatever the environment says.
+
+def validate_cookie_and_origin_settings(
+    *,
+    debug,
+    session_cookie_secure,
+    csrf_cookie_secure,
+    allow_insecure_cookies,
+    cors_allowed_origins,
+    csrf_trusted_origins,
+):
     """
-    return bool(debug) and bool(env_flag)
+    Refuse to boot, when DEBUG is off, with cookies that would travel over
+    plain HTTP or with an empty cross-origin allowlist.
+
+    The session and CSRF cookies carry the whole login, so in production they
+    must be Secure. The documented local Docker stack runs DEBUG=False over
+    plain HTTP on purpose, and opts out *explicitly* with
+    ALLOW_INSECURE_COOKIES=True -- a name that cannot be mistaken for a
+    production setting. Even then the opt-out is refused unless every SPA
+    origin is http://localhost (or a loopback address), so a development .env
+    copied onto a real host still fails closed. An empty CORS or CSRF origin
+    list means no browser client can ever log in, so it is treated as a
+    misconfiguration too.
+    """
+    if debug:
+        return
+
+    if not (session_cookie_secure and csrf_cookie_secure):
+        if not allow_insecure_cookies:
+            raise ImproperlyConfigured(
+                "SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE must both be True when "
+                "DEBUG=False so the login cookies are never sent over plain HTTP. "
+                "For a LOCAL stack served over http:// only, set "
+                "ALLOW_INSECURE_COOKIES=True explicitly; never in production."
+            )
+        non_local = sorted({
+            origin for origin in [*cors_allowed_origins, *csrf_trusted_origins]
+            if not _is_local_http_origin(origin)
+        })
+        if non_local:
+            raise ImproperlyConfigured(
+                "ALLOW_INSECURE_COOKIES is a local-development switch and is only "
+                "honoured when every CORS/CSRF origin is http://localhost or a "
+                f"loopback address. Refusing it for: {', '.join(non_local)}. Serve "
+                "the site over HTTPS with SESSION_COOKIE_SECURE=True instead."
+            )
+
+    if not cors_allowed_origins:
+        raise ImproperlyConfigured(
+            "CORS_ALLOWED_ORIGINS is empty. The Hub and Learn SPAs call this API "
+            "cross-origin, so list their exact origins (scheme + host + port) "
+            "before running with DEBUG=False."
+        )
+
+    if not csrf_trusted_origins:
+        raise ImproperlyConfigured(
+            "CSRF_TRUSTED_ORIGINS is empty. Every state-changing request from "
+            "the SPAs is CSRF-checked against this list, so set it to the same "
+            "origins as CORS_ALLOWED_ORIGINS before running with DEBUG=False."
+        )

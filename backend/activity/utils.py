@@ -1,5 +1,6 @@
 import logging
 from django.utils import timezone
+from rest_framework.throttling import BaseThrottle
 from .models import ActivityLog
 
 logger = logging.getLogger(__name__)
@@ -33,11 +34,11 @@ def log_activity(
             ctx.update(context)
         
         if request:
-            forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-            if forwarded:
-                ip = forwarded.split(',')[0].strip()
-            else:
-                ip = request.META.get('REMOTE_ADDR')
+            # The same client-address rule as the login throttle (DRF's
+            # NUM_PROXIES): only X-Forwarded-For entries appended by the
+            # configured number of trusted proxies are believed. The leftmost
+            # entry is whatever the client chose to send.
+            ip = BaseThrottle().get_ident(request)
             ctx.update({
                 "ip": ip or None,
                 "user_agent": request.META.get('HTTP_USER_AGENT') or None

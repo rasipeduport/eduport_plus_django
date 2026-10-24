@@ -6,7 +6,6 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsAdminOrMentor
 from activity.utils import log_activity
 from .models import Invitation, InvitationStatusChoices, InvitationRoleChoices
@@ -17,6 +16,16 @@ from students.quota_sync import quota_for_code
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
+
+# Staff stopped signing in with Google, so they are no longer invited: Admin,
+# Mentor and Tutor accounts are created in Team (accounts/team.py) with a
+# username and a temporary password. Invitations are for students only. A
+# legacy staff invitation stays on record -- listed, and withdrawable -- but is
+# never created, edited or re-sent again, and Google sign-in never redeems it.
+STAFF_INVITATIONS_RETIRED = {
+    "error": "STAFF_INVITATIONS_RETIRED",
+    "message": "Staff are no longer invited. Create their account in Team with a username and a temporary password.",
+}
 
 
 def _sheet_quota_for(student_code):
@@ -74,7 +83,6 @@ class LookupStudentView(APIView):
     Backend fetches the data from the Google Sheet (range A3:AB of 'enrollment data' tab) on demand.
     Returns the mapped data directly without writing to the database yet.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrMentor]
 
     def post(self, request, *args, **kwargs):
@@ -186,11 +194,10 @@ class LookupStudentView(APIView):
 
 class CreateInvitationView(APIView):
     """
-    Step 2: Admin or Mentor selects Mentor/Tutor/Meet Link and submits to create invitation whitelisting for students,
-    or whitelists an Admin, Mentor, or Tutor by email directly.
+    Step 2: Admin or Mentor selects Mentor/Tutor/Meet Link and submits to create invitation whitelisting for students.
+    Staff are no longer invited (STAFF_INVITATIONS_RETIRED).
     Also supports listing, editing, and deleting whitelist invitations.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrMentor]
 
     def get(self, request, *args, **kwargs):
@@ -323,19 +330,8 @@ class CreateInvitationView(APIView):
                 # second child for the same parent email creates a new record.
                 invitation = _find_student_invitation(email, student_code)
             else:
-                # Staff roles (ADMIN, MENTOR, TUTOR) are 1:1 with an email.
-                if User.objects.filter(email=email).exists():
-                    return Response(
-                        {"error": "USER_ALREADY_REGISTERED", "message": f"User with email '{email}' is already registered."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                full_name = data.get("full_name", "")
-                extra_data = {
-                    "full_name": full_name,
-                    "mobile_number": data.get("mobile_number", "")
-                }
-                invitation = Invitation.objects.filter(email=email).first()
+                # Staff roles (ADMIN, MENTOR, TUTOR): see STAFF_INVITATIONS_RETIRED.
+                return Response(STAFF_INVITATIONS_RETIRED, status=status.HTTP_400_BAD_REQUEST)
 
             if invitation and invitation.status == InvitationStatusChoices.ACCEPTED:
                 return Response(
@@ -424,6 +420,10 @@ class CreateInvitationView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # A changed address would re-send a staff invitation nobody can redeem.
+        if invitation.role != InvitationRoleChoices.STUDENT:
+            return Response(STAFF_INVITATIONS_RETIRED, status=status.HTTP_400_BAD_REQUEST)
+
         if invitation.status == InvitationStatusChoices.ACCEPTED:
             return Response(
                 {"error": "INVITATION_ALREADY_ACCEPTED", "message": "Cannot edit an accepted invitation."},
@@ -432,11 +432,10 @@ class CreateInvitationView(APIView):
 
         old_email_value = invitation.email
 
-        # A genuine duplicate is the SAME child (student_code) under the new email;
-        # staff invites collide on email alone.
+        # A genuine duplicate is the SAME child (student_code) under the new email.
         code = (invitation.extra_data or {}).get("student_code")
         clash = Invitation.objects.filter(email=new_email).exclude(id=invitation.id)
-        if invitation.role == InvitationRoleChoices.STUDENT and code:
+        if code:
             clash = clash.filter(extra_data__student_code=code)
         if clash.exists():
             return Response(
@@ -445,9 +444,9 @@ class CreateInvitationView(APIView):
             )
 
         # A registered STUDENT email may still own more children; only a staff
-        # account (or a non-student invite targeting it) blocks the change.
+        # account blocks the change.
         clashing_user = User.objects.filter(email=new_email).first()
-        if clashing_user and (invitation.role != InvitationRoleChoices.STUDENT or clashing_user.role != InvitationRoleChoices.STUDENT):
+        if clashing_user and clashing_user.role != InvitationRoleChoices.STUDENT:
             return Response(
                 {"error": "USER_ALREADY_REGISTERED", "message": "A user with the new email is already registered."},
                 status=status.HTTP_400_BAD_REQUEST

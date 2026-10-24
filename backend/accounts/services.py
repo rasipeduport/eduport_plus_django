@@ -163,15 +163,20 @@ class UserProvisioningService:
         # Determine name to use (Google name prioritized, fallback to sheet name)
         fullname = google_name or extra_data.get("full_name") or invitation.email.split("@")[0]
 
-        # 2. Create User Profile
+        # 2. Create User Profile. The username is derived from the email so a
+        # Google-provisioned account can later be given a password and sign in
+        # by username. `is_staff` is the Django admin-site flag and is never
+        # granted by provisioning: application access comes from `role` (and,
+        # from Phase 3, groups and permissions).
         user = User.objects.create(
+            username=User.objects.derive_username(email),
             email=email,
             full_name=fullname,
             avatar_url=google_avatar,
             role=invitation.role,
             invited_by=invitation.invited_by,
             is_active=True,
-            is_staff=False if invitation.role == InvitationRoleChoices.STUDENT else True
+            is_staff=False,
         )
         user.set_unusable_password()
         user.save()
