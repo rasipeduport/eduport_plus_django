@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon, InfoIcon, PlusIcon } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -31,19 +31,19 @@ function isValidMeetUrl(url) {
   return MEET_URL_REGEX.test(url);
 }
 
-const ROLES = ['admin', 'mentor', 'tutor', 'student'];
 const NOT_ASSIGNED_VALUE = '__not_assigned__';
 
 /**
  * "New Invitation" trigger plus the creation form, as a dialog on desktop and
- * a bottom drawer on mobile.
+ * a bottom drawer on mobile. Only students are invited: staff accounts are
+ * created in Team with a username and a temporary password.
  *
- * Other areas (students, admins, mentors, tutors) do not embed this form --
- * they link to `/invitations?role=<role>&open=true`, which lands here with the
- * right role preselected and the form already open. Those params are stripped
- * once consumed so a refresh does not reopen the form.
+ * Other areas (today just the Students page) do not embed this form --
+ * they link to `/invitations?role=student&open=true`, which lands here with the
+ * form already open. Those params are stripped once consumed so a refresh does
+ * not reopen the form.
  */
-export function NewInvitation({ initialRole, initialOpen = false, onSuccess }) {
+export function NewInvitation({ initialOpen = false, onSuccess }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(initialOpen);
   const isMobile = useIsMobile();
@@ -64,8 +64,8 @@ export function NewInvitation({ initialRole, initialOpen = false, onSuccess }) {
     onSuccess?.();
   };
 
-  const title = 'Create New Invitation';
-  const formProps = { onSuccess: handleSuccess, initialRole };
+  const title = 'New Student Invitation';
+  const formProps = { onSuccess: handleSuccess };
 
   if (!isMobile) {
     return (
@@ -111,12 +111,8 @@ export function NewInvitation({ initialRole, initialOpen = false, onSuccess }) {
   );
 }
 
-function InvitationForm({ className, onSuccess, initialRole }) {
-  const normalizedInitialRole = (initialRole || '').toLowerCase();
-
-  const [email, setEmail] = useState('');
+function InvitationForm({ className, onSuccess }) {
   const [studentId, setStudentId] = useState('');
-  const [role, setRole] = useState(ROLES.includes(normalizedInitialRole) ? normalizedInitialRole : 'admin');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -130,13 +126,12 @@ function InvitationForm({ className, onSuccess, initialRole }) {
   const [meetLink, setMeetLink] = useState('');
   const [whatsappGroupCreated, setWhatsappGroupCreated] = useState(false);
 
-  // Reset verification state whenever the role or student ID changes.
-  // Adjusting state during render, guarded by the previous values, is
+  // Reset verification state whenever the student ID changes.
+  // Adjusting state during render, guarded by the previous value, is
   // React's recommended alternative to a synchronizing effect.
-  const resetKey = `${role} ${studentId}`;
-  const [prevResetKey, setPrevResetKey] = useState(resetKey);
-  if (resetKey !== prevResetKey) {
-    setPrevResetKey(resetKey);
+  const [prevStudentId, setPrevStudentId] = useState(studentId);
+  if (studentId !== prevStudentId) {
+    setPrevStudentId(studentId);
     setVerifiedStudent(null);
     setMentorId(NOT_ASSIGNED_VALUE);
     setTutorId(NOT_ASSIGNED_VALUE);
@@ -213,26 +208,19 @@ function InvitationForm({ className, onSuccess, initialRole }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (role !== 'student' && !email.trim()) {
-      setError('Please enter an email address');
+    if (!studentId.trim()) {
+      setError('Please enter a student ID');
       return;
     }
 
-    if (role === 'student') {
-      if (!studentId.trim()) {
-        setError('Please enter a student ID');
-        return;
-      }
+    if (!verifiedStudent) {
+      setError('Please verify the student ID first');
+      return;
+    }
 
-      if (!verifiedStudent) {
-        setError('Please verify the student ID first');
-        return;
-      }
-
-      if (meetLink.trim() && !isValidMeetUrl(meetLink.trim())) {
-        setError('Invalid Google Meet URL. It should look like https://meet.google.com/abc-defg-hij');
-        return;
-      }
+    if (meetLink.trim() && !isValidMeetUrl(meetLink.trim())) {
+      setError('Invalid Google Meet URL. It should look like https://meet.google.com/abc-defg-hij');
+      return;
     }
 
     setLoading(true);
@@ -241,32 +229,28 @@ function InvitationForm({ className, onSuccess, initialRole }) {
 
     // Unlike the Hub, this backend does not re-read the enrolment sheet on
     // create -- the verified record is forwarded as the invitation payload.
-    const payload =
-      role === 'student'
-        ? {
-            role,
-            email: verifiedStudent.email,
-            full_name: verifiedStudent.full_name,
-            student_code: verifiedStudent.student_code,
-            mobile_number: verifiedStudent.mobile_number,
-            country: verifiedStudent.country,
-            state: verifiedStudent.state,
-            school_name: verifiedStudent.school_name,
-            grade: verifiedStudent.grade,
-            syllabus: verifiedStudent.syllabus,
-            admission_date: verifiedStudent.admission_date,
-            remarks: verifiedStudent.remarks,
-            mentor_id: mentorId !== NOT_ASSIGNED_VALUE ? mentorId : null,
-            tutor_id: tutorId !== NOT_ASSIGNED_VALUE ? tutorId : null,
-            meet_link: meetLink.trim() || null,
-          }
-        : { role, email: email.trim().toLowerCase() };
+    const payload = {
+      role: 'student',
+      email: verifiedStudent.email,
+      full_name: verifiedStudent.full_name,
+      student_code: verifiedStudent.student_code,
+      mobile_number: verifiedStudent.mobile_number,
+      country: verifiedStudent.country,
+      state: verifiedStudent.state,
+      school_name: verifiedStudent.school_name,
+      grade: verifiedStudent.grade,
+      syllabus: verifiedStudent.syllabus,
+      admission_date: verifiedStudent.admission_date,
+      remarks: verifiedStudent.remarks,
+      mentor_id: mentorId !== NOT_ASSIGNED_VALUE ? mentorId : null,
+      tutor_id: tutorId !== NOT_ASSIGNED_VALUE ? tutorId : null,
+      meet_link: meetLink.trim() || null,
+    };
 
     try {
       await api.post('/api/invitations/', payload);
 
       setSuccess('Invitation created successfully!');
-      setEmail('');
       setStudentId('');
       setVerifiedStudent(null);
       setMentorId(NOT_ASSIGNED_VALUE);
@@ -287,137 +271,107 @@ function InvitationForm({ className, onSuccess, initialRole }) {
     }
   };
 
-  const isStudentReady = role === 'student' && verifiedStudent !== null;
+  const isStudentReady = verifiedStudent !== null;
 
   return (
     <form onSubmit={handleSubmit} className={cn('grid gap-4', className)}>
-      <div className="grid gap-2">
-        <Label htmlFor="role">Role</Label>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between"
-              type="button"
-              disabled={loading || verifying}
-            >
-              <span className="capitalize">{role}</span>
-              <ChevronDownIcon className="h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-            {ROLES.map((option) => (
-              <DropdownMenuItem key={option} className="capitalize" onClick={() => setRole(option)}>
-                {option}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
+        <InfoIcon className="mt-0.5 h-3 w-3 shrink-0" />
+        <span>
+          Invitations are for students. Staff accounts are created in{' '}
+          <Link to="/team" className="text-foreground underline underline-offset-4">
+            Team
+          </Link>{' '}
+          with a username and a temporary password.
+        </span>
+      </p>
 
-      {role !== 'student' ? (
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
+      <div className="grid gap-2">
+        <Label htmlFor="student-id">Student ID</Label>
+        <div className="flex gap-2">
           <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
-            disabled={loading}
+            id="student-id"
+            type="text"
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            placeholder="EDP00099"
+            disabled={loading || verifying}
             required
           />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleVerify}
+            disabled={loading || verifying || !studentId.trim() || isStudentReady}
+          >
+            {verifying ? 'Verifying...' : isStudentReady ? 'Verified' : 'Verify'}
+          </Button>
         </div>
-      ) : (
-        <>
-          <div className="grid gap-2">
-            <Label htmlFor="student-id">Student ID</Label>
-            <div className="flex gap-2">
-              <Input
-                id="student-id"
-                type="text"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                placeholder="EDP00099"
-                disabled={loading || verifying}
-                required
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleVerify}
-                disabled={loading || verifying || !studentId.trim() || isStudentReady}
-              >
-                {verifying ? 'Verifying...' : isStudentReady ? 'Verified' : 'Verify'}
+      </div>
+
+      {isStudentReady && (
+        <div className="grid gap-2">
+          <Label htmlFor="mentor">Mentor</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between" type="button" disabled={loading}>
+                <span className="truncate">{mentorLabel}</span>
+                <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-50" />
               </Button>
-            </div>
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+              <DropdownMenuItem onClick={() => setMentorId(NOT_ASSIGNED_VALUE)}>Not Assigned</DropdownMenuItem>
+              {mentors.map((m) => (
+                <DropdownMenuItem key={m.id} onClick={() => setMentorId(m.id)}>
+                  {m.full_name || m.email}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
-          {isStudentReady && (
-            <div className="grid gap-2">
-              <Label htmlFor="mentor">Mentor</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" type="button" disabled={loading}>
-                    <span className="truncate">{mentorLabel}</span>
-                    <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
-                  <DropdownMenuItem onClick={() => setMentorId(NOT_ASSIGNED_VALUE)}>Not Assigned</DropdownMenuItem>
-                  {mentors.map((m) => (
-                    <DropdownMenuItem key={m.id} onClick={() => setMentorId(m.id)}>
-                      {m.full_name || m.email}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+      {isStudentReady && (
+        <div className="grid gap-2">
+          <Label htmlFor="tutor">Tutor</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between" type="button" disabled={loading}>
+                <span className="truncate">{tutorLabel}</span>
+                <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
+              <DropdownMenuItem onClick={() => setTutorId(NOT_ASSIGNED_VALUE)}>Not Assigned</DropdownMenuItem>
+              {tutors.map((t) => (
+                <DropdownMenuItem key={t.id} onClick={() => setTutorId(t.id)}>
+                  {t.full_name || t.email}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
-          {isStudentReady && (
-            <div className="grid gap-2">
-              <Label htmlFor="tutor">Tutor</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" type="button" disabled={loading}>
-                    <span className="truncate">{tutorLabel}</span>
-                    <ChevronDownIcon className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto">
-                  <DropdownMenuItem onClick={() => setTutorId(NOT_ASSIGNED_VALUE)}>Not Assigned</DropdownMenuItem>
-                  {tutors.map((t) => (
-                    <DropdownMenuItem key={t.id} onClick={() => setTutorId(t.id)}>
-                      {t.full_name || t.email}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          {isStudentReady && (
-            <div className="grid gap-2">
-              <Label htmlFor="meet-link">Google Meet Link</Label>
-              <Input
-                id="meet-link"
-                type="url"
-                value={meetLink}
-                onChange={(e) => setMeetLink(e.target.value)}
-                placeholder="https://meet.google.com/abc-defg-hij"
-                disabled={loading}
-              />
-              <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
-                <InfoIcon className="mt-0.5 h-3 w-3 shrink-0" />
-                <span>
-                  Make sure the meeting is set to <strong className="text-foreground">Open</strong> so anyone with the
-                  link can join.
-                </span>
-              </p>
-            </div>
-          )}
-        </>
+      {isStudentReady && (
+        <div className="grid gap-2">
+          <Label htmlFor="meet-link">Google Meet Link</Label>
+          <Input
+            id="meet-link"
+            type="url"
+            value={meetLink}
+            onChange={(e) => setMeetLink(e.target.value)}
+            placeholder="https://meet.google.com/abc-defg-hij"
+            disabled={loading}
+          />
+          <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
+            <InfoIcon className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>
+              Make sure the meeting is set to <strong className="text-foreground">Open</strong> so anyone with the
+              link can join.
+            </span>
+          </p>
+        </div>
       )}
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -438,7 +392,7 @@ function InvitationForm({ className, onSuccess, initialRole }) {
 
       <Button
         type="submit"
-        disabled={loading || (role === 'student' && (!isStudentReady || !whatsappGroupCreated))}
+        disabled={loading || !isStudentReady || !whatsappGroupCreated}
         className="w-full"
       >
         {loading ? 'Creating...' : 'Create Invitation'}

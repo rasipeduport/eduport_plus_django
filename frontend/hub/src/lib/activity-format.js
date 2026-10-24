@@ -41,6 +41,15 @@ export const ACTION_LABELS = {
   'user.reactivate': 'User reactivated',
   'staff.reassign_all': 'Workload reassigned',
   'user.update_details': 'User details updated',
+  // Team Management and password sign-in.
+  'staff.create': 'Staff account created',
+  'user.role_change': 'Role changed',
+  'user.password_reset': 'Password reset',
+  'user.password_change': 'Password changed',
+  'user.permissions_update': 'Permissions updated',
+  'user.sign_in_failed': 'Sign-in refused',
+  'user.unlock': 'Account unlocked',
+  'user.lockout_update': 'Lockout changed',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -59,6 +68,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 export function formatValue(value) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
   if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
     const d = new Date(value);
     if (!Number.isNaN(d.getTime())) return format(d, 'd MMM yyyy, h:mm a');
@@ -70,6 +80,20 @@ function humanize(action) {
   const text = action.replace(/[._]/g, ' ').trim();
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+// Why a sign-in was refused (accounts.backends audit reasons, and the Google
+// sign-in's refusal of staff accounts). The password sign-in page itself never
+// says; only this admin-facing log does.
+const SIGN_IN_REFUSALS = {
+  invalid_password: 'Sign-in refused: wrong password',
+  locked: 'Sign-in refused: account locked after repeated failures',
+  inactive: 'Sign-in refused: account deactivated',
+  no_password: 'Sign-in refused: no password set',
+  student_account: 'Password sign-in refused: student account',
+  google_staff_account: 'Google sign-in refused: staff sign in with a username and password',
+};
+
+const formatRole = (role) => (typeof role === 'string' ? role.charAt(0) + role.slice(1).toLowerCase() : '—');
 
 function reasonOf(row) {
   const reason = row.context?.reason;
@@ -175,6 +199,40 @@ export function describeActivity(row) {
       const m = c.max_score?.new;
       return s != null && m != null ? `Scored the additional exam ${s}/${m}` : 'Scored the additional exam';
     }
+    case 'staff.create': {
+      const role = row.context?.role;
+      return role ? `Created the staff account as ${formatRole(role)}` : 'Created the staff account';
+    }
+    case 'user.role_change': {
+      const r = c.role;
+      return r ? `Changed role from ${formatRole(r.old)} to ${formatRole(r.new)}` : 'Changed the role';
+    }
+    case 'user.update_details':
+      return 'Updated the account details';
+    case 'user.password_reset':
+      return row.context?.unlocked
+        ? 'Set a temporary password and cleared a sign-in lockout'
+        : 'Set a temporary password';
+    case 'user.password_change':
+      return 'Changed their password';
+    case 'user.permissions_update': {
+      const added = row.context?.added ?? [];
+      const removed = row.context?.removed ?? [];
+      const parts = [];
+      if (added.length) parts.push(`granted ${added.join(', ')}`);
+      if (removed.length) parts.push(`revoked ${removed.join(', ')}`);
+      return parts.length ? `Permissions: ${parts.join('; ')}` : 'Updated permissions';
+    }
+    case 'user.sign_in_failed':
+      return SIGN_IN_REFUSALS[row.context?.reason] ?? 'Sign-in refused';
+    case 'user.deactivate': {
+      const reason = reasonOf(row);
+      return reason ? `Deactivated the account — ${reason}` : 'Deactivated the account';
+    }
+    case 'user.reactivate':
+      return 'Reactivated the account';
+    case 'user.unlock':
+      return 'Cleared the sign-in lockout';
     default:
       return actionLabel(row.action);
   }

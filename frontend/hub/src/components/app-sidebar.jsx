@@ -1,8 +1,9 @@
-import { BookOpen, CalendarCheck, ClipboardList, Compass, GraduationCap, History, LayoutDashboard, Mail, Presentation, ShieldCheck } from 'lucide-react';
+import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, History, LayoutDashboard, Mail, UsersRound } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenuButton, SidebarRail } from '@/components/ui/sidebar';
+import { canViewTeam } from '@/lib/team';
 
 const navMain = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -10,9 +11,8 @@ const navMain = [
   { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
   { title: 'Exams', url: '/exams', icon: ClipboardList },
   { title: 'Homework', url: '/homework', icon: BookOpen },
-  { title: 'Admins', url: '/admins', icon: ShieldCheck },
-  { title: 'Mentors', url: '/mentors', icon: Compass },
-  { title: 'Tutors', url: '/tutors', icon: Presentation },
+  // The single staff-management entry: admins, mentors and tutors alike.
+  { title: 'Team', url: '/team', icon: UsersRound },
   { title: 'Invitations', url: '/invitations', icon: Mail },
   { title: 'Activity', url: '/activity', icon: History },
 ];
@@ -26,11 +26,14 @@ const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/exams'
 const TUTOR_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/homework', '/activity']);
 
 export function AppSidebar({ user, logout, ...props }) {
+  // Mentors and tutors granted accounts.view_team also get the read-only Team
+  // directory (the same rule as the /team route guard).
+  const allowed = (urls) => (item) => urls.has(item.url) || (item.url === '/team' && canViewTeam(user));
   const items =
     user?.role === 'TUTOR'
-      ? navMain.filter((item) => TUTOR_NAV_URLS.has(item.url))
+      ? navMain.filter(allowed(TUTOR_NAV_URLS))
       : user?.role === 'MENTOR'
-        ? navMain.filter((item) => STAFF_NAV_URLS.has(item.url))
+        ? navMain.filter(allowed(STAFF_NAV_URLS))
         : navMain;
 
   return (

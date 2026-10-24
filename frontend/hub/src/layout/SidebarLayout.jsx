@@ -12,11 +12,9 @@ import { getInitials } from '@/lib/utils';
 const PORTED_PATHS = new Set([
   '/dashboard',
   '/students',
-  '/admins',
-  '/mentors',
-  '/tutors',
   '/invitations',
   '/activity',
+  '/team',
 ]);
 
 // Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon
@@ -34,11 +32,15 @@ export default function SidebarLayout({ user, logout, children }) {
     avatar: user?.avatar_url || '',
     initials: getInitials(user?.full_name, user?.email),
     role: user?.role ?? null,
+    // For the sidebar's Team entry (lib/team canViewTeam).
+    is_superuser: Boolean(user?.is_superuser),
+    permissions: user?.permissions ?? [],
   };
 
-  // The student profile (/students/<id>) is built on the design tokens like
-  // the students list it opens from, so it takes the raw layout too.
-  const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/');
+  // The student profile (/students/<id>) and a staff member's page
+  // (/team/<id>) are built on the design tokens like the lists they open
+  // from, so they take the raw layout too.
+  const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/') || pathname.startsWith('/team/');
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen()}>
