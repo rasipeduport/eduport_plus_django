@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import api from '../lib/api';
 import { Card } from '../components/ui/card';
 
@@ -12,11 +12,8 @@ let learnGsiInitialized = false;
 export default function LoginPage() {
   const [error, setError] = useState('');
   const [accessRestricted, setAccessRestricted] = useState(false);
-  const [mockEmail, setMockEmail] = useState('');
-  const [mockName, setMockName] = useState('');
   const [loading, setLoading] = useState(false);
   const [gsiLoaded, setGsiLoaded] = useState(false);
-  const [showMock, setShowMock] = useState(false);
 
   // Initialize Native Google One Tap / Sign In if available
   useEffect(() => {
@@ -85,60 +82,10 @@ export default function LoginPage() {
     }
   };
 
+  // Shown only while the Google Identity script has not loaded. The mock
+  // sign-in it used to offer was removed with the backend's mock credential.
   const handleGoogleSignInFallback = () => {
-    if (!window.google) {
-      const email = prompt('Enter Google Whitelisted Student Email to simulate login:');
-      if (email) {
-        setMockEmail(email);
-        const mockCredential = `mock:${email}:Test Student:https://api.dicebear.com/7.x/adventurer/svg?seed=TestStudent`;
-        setLoading(true);
-        api.post('/api/auth/google/', { credential: mockCredential })
-          .then((res) => {
-            if (res.data.user.role !== 'STUDENT') {
-              window.location.href = HUB_URL;
-            } else {
-              window.location.href = '/dashboard';
-            }
-          })
-          .catch((err) => {
-            if (err.response?.data?.error === 'ACCESS_RESTRICTED') {
-              setAccessRestricted(true);
-            } else {
-              setError(err.response?.data?.message || 'Authentication failed. Whitelist invitation required.');
-            }
-            setLoading(false);
-          });
-      }
-    }
-  };
-
-  const handleMockLogin = async (e) => {
-    e.preventDefault();
-    if (!mockEmail.trim()) {
-      setError('Please provide a mock email address.');
-      return;
-    }
-    const name = mockName.trim() || mockEmail.split('@')[0];
-    const mockCredential = `mock:${mockEmail}:${name}:https://api.dicebear.com/7.x/adventurer/svg?seed=${name}`;
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await api.post('/api/auth/google/', { credential: mockCredential });
-      if (res.data.user.role !== 'STUDENT') {
-        window.location.href = HUB_URL;
-      } else {
-        window.location.href = '/dashboard';
-      }
-    } catch (err) {
-      if (err.response?.data?.error === 'ACCESS_RESTRICTED') {
-        setAccessRestricted(true);
-      } else {
-        setError(err.response?.data?.message || 'Authentication failed. Whitelist invitation required.');
-      }
-    } finally {
-      setLoading(false);
-    }
+    setError('Google Sign-In has not finished loading. Check your connection and refresh the page.');
   };
 
   if (accessRestricted) {
@@ -199,13 +146,7 @@ export default function LoginPage() {
         <div className="mb-7 flex flex-col items-center text-center">
           <div className="mb-4 flex items-center gap-3">
             <div className="rounded-[18px] bg-[#151a2b] p-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.28)]">
-              <img
-                src="/brand/icon.svg"
-                alt="Eduport Plus"
-                className="h-11 w-11 cursor-pointer"
-                onDoubleClick={() => setShowMock(prev => !prev)}
-                title="Double-click to toggle Developer Mock Access"
-              />
+              <img src="/brand/icon.svg" alt="Eduport Plus" className="h-11 w-11" />
             </div>
             <span className="text-[1.15rem] font-semibold tracking-[-0.03em] text-[#f8fafc]">
               Eduport <span className="text-[#ffd65b]">Plus</span>
@@ -279,55 +220,6 @@ export default function LoginPage() {
               </div>
             )}
           </div>
-
-          {showMock && (
-            <div className="mt-7 space-y-6">
-              <div className="relative flex items-center justify-center">
-                <div className="absolute inset-x-0 h-px bg-[rgba(255,255,255,0.1)]" />
-                <span className="relative !bg-[#121521] px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#77819a]">
-                  Student mock login
-                </span>
-              </div>
-
-              <form onSubmit={handleMockLogin} className="w-full space-y-4">
-                <div className="text-left">
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#a9b1c4]">Whitelisted email</label>
-                  <input
-                    type="email"
-                    value={mockEmail}
-                    onChange={(e) => setMockEmail(e.target.value)}
-                    placeholder="student.dona@gmail.com"
-                    className="!bg-[#0c0f1a] !text-[#f8fafc] w-full rounded-xl border border-[rgba(255,255,255,0.1)] px-4 py-3 text-sm placeholder:text-[#667089] transition-all focus:outline-none focus:ring-2 focus:ring-[#ffd65b]/70"
-                    required
-                  />
-                </div>
-                <div className="text-left">
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#a9b1c4]">Name</label>
-                  <input
-                    type="text"
-                    value={mockName}
-                    onChange={(e) => setMockName(e.target.value)}
-                    placeholder="Dona Student"
-                    className="!bg-[#0c0f1a] !text-[#f8fafc] w-full rounded-xl border border-[rgba(255,255,255,0.1)] px-4 py-3 text-sm placeholder:text-[#667089] transition-all focus:outline-none focus:ring-2 focus:ring-[#ffd65b]/70"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ffd65b] text-sm font-semibold text-[#0e101c] shadow-[0_8px_24px_rgba(255,214,91,0.16)] transition-colors hover:bg-[#ffe487] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd65b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#121521] disabled:cursor-wait disabled:opacity-60"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      Log in as student
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          )}
         </Card>
       </div>
     </main>

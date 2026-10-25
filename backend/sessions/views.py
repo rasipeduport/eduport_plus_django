@@ -15,7 +15,6 @@ from rest_framework.permissions import IsAuthenticated
 
 from students.models import Student
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsStaffOrSelfStudent, IsStaffUser
 from core.querysets import scope_sessions_by_role
 from core.students import get_usable_students, resolve_selected_student
@@ -75,7 +74,6 @@ class SessionsView(APIView):
     POST: Create one or more sessions.
     PUT: Update a single session.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
 
     def get(self, request, *args, **kwargs):
@@ -692,7 +690,6 @@ class SessionFileUploadView(APIView):
     field on their allocated students' sessions; admins -> any. Replaces a
     previous upload for the same field.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffUser]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -802,7 +799,6 @@ class SessionFileDownloadView(APIView):
     account -- the same scoping the sessions list applies. Honours single
     byte-range requests so browsers can seek inside recordings.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_id, *args, **kwargs):
@@ -891,7 +887,6 @@ class CancelSeriesView(APIView):
     POST: Cancel a scheduled class within a series, shifting/renumbering subsequent classes,
     and appending a make-up class to the end of the series.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
 
     def post(self, request, *args, **kwargs):

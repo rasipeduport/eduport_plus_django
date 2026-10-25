@@ -21,7 +21,6 @@ from rest_framework.permissions import IsAuthenticated
 
 from students.models import Student, StatusChoices
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsAdminOrMentor, IsAdminMentorOrStudentRead, IsStudentUser
 from core.querysets import scope_exams_by_role
 from core.students import get_account_students, get_usable_students, resolve_selected_student
@@ -145,7 +144,6 @@ class ExamsView(APIView):
     GET: list chapter exams (admin: all, mentor: allocated students, student:
          the selected persona). PUT/POST: schedule, reschedule or cancel.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
 
     def get(self, request, *args, **kwargs):
@@ -327,7 +325,6 @@ class ExamsView(APIView):
 
 class ChapterNamesView(APIView):
     """GET /api/exams/chapter-names/?student_id= -- the dropdown behind New Chapter Exam."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrMentor]
 
     def get(self, request, *args, **kwargs):
@@ -345,7 +342,6 @@ class ChapterNamesView(APIView):
 
 class ExamDetailView(APIView):
     """GET /api/exams/<id>/ -- one exam with its question-paper files."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
 
     def get(self, request, exam_id, *args, **kwargs):
@@ -363,7 +359,6 @@ class ExamResultView(APIView):
     the first call; later calls edit it. New uploads are rolled back on
     failure; existing files are only removed after the row update succeeds.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrMentor]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -469,7 +464,6 @@ class _FileDownloadBase(APIView):
     Learn renders PDFs inside an iframe, so the concrete download views below
     are the only endpoints exempt from the global ``X-Frame-Options: DENY``.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
     model = None
     parent_model = None
@@ -521,7 +515,6 @@ class AdditionalExamFileDownloadView(_FileDownloadBase):
 
 class AdditionalExamsView(APIView):
     """GET: list additional exams. POST (multipart): assign one with its question paper."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -597,7 +590,6 @@ class AdditionalExamsView(APIView):
 
 class AdditionalExamDetailView(APIView):
     """GET /api/additional-exams/<id>/ -- with files split into question paper / answer sheet."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
 
     def get(self, request, exam_id, *args, **kwargs):
@@ -616,7 +608,6 @@ class AdditionalExamSubmitView(APIView):
     uploads their answer sheet ONCE. Only the owning (selected) student, only
     while the exam is still assigned.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -670,7 +661,6 @@ class AdditionalExamSubmitView(APIView):
 
 class AdditionalExamScoreView(APIView):
     """POST /api/additional-exams/<id>/score/ (JSON): the mentor/admin scores a submitted exam."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrMentor]
 
     def post(self, request, exam_id, *args, **kwargs):
@@ -734,7 +724,6 @@ class AdditionalExamScoreView(APIView):
 
 class ScorecardView(APIView):
     """GET /api/student/scorecard/?range=week|month|all -- the Learn progress numbers."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
 
     def get(self, request, *args, **kwargs):
@@ -755,7 +744,6 @@ class StudentScoresView(APIView):
     merged, newest first, paged. Same persona and window rules as the
     scorecard; page 1 with the default size equals the scorecard's ``recent``.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
 
     def get(self, request, *args, **kwargs):

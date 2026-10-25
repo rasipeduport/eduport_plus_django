@@ -152,6 +152,9 @@ function WithdrawDialog({ invitation, open, onOpenChange, onSuccess }) {
 export function InvitationActionCell({ invitation, onChanged }) {
   const [editOpen, setEditOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  // A legacy staff invitation can only be withdrawn: the API refuses to edit
+  // it, since a new address would re-send an invitation nobody can redeem.
+  const editable = invitation.role === 'STUDENT';
 
   return (
     <>
@@ -164,11 +167,13 @@ export function InvitationActionCell({ invitation, onChanged }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setEditOpen(true)}>Edit email</DropdownMenuItem>
+          {editable ? <DropdownMenuItem onClick={() => setEditOpen(true)}>Edit email</DropdownMenuItem> : null}
           <DropdownMenuItem onClick={() => setWithdrawOpen(true)}>Withdraw invitation</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <EditEmailDialog invitation={invitation} open={editOpen} onOpenChange={setEditOpen} onSuccess={onChanged} />
+      {editable ? (
+        <EditEmailDialog invitation={invitation} open={editOpen} onOpenChange={setEditOpen} onSuccess={onChanged} />
+      ) : null}
       <WithdrawDialog invitation={invitation} open={withdrawOpen} onOpenChange={setWithdrawOpen} onSuccess={onChanged} />
     </>
   );

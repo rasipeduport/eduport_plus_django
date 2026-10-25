@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import { InvitationActionCell } from './invitation-action-cell';
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -25,7 +26,18 @@ export function createColumns(onChanged) {
       header: 'Role',
       cell: ({ row }) => {
         const role = row.getValue('role');
-        return <span className="capitalize">{role ? role.toLowerCase() : 'N/A'}</span>;
+        return (
+          <span className="flex items-center gap-2">
+            <span className="capitalize">{role ? role.toLowerCase() : 'N/A'}</span>
+            {/* Staff are no longer invited (accounts are made in Team); these
+                rows are kept on record and can only be withdrawn. */}
+            {role && role !== 'STUDENT' ? (
+              <Badge variant="outline" title="Staff are no longer invited: create their account in Team.">
+                Legacy
+              </Badge>
+            ) : null}
+          </span>
+        );
       },
     },
     {

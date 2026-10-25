@@ -15,7 +15,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
 from core.pagination import paginate_queryset
 from core.permissions import IsAdminOrTutor, IsStaffOrSelfStudent, IsStudentUser
 from core.querysets import scope_homework_by_role
@@ -52,7 +51,6 @@ def _visible_queryset(request):
 
 class HomeworkView(APIView):
     """GET /api/homework/ -- admin: all; mentor/tutor: their students; student: the selected persona."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
 
     def get(self, request, *args, **kwargs):
@@ -93,7 +91,6 @@ class HomeworkView(APIView):
 
 class HomeworkDetailView(APIView):
     """GET /api/homework/<id>/"""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
 
     def get(self, request, homework_id, *args, **kwargs):
@@ -109,7 +106,6 @@ class HomeworkSubmitView(APIView):
     their completed homework ONCE -- only the owning (selected) persona, only
     while the homework is still assigned.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -154,7 +150,6 @@ class HomeworkSubmitView(APIView):
 
 class HomeworkScoreView(APIView):
     """POST /api/homework/<id>/score/ (JSON): the student's tutor or an admin grades a submitted homework."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsAdminOrTutor]
 
     def post(self, request, homework_id, *args, **kwargs):

@@ -11,9 +11,9 @@ export default function InvitationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Read once on mount: NewInvitation strips these params after consuming them,
-  // so re-reading them on every render would close the form again.
-  const [initialRole] = useState(() => searchParams.get('role') || undefined);
+  // Read once on mount: NewInvitation strips the params after consuming them,
+  // so re-reading them on every render would close the form again. Only
+  // students are invited, so a `role` param no longer preselects anything.
   const [initialOpen] = useState(() => searchParams.get('open') === 'true');
 
   const fetchInvitations = useCallback(async () => {
@@ -51,12 +51,7 @@ export default function InvitationsPage() {
     <div className="container mx-auto px-4 py-16">
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
 
-      <InvitationsTable
-        data={invitations}
-        initialRole={initialRole}
-        initialOpen={initialOpen}
-        onChanged={fetchInvitations}
-      />
+      <InvitationsTable data={invitations} initialOpen={initialOpen} onChanged={fetchInvitations} />
     </div>
   );
 }

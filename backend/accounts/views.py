@@ -2,11 +2,14 @@ import logging
 import uuid
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.contrib.auth import login, logout, get_user_model
+from django.contrib.auth import authenticate, login, logout, get_user_model, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,7 +21,6 @@ from students.models import Student
 from invitations.models import Invitation, InvitationStatusChoices
 from activity.models import ActivityLog
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
 from core.permissions import IsAdminUser, IsStaffUser
 from core.students import (
     get_account_students,
@@ -28,12 +30,43 @@ from core.students import (
 )
 from .serializers import UserSerializer, StudentSerializer
 from .services import UserProvisioningService
+from .models import RoleChoices, normalize_username
+from .team import active_student_count, log_status_change, set_account_active
+from .throttles import LoginIPThrottle, PasswordChangeThrottle
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
 # One year, in seconds; the selected-student cookie is a long-lived preference.
 EP_STUDENT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+# The one answer every failed password login gets. An unknown username, a wrong
+# password, a locked or inactive account, a Google-only account (unusable
+# password) and a student account are indistinguishable from outside, so the
+# endpoint cannot enumerate accounts.
+LOGIN_FAILED_RESPONSE = {
+    "error": "INVALID_CREDENTIALS",
+    "message": "Invalid username or password.",
+}
+
+# Google sign-in is for students only (Learn). Staff -- Admin, Mentor and Tutor
+# accounts, and any superuser or Django-admin account -- sign in to the Hub with
+# their username and password, whichever app or client sends the credential.
+# The caller has just proven they own the Google account, so the answer may
+# say which kind of account it is.
+GOOGLE_STAFF_REFUSED_RESPONSE = {
+    "error": "GOOGLE_SIGN_IN_STUDENTS_ONLY",
+    "message": "Google sign-in is only for students. Staff sign in to the Hub with their username and password.",
+}
+
+
+def is_student_account(user):
+    """Whether Google sign-in may open a session for ``user``: plain student accounts only."""
+    return user.role == RoleChoices.STUDENT and not user.is_superuser and not user.is_staff
+
+
+class StaffInvitationRefused(Exception):
+    """Raised inside the provisioning transaction to undo a staff account."""
 
 
 def build_student_payload(request, user):
@@ -50,21 +83,47 @@ def build_student_payload(request, user):
         "selected_student_id": str(selected.id) if selected else None,
     }
 
+def csrf_token_for(request):
+    """
+    The (masked) CSRF token for this request's CSRF cookie, for the JSON body.
+
+    The SPAs keep it in memory and send it as X-CSRFToken instead of reading
+    the csrftoken cookie through document.cookie, which is impossible when the
+    API is served from another host than the SPA and unreliable when another
+    application on the same parent domain sets a cookie with the same name.
+    The browser still sends the cookie itself; CORS stops other origins from
+    reading this body.
+    """
+    return get_token(getattr(request, '_request', request))
+
+
+# The backend recorded in new sessions; get_user() loads the user through it on
+# every later request. Named explicitly because two backends are configured
+# (settings.AUTHENTICATION_BACKENDS) and Google sign-in never calls
+# authenticate(), so login() could not pick one by itself.
+SESSION_BACKEND = 'accounts.backends.LockoutModelBackend'
+
+
+def establish_session(request, user):
+    """
+    Log ``user`` in.
+
+    Django's ``login()`` rotates the session key (session-fixation defence)
+    and records the password hash the session was issued against, so a later
+    password change or administrator reset signs every *other* session out
+    automatically.
+    """
+    login(request, user, backend=SESSION_BACKEND)
+
+
 def verify_google_token(token: str) -> dict:
     """
-    Verifies Google ID Token. If ALLOW_MOCK_AUTH is True and token starts with "mock:",
-    allows mock auth of format "mock:email@example.com:Name:Avatar_URL" for dev/test convenience.
+    Verifies a Google ID token (Learn's student sign-in, kept until Phase 7)
+    against the configured OAuth client id and returns its email, name and
+    picture claims.
     """
     client_id = getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')
-    allow_mock = settings.ALLOW_MOCK_AUTH
-    
-    if allow_mock and token.startswith("mock:"):
-        parts = token.split(":", 3)
-        email = parts[1]
-        name = parts[2] if len(parts) > 2 else email.split("@")[0]
-        picture = parts[3] if len(parts) > 3 else "https://example.com/avatar.png"
-        return {"email": email, "name": name, "picture": picture}
-        
+
     if not client_id:
         raise ValueError("GOOGLE_OAUTH_CLIENT_ID settings parameter is not configured.")
 
@@ -84,10 +143,17 @@ def verify_google_token(token: str) -> dict:
         logger.error(f"Google ID Token verification exception: {e}")
         raise ValueError(f"Google token verification failed: {str(e)}")
 
+@method_decorator(csrf_protect, name='dispatch')
 class GoogleLoginView(APIView):
     """
     Accepts Google OAuth ID Token (credential JWT), validates against Google servers,
     provisions the user if they are whitelisted via an Invitation, and logs them in.
+
+    Kept for Learn's student sign-in until Phase 7. Staff never sign in here:
+    an existing staff account is refused before any session exists, and a
+    staff invitation is never redeemed (see GOOGLE_STAFF_REFUSED_RESPONSE).
+    Login CSRF is enforced the same way as the password login: the SPA primes
+    the token through GET /api/auth/csrf/ before its first POST.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -130,15 +196,36 @@ class GoogleLoginView(APIView):
         user = User.objects.filter(email=email).first()
         is_new_user = False
 
+        if user and not is_student_account(user):
+            log_activity(
+                action="user.sign_in_failed",
+                entity_type="profile",
+                entity_id=str(user.id),
+                entity_label=user.full_name or user.username,
+                actor=user,
+                context={"reason": "google_staff_account"},
+                request=request,
+            )
+            return Response(GOOGLE_STAFF_REFUSED_RESPONSE, status=status.HTTP_403_FORBIDDEN)
+
         if not user:
             # First login: Onboard user using UserProvisioningService
             try:
-                user = UserProvisioningService.provision_user(
-                    email=email,
-                    google_name=name,
-                    google_avatar=picture
-                )
+                # The pending invitation decides the role. One for staff is
+                # never redeemed through Google: the account it created is
+                # rolled back and the invitation stays pending.
+                with transaction.atomic():
+                    user = UserProvisioningService.provision_user(
+                        email=email,
+                        google_name=name,
+                        google_avatar=picture
+                    )
+                    if not is_student_account(user):
+                        raise StaffInvitationRefused()
                 is_new_user = True
+            except StaffInvitationRefused:
+                logger.warning(f"Refused Google sign-in for {email}: a staff invitation is not redeemed through Google.")
+                return Response(GOOGLE_STAFF_REFUSED_RESPONSE, status=status.HTTP_403_FORBIDDEN)
             except ValueError as e:
                 # Returned if no pending invitation exists, or if student code is missing
                 return Response(
@@ -167,8 +254,8 @@ class GoogleLoginView(APIView):
             except ValueError as e:
                 logger.warning(f"Could not attach pending students for {email}: {e}")
 
-        # Log session in Django
-        login(request, user)
+        # Log session in Django (rotates the session key)
+        establish_session(request, user)
 
         # If user existed, update avatar if Google provided a new one
         if not is_new_user and picture and user.avatar_url != picture:
@@ -202,17 +289,176 @@ class GoogleLoginView(APIView):
         if user.role == 'STUDENT':
             response_data.update(build_student_payload(request, user))
 
+        # login() rotated the CSRF secret; hand the SPA the new token.
+        response_data["csrf_token"] = csrf_token_for(request)
+
         return Response(
             response_data,
             status=status.HTTP_201_CREATED if is_new_user else status.HTTP_200_OK
         )
 
-class LogoutView(APIView):
+class CsrfTokenView(APIView):
     """
-    Logs out the authenticated user session.
+    GET /api/auth/csrf/ -- issues the CSRF cookie and returns the matching
+    token in the body, so an SPA that has not yet called any authenticated
+    endpoint (the login page) can send X-CSRFToken on its first POST.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request, *args, **kwargs):
+        return Response({"csrf_token": csrf_token_for(request)}, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_protect, name='dispatch')
+class LoginView(APIView):
+    """
+    POST /api/auth/login/ -- username + password sign-in for staff accounts.
+
+    Security properties:
+      * one generic failure answer (LOGIN_FAILED_RESPONSE) whatever the cause,
+        so the endpoint cannot be used to enumerate accounts;
+      * the per-account lockout and the failure audit live in the shared
+        authentication backend (accounts.backends), which the Django admin
+        login uses too; a per-address rate limit (LoginIPThrottle) sits in
+        front of it;
+      * student accounts are refused here, and only here: they sign in to
+        Learn with Google;
+      * login CSRF enforced with csrf_protect; the SPA primes the token via
+        GET /api/auth/csrf/;
+      * Django's login() rotates the session key.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [LoginIPThrottle]
+
+    def post(self, request, *args, **kwargs):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            return self._invalid_input()
+        # The canonical form get_by_natural_key() looks up (NFKC, stripped,
+        # lower-case), so every Unicode-equivalent spelling of a username
+        # shares one lockout counter.
+        username = normalize_username(username)
+        if not username or not password:
+            return self._invalid_input()
+
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response(LOGIN_FAILED_RESPONSE, status=status.HTTP_400_BAD_REQUEST)
+
+        # Checked after the password, so a student account costs the same
+        # hashing as any other and its refusal looks the same.
+        if user.role == RoleChoices.STUDENT:
+            log_activity(
+                action="user.sign_in_failed",
+                entity_type="profile",
+                entity_id=str(user.id),
+                entity_label=user.full_name or user.username,
+                actor=user,
+                context={"reason": "student_account"},
+                request=request,
+            )
+            return Response(LOGIN_FAILED_RESPONSE, status=status.HTTP_400_BAD_REQUEST)
+
+        establish_session(request, user)
+
+        log_activity(
+            action="user.sign_in",
+            entity_type="profile",
+            entity_id=str(user.id),
+            entity_label=user.full_name or user.username,
+            context={"method": "password"},
+            request=request,
+        )
+
+        return Response(
+            {
+                "status": "authenticated",
+                "must_change_password": user.must_change_password,
+                "user": UserSerializer(user).data,
+                # login() rotated the CSRF secret; the token from before is stale.
+                "csrf_token": csrf_token_for(request),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @staticmethod
+    def _invalid_input():
+        return Response(
+            {"error": "INVALID_INPUT", "message": "Username and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class ChangePasswordView(APIView):
+    """
+    POST /api/auth/change-password/ -- the signed-in user sets a new password.
+
+    Re-authenticates with the current password, applies AUTH_PASSWORD_VALIDATORS,
+    clears the first-login flag, keeps THIS session alive and -- through the
+    session hash Django stores at login -- signs every other session out.
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
+    throttle_classes = [PasswordChangeThrottle]
+
+    def post(self, request, *args, **kwargs):
+        current = request.data.get("current_password")
+        new = request.data.get("new_password")
+        if not isinstance(current, str) or not isinstance(new, str) or not current or not new:
+            return Response(
+                {"error": "INVALID_INPUT", "message": "current_password and new_password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        if not user.check_password(current):
+            return Response(
+                {"error": "INVALID_CURRENT_PASSWORD", "message": "The current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new == current:
+            return Response(
+                {"error": "PASSWORD_REUSED", "message": "The new password must differ from the current one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(new, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {
+                    "error": "PASSWORD_POLICY",
+                    "message": "The new password does not meet the password policy.",
+                    "details": list(exc.messages),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new)
+        user.must_change_password = False
+        user.password_changed_at = timezone.now()
+        user.save(update_fields=['password', 'must_change_password', 'password_changed_at', 'updated_at'])
+        # Re-key this session to the new hash so it survives; all others die.
+        update_session_auth_hash(request._request, user)
+
+        log_activity(
+            action="user.password_change",
+            entity_type="profile",
+            entity_id=str(user.id),
+            entity_label=user.full_name or user.username,
+            request=request,
+        )
+        return Response({"status": "password_changed", "must_change_password": False}, status=status.HTTP_200_OK)
+
+
+class LogoutView(APIView):
+    """
+    Logs out the authenticated user session. CSRF-protected like every other
+    state-changing endpoint (DRF SessionAuthentication).
+    """
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -240,9 +486,15 @@ class LogoutView(APIView):
         response.delete_cookie(EP_STUDENT_COOKIE, domain=settings.SESSION_COOKIE_DOMAIN)
         return response
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class MeView(APIView):
     """
-    Returns the profile details of the current logged-in user.
+    Returns the profile details of the current logged-in user, including the
+    effective permission codenames the SPAs use for their own guards.
+
+    Decorated on ``dispatch`` so the CSRF cookie is (re)issued even when the
+    answer is a 403: a reloaded SPA always calls /me first, which keeps the
+    token fresh for its next write.
     """
     permission_classes = [IsAuthenticated]
 
@@ -250,7 +502,9 @@ class MeView(APIView):
         user = request.user
         user_serializer = UserSerializer(user)
         response_data = {
-            "user": user_serializer.data
+            "user": user_serializer.data,
+            "must_change_password": user.must_change_password,
+            "csrf_token": csrf_token_for(request),
         }
 
         if user.role == 'STUDENT':
@@ -266,7 +520,6 @@ class SelectStudentView(APIView):
     ``ep-student-id`` cookie. Validates that the student belongs to the account.
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, *args, **kwargs):
         student_id = request.data.get("student_id")
@@ -444,7 +697,6 @@ class UserDetailView(APIView):
     DELETE /api/users/<id>/ - Delete User profile.
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def patch(self, request, pk, *args, **kwargs):
         if request.user.role != 'ADMIN':
@@ -523,7 +775,6 @@ class StaffStatusView(APIView):
     RPC guards. Role is never cleared, so historical attribution survives.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, pk, *args, **kwargs):
         action = request.data.get("action")
@@ -575,10 +826,7 @@ class StaffStatusView(APIView):
 
             if action == 'deactivate':
                 # Handover guard: no ACTIVE students may still be assigned.
-                from django.db.models import Q
-                assigned = Student.objects.filter(status='ACTIVE').filter(
-                    Q(mentor=target) | Q(tutor=target)
-                ).count()
+                assigned = active_student_count(target)
                 if assigned > 0:
                     return Response(
                         {
@@ -588,32 +836,10 @@ class StaffStatusView(APIView):
                         status=status.HTTP_409_CONFLICT
                     )
 
-                target.deactivated_at = timezone.now()
-                target.deactivated_by = request.user
-                target.deactivation_reason = reason
-                target.is_active = False  # kills existing sessions on next request
-                target.save(update_fields=['deactivated_at', 'deactivated_by', 'deactivation_reason', 'is_active', 'updated_at'])
-            else:
-                target.deactivated_at = None
-                target.deactivated_by = None
-                target.deactivation_reason = None
-                target.is_active = True
-                target.save(update_fields=['deactivated_at', 'deactivated_by', 'deactivation_reason', 'is_active', 'updated_at'])
+            # The same write and audit as the Team API's deactivate/reactivate.
+            set_account_active(target, action == 'reactivate', actor=request.user, reason=reason)
 
-        log_activity(
-            action='user.reactivate' if action == 'reactivate' else 'user.deactivate',
-            entity_type='profile',
-            entity_id=str(target.id),
-            entity_label=target.full_name or target.email,
-            changes={
-                "status": {
-                    "old": "deactivated" if was_deactivated else "active",
-                    "new": "active" if action == 'reactivate' else "deactivated"
-                }
-            },
-            context={"reason": reason},
-            request=request,
-        )
+        log_status_change(request, target, action == 'reactivate', was_deactivated, reason)
 
         return Response({"success": True}, status=status.HTTP_200_OK)
 
@@ -628,7 +854,6 @@ class StaffReassignView(APIView):
     the Hub's reassign_all_for_staff RPC.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, pk, *args, **kwargs):
         from sessions.models import Session, SessionStatusChoices

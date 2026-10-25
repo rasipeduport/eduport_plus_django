@@ -203,6 +203,78 @@ class ActivityStaffScopeTests(APITestCase):
                 self.assertEqual(res.data["actor_options"], [])
 
 
+class ActivitySubjectFilterTests(APITestCase):
+    """
+    ?subject=<account id> -- one account's history for the Hub's Team details
+    page: the entries they wrote plus the entries about their profile, and
+    nothing else. It narrows the role scope like every other filter.
+    """
+
+    def setUp(self):
+        self.url = reverse('activity:activity-logs-list')
+        self.admin = make_user('subj', 'ADMIN')
+        self.mentor = make_user('subj', 'MENTOR')
+        self.other = make_user('subj_other', 'MENTOR')
+        self.parent = make_user('subj', 'STUDENT')
+        self.student = Student.objects.create(
+            profile=self.parent, student_code="SUB001", full_name="Subject Student",
+            mentor=self.mentor, status=StatusChoices.ACTIVE
+        )
+        about = {'entity_type': 'profile'}
+        self.by_mentor = make_log(self.mentor, 'session.create', entity_type='session', student=self.student)
+        self.about_mentor = make_log(self.admin, 'user.password_reset', entity_id=str(self.mentor.id), **about)
+        self.mentor_failed_sign_in = make_log(
+            self.mentor, 'user.sign_in_failed', entity_id=str(self.mentor.id), **about
+        )
+        self.mentor_sign_in = make_log(self.mentor, 'user.sign_in', entity_id=str(self.mentor.id), **about)
+        # Unrelated: the admin's own work, and changes to someone else's account.
+        self.unrelated = make_log(self.admin, 'student.update_quota', student=self.student)
+        self.about_other = make_log(self.admin, 'user.deactivate', entity_id=str(self.other.id), **about)
+        self.by_other = make_log(self.other, 'session.cancel', entity_type='session', student=self.student)
+
+    def _ids(self, user, **params):
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.url, params)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        return {row["id"] for row in res.data["results"]}
+
+    def test_admin_gets_what_they_did_and_what_was_done_to_their_account(self):
+        self.assertEqual(
+            self._ids(self.admin, subject=str(self.mentor.id)),
+            {str(self.by_mentor.id), str(self.about_mentor.id), str(self.mentor_failed_sign_in.id)},
+        )
+
+    def test_sign_ins_stay_out_unless_asked_for(self):
+        ids = self._ids(self.admin, subject=str(self.mentor.id), action='user.sign_in')
+        self.assertEqual(ids, {str(self.mentor_sign_in.id)})
+
+    def test_combines_with_other_filters(self):
+        self.assertEqual(
+            self._ids(self.admin, subject=str(self.mentor.id), entity='profile'),
+            {str(self.about_mentor.id), str(self.mentor_failed_sign_in.id)},
+        )
+        # The admin's own subject: the account changes they made to others.
+        self.assertEqual(
+            self._ids(self.admin, subject=str(self.admin.id), entity='profile'),
+            {str(self.about_mentor.id), str(self.about_other.id)},
+        )
+
+    def test_the_role_scope_still_applies(self):
+        # A mentor reading their own subject sees only entries they wrote...
+        self.assertEqual(
+            self._ids(self.mentor, subject=str(self.mentor.id)),
+            {str(self.by_mentor.id), str(self.mentor_failed_sign_in.id)},
+        )
+        # ...and nothing at all about a colleague.
+        self.assertEqual(self._ids(self.other, subject=str(self.mentor.id)), set())
+
+    def test_a_malformed_subject_is_refused(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get(self.url, {"subject": "not-an-id"})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"], "INVALID_INPUT")
+
+
 class ActivityAppendOnlyTests(APITestCase):
     """
     The log accepts inserts only: a DB trigger rejects every UPDATE and DELETE

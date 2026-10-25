@@ -1,6 +1,5 @@
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
@@ -14,8 +13,24 @@ from activity.models import ActivityLog
 User = get_user_model()
 
 
-@override_settings(ALLOW_MOCK_AUTH=True)
 class GoogleAuthenticationTests(APITestCase):
+    """
+    Learn's Google sign-in (kept until Phase 7). The retired ``mock:`` credential
+    is replaced by stubbing the token verification: ``google_login`` takes the
+    same ``<label>:<email>:<name>:<picture>`` spec the fixtures always used and
+    feeds those claims to the view as if Google had verified them.
+    """
+
+    def google_login(self, claims_spec):
+        parts = claims_spec.split(":", 3)
+        claims = {
+            "email": parts[1],
+            "name": parts[2] if len(parts) > 2 else parts[1].split("@")[0],
+            "picture": parts[3] if len(parts) > 3 else None,
+        }
+        with patch('accounts.views.verify_google_token', return_value=claims):
+            return self.client.post(self.login_url, {"credential": "stub-google-id-token"})
+
     def setUp(self):
         self.login_url = reverse('accounts:google-login')
         self.logout_url = reverse('accounts:logout')
@@ -78,7 +93,7 @@ class GoogleAuthenticationTests(APITestCase):
     def test_login_uninvited_email_returns_403(self):
         # Use mock token fallback for uninvited email
         mock_token = "mock:uninvited@gmail.com:Uninvited User:https://example.com/pic.png"
-        response = self.client.post(self.login_url, {"credential": mock_token})
+        response = self.google_login(mock_token)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["error"], "ACCESS_RESTRICTED")
         
@@ -93,7 +108,7 @@ class GoogleAuthenticationTests(APITestCase):
         self.assertFalse(Invitation.objects.filter(email=email).exists())
         
         # Perform login
-        response = self.client.post(self.login_url, {"credential": mock_token})
+        response = self.google_login(mock_token)
         
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["error"], "ACCESS_RESTRICTED")
@@ -105,7 +120,7 @@ class GoogleAuthenticationTests(APITestCase):
     def test_login_first_time_student_onboards_and_creates_records(self):
         # 1. Login with whitelisted student email
         mock_token = f"mock:{self.student_email}:Jane Google Profile:https://lh3.googleusercontent.com/a"
-        response = self.client.post(self.login_url, {"credential": mock_token})
+        response = self.google_login(mock_token)
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], "onboarded")
@@ -141,31 +156,55 @@ class GoogleAuthenticationTests(APITestCase):
         self.assertEqual(log.entity_id, str(user.id))
         self.assertEqual(log.student, student)
 
-    def test_login_first_time_mentor_onboards_without_student_record(self):
+    def test_a_staff_invitation_is_not_redeemed_through_google(self):
         mock_token = f"mock:{self.mentor_email}:Mark Mentor:https://lh3.googleusercontent.com/b"
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["status"], "onboarded")
-        
-        # Verify User created
-        user = User.objects.filter(email=self.mentor_email).first()
-        self.assertIsNotNone(user)
-        self.assertEqual(user.role, 'MENTOR')
-        
-        # Verify NO student record was created
-        self.assertFalse(Student.objects.filter(profile=user).exists())
+        response = self.google_login(mock_token)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["error"], "GOOGLE_SIGN_IN_STUDENTS_ONLY")
+        # Nothing provisioned or logged, the invitation still pending, no session.
+        self.assertFalse(User.objects.filter(email=self.mentor_email).exists())
+        self.mentor_invitation.refresh_from_db()
+        self.assertEqual(self.mentor_invitation.status, InvitationStatusChoices.PENDING)
+        self.assertFalse(ActivityLog.objects.filter(action="user.onboarded").exists())
+        self.assertEqual(self.client.get(self.me_url).status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_accounts_cannot_sign_in_with_google(self):
+        # Every staff role, a superuser, and a student-role account holding the
+        # Django-admin flag -- each with the invitation that once let it in.
+        accounts = [
+            self.test_mentor,
+            self.test_tutor,
+            User.objects.create_user(email="admin.ann@eduport.com", full_name="Admin Ann", role="ADMIN"),
+            User.objects.create_superuser(
+                username="root", email="root@eduport.com", full_name="Root", password="Root-Secret-Phrase-9"
+            ),
+            User.objects.create_user(email="odd.flag@gmail.com", full_name="Odd Flag", role="STUDENT", is_staff=True),
+        ]
+        for account in accounts:
+            with self.subTest(email=account.email):
+                Invitation.objects.create(
+                    email=account.email, role=account.role, status=InvitationStatusChoices.ACCEPTED
+                )
+                response = self.google_login(f"mock:{account.email}:{account.full_name}:")
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+                self.assertEqual(response.data["error"], "GOOGLE_SIGN_IN_STUDENTS_ONLY")
+                self.assertNotIn("_auth_user_id", self.client.session)
+                self.assertEqual(self.client.get(self.me_url).status_code, status.HTTP_403_FORBIDDEN)
+                refusal = ActivityLog.objects.get(action="user.sign_in_failed", actor=account)
+                self.assertEqual(refusal.context["reason"], "google_staff_account")
+        self.assertFalse(ActivityLog.objects.filter(action="user.sign_in").exists())
 
     def test_subsequent_login_direct_session(self):
         # Onboard first
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
+        self.google_login(mock_token)
         
         # Clear client session
         self.client.logout()
 
         # Login again
-        response = self.client.post(self.login_url, {"credential": mock_token})
+        response = self.google_login(mock_token)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "authenticated")
         self.assertFalse(response.data["is_new_user"])
@@ -178,7 +217,7 @@ class GoogleAuthenticationTests(APITestCase):
     def test_disabled_user_login_rejected(self):
         # Onboard first
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
+        self.google_login(mock_token)
         
         # Disable user
         user = User.objects.get(email=self.student_email)
@@ -186,14 +225,14 @@ class GoogleAuthenticationTests(APITestCase):
         user.save()
 
         # Attempt login again
-        response = self.client.post(self.login_url, {"credential": mock_token})
+        response = self.google_login(mock_token)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data["error"], "USER_DISABLED")
 
     def test_logout_clears_session(self):
         # Login student
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        login_res = self.client.post(self.login_url, {"credential": mock_token})
+        login_res = self.google_login(mock_token)
         
         # Request me (should work)
         me_res = self.client.get(self.me_url)
@@ -210,7 +249,7 @@ class GoogleAuthenticationTests(APITestCase):
     def test_me_returns_profile_details(self):
         # Onboard and login
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
+        self.google_login(mock_token)
 
         response = self.client.get(self.me_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -221,7 +260,7 @@ class GoogleAuthenticationTests(APITestCase):
 
     def test_me_carries_the_student_timezone(self):
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
+        self.google_login(mock_token)
         Student.objects.filter(student_code=self.student_code).update(timezone='Asia/Dubai')
 
         response = self.client.get(self.me_url)
@@ -744,7 +783,8 @@ class StaffLifecycleTests(APITestCase):
         (is_active=False makes ModelBackend.get_user return None).
         """
         live = APIClient()
-        self.assertTrue(live.login(email="lc_tutor2@eduport.com", password="password123"))
+        # USERNAME_FIELD is `username`; create_user derived it from the email.
+        self.assertTrue(live.login(username="lc_tutor2", password="password123"))
         self.assertEqual(live.get('/api/auth/me/').status_code, status.HTTP_200_OK)
 
         res = self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
