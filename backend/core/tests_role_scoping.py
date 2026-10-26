@@ -19,13 +19,14 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, override_settings
-from django.urls import URLPattern, URLResolver, get_resolver, reverse
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.permissions import AllowAny, IsAuthenticated, OperandHolder
 from rest_framework.test import APITestCase
 
 from accounts.team import IsTeamManager, TeamAccess
 from activity.models import ActivityLog
+from core.authz_matrix import api_routes, api_url_patterns
 from core.querysets import scope_activity, scope_exams, scope_homework, scope_sessions, scope_students
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
@@ -46,17 +47,6 @@ ALLOWED_FOR_ANY_ACCOUNT = {
 }
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
 _ROUTE_PARAM = re.compile(r'<(?:(\w+):)?\w+>')
-
-
-def api_routes(patterns=None, prefix=''):
-    """Every URL route under /api/, as written in the URLconf (with <params>)."""
-    for entry in get_resolver().url_patterns if patterns is None else patterns:
-        route = prefix + str(entry.pattern)
-        if isinstance(entry, URLResolver):
-            if route.startswith('api/'):
-                yield from api_routes(entry.url_patterns, route)
-        elif route.startswith('api/'):
-            yield route
 
 
 def concrete_path(route):
@@ -412,14 +402,9 @@ def _decides_by_permission(permission):
     return permission.__name__.startswith(PERMISSION_FACTORIES)
 
 
-def api_views(patterns=None, prefix=''):
-    for entry in get_resolver().url_patterns if patterns is None else patterns:
-        route = prefix + str(entry.pattern)
-        if isinstance(entry, URLResolver):
-            if route.startswith('api/'):
-                yield from api_views(entry.url_patterns, route)
-        elif isinstance(entry, URLPattern) and route.startswith('api/'):
-            yield route, entry.callback.cls
+def api_views():
+    for route, pattern in api_url_patterns():
+        yield route, pattern.callback.cls
 
 
 class ViewPermissionTests(SimpleTestCase):

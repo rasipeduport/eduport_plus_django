@@ -57,7 +57,7 @@ export function StatTile({ label, value, hint, tone = 'default' }) {
 /**
  * A labelled card holding a definition list. `fields` entries are
  * `{ label, value, mono, full, hidden }`; a hidden entry is dropped entirely
- * (the caller's role cannot see it) rather than shown as empty.
+ * (the caller may not see it) rather than shown as empty.
  */
 export function FieldCard({ title, action, fields, children, className }) {
   const visible = fields?.filter((field) => !field.hidden) ?? [];

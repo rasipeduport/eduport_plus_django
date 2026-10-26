@@ -599,12 +599,18 @@ def exercised_routes(world):
     return routes
 
 
-def api_routes(patterns=None, prefix=''):
-    """Every URL route under /api/, as written in the URLconf."""
+def api_url_patterns(patterns=None, prefix=''):
+    """(route, URL pattern) for every URL route under /api/, the route as written in the URLconf."""
     for entry in get_resolver().url_patterns if patterns is None else patterns:
         route = prefix + str(entry.pattern)
         if isinstance(entry, URLResolver):
             if route.startswith('api/'):
-                yield from api_routes(entry.url_patterns, route)
+                yield from api_url_patterns(entry.url_patterns, route)
         elif route.startswith('api/'):
-            yield route
+            yield route, entry
+
+
+def api_routes():
+    """Every URL route under /api/, as written in the URLconf (with <params>)."""
+    for route, _pattern in api_url_patterns():
+        yield route

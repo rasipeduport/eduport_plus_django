@@ -60,12 +60,6 @@ export function isValidTimezone(zone) {
   }
 }
 
-/** A student's zone, with the documented fallback applied. */
-export function resolveStudentTimezone(zone) {
-  const trimmed = zone?.trim();
-  return trimmed && isValidTimezone(trimmed) ? trimmed : DEFAULT_TIMEZONE;
-}
-
 // --------------------------------------------------------------- conversion
 
 /**

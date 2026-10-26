@@ -460,8 +460,7 @@ class LogoutView(APIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        session_key = request.session.session_key
-        
+
         # Log logout activity
         student = Student.objects.filter(profile=user).first() if user.role == 'STUDENT' else None
         ActivityLog.objects.create(

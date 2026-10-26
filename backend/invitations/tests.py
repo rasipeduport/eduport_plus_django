@@ -228,7 +228,7 @@ class InvitationFlowTests(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
         
         # 1. Create a whitelisted invitation to test with
-        existing_inv = Invitation.objects.create(
+        Invitation.objects.create(
             email="test_invite@gmail.com",
             role=InvitationRoleChoices.STUDENT,
             status=InvitationStatusChoices.PENDING,
@@ -306,7 +306,7 @@ class InvitationFlowTests(APITestCase):
 
     def test_create_second_student_invitation_for_same_email(self):
         # First child invited for a parent email.
-        first = Invitation.objects.create(
+        Invitation.objects.create(
             email="parent@gmail.com",
             role=InvitationRoleChoices.STUDENT,
             status=InvitationStatusChoices.PENDING,

@@ -83,7 +83,6 @@ def ByMethod(**classes):
             return cls is not None and cls().has_permission(request, view)
 
     _ByMethod.__name__ = _ByMethod.__qualname__ = f'ByMethod({", ".join(classes)})'
-    _ByMethod.classes = classes
     return _ByMethod
 
 

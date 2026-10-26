@@ -4,12 +4,11 @@ grader). The assignment is the session's homework content; everything here is
 about the row that follows it.
 """
 import os
-from django.db.models import Q
 from django.utils import timezone
 
 from activity.utils import log_activity
 from exams.services import score_entry, validate_score
-from sessions.models import Session, SessionStatusChoices
+from sessions.models import SessionStatusChoices
 from .models import Homework, HomeworkStatusChoices, HomeworkFile
 
 

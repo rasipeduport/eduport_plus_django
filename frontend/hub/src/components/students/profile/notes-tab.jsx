@@ -163,10 +163,11 @@ function NoteCard({ note, onEdited, onDeleted }) {
 /**
  * Notes tab: the staff's own running commentary on a student.
  *
- * Internal by design — every Hub role (admin, mentor, tutor) reads and writes
- * the notes of a student they can already open, and nothing in the Learn app
- * ever serves them, so this is the one place they appear. Editing is the
- * author's alone; an admin may delete any note. Both are logged.
+ * Internal by design — every staff role group (admin, mentor, tutor) holds the
+ * permissions to read and write the notes of a student they can already open,
+ * and nothing in the Learn app ever serves them, so this is the one place they
+ * appear. Editing is the author's alone; whoever holds delete_any_student_note
+ * (admins) may delete any note. Both are logged.
  */
 export function NotesTab({ studentId, studentName }) {
   const [notes, setNotes] = useState(null);

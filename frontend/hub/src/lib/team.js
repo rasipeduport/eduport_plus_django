@@ -2,14 +2,12 @@
 // Hub uses it. The backend enforces every rule; the checks here only decide
 // which controls to offer, so a refusal from the API is always shown as-is.
 
-import { PERMISSIONS, can, canAny } from './access';
+import { PERMISSIONS, can } from './access';
 import { passwordPolicyError } from './password-policy';
 import { EMAIL_RE } from './utils';
 
 export const TEAM_URL = '/api/team/';
 export const TEAM_PERMISSIONS_URL = '/api/team/permissions/';
-export const VIEW_TEAM = PERMISSIONS.viewTeam;
-
 // The staff roles Team manages (backend accounts.models HUB_ROLES). BDE and
 // Sales TL sign in to the Hub but hold no permission yet, so they see the
 // No Access page until their modules exist.
@@ -21,7 +19,7 @@ export const TEAM_ROLES = [
   { value: 'SALES_TL', label: 'Sales TL' },
 ];
 
-const STAFF_ROLES = new Set(TEAM_ROLES.map((role) => role.value));
+const TEAM_ROLE_VALUES = new Set(TEAM_ROLES.map((role) => role.value));
 
 // Handing a departing mentor's or tutor's ACTIVE students to a colleague of
 // the same role (POST /api/users/<id>/reassign/, admin-only). The API refuses
@@ -42,11 +40,6 @@ export function roleLabel(role) {
 /** Holders of accounts.manage_team manage the team (backend: is_team_manager). */
 export function canManageTeam(user) {
   return can(user, PERMISSIONS.manageTeam);
-}
-
-/** Managers, and staff granted accounts.view_team, may read the directory. */
-export function canViewTeam(user) {
-  return canAny(user, [PERMISSIONS.manageTeam, PERMISSIONS.viewTeam]);
 }
 
 /**
@@ -75,11 +68,6 @@ export function isLocked(member) {
   return Boolean(member?.locked_until && new Date(member.locked_until) > new Date());
 }
 
-// The fields PATCH /api/team/<id>/ accepts. Staff sign in by username, so a
-// changed email leaves sign-in alone; the API keeps it unique and clear of
-// student invitations.
-export const EDITABLE_FIELDS = ['username', 'full_name', 'email', 'mobile_number', 'role'];
-
 /** The details form's starting values for `member`. */
 export function memberFormValues(member) {
   return {
@@ -101,7 +89,7 @@ export function validateMemberForm(values) {
   if (!values.email.trim()) errors.email = 'Email is required.';
   else if (!EMAIL_RE.test(values.email.trim())) errors.email = 'Enter a valid email address.';
   if (values.mobile_number.trim().length > 20) errors.mobile_number = 'At most 20 characters.';
-  if (!STAFF_ROLES.has(values.role)) errors.role = 'Choose a role.';
+  if (!TEAM_ROLE_VALUES.has(values.role)) errors.role = 'Choose a role.';
   // The reset password is optional; one that was typed must meet the rule.
   if (values.password && passwordPolicyError(values.password)) errors.password = passwordPolicyError(values.password);
   return Object.keys(errors).length ? errors : null;

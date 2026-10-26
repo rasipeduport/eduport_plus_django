@@ -168,7 +168,7 @@ class LookupStudentView(APIView):
             return Response(
                 {
                     "status": "exists",
-                    "message": f"A pending invitation already exists for this student. You can update it by submitting details.",
+                    "message": "A pending invitation already exists for this student. You can update it by submitting details.",
                     "student_data": student_data,
                     "invitation": {
                         "id": invitation.id,

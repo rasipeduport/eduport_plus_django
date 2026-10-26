@@ -11,9 +11,9 @@ from rest_framework.test import APITestCase
 
 from activity.models import ActivityLog
 from students.models import Student, StatusChoices
-from sessions.models import Session, SessionStatusChoices, SessionFile
+from sessions.models import Session, SessionStatusChoices
 from exams.models import Exam
-from .models import Homework, HomeworkFile
+from .models import Homework
 from .services import collect_homework_entries
 
 User = get_user_model()
@@ -318,7 +318,6 @@ class IntegrationTests(HomeworkTestBase):
             homework_link='https://hw.example/s',
         )
         self.make_homework(session=s)
-        s_id = s.id
         # Delete the session but keep an orphan-free check: the student still has a session -> 409 anyway,
         # so remove the session row first and recreate the homework on a fresh session to isolate the homework guard.
         self.client.force_authenticate(user=self.admin)

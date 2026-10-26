@@ -232,7 +232,7 @@ class GoogleAuthenticationTests(APITestCase):
     def test_logout_clears_session(self):
         # Login student
         mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        login_res = self.google_login(mock_token)
+        self.google_login(mock_token)
         
         # Request me (should work)
         me_res = self.client.get(self.me_url)

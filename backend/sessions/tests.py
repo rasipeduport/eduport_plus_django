@@ -19,7 +19,6 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from students.models import Student, StatusChoices
-from invitations.models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from activity.models import ActivityLog
 from sessions.models import Session, SessionStatusChoices, SessionFile
 
@@ -281,16 +280,7 @@ class EduportPlusBackendAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('credits', res.data['error'])
 
-        # 4. Update session (reschedule)
-        new_start = start_time1 + timedelta(days=10)
-        update_payload = {
-            "id": session_id,
-            "start_time": new_start.isoformat(),
-            "duration_hours": 1
-        }
-
-
-        # 5. List sessions
+        # 4. List sessions
         res = self.client.get(self.sessions_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertTrue(any(s['id'] == session_id for s in res.data['sessions']))

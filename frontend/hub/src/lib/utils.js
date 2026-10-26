@@ -39,6 +39,5 @@ export function normalizeTitle(raw) {
     .join(' ');
 }
 
-// Validators shared by the invitation / staff forms.
+// Email format check shared by the invitation and Team forms.
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const MEET_RE = /^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/;

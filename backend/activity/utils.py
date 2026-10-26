@@ -1,5 +1,4 @@
 import logging
-from django.utils import timezone
 from rest_framework.throttling import BaseThrottle
 from .models import ActivityLog
 

@@ -121,7 +121,7 @@ class SessionsView(APIView):
             queryset = queryset.filter(student_id=student_id)
 
         # Post-session content filter (attended rows only), applied after the
-        # role scoping and before pagination. Absent/blank means no filter.
+        # scoping and before pagination. Absent/blank means no filter.
         content = request.query_params.get('content')
         if content:
             try:

@@ -5,11 +5,11 @@
 //   ACCESS_RECORD=1 npm run test:access    re-record baseline.json from the current Hub
 //
 // baseline.json was recorded from the Hub as it stood before navigation and
-// page decisions moved from roles to permissions. Any difference must be
-// listed, with the decision that approved it, in approved-changes.json.
-// fixtures.json holds the real API's answers for each caller (recorded from
-// the backend's authorization-matrix world); /me already carries every
-// permission the finished backend reports.
+// page decisions moved from roles to permissions (commit 3d56003). Any
+// difference must be listed, with the decision that approved it, in
+// approved-changes.json. fixtures.json holds the real API's answers for each
+// caller, recorded from the backend's authorization-matrix world (commit
+// f7c6528); the script that recorded them is not in the repository.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
