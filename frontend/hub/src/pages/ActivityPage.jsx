@@ -24,7 +24,7 @@ function FeedSkeleton() {
 
 // `role` only decides the copy and which filters are offered: the API already
 // returns each caller their own slice of the log.
-export default function ActivityPage({ role = 'ADMIN' }) {
+export default function ActivityPage({ role }) {
   const isAdmin = role === 'ADMIN';
   const [searchParams] = useSearchParams();
   const [data, setData] = useState({ results: [], count: 0, actor_options: [] });

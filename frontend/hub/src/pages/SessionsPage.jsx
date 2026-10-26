@@ -140,7 +140,7 @@ function ResourceLink({ href, icon: Icon, label, missing = false, file = null })
   );
 }
 
-export default function SessionsPage() {
+export default function SessionsPage({ role }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const studentIdQuery = searchParams.get('student_id');
 
@@ -161,9 +161,8 @@ export default function SessionsPage() {
   const [contentSessions, setContentSessions] = useState(null);
   const [selectedStudentId, setSelectedStudentId] = useState(studentIdQuery || '');
 
-  // User role context
-  const [userRole, setUserRole] = useState('ADMIN');
-  const [currentUser, setCurrentUser] = useState(null);
+  // The caller's Hub role (App.jsx, lib/access hubRole).
+  const userRole = role;
   // Admins can complete every post-session item themselves; mentors and
   // tutors keep their split (recording + homework vs. notes).
   const isAdmin = userRole === 'ADMIN';
@@ -192,7 +191,6 @@ export default function SessionsPage() {
   const [makeupDuration, setMakeupDuration] = useState(1.0);
 
   useEffect(() => {
-    fetchUserInfo();
     fetchStudents();
     fetchSessions();
   }, []);
@@ -202,16 +200,6 @@ export default function SessionsPage() {
       setSelectedStudentId(studentIdQuery);
     }
   }, [studentIdQuery]);
-
-  const fetchUserInfo = async () => {
-    try {
-      const res = await api.get('/api/auth/me/');
-      setUserRole(res.data.user?.role || 'ADMIN');
-      setCurrentUser(res.data.user);
-    } catch (err) {
-      console.error('Failed to load user info', err);
-    }
-  };
 
   const fetchStudents = async () => {
     try {

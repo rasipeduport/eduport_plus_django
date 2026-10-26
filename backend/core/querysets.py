@@ -2,9 +2,18 @@
 Shared helpers for restricting querysets by the requesting user's role.
 
 Mentors and tutors only ever see the students (and the sessions of the students)
-allocated to them, and only their own activity-log entries; admins and other
-roles see everything passed in.
+allocated to them, and only their own activity-log entries; admins and
+superusers see everything passed in. Any other role sees nothing: access is
+granted role by role, never assumed, so an account whose role these helpers
+do not know gets an empty result rather than an admin's.
+
+The MENTOR and TUTOR branches come first on purpose: a superuser who holds one
+of those roles keeps that role's scope, as it always has.
 """
+
+
+def _sees_everything(user):
+    return user.role == 'ADMIN' or user.is_superuser
 
 
 def scope_students_by_role(qs, user):
@@ -13,7 +22,9 @@ def scope_students_by_role(qs, user):
         return qs.filter(mentor=user)
     if user.role == 'TUTOR':
         return qs.filter(tutor=user)
-    return qs
+    if _sees_everything(user):
+        return qs
+    return qs.none()
 
 
 def scope_sessions_by_role(qs, user):
@@ -22,7 +33,9 @@ def scope_sessions_by_role(qs, user):
         return qs.filter(student__mentor=user)
     if user.role == 'TUTOR':
         return qs.filter(student__tutor=user)
-    return qs
+    if _sees_everything(user):
+        return qs
+    return qs.none()
 
 
 def scope_activity_by_role(qs, user):
@@ -32,7 +45,9 @@ def scope_activity_by_role(qs, user):
     """
     if user.role in ('MENTOR', 'TUTOR'):
         return qs.filter(actor_id=user.id)
-    return qs
+    if _sees_everything(user):
+        return qs
+    return qs.none()
 
 
 def scope_exams_by_role(qs, user):
@@ -45,7 +60,9 @@ def scope_exams_by_role(qs, user):
         return qs.filter(student__mentor=user)
     if user.role == 'TUTOR':
         return qs.none()
-    return qs
+    if _sees_everything(user):
+        return qs
+    return qs.none()
 
 
 def scope_homework_by_role(qs, user):
@@ -58,4 +75,6 @@ def scope_homework_by_role(qs, user):
         return qs.filter(student__mentor=user)
     if user.role == 'TUTOR':
         return qs.filter(student__tutor=user)
-    return qs
+    if _sees_everything(user):
+        return qs
+    return qs.none()

@@ -55,11 +55,12 @@ const EMPTY_RESOURCES = { sessions: null, exams: null, additionalExams: null, ho
  * ?student_id=, lazily on first open, so each module keeps owning its own
  * access rules and opening a profile does not fetch what nobody looked at.
  */
-export default function StudentProfilePage({ role: userRole = 'ADMIN' }) {
+export default function StudentProfilePage({ role: userRole }) {
   const { studentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const role = (userRole || 'ADMIN').toLowerCase();
+  // The caller's Hub role (App.jsx, lib/access hubRole), lower-cased for the profile components.
+  const role = (userRole || '').toLowerCase();
   const isTutor = role === 'tutor';
   const canScoreHomework = role === 'admin' || role === 'tutor';
 

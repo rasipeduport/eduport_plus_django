@@ -141,11 +141,14 @@ def can_grade(user, student):
 def can_view_submission(user, homework):
     """
     Submission files: admin, the tutor and the owning student always; the
-    mentor only once the homework is scored (the Supabase rule).
+    mentor only once the homework is scored (the Supabase rule); any other
+    role never. Callers scope the homework row itself first.
     """
     if user.role in ('ADMIN', 'TUTOR', 'STUDENT') or user.is_superuser:
         return True
-    return homework.status == HomeworkStatusChoices.SCORED
+    if user.role == 'MENTOR':
+        return homework.status == HomeworkStatusChoices.SCORED
+    return False
 
 
 def homework_history_exists(student):

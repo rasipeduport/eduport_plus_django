@@ -4,9 +4,10 @@ import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { StudentsTable } from '@/components/students/students-table';
 
-export default function StudentsPage() {
+// `role` is the caller's Hub role (App.jsx, lib/access hubRole); it picks the
+// column set and actions, while the API decides which rows come back.
+export default function StudentsPage({ role }) {
   const [students, setStudents] = useState([]);
-  const [role, setRole] = useState('admin');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,12 +25,6 @@ export default function StudentsPage() {
     let active = true;
 
     (async () => {
-      try {
-        const response = await api.get('/api/auth/me/');
-        if (active) setRole((response.data.user?.role || 'ADMIN').toLowerCase());
-      } catch {
-        // Fall back to the admin column set; the API still scopes the rows.
-      }
       await fetchStudents();
       if (active) setLoading(false);
     })();
@@ -51,7 +46,7 @@ export default function StudentsPage() {
     <div className="container mx-auto px-4 py-16">
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
 
-      <StudentsTable students={students} role={role} onChanged={fetchStudents} />
+      <StudentsTable students={students} role={role.toLowerCase()} onChanged={fetchStudents} />
     </div>
   );
 }

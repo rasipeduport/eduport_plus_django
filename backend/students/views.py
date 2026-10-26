@@ -216,8 +216,9 @@ class StudentDashboardView(APIView):
 
 class StudentListView(APIView):
     """
-    GET /api/students/ - List students
-      - ADMIN/MENTOR: See all students.
+    GET /api/students/ - List students (core.querysets.scope_students_by_role)
+      - ADMIN: See all students.
+      - MENTOR: See their allocated students.
       - TUTOR: See assigned students where status in ('ACTIVE', 'INACTIVE').
     PUT /api/students/ - Update student details (meet link, timezone, status,
       and the profile fields behind the Hub's "Edit Profile" sheet). Class
@@ -228,15 +229,11 @@ class StudentListView(APIView):
     permission_classes = [IsAuthenticated, IsStaffUser]
 
     def get(self, request, *args, **kwargs):
-        role = request.user.role
-        is_tutor = role == 'TUTOR'
-        is_mentor = role == 'MENTOR'
-        
-        queryset = Student.objects.select_related('profile', 'mentor', 'tutor').order_by('student_code')
-        if is_tutor:
-            queryset = queryset.filter(tutor=request.user, status__in=['ACTIVE', 'INACTIVE'])
-        elif is_mentor:
-            queryset = queryset.filter(mentor=request.user)
+        queryset = scope_students_by_role(
+            Student.objects.select_related('profile', 'mentor', 'tutor'), request.user
+        ).order_by('student_code')
+        if request.user.role == 'TUTOR':
+            queryset = queryset.filter(status__in=['ACTIVE', 'INACTIVE'])
 
         # Opt-in pagination: full list by default, sliced when ?page= is given.
         page_items, meta = paginate_queryset(request, queryset)

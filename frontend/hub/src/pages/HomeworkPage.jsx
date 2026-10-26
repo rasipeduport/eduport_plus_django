@@ -36,12 +36,14 @@ const TABS = [
  * homework, mentors and tutors their students'. Grading (the score form in
  * the sheet) is the tutor's job; the mentor only reviews.
  */
-export default function HomeworkPage() {
+export default function HomeworkPage({ role }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState('ADMIN');
-  const [tab, setTab] = useState('all');
+  // The caller's Hub role (App.jsx, lib/access hubRole).
+  const userRole = role;
+  // Tutors land on the review queue, everyone else on the full list.
+  const [tab, setTab] = useState(role === 'TUTOR' ? 'submitted' : 'all');
   const [search, setSearch] = useState('');
   const [tutorFilter, setTutorFilter] = useState('');
   const [sortDesc, setSortDesc] = useState(true);
@@ -63,15 +65,6 @@ export default function HomeworkPage() {
   };
 
   useEffect(() => {
-    api
-      .get('/api/auth/me/')
-      .then((res) => {
-        const role = res.data.user?.role || 'ADMIN';
-        setUserRole(role);
-        // Tutors land on the review queue, everyone else on the full list.
-        if (role === 'TUTOR') setTab('submitted');
-      })
-      .catch(() => {});
     fetchRows();
   }, []);
 

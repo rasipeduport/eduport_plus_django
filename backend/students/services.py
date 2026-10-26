@@ -34,6 +34,16 @@ TUTOR_VISIBLE_FIELDS = (
 )
 
 
+def _sees_full_record(user):
+    """
+    Admins, mentors and superusers get the complete student record; everyone
+    else gets the tutor's cut-down view. Phrased as who is allowed rather than
+    who is not, so a role this module does not know gets the narrow view. A
+    superuser holding the TUTOR role keeps the full record, as before.
+    """
+    return getattr(user, 'role', None) in ('ADMIN', 'MENTOR') or user.is_superuser
+
+
 def _profile_brief(user):
     if not user:
         return None
@@ -84,8 +94,7 @@ def redact_student_for_role(data, user):
     shows them. Keys are removed rather than blanked so the SPA can tell "not
     visible to you" from "empty on the student".
     """
-    role = getattr(user, 'role', None)
-    if role == 'TUTOR' and not user.is_superuser:
+    if not _sees_full_record(user):
         kept = {key: value for key, value in data.items() if key in TUTOR_VISIBLE_FIELDS}
         if kept.get('profile'):
             # The tutor's column set carries the avatar but no contact details.
@@ -151,7 +160,7 @@ def _exam_stats(student, user):
         ExamStatusChoices,
     )
 
-    if getattr(user, 'role', None) == 'TUTOR' and not user.is_superuser:
+    if not _sees_full_record(user):
         # Tutors are scoped to no exams at all, and "0 exams" would read as a
         # fact about the student rather than about the caller's access.
         return None
@@ -212,7 +221,7 @@ def build_profile_stats(student, user):
         "homework": _homework_stats(student),
         "exams": _exam_stats(student, user),
     }
-    if getattr(user, 'role', None) == 'TUTOR' and not user.is_superuser:
+    if not _sees_full_record(user):
         # The tutor's students table deliberately omits quota.
         stats.pop('quota')
     return stats

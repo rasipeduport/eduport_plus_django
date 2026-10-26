@@ -1,5 +1,10 @@
 from rest_framework.permissions import BasePermission
 
+# The roles that run students' classes. Every class below admits a fixed list
+# of roles, and several views then treat whoever is neither MENTOR nor TUTOR
+# as an admin -- so a new role must NOT be added here, or it would inherit
+# admin powers in those views. New roles get permission classes of their own.
+# core.tests_role_scoping fails if this tuple changes.
 STAFF_ROLES = ('ADMIN', 'MENTOR', 'TUTOR')
 
 

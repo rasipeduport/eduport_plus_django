@@ -115,7 +115,7 @@ function QuestionPaperFiles({ exam }) {
  * list (admin: all, mentor: own students); with it, the student's exams page
  * with the New menu and row actions, reached from "Manage Exams".
  */
-export default function ExamsPage() {
+export default function ExamsPage({ role }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const studentIdQuery = searchParams.get('student_id');
 
@@ -125,7 +125,8 @@ export default function ExamsPage() {
   const [chapterNames, setChapterNames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState('ADMIN');
+  // The caller's Hub role (App.jsx, lib/access hubRole).
+  const userRole = role;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState(undefined);
@@ -143,7 +144,6 @@ export default function ExamsPage() {
   const [createAdditionalOpen, setCreateAdditionalOpen] = useState(false);
 
   useEffect(() => {
-    fetchUserInfo();
     fetchStudents();
     fetchExams();
   }, []);
@@ -162,15 +162,6 @@ export default function ExamsPage() {
       .then((res) => setChapterNames(res.data.chapter_names || []))
       .catch(() => setChapterNames([]));
   }, [selectedStudentId]);
-
-  const fetchUserInfo = async () => {
-    try {
-      const res = await api.get('/api/auth/me/');
-      setUserRole(res.data.user?.role || 'ADMIN');
-    } catch (err) {
-      console.error('Failed to load user info', err);
-    }
-  };
 
   const fetchStudents = async () => {
     try {

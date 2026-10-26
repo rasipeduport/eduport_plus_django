@@ -42,9 +42,9 @@ function DashboardSkeleton() {
  * admins and mentors. Each request fails on its own, so one slow or refused
  * list only blanks its own panel.
  */
-export default function DashboardPage({ user }) {
-  const role = user?.role || 'ADMIN';
-  const canSeeExams = role !== 'TUTOR';
+export default function DashboardPage({ user, role }) {
+  // `role` is the caller's Hub role (App.jsx, lib/access hubRole).
+  const canSeeExams = role === 'ADMIN' || role === 'MENTOR';
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
