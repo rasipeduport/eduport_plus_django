@@ -45,11 +45,25 @@ class InvitationFlowTests(APITestCase):
         response = self.client.post(self.lookup_url, {"student_code": "EDP00099"})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_lookup_mentor_role_allowed(self):
+    def test_lookup_mentor_role_refused(self):
+        # Mentors hold no invitation permission (decision D4).
         self.client.force_authenticate(user=self.mentor_user)
         response = self.client.post(self.lookup_url, {})
-        # Missing student_code returns 400 but validates role permission
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_lookup_admin_role_allowed(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.post(self.lookup_url, {})
+        # Missing student_code returns 400, after the permission check
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_mentors_reach_no_invitation_endpoint(self):
+        self.client.force_authenticate(user=self.mentor_user)
+        list_url = reverse('invitations:create-invitation')
+        for method in ('get', 'post', 'patch', 'delete'):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(list_url, {}, format='json')
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @patch('invitations.views.GoogleSheetsService.lookup_student_by_code')
     def test_lookup_student_found_returns_details_without_db_write(self, mock_lookup):
@@ -194,7 +208,7 @@ class InvitationFlowTests(APITestCase):
             status=InvitationStatusChoices.PENDING,
             extra_data={"student_code": "EDP00099", "grade": "9"}
         )
-        self.client.force_authenticate(user=self.mentor_user)
+        self.client.force_authenticate(user=self.admin_user)
         payload = {
             "student_code": "EDP00099",
             "email": "pending_inv@gmail.com",
@@ -208,7 +222,7 @@ class InvitationFlowTests(APITestCase):
         existing_inv.refresh_from_db()
         self.assertEqual(existing_inv.extra_data["grade"], "10")
         self.assertEqual(existing_inv.extra_data["full_name"], "Sarah Connor Updated")
-        self.assertEqual(existing_inv.invited_by, self.mentor_user)
+        self.assertEqual(existing_inv.invited_by, self.admin_user)
 
     def test_list_edit_and_delete_invitation(self):
         self.client.force_authenticate(user=self.admin_user)

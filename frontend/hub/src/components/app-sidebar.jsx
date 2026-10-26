@@ -11,7 +11,7 @@ const navMain = [
   { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
   { title: 'Exams', url: '/exams', icon: ClipboardList },
   { title: 'Homework', url: '/homework', icon: BookOpen },
-  // The single staff-management entry: admins, mentors and tutors alike.
+  // The single staff-management entry, for managers and holders of view_team.
   { title: 'Team', url: '/team', icon: UsersRound },
   { title: 'Invitations', url: '/invitations', icon: Mail },
   { title: 'Activity', url: '/activity', icon: History },
@@ -19,8 +19,8 @@ const navMain = [
 
 export function AppSidebar({ user, logout, ...props }) {
   // Exactly the pages the route guards in App.jsx open for this account
-  // (lib/access): the role's pages, plus Team for managers and for staff
-  // granted accounts.view_team. An unknown role is offered nothing.
+  // (lib/access): those its permissions open. An account holding none is
+  // offered nothing.
   const items = navMain.filter((item) => canOpenPage(user, item.url));
 
   return (

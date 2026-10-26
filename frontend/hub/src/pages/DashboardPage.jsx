@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import api from '@/lib/api';
+import { EXAM_VIEW, PERMISSIONS, can, canAny } from '@/lib/access';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
@@ -37,14 +38,14 @@ function DashboardSkeleton() {
 
 /**
  * The staff dashboard. Everything on it is read from endpoints the Hub
- * already serves this role: the stats endpoint (totals, sign-ups) plus the
+ * already serves this account: the stats endpoint (totals, sign-ups) plus the
  * students, sessions, homework and activity lists, and additional exams for
- * admins and mentors. Each request fails on its own, so one slow or refused
- * list only blanks its own panel.
+ * whoever may view exams. Each request fails on its own, so one slow or
+ * refused list only blanks its own panel.
  */
-export default function DashboardPage({ user, role }) {
-  // `role` is the caller's Hub role (App.jsx, lib/access hubRole).
-  const canSeeExams = role === 'ADMIN' || role === 'MENTOR';
+export default function DashboardPage({ user }) {
+  const canSeeExams = canAny(user, EXAM_VIEW);
+  const canSeeInvitations = can(user, PERMISSIONS.viewInvitations);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +73,7 @@ export default function DashboardPage({ user, role }) {
         sessions: value(sessions, (d) => d.sessions ?? []) ?? [],
         homework: value(homework, (d) => d.homework ?? []) ?? [],
         activity: value(activity, (d) => d.results ?? []) ?? [],
-        // null (not an empty list) when this role is not served exams, so the
+        // null (not an empty list) when this account is not served exams, so the
         // attention list leaves the row out rather than showing a false zero.
         additionalExams: canSeeExams ? (value(additional, (d) => d.additional_exams ?? []) ?? []) : null,
       });
@@ -96,10 +97,10 @@ export default function DashboardPage({ user, role }) {
             sessions: data.sessions,
             additionalExams: data.additionalExams,
             stats: data.stats,
-            role,
+            canSeeInvitations,
           })
         : [],
-    [data, role]
+    [data, canSeeInvitations]
   );
   const attentionTotal = attention.reduce((sum, item) => sum + item.count, 0);
 

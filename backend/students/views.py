@@ -15,7 +15,7 @@ from students.services import (
     build_profile_stats,
     profile_highlights,
     quota_stats,
-    redact_student_for_role,
+    redact_student,
     serialize_student,
 )
 from students.quota_sync import (
@@ -29,8 +29,9 @@ from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
 from activity.utils import log_activity
-from core.permissions import IsAdminUser, IsStaffUser, IsStudentUser
-from core.querysets import scope_students_by_role
+from accounts.authz import has_app_permission
+from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser
+from core.querysets import STUDENT_VIEW_PERMISSIONS, scope_students
 from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import is_valid_timezone
@@ -72,13 +73,14 @@ class StaffDashboardStatsView(APIView):
     GET /api/dashboard/stats/
     Returns the numbers of students, mentors, tutors, and pending invitations.
     Also returns sign-up history over the last 7 days and recent signups.
-    Visible to: Admin, Mentor, Tutor
+    Visible to: accounts.view_staff_dashboard
     """
-    permission_classes = [IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.view_staff_dashboard')]
 
     def get(self, request, *args, **kwargs):
-        # Filter students based on role allocation (mentors/tutors see only theirs)
-        student_qs = scope_students_by_role(Student.objects.all(), request.user)
+        # Only the students this caller may see count. A tutor's count keeps
+        # the students who have since expired.
+        student_qs = scope_students(Student.objects.all(), request.user, request, current_only=False)
 
         # Base counts
         students_count = student_qs.count()
@@ -135,7 +137,7 @@ class StudentDashboardView(APIView):
     Returns the student's dashboard details including session summaries.
     Visible to: Student
     """
-    permission_classes = [IsStudentUser]
+    permission_classes = [IsAuthenticated, IsStudentUser]
 
     def get(self, request, *args, **kwargs):
         student = resolve_selected_student(request)
@@ -216,38 +218,37 @@ class StudentDashboardView(APIView):
 
 class StudentListView(APIView):
     """
-    GET /api/students/ - List students (core.querysets.scope_students_by_role)
-      - ADMIN: See all students.
-      - MENTOR: See their allocated students.
-      - TUTOR: See assigned students where status in ('ACTIVE', 'INACTIVE').
+    GET /api/students/ - List students (core.querysets.scope_students):
+      view_all_students -> every student; view_mentored_students -> the ones
+      they mentor; view_tutored_students -> the ones they tutor while ACTIVE
+      or INACTIVE. Rows are cut down without view_full_student_record.
     PUT /api/students/ - Update student details (meet link, timezone, status,
       and the profile fields behind the Hub's "Edit Profile" sheet). Class
       quota is NOT settable here -- it is synced from the enrolment sheet
       (students.quota_sync) and a request carrying it is refused.
-      - ADMIN/MENTOR: Allowed (mentors only for their allocated students).
+      Needs change_student_details, and the student within the caller's scope.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(
+        *STUDENT_VIEW_PERMISSIONS, 'accounts.change_student_details',
+    )]
 
     def get(self, request, *args, **kwargs):
-        queryset = scope_students_by_role(
-            Student.objects.select_related('profile', 'mentor', 'tutor'), request.user
+        queryset = scope_students(
+            Student.objects.select_related('profile', 'mentor', 'tutor'), request.user, request
         ).order_by('student_code')
-        if request.user.role == 'TUTOR':
-            queryset = queryset.filter(status__in=['ACTIVE', 'INACTIVE'])
 
         # Opt-in pagination: full list by default, sliced when ?page= is given.
         page_items, meta = paginate_queryset(request, queryset)
         source = queryset if page_items is None else page_items
 
-        data = [serialize_student(s) for s in source]
+        data = [redact_student(serialize_student(s), request.user, request) for s in source]
 
         if meta is not None:
             return Response({"results": data, **meta}, status=status.HTTP_200_OK)
         return Response(data, status=status.HTTP_200_OK)
 
     def put(self, request, *args, **kwargs):
-        # Enforce Admin/Mentor permissions for modifications
-        if not (request.user.role in ('ADMIN', 'MENTOR') or request.user.is_superuser):
+        if not has_app_permission(request.user, 'accounts.change_student_details', request):
             return Response(
                 {"error": "FORBIDDEN", "message": "You do not have permission to update student details."},
                 status=status.HTTP_403_FORBIDDEN
@@ -267,7 +268,7 @@ class StudentListView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
             
-        if request.user.role == 'MENTOR' and student.mentor != request.user:
+        if not scope_students(Student.objects.filter(pk=student.pk), request.user, request).exists():
             return Response(
                 {"error": "FORBIDDEN", "message": "You can only update details for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
@@ -444,7 +445,8 @@ class StudentReassignView(APIView):
     """
     POST /api/students/reassign/ — change ONE student's mentor and/or tutor.
 
-    Admin-only, mirroring the Hub's reassign_student_staff RPC: the client
+    Needs accounts.reassign_student_staff (admins), mirroring the Hub's
+    reassign_student_staff RPC: the client
     always sends both desired final values (null = unassign). Completed and
     cancelled sessions keep their tutor snapshot for attribution; only open
     (SCHEDULED) sessions are handed over to the new tutor. Replacements must
@@ -452,7 +454,7 @@ class StudentReassignView(APIView):
     /api/mentors and /api/tutors dropdown lists apply. The bulk staff-exit
     handover is a different flow: accounts.StaffReassignView.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.reassign_student_staff')]
 
     def post(self, request, *args, **kwargs):
         student_id, err = _parse_uuid(request.data.get("id"), "id")
@@ -587,7 +589,8 @@ class StudentDetailView(APIView):
     DELETE /api/students/<id>/ — permanently remove a student created by
     mistake (the Hub's "Delete permanently").
 
-    Admin-only and narrow on purpose: the caller must retype the student_code,
+    Needs accounts.purge_student (admins), and narrow on purpose: the caller
+    must retype the student_code,
     and the request is refused (409) when the student has ANY history — today
     that means sessions, chapter exams and additional exams (extend for homework). For
     a real student who has left, the status flow (expired) is the right tool.
@@ -596,7 +599,7 @@ class StudentDetailView(APIView):
     same transaction; its student FK carries no DB constraint, so the entry
     outlives the row.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.purge_student')]
 
     def delete(self, request, pk, *args, **kwargs):
         student = Student.objects.filter(pk=pk).first()
@@ -660,14 +663,11 @@ def _visible_student(request, pk):
     The student behind a profile URL, or None when this caller may not open
     it. Deliberately the same scope as the students list: a mentor reaches
     their allocated students, a tutor theirs and only while they are
-    active/inactive, an admin everyone.
+    active/inactive, whoever may view all students everyone.
     """
-    queryset = scope_students_by_role(
-        Student.objects.select_related('profile', 'mentor', 'tutor'), request.user
-    )
-    if request.user.role == 'TUTOR' and not request.user.is_superuser:
-        queryset = queryset.filter(status__in=['ACTIVE', 'INACTIVE'])
-    return queryset.filter(pk=pk).first()
+    return scope_students(
+        Student.objects.select_related('profile', 'mentor', 'tutor'), request.user, request
+    ).filter(pk=pk).first()
 
 
 def _not_found():
@@ -689,11 +689,11 @@ class StudentProfileView(APIView):
     endpoint adds is the cross-module arithmetic no single module owns: quota
     balance, the status counters and the "next up" slots.
 
-    Fields a mentor's or tutor's students table does not show them are
+    Fields a caller without view_full_student_record may not see are
     stripped here rather than hidden in the browser (see
-    students.services.redact_student_for_role).
+    students.services.redact_student).
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(*STUDENT_VIEW_PERMISSIONS)]
 
     def get(self, request, pk, *args, **kwargs):
         student = _visible_student(request, pk)
@@ -701,9 +701,9 @@ class StudentProfileView(APIView):
             return _not_found()
 
         return Response({
-            "student": redact_student_for_role(serialize_student(student), request.user),
-            "stats": build_profile_stats(student, request.user),
-            "highlights": profile_highlights(student, request.user),
+            "student": redact_student(serialize_student(student), request.user, request),
+            "stats": build_profile_stats(student, request.user, request),
+            "highlights": profile_highlights(student, request.user, request),
         }, status=status.HTTP_200_OK)
 
 
@@ -723,14 +723,16 @@ class StudentQuotaSyncView(APIView):
     Synchronous, unlike the scheduled path: a person is waiting on the button
     and wants the number back, and one Sheets call per click is cheap.
 
-    Tutors are refused outright. The profile already strips the quota block
-    from their view, so letting them trigger a sync would be an action on a
-    number they are not shown.
+    Needs accounts.sync_student_quota, which tutors do not hold: the profile
+    already strips the quota block from their view, so letting them trigger a
+    sync would be an action on a number they are not shown.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(
+        *STUDENT_VIEW_PERMISSIONS, 'accounts.sync_student_quota',
+    )]
 
     def post(self, request, pk, *args, **kwargs):
-        if request.user.role == 'TUTOR' and not request.user.is_superuser:
+        if not has_app_permission(request.user, 'accounts.sync_student_quota', request):
             return Response(
                 {"error": "FORBIDDEN", "message": "Tutors cannot sync a student's class quota."},
                 status=status.HTTP_403_FORBIDDEN
@@ -814,13 +816,16 @@ class StudentNoteListView(APIView):
     GET  /api/students/<id>/notes/ — the student's internal notes, newest first.
     POST /api/students/<id>/notes/ — add one (``{"body": "..."}``).
 
-    Staff-only and Hub-only: admins, mentors and tutors all read and write the
-    notes of a student they can already open, and no student-facing endpoint
-    ever returns them. Visibility therefore follows the profile itself — a
-    mentor cannot reach another mentor's student, so neither can they reach
-    their notes.
+    Hub-only: reading needs accounts.view_student_notes and writing
+    accounts.add_student_note (every staff role holds both), on a student the
+    caller can already open; no student-facing endpoint ever returns them.
+    Visibility therefore follows the profile itself — a mentor cannot reach
+    another mentor's student, so neither can they reach their notes.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=HasAppPermission('accounts.view_student_notes'),
+        POST=HasAppPermission('accounts.add_student_note'),
+    )]
 
     def get(self, request, pk, *args, **kwargs):
         student = _visible_student(request, pk)
@@ -871,12 +876,16 @@ class StudentNoteListView(APIView):
 class StudentNoteDetailView(APIView):
     """
     PATCH  /api/students/notes/<note_id>/ — the author corrects their own note.
-    DELETE /api/students/notes/<note_id>/ — the author, or any admin, removes it.
+    DELETE /api/students/notes/<note_id>/ — the author, or whoever holds
+    accounts.delete_any_student_note (admins), removes it.
 
     Both re-check that the note's student is still one this caller may open,
     so a reassignment immediately closes the door on the old mentor or tutor.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, ByMethod(
+        PATCH=HasAppPermission('accounts.add_student_note'),
+        DELETE=HasAnyAppPermission('accounts.add_student_note', 'accounts.delete_any_student_note'),
+    )]
 
     def _resolve(self, request, note_id):
         """``(note, None)`` or ``(None, response)``."""
@@ -936,8 +945,8 @@ class StudentNoteDetailView(APIView):
         note, err = self._resolve(request, note_id)
         if err:
             return err
-        is_admin = request.user.role == 'ADMIN' or request.user.is_superuser
-        if note.author_id != request.user.id and not is_admin:
+        may_delete_any = has_app_permission(request.user, 'accounts.delete_any_student_note', request)
+        if note.author_id != request.user.id and not may_delete_any:
             return Response(
                 {"error": "FORBIDDEN", "message": "You can only delete your own notes."},
                 status=status.HTTP_403_FORBIDDEN

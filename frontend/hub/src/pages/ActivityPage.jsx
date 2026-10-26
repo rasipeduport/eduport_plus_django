@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import api from '@/lib/api';
+import { PERMISSIONS, can } from '@/lib/access';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ActivityFeed } from '@/components/activity/activity-feed';
 
@@ -22,10 +23,10 @@ function FeedSkeleton() {
   );
 }
 
-// `role` only decides the copy and which filters are offered: the API already
-// returns each caller their own slice of the log.
-export default function ActivityPage({ role }) {
-  const isAdmin = role === 'ADMIN';
+// The caller's permissions only decide the copy and which filters are
+// offered: the API already returns each caller their own slice of the log.
+export default function ActivityPage({ user }) {
+  const isAdmin = can(user, PERMISSIONS.viewAllActivity);
   const [searchParams] = useSearchParams();
   const [data, setData] = useState({ results: [], count: 0, actor_options: [] });
   const [loading, setLoading] = useState(true);
@@ -100,7 +101,7 @@ export default function ActivityPage({ role }) {
           actorOptions={data.actor_options ?? []}
           filters={{ q, action, entity, actor, from, to }}
           pending={pending}
-          role={role}
+          canFilterByActor={can(user, PERMISSIONS.viewActivityActors)}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+import importlib
 import os
 import shutil
 import tempfile
@@ -5,7 +6,9 @@ import threading
 import time
 import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest import mock, skipUnless
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -92,26 +95,18 @@ class EduportPlusBackendAPITests(APITestCase):
         self.tutors_url = reverse('tutor-list')
         self.activity_logs_url = reverse('activity:activity-logs-list')
 
-    def test_mentor_and_tutor_list_counts(self):
+    def test_mentor_and_tutor_lists(self):
         """
-        Verify that mentors and tutors endpoints return assigned student counts.
+        The slim mentor and tutor lists name the active staff; the full-record
+        mode with assigned-student counts (?all=true) is retired (D3).
         """
         self.client.force_authenticate(user=self.admin)
-        
-        # Test Mentor list
-        res = self.client.get(self.mentors_url + '?all=true')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        mentors_list = res.data.get('mentors', [])
-        # Find our mentor
-        m_data = next(m for m in mentors_list if m['id'] == str(self.mentor.id))
-        self.assertEqual(m_data['assigned_students_count'], 2)
-
-        # Test Tutor list
-        res = self.client.get(self.tutors_url + '?all=true')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        tutors_list = res.data.get('tutors', [])
-        t_data = next(t for t in tutors_list if t['id'] == str(self.tutor.id))
-        self.assertEqual(t_data['assigned_students_count'], 2)
+        for url, key, member in ((self.mentors_url, 'mentors', self.mentor), (self.tutors_url, 'tutors', self.tutor)):
+            with self.subTest(url=url):
+                res = self.client.get(url)
+                self.assertEqual(res.status_code, status.HTTP_200_OK)
+                self.assertIn(str(member.id), [row['id'] for row in res.data[key]])
+                self.assertEqual(self.client.get(url + '?all=true').status_code, status.HTTP_410_GONE)
 
     def test_staff_dashboard_stats(self):
         """
@@ -1889,6 +1884,21 @@ class TutorAvailabilityTests(APITestCase):
         res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
 
+    def test_a_session_is_handed_only_to_an_active_tutor(self):
+        # Decision D5: the new tutor must hold the TUTOR role and be active.
+        mine = self.existing(self.student1, self.two, self.three)
+        retired = User.objects.create_user(
+            email='ta_retired@eduport.com', password='x', full_name='Retired Tutor', role='TUTOR',
+            is_active=False, deactivated_at=timezone.now(),
+        )
+        for target in (self.mentor, retired):
+            with self.subTest(target=target.full_name):
+                res = self.put({"id": str(mine.id), "tutor": str(target.id)})
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+                self.assertEqual(res.data['error'], 'Selected tutor is not an active tutor.')
+                mine.refresh_from_db()
+                self.assertEqual(mine.tutor, self.tutor_a)
+
     def test_resending_the_same_tutor_is_not_a_conflict_with_itself(self):
         mine = self.existing(self.student1, self.two, self.three)
         res = self.put({"id": str(mine.id), "tutor": str(self.tutor_a.id), "title": "Renamed"})
@@ -1997,6 +2007,13 @@ class ConcurrentBookingTests(TransactionTestCase):
     """
 
     def setUp(self):
+        # A TransactionTestCase empties the database between tests, the role
+        # groups seeded by migrations 0008/0009 included, which would leave
+        # the mentor without permissions. Seed them again (a no-op if present).
+        for migration in ('0008_role_groups', '0009_hub_roles_bde_sales_tl'):
+            importlib.import_module(f'accounts.migrations.{migration}').seed_role_groups(
+                django_apps, SimpleNamespace(connection=connection)
+            )
         self.mentor = User.objects.create_user(email='cb_mentor@eduport.com', password='x', full_name='Cb Mentor', role='MENTOR', is_staff=True)
         self.tutor = User.objects.create_user(email='cb_tutor@eduport.com', password='x', full_name='Cb Tutor', role='TUTOR', is_staff=True)
         self.students = []

@@ -1,11 +1,13 @@
 """
-Role scoping is deny-by-default.
+Scoping is deny-by-default.
 
-Access is granted role by role: ADMIN (and superusers) see everything, MENTOR
-and TUTOR their allocated students' rows, and every other role -- a future one,
-or a bad value in the column -- nothing. These tests pin both halves: the
-existing roles keep exactly what they had, superuser edge cases included, and an
-unknown role is refused by every API route and every file download.
+Access follows permissions (accounts.authz): the Admin role's group sees
+everything, Mentor and Tutor their allocated students' rows, superusers
+everything whatever their role (decision D1), and every other role -- BDE and
+Sales TL, whose groups are empty, a future one, or a bad value in the column --
+nothing. These tests pin both halves: the existing roles keep exactly what they
+had, and a role without permissions is refused by every API route and every
+file download. Every API view must also say which permission guards it.
 """
 import re
 import shutil
@@ -17,24 +19,19 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, override_settings
-from django.urls import URLResolver, get_resolver, reverse
+from django.urls import URLPattern, URLResolver, get_resolver, reverse
 from django.utils import timezone
+from rest_framework.permissions import AllowAny, IsAuthenticated, OperandHolder
 from rest_framework.test import APITestCase
 
+from accounts.team import IsTeamManager, TeamAccess
 from activity.models import ActivityLog
-from core.permissions import STAFF_ROLES
-from core.querysets import (
-    scope_activity_by_role,
-    scope_exams_by_role,
-    scope_homework_by_role,
-    scope_sessions_by_role,
-    scope_students_by_role,
-)
+from core.querysets import scope_activity, scope_exams, scope_homework, scope_sessions, scope_students
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from sessions.models import Session, SessionFile, SessionStatusChoices
 from students.models import StatusChoices, Student
-from students.services import TUTOR_VISIBLE_FIELDS, build_profile_stats, redact_student_for_role, serialize_student
+from students.services import TUTOR_VISIBLE_FIELDS, build_profile_stats, redact_student, serialize_student
 
 User = get_user_model()
 
@@ -105,17 +102,20 @@ class RoleScopingFixture(APITestCase):
             'superuser': account('superuser', 'ADMIN', superuser=True),
             'mentor': account('mentor', 'MENTOR'),
             'tutor': account('tutor', 'TUTOR'),
-            # A superuser holding the MENTOR or TUTOR role keeps that role's scope.
+            # A superuser holds every permission whatever their role (D1), so
+            # one holding MENTOR, TUTOR or an unknown role sees what an admin sees.
             'super_mentor': account('super_mentor', 'MENTOR', superuser=True),
             'super_tutor': account('super_tutor', 'TUTOR', superuser=True),
-            # A superuser with a role nobody knows is an admin, as IsAdminUser says.
             'super_unknown': account('super_unknown', 'UNASSIGNED', superuser=True),
             'parent': account('parent', 'STUDENT'),
+            # Staff roles with no permission yet, and roles nothing knows.
+            'bde': account('bde', 'BDE'),
+            'sales_tl': account('sales_tl', 'SALES_TL'),
             'unknown': account('unknown', 'UNASSIGNED'),
             'blank': account('blank', ''),
         }
         a = self.accounts
-        self.unknown_accounts = (a['unknown'], a['blank'])
+        self.unknown_accounts = (a['bde'], a['sales_tl'], a['unknown'], a['blank'])
 
         def student(code, mentor, tutor, status=StatusChoices.ACTIVE):
             return Student.objects.create(
@@ -172,10 +172,10 @@ class RoleScopingFixture(APITestCase):
 
 
 class ScopeHelperTests(RoleScopingFixture):
-    """core.querysets: each existing role keeps its rows, every other role gets none."""
+    """core.querysets: each existing role keeps its rows, every role without permissions gets none."""
 
-    ADMIN_LIKE = ('admin', 'superuser', 'super_unknown')
-    NOBODY = ('parent', 'unknown', 'blank')
+    ADMIN_LIKE = ('admin', 'superuser', 'super_mentor', 'super_tutor', 'super_unknown')
+    NOBODY = ('parent', 'bde', 'sales_tl', 'unknown', 'blank')
 
     def assertScoped(self, scope, queryset, rows, expected):
         expected = {**{key: set(rows) for key in self.ADMIN_LIKE}, **{key: set() for key in self.NOBODY}, **expected}
@@ -186,38 +186,40 @@ class ScopeHelperTests(RoleScopingFixture):
                 self.assertEqual(got, {rows[label].pk for label in labels})
 
     def test_students(self):
-        self.assertScoped(scope_students_by_role, Student.objects.all(), self.students, {
+        # A tutor sees their students only while active or inactive...
+        self.assertScoped(scope_students, Student.objects.all(), self.students, {
+            'mentor': {'a', 'a_expired'}, 'tutor': {'a'},
+        })
+
+    def test_students_counted_whatever_their_status(self):
+        # ...except where every student they have counts (the dashboard).
+        def everyone(queryset, user):
+            return scope_students(queryset, user, current_only=False)
+        self.assertScoped(everyone, Student.objects.all(), self.students, {
             'mentor': {'a', 'a_expired'}, 'tutor': {'a', 'a_expired'},
-            'super_mentor': {'b', 'b_expired'}, 'super_tutor': {'b', 'b_expired'},
         })
 
     def test_sessions(self):
-        self.assertScoped(scope_sessions_by_role, Session.objects.all(), self.sessions, {
-            'mentor': {'a'}, 'tutor': {'a'}, 'super_mentor': {'b'}, 'super_tutor': {'b'},
-        })
+        self.assertScoped(scope_sessions, Session.objects.all(), self.sessions, {'mentor': {'a'}, 'tutor': {'a'}})
 
     def test_homework(self):
-        self.assertScoped(scope_homework_by_role, Homework.objects.all(), self.homework, {
-            'mentor': {'a'}, 'tutor': {'a'}, 'super_mentor': {'b'}, 'super_tutor': {'b'},
-        })
+        self.assertScoped(scope_homework, Homework.objects.all(), self.homework, {'mentor': {'a'}, 'tutor': {'a'}})
 
     def test_exams(self):
-        # Tutors see no exams at all -- a superuser holding the TUTOR role included.
+        # Tutors see no exams at all.
         for model, rows in ((Exam, self.exams), (AdditionalExam, self.additional_exams)):
             with self.subTest(model=model.__name__):
-                self.assertScoped(scope_exams_by_role, model.objects.all(), rows, {
-                    'mentor': {'a'}, 'tutor': set(), 'super_mentor': {'b'}, 'super_tutor': set(),
-                })
+                self.assertScoped(scope_exams, model.objects.all(), rows, {'mentor': {'a'}, 'tutor': set()})
 
     def test_activity(self):
-        # Mentors and tutors read only what they wrote; an unknown role not even that.
-        self.assertScoped(scope_activity_by_role, ActivityLog.objects.filter(action='test.scoping'), self.activity, {
-            'mentor': {'mentor'}, 'tutor': {'tutor'}, 'super_mentor': {'super_mentor'}, 'super_tutor': set(),
+        # Mentors and tutors read only what they wrote; a role without permissions not even that.
+        self.assertScoped(scope_activity, ActivityLog.objects.filter(action='test.scoping'), self.activity, {
+            'mentor': {'mentor'}, 'tutor': {'tutor'},
         })
 
 
 class StudentListTests(RoleScopingFixture):
-    """GET /api/students/ now goes through scope_students_by_role, with the tutor's status filter kept."""
+    """GET /api/students/ goes through scope_students, with the tutor's status filter kept."""
 
     def test_each_role_lists_what_it_did_before(self):
         url = reverse('students:student-list')
@@ -226,9 +228,9 @@ class StudentListTests(RoleScopingFixture):
             'superuser': {'SCOPE-A', 'SCOPE-A-EXP', 'SCOPE-B', 'SCOPE-B-EXP'},
             'mentor': {'SCOPE-A', 'SCOPE-A-EXP'},
             'tutor': {'SCOPE-A'},
-            'super_mentor': {'SCOPE-B', 'SCOPE-B-EXP'},
-            # The status filter follows the role, so it applies to a superuser tutor too.
-            'super_tutor': {'SCOPE-B'},
+            # Superusers see every student whatever their role (D1).
+            'super_mentor': {'SCOPE-A', 'SCOPE-A-EXP', 'SCOPE-B', 'SCOPE-B-EXP'},
+            'super_tutor': {'SCOPE-A', 'SCOPE-A-EXP', 'SCOPE-B', 'SCOPE-B-EXP'},
         }
         for key, codes in expected.items():
             with self.subTest(caller=key):
@@ -243,16 +245,29 @@ class StudentListTests(RoleScopingFixture):
                 self.client.force_authenticate(user=account)
                 self.assertEqual(self.client.get(reverse('students:student-list')).status_code, 403)
 
+    def test_a_tutors_rows_are_cut_down_server_side(self):
+        # Decision D2: without view_full_student_record the list carries the
+        # same cut-down row as the profile.
+        self.client.force_authenticate(user=self.accounts['tutor'])
+        rows = self.client.get(reverse('students:student-list')).data
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertLessEqual(set(row), set(TUTOR_VISIBLE_FIELDS))
+            self.assertNotIn('mobile_number', row)
+            self.assertNotIn('total_class_quota', row)
+        self.client.force_authenticate(user=self.accounts['mentor'])
+        self.assertIn('mobile_number', self.client.get(reverse('students:student-list')).data[0])
+
 
 class StudentRedactionTests(RoleScopingFixture):
-    """students.services: only admins, mentors and superusers get the full record."""
+    """students.services: only holders of view_full_student_record (admins, mentors, superusers) get the full record."""
 
     def test_full_record_for_admins_mentors_and_superusers(self):
         row = serialize_student(self.students['a'])
         for key in ('admin', 'mentor', 'super_tutor', 'super_unknown'):
             with self.subTest(caller=key):
                 user = self.accounts[key]
-                self.assertEqual(redact_student_for_role(row, user), row)
+                self.assertEqual(redact_student(row, user), row)
                 stats = build_profile_stats(self.students['a'], user)
                 self.assertIn('quota', stats)
                 self.assertIsNotNone(stats['exams'])
@@ -261,7 +276,7 @@ class StudentRedactionTests(RoleScopingFixture):
         row = serialize_student(self.students['a'])
         for account in (self.accounts['tutor'], *self.unknown_accounts):
             with self.subTest(role=account.role):
-                kept = redact_student_for_role(row, account)
+                kept = redact_student(row, account)
                 self.assertLessEqual(set(kept), set(TUTOR_VISIBLE_FIELDS))
                 self.assertNotIn('mobile_number', kept)
                 self.assertEqual(kept['profile'], {'avatar_url': row['profile']['avatar_url']})
@@ -273,8 +288,8 @@ class StudentRedactionTests(RoleScopingFixture):
 class FileDownloadTests(RoleScopingFixture):
     """
     The four download views admit any signed-in account and rely on the scope
-    helpers, so these are where deny-by-default changes an answer: an unknown
-    role used to be scoped to everything.
+    helpers, so these are where deny-by-default shows: a role without
+    permissions is refused every file.
     """
 
     def setUp(self):
@@ -310,9 +325,9 @@ class FileDownloadTests(RoleScopingFixture):
         self.assertDownloads(a['super_unknown'], everything)
         self.assertDownloads(a['mentor'], everything)  # the homework is scored
         self.assertDownloads(a['tutor'], {'session': 200, 'exam': 403, 'additional_exam': 403, 'homework': 200})
-        # Students are allocated elsewhere, so the other pair gets nothing.
-        self.assertDownloads(a['super_mentor'], dict.fromkeys(self.urls, 403))
-        self.assertDownloads(a['super_tutor'], dict.fromkeys(self.urls, 403))
+        # Superusers reach every file whatever their role (D1).
+        self.assertDownloads(a['super_mentor'], everything)
+        self.assertDownloads(a['super_tutor'], everything)
 
     def test_a_mentor_still_waits_for_the_score(self):
         homework = self.homework['a']
@@ -322,7 +337,7 @@ class FileDownloadTests(RoleScopingFixture):
 
 
 class ApiSweepTests(RoleScopingFixture):
-    """Every /api/ route, every method: an unknown role succeeds only on the account basics."""
+    """Every /api/ route, every method: a role without permissions succeeds only on the account basics."""
 
     def setUp(self):
         super().setUp()
@@ -373,11 +388,57 @@ class ApiSweepTests(RoleScopingFixture):
                 self.assertNotIn('student_profiles', res.data)
 
 
-class StaffRolesTests(SimpleTestCase):
-    def test_staff_roles_stay_the_three_class_running_roles(self):
-        self.assertEqual(
-            STAFF_ROLES, ('ADMIN', 'MENTOR', 'TUTOR'),
-            'STAFF_ROLES admits a role to every student-operations endpoint, and several views treat '
-            'anyone there who is neither MENTOR nor TUTOR as an admin. Give a new role permission '
-            'classes of its own instead (see core/permissions.py).',
-        )
+# Views open to any signed-in (or anonymous) account on purpose, and why. Every
+# other API view must be guarded by a permission (core.permissions).
+OPEN_VIEWS = {
+    # The account basics: sign in and out, the CSRF token, the caller's own identity.
+    'CsrfTokenView', 'LoginView', 'GoogleLoginView', 'LogoutView', 'MeView', 'ChangePasswordView',
+    'SelectStudentView',
+    # File downloads: the view scopes the file's parent row itself and answers
+    # "no access to this file" (FileDownloadTests).
+    'SessionFileDownloadView', 'ExamFileDownloadView', 'AdditionalExamFileDownloadView', 'HomeworkFileDownloadView',
+    # Retired (D3): 410 Gone for every caller, logged.
+    'AdminListView', 'UserDetailView', 'StaffStatusView',
+}
+# Permission classes that decide by catalogue permission (accounts.authz).
+PERMISSION_FACTORIES = ('HasAppPermission', 'HasAnyAppPermission', 'ByMethod', 'IsStudentUser')
+
+
+def _decides_by_permission(permission):
+    if isinstance(permission, OperandHolder):
+        return _decides_by_permission(permission.op1_class) and _decides_by_permission(permission.op2_class)
+    if permission in (TeamAccess, IsTeamManager):
+        return True
+    return permission.__name__.startswith(PERMISSION_FACTORIES)
+
+
+def api_views(patterns=None, prefix=''):
+    for entry in get_resolver().url_patterns if patterns is None else patterns:
+        route = prefix + str(entry.pattern)
+        if isinstance(entry, URLResolver):
+            if route.startswith('api/'):
+                yield from api_views(entry.url_patterns, route)
+        elif isinstance(entry, URLPattern) and route.startswith('api/'):
+            yield route, entry.callback.cls
+
+
+class ViewPermissionTests(SimpleTestCase):
+    """Every API view declares the permission that guards it; none admits by role."""
+
+    def test_every_api_view_is_guarded_by_a_permission(self):
+        unguarded = []
+        for route, view in api_views():
+            classes = list(view.permission_classes)
+            if view.__name__ in OPEN_VIEWS:
+                self.assertTrue(set(classes) <= {AllowAny, IsAuthenticated}, f'{view.__name__} is listed as open')
+                continue
+            if not any(_decides_by_permission(permission) for permission in classes if permission is not IsAuthenticated):
+                unguarded.append(f'{route} ({view.__name__})')
+        self.assertEqual(unguarded, [], 'API views without a permission guard')
+
+    def test_staff_endpoints_also_require_a_signed_in_account(self):
+        # IsAuthenticated first, so an anonymous caller gets "not signed in" rather than "not allowed".
+        for route, view in api_views():
+            if view.__name__ not in OPEN_VIEWS:
+                with self.subTest(route=route):
+                    self.assertIs(list(view.permission_classes)[0], IsAuthenticated)

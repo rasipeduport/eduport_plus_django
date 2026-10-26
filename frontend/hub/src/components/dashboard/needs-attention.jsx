@@ -6,16 +6,16 @@ import { Panel } from './dashboard-primitives';
 
 /**
  * Items that need a staff member's hand, each counted from a list the Hub
- * already serves this role:
+ * already serves this account:
  *   - homework with status "submitted" (the tutor has not scored it yet)
  *   - attended classes whose notes / recording / homework are not all in
  *     (the API's derived display_status "pending")
- *   - pending invitations (the stats endpoint's count; admins act on them)
+ *   - pending invitations (the stats endpoint's count), for whoever may view invitations
  *   - additional exams with a submitted answer sheet and no score yet
  *     (tutors are not served the exam endpoints, so the row is left out)
  * Returns rows with a count, a hint and where to go to act on them.
  */
-export function attentionItems({ homework, sessions, additionalExams, stats, role }) {
+export function attentionItems({ homework, sessions, additionalExams, stats, canSeeInvitations }) {
   const items = [
     {
       key: 'homework',
@@ -32,7 +32,7 @@ export function attentionItems({ homework, sessions, additionalExams, stats, rol
       to: '/sessions',
     },
   ];
-  if (role === 'ADMIN') {
+  if (canSeeInvitations) {
     items.push({
       key: 'invitations',
       icon: Mail,

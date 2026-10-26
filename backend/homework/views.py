@@ -16,8 +16,8 @@ from rest_framework.permissions import IsAuthenticated
 
 from activity.utils import log_activity
 from core.pagination import paginate_queryset
-from core.permissions import IsAdminOrTutor, IsStaffOrSelfStudent, IsStudentUser
-from core.querysets import scope_homework_by_role
+from core.permissions import HasAnyAppPermission, HasAppPermission, IsStudentUser, IsStudentUserFor
+from core.querysets import HOMEWORK_VIEW_PERMISSIONS, scope_homework
 from core.students import get_usable_students, resolve_selected_student
 from exams.services import discard_file_bytes, validate_upload_batch
 from exams.views import _FileDownloadBase, _forbidden, _student_persona_error
@@ -26,6 +26,9 @@ from .serializers import HomeworkSerializer
 from .services import HomeworkStateError, can_grade, can_view_submission, score_homework, submit_homework
 
 FEEDBACK_MAX_LENGTH = 2000
+
+# Staff reading homework, or the selected student reading their own.
+READ_HOMEWORK = HasAnyAppPermission(*HOMEWORK_VIEW_PERMISSIONS) | IsStudentUserFor('GET')
 
 
 def _ctx(request):
@@ -46,12 +49,12 @@ def _visible_queryset(request):
     if request.user.role == 'STUDENT':
         student = resolve_selected_student(request)
         return qs.filter(student=student) if student else qs.none()
-    return scope_homework_by_role(qs, request.user)
+    return scope_homework(qs, request.user, request)
 
 
 class HomeworkView(APIView):
     """GET /api/homework/ -- admin: all; mentor/tutor: their students; student: the selected persona."""
-    permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
+    permission_classes = [IsAuthenticated, READ_HOMEWORK]
 
     def get(self, request, *args, **kwargs):
         params = request.query_params
@@ -91,7 +94,7 @@ class HomeworkView(APIView):
 
 class HomeworkDetailView(APIView):
     """GET /api/homework/<id>/"""
-    permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
+    permission_classes = [IsAuthenticated, READ_HOMEWORK]
 
     def get(self, request, homework_id, *args, **kwargs):
         homework = _visible_queryset(request).filter(id=homework_id).first()
@@ -150,13 +153,13 @@ class HomeworkSubmitView(APIView):
 
 class HomeworkScoreView(APIView):
     """POST /api/homework/<id>/score/ (JSON): the student's tutor or an admin grades a submitted homework."""
-    permission_classes = [IsAuthenticated, IsAdminOrTutor]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.score_homework')]
 
     def post(self, request, homework_id, *args, **kwargs):
         homework = _base_queryset().filter(id=homework_id).first()
         if not homework:
             return Response({"error": "Homework not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not can_grade(request.user, homework.student):
+        if not can_grade(request.user, homework.student, request):
             return _forbidden("You can only grade homework for your allocated students.")
         if homework.status != HomeworkStatusChoices.SUBMITTED:
             return Response({"error": "Only a submitted homework can be scored"}, status=status.HTTP_409_CONFLICT)
@@ -209,6 +212,6 @@ class HomeworkFileDownloadView(_FileDownloadBase):
         user = request.user
         if user.role == 'STUDENT':
             return get_usable_students(user).filter(id=homework.student_id).exists()
-        if not scope_homework_by_role(Homework.objects.filter(id=homework.id), user).exists():
+        if not scope_homework(Homework.objects.filter(id=homework.id), user, request).exists():
             return False
-        return can_view_submission(user, homework)
+        return can_view_submission(user, homework, request)

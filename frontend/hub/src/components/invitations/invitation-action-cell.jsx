@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { PERMISSIONS, can } from '@/lib/access';
 import { Label } from '@/components/ui/label';
 import { EMAIL_RE } from '@/lib/utils';
 import api from '@/lib/api';
@@ -149,12 +150,17 @@ function WithdrawDialog({ invitation, open, onOpenChange, onSuccess }) {
   );
 }
 
-export function InvitationActionCell({ invitation, onChanged }) {
+export function InvitationActionCell({ invitation, user, onChanged }) {
   const [editOpen, setEditOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const isStudent = invitation.role === 'STUDENT';
   // A legacy staff invitation can only be withdrawn: the API refuses to edit
   // it, since a new address would re-send an invitation nobody can redeem.
-  const editable = invitation.role === 'STUDENT';
+  const editable = isStudent && can(user, PERMISSIONS.changeInvitation);
+  // Withdrawing a legacy staff invitation is Team business (manage_team).
+  const withdrawable =
+    can(user, PERMISSIONS.withdrawInvitation) && (isStudent || can(user, PERMISSIONS.manageTeam));
+  if (!editable && !withdrawable) return null;
 
   return (
     <>
@@ -168,13 +174,17 @@ export function InvitationActionCell({ invitation, onChanged }) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           {editable ? <DropdownMenuItem onClick={() => setEditOpen(true)}>Edit email</DropdownMenuItem> : null}
-          <DropdownMenuItem onClick={() => setWithdrawOpen(true)}>Withdraw invitation</DropdownMenuItem>
+          {withdrawable ? (
+            <DropdownMenuItem onClick={() => setWithdrawOpen(true)}>Withdraw invitation</DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
       {editable ? (
         <EditEmailDialog invitation={invitation} open={editOpen} onOpenChange={setEditOpen} onSuccess={onChanged} />
       ) : null}
-      <WithdrawDialog invitation={invitation} open={withdrawOpen} onOpenChange={setWithdrawOpen} onSuccess={onChanged} />
+      {withdrawable ? (
+        <WithdrawDialog invitation={invitation} open={withdrawOpen} onOpenChange={setWithdrawOpen} onSuccess={onChanged} />
+      ) : null}
     </>
   );
 }

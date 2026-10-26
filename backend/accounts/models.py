@@ -4,14 +4,28 @@ import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
+
+from .permission_catalogue import hub_permission_meta
 
 
 class RoleChoices(models.TextChoices):
     ADMIN = 'ADMIN', 'Admin'
     MENTOR = 'MENTOR', 'Mentor'
     TUTOR = 'TUTOR', 'Tutor'
+    BDE = 'BDE', 'BDE'
+    SALES_TL = 'SALES_TL', 'Sales TL'
     STUDENT = 'STUDENT', 'Student'
+
+
+# The staff roles: they sign in to the Hub with a username and password, Team
+# manages their accounts, and each has a role group. What a role may do is
+# never read from this list -- only from its group's permissions, within the
+# catalogue's ceiling (accounts.authz) -- so BDE and Sales TL, whose group is
+# empty and whose ceiling is empty, reach no data until permissions for their
+# own modules are added to the catalogue.
+HUB_ROLES = (RoleChoices.ADMIN, RoleChoices.MENTOR, RoleChoices.TUTOR, RoleChoices.BDE, RoleChoices.SALES_TL)
 
 
 USERNAME_MAX_LENGTH = 150
@@ -179,8 +193,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name = 'User Profile'
         verbose_name_plural = 'User Profiles'
         ordering = ['-created_at']
-        # Application permissions offered for assignment by the Team API
-        # (accounts.team.ASSIGNABLE_PERMISSIONS, which also enforces them).
+        # Application permissions, listed with their per-role ceiling in
+        # accounts.permission_catalogue and resolved by accounts.authz.
         permissions = [
             ('view_team', 'Can view the team directory'),
         ]
@@ -200,3 +214,56 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.email} ({self.role})"
+
+
+# The staff roles that carry a role group. Students never do: Learn has no
+# permissions to give them.
+ROLE_GROUP_ROLES = HUB_ROLES
+
+
+class RoleGroup(models.Model):
+    """
+    The one Django group whose permissions a staff role carries.
+
+    ``User.role`` stays the only record of who holds a role: nobody is ever a
+    member of a role group (accounts.signals refuses group membership
+    outright), and accounts.authz looks the group up through this row instead.
+    The group's permissions are configured by superusers -- Django admin or
+    ``manage.py role_permissions`` -- within the catalogue's per-role ceiling
+    (accounts.permission_catalogue). Seeded by migrations 0008 (Admin, Mentor,
+    Tutor) and 0009 (BDE, Sales TL, empty).
+    """
+    role = models.CharField(max_length=20, choices=RoleChoices.choices, primary_key=True)
+    group = models.OneToOneField('auth.Group', on_delete=models.PROTECT, related_name='role_link')
+
+    class Meta:
+        db_table = 'role_groups'
+        verbose_name = 'Role group'
+        verbose_name_plural = 'Role groups'
+        ordering = ['role']
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(role__in=[role.value for role in ROLE_GROUP_ROLES]),
+                name='role_groups_staff_roles_only',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_role_display()} -> {self.group.name}"
+
+
+class HubPermission(models.Model):
+    """
+    The holder of the application permissions in accounts.permission_catalogue
+    (all but accounts.view_team, which predates the catalogue and stays on
+    User). It has no table and is never queried: Django only needs a model to
+    hang permission rows on, and this keeps every application permission under
+    the one "accounts" label.
+    """
+
+    class Meta:
+        managed = False
+        default_permissions = ()
+        permissions = hub_permission_meta()
+        verbose_name = 'Hub permission'
+        verbose_name_plural = 'Hub permissions'

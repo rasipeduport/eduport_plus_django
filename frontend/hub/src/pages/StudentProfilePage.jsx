@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 import api from '@/lib/api';
+import { EXAM_VIEW, PERMISSIONS, can, canAny } from '@/lib/access';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomeworkGradeSheet } from '@/components/homework/homework-grade-sheet';
@@ -35,7 +36,8 @@ const TAB_RESOURCES = {
   notes: [],
 };
 
-const TUTOR_SKIPPED_RESOURCES = new Set(['exams', 'additionalExams']);
+// Read only by whoever may view exams (tutors may not).
+const EXAM_RESOURCES = new Set(['exams', 'additionalExams']);
 
 const RESOURCE_REQUESTS = {
   sessions: { url: '/api/sessions/', key: 'sessions' },
@@ -55,14 +57,13 @@ const EMPTY_RESOURCES = { sessions: null, exams: null, additionalExams: null, ho
  * ?student_id=, lazily on first open, so each module keeps owning its own
  * access rules and opening a profile does not fetch what nobody looked at.
  */
-export default function StudentProfilePage({ role: userRole }) {
+export default function StudentProfilePage({ user }) {
   const { studentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // The caller's Hub role (App.jsx, lib/access hubRole), lower-cased for the profile components.
-  const role = (userRole || '').toLowerCase();
-  const isTutor = role === 'tutor';
-  const canScoreHomework = role === 'admin' || role === 'tutor';
+  // What the caller may do follows their permissions (App.jsx, from /me).
+  const canViewExams = canAny(user, EXAM_VIEW);
+  const canScoreHomework = can(user, PERMISSIONS.scoreHomework);
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function StudentProfilePage({ role: userRole }) {
   // Exams are a mentor <-> student affair; the API tells us so by sending no
   // exam stats at all, which keeps the tab list and the API in step.
   const tabs = useMemo(() => {
-    const showExams = !isTutor && profile?.stats?.exams != null;
+    const showExams = canViewExams && profile?.stats?.exams != null;
     return [
       { key: 'overview', label: 'Overview' },
       { key: 'sessions', label: 'Sessions', count: profile?.stats?.sessions?.total },
@@ -95,7 +96,7 @@ export default function StudentProfilePage({ role: userRole }) {
       { key: 'activity', label: 'Activity' },
       { key: 'notes', label: 'Notes' },
     ];
-  }, [isTutor, profile]);
+  }, [canViewExams, profile]);
 
   const requested = searchParams.get('tab') || 'overview';
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
@@ -153,8 +154,8 @@ export default function StudentProfilePage({ role: userRole }) {
   );
 
   const resourcesFor = useCallback(
-    (name) => (TAB_RESOURCES[name] ?? []).filter((resource) => !(isTutor && TUTOR_SKIPPED_RESOURCES.has(resource))),
-    [isTutor]
+    (name) => (TAB_RESOURCES[name] ?? []).filter((resource) => canViewExams || !EXAM_RESOURCES.has(resource)),
+    [canViewExams]
   );
 
   // Fetch what the open tab needs, once.
@@ -209,7 +210,7 @@ export default function StudentProfilePage({ role: userRole }) {
 
   return (
     <div className="container mx-auto flex flex-col gap-6 px-4 py-16">
-        <ProfileHeader student={student} role={role} onChanged={refresh} />
+        <ProfileHeader student={student} user={user} onChanged={refresh} />
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -226,7 +227,7 @@ export default function StudentProfilePage({ role: userRole }) {
               student={student}
               stats={stats}
               highlights={highlights}
-              role={role}
+              user={user}
               onOpenTab={setTab}
               onSynced={refresh}
             />
@@ -244,7 +245,7 @@ export default function StudentProfilePage({ role: userRole }) {
             )}
           </TabsContent>
 
-          {stats.exams != null && !isTutor ? (
+          {stats.exams != null && canViewExams ? (
             <TabsContent value="exams">
               {waiting('exams') || waiting('additionalExams') ? (
                 <TabSkeleton />
@@ -279,13 +280,13 @@ export default function StudentProfilePage({ role: userRole }) {
             ) : (
               <DocumentsTab
                 documents={documents}
-                sources={isTutor ? ['session', 'homework'] : ['session', 'exam', 'additional_exam', 'homework']}
+                sources={canViewExams ? ['session', 'exam', 'additional_exam', 'homework'] : ['session', 'homework']}
               />
             )}
           </TabsContent>
 
           <TabsContent value="activity">
-            <ActivityTab studentId={studentId} role={role} />
+            <ActivityTab studentId={studentId} user={user} />
           </TabsContent>
 
           <TabsContent value="notes">

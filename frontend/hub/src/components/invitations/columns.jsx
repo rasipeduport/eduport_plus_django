@@ -13,9 +13,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
  * Columns for the invitations table (Hub parity).
  *
  * `onChanged` refetches the list after the action cell edits or withdraws a
- * row -- the SPA equivalent of the Hub's `router.refresh()`.
+ * row -- the SPA equivalent of the Hub's `router.refresh()`. `user` decides
+ * which row actions are offered (InvitationActionCell).
  */
-export function createColumns(onChanged) {
+export function createColumns(user, onChanged) {
   return [
     {
       accessorKey: 'email',
@@ -66,7 +67,7 @@ export function createColumns(onChanged) {
         // status ACCEPTED and the API refuses to edit or withdraw it, so the
         // menu is hidden rather than offering actions that always fail.
         if (row.original.status === 'ACCEPTED') return null;
-        return <InvitationActionCell invitation={row.original} onChanged={onChanged} />;
+        return <InvitationActionCell invitation={row.original} user={user} onChanged={onChanged} />;
       },
     },
   ];

@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { InvitationsTable } from '@/components/invitations/invitations-table';
 
-export default function InvitationsPage() {
+export default function InvitationsPage({ user }) {
   const [searchParams] = useSearchParams();
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +51,7 @@ export default function InvitationsPage() {
     <div className="container mx-auto px-4 py-16">
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
 
-      <InvitationsTable data={invitations} initialOpen={initialOpen} onChanged={fetchInvitations} />
+      <InvitationsTable data={invitations} user={user} initialOpen={initialOpen} onChanged={fetchInvitations} />
     </div>
   );
 }

@@ -131,24 +131,33 @@ def score_homework(homework, score, max_score, feedback, actor):
 
 # ------------------------------------------------------------ permissions
 
-def can_grade(user, student):
-    """Admins, or the student's assigned tutor. Never the mentor."""
-    if user.role == 'ADMIN' or user.is_superuser:
-        return True
-    return user.role == 'TUTOR' and student.tutor_id == user.id
+def can_grade(user, student, request=None):
+    """
+    Whoever holds accounts.score_homework, for a student within their homework
+    scope: admins any student, a tutor their allocated students. Mentors do not
+    hold it.
+    """
+    from accounts.authz import has_app_permission
+    from core.querysets import reaches
+    return has_app_permission(user, 'accounts.score_homework', request) and reaches('homework', user, student, request)
 
 
-def can_view_submission(user, homework):
+def can_view_submission(user, homework, request=None):
     """
-    Submission files: admin, the tutor and the owning student always; the
-    mentor only once the homework is scored (the Supabase rule); any other
-    role never. Callers scope the homework row itself first.
+    Submission files: the owning student, and whoever holds
+    accounts.view_homework_submissions (admins, tutors), always; anyone else
+    who may see the homework (mentors) only once it is scored -- the Supabase
+    rule. Callers scope the homework row itself first.
     """
-    if user.role in ('ADMIN', 'TUTOR', 'STUDENT') or user.is_superuser:
+    from accounts.authz import has_any_app_permission, has_app_permission
+    from core.querysets import HOMEWORK_VIEW_PERMISSIONS
+    if user.role == 'STUDENT':
         return True
-    if user.role == 'MENTOR':
-        return homework.status == HomeworkStatusChoices.SCORED
-    return False
+    if has_app_permission(user, 'accounts.view_homework_submissions', request):
+        return True
+    return homework.status == HomeworkStatusChoices.SCORED and has_any_app_permission(
+        user, HOMEWORK_VIEW_PERMISSIONS, request
+    )
 
 
 def homework_history_exists(student):

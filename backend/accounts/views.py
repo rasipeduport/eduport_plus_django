@@ -1,7 +1,6 @@
 import logging
 import uuid
 from django.conf import settings
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, login, logout, get_user_model, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -18,10 +17,9 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from students.models import Student
-from invitations.models import Invitation, InvitationStatusChoices
 from activity.models import ActivityLog
 from activity.utils import log_activity
-from core.permissions import IsAdminUser, IsStaffUser
+from core.permissions import HasAppPermission
 from core.students import (
     get_account_students,
     get_usable_students,
@@ -31,10 +29,10 @@ from core.students import (
 from .serializers import UserSerializer, StudentSerializer
 from .services import UserProvisioningService
 from .models import RoleChoices, normalize_username
-from .team import active_student_count, log_status_change, set_account_active
 from .throttles import LoginIPThrottle, PasswordChangeThrottle
 
 logger = logging.getLogger(__name__)
+retired_logger = logging.getLogger('accounts.retired_endpoints')
 User = get_user_model()
 
 # One year, in seconds; the selected-student cookie is a long-lived preference.
@@ -558,302 +556,115 @@ class SelectStudentView(APIView):
         )
         return response
 
+def retired_endpoint(request, replacement):
+    """
+    Decision D3, step 1: a legacy endpoint the Hub no longer calls answers 410
+    Gone to every signed-in caller, and every call is logged with its caller,
+    so the cleanup (step 2) can show it has no callers left before its route
+    is removed.
+
+    Accepted deviation from the two-step plan (approved 2026-10-26): the
+    routes stay until the cleanup, but the code they used to run -- full
+    staff records, the details edit, the status change -- was removed in step
+    1. It remains in commit 3d56003; Team's own endpoints replace it.
+    """
+    user = request.user
+    retired_logger.warning(
+        'Retired endpoint called: %s %s by account %s (role %s, user agent %r)',
+        request.method, request.get_full_path(), getattr(user, 'pk', None), getattr(user, 'role', None),
+        request.META.get('HTTP_USER_AGENT', ''),
+    )
+    return Response(
+        {"error": "ENDPOINT_RETIRED", "message": f"This endpoint has been retired. {replacement}"},
+        status=status.HTTP_410_GONE
+    )
+
+
 class BaseRoleListView(APIView):
     """
-    Lists active users of a single role with their assigned-student counts.
+    The active, assignable accounts of one role -- the slim list behind the
+    mentor/tutor dropdowns (reassign a student, invite a student, hand over a
+    departing colleague's students). Needs accounts.view_staff_directory.
 
-    Subclasses set ``role`` and ``response_key``; roles that own students set
-    ``count_relation`` (the reverse FK used to count allocations) which also
-    enables the dropdown-compatibility mode (a slim payload unless ?all=true).
+    Deactivated staff must not be assignable, so this filters on BOTH
+    lifecycle flags -- a row where they disagree (only creatable through the
+    Django admin) is treated as deactivated, never as assignable.
 
-    Staff-only: a directory of colleagues is not student-visible data. The full
-    record (email, mobile, inviter) is admin-only, so ?all=true is refused for
-    the other staff roles rather than quietly downgraded.
+    The full-record mode (?all=true: contact details, inviter, student counts
+    and pending invitations) is retired (D3); Team (/api/team/) lists staff.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.view_staff_directory')]
     role = None
     response_key = None
-    count_relation = None
-
-    def _serialize(self, u):
-        return {
-            "kind": "active",
-            "id": str(u.id),
-            "full_name": u.full_name or "",
-            "email": u.email,
-            "avatar_url": u.avatar_url or None,
-            "mobile_number": u.mobile_number or "",
-            "created_at": u.created_at.isoformat(),
-            "invited_by_profile": {
-                "id": str(u.invited_by.id),
-                "full_name": u.invited_by.full_name or "",
-                "email": u.invited_by.email
-            } if u.invited_by else None,
-            "assigned_students_count": getattr(u, 'assigned_students_count', None),
-            "deactivated_at": u.deactivated_at.isoformat() if u.deactivated_at else None
-        }
-
-    def _serialize_ghost(self, inv):
-        """
-        A pending invitation rendered as a placeholder ("ghost") staff row.
-
-        The Hub's staff tables list these above the real accounts so an admin
-        can see and manage an invite before the person has signed up.
-        """
-        return {
-            "kind": "ghost",
-            "id": str(inv.id),
-            "email": inv.email,
-            "role": inv.role.lower(),
-            "created_at": inv.created_at.isoformat(),
-            "extra_data": inv.extra_data or {},
-            "invited_by_profile": {
-                "id": str(inv.invited_by.id),
-                "full_name": inv.invited_by.full_name or "",
-                "email": inv.invited_by.email
-            } if inv.invited_by else None
-        }
 
     def get(self, request, *args, **kwargs):
-        from django.db.models import Count
+        if request.GET.get('all') == 'true':
+            return retired_endpoint(request, 'Staff records are listed by GET /api/team/.')
 
-        if request.GET.get('all') == 'true' and not IsAdminUser().has_permission(request, self):
-            return Response(
-                {"error": "FORBIDDEN", "message": "Only admins can list full staff records."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Full records include deactivated staff (shown with a badge, needed
-        # for the reactivate flow); the slim dropdown mode below stays
-        # active-only so nothing new can be assigned to deactivated staff.
-        queryset = User.objects.filter(role=self.role)
-        if self.count_relation:
-            queryset = queryset.annotate(assigned_students_count=Count(self.count_relation))
-        queryset = queryset.order_by('-created_at')
-
-        # Backward compatibility for dropdown selects (which don't pass ?all=true).
-        # Deactivated staff must not be assignable, so this filters on BOTH
-        # lifecycle flags — a row where they disagree (only creatable through
-        # the Django admin) is treated as deactivated, never as assignable.
-        if self.count_relation and request.GET.get('all') != 'true':
-            slim = queryset.filter(deactivated_at__isnull=True, is_active=True)
-            return Response(
-                {self.response_key: [
-                    {"id": str(u.id), "full_name": u.full_name or "", "email": u.email}
-                    for u in slim
-                ]},
-                status=status.HTTP_200_OK
-            )
-
-        # Full-record mode is admin-only (enforced above, and by the
-        # admin-only subclass), which is exactly where the Hub includes
-        # pending invitations. Only PENDING ones: an accepted invitation is
-        # already represented by the active account it created.
-        ghosts = (
-            Invitation.objects
-            .filter(role=self.role, status=InvitationStatusChoices.PENDING)
-            .select_related('invited_by')
-            .order_by('-created_at')
+        slim = User.objects.filter(
+            role=self.role, deactivated_at__isnull=True, is_active=True
+        ).order_by('-created_at')
+        return Response(
+            {self.response_key: [
+                {"id": str(u.id), "full_name": u.full_name or "", "email": u.email}
+                for u in slim
+            ]},
+            status=status.HTTP_200_OK
         )
 
-        rows = [self._serialize_ghost(i) for i in ghosts]
-        rows += [self._serialize(u) for u in queryset]
-
-        return Response({self.response_key: rows}, status=status.HTTP_200_OK)
-
 class MentorListView(BaseRoleListView):
-    """
-    GET /api/mentors/
-    Returns list of active mentors with their assigned student counts.
-    If ?all=true is passed, returns the full mentor records.
-    """
+    """GET /api/mentors/ -- active mentors, for assignment dropdowns."""
     role = 'MENTOR'
     response_key = 'mentors'
-    count_relation = 'mentored_students'
 
 class TutorListView(BaseRoleListView):
-    """
-    GET /api/tutors/
-    Returns list of active tutors with their assigned student counts.
-    """
+    """GET /api/tutors/ -- active tutors, for assignment dropdowns."""
     role = 'TUTOR'
     response_key = 'tutors'
-    count_relation = 'tutored_students'
 
-class AdminListView(BaseRoleListView):
-    """
-    GET /api/admins/
-    Returns list of active admins. Admin-only: this view has no slim mode, so
-    every response carries the full record.
-    """
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    role = 'ADMIN'
-    response_key = 'admins'
-    count_relation = None
+class AdminListView(APIView):
+    """GET /api/admins/ -- retired (D3); Team lists administrators."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return retired_endpoint(request, 'Administrators are listed by GET /api/team/?role=ADMIN.')
 
 class UserDetailView(APIView):
     """
-    PATCH /api/users/<id>/ - Edit User name and mobile number.
-    DELETE /api/users/<id>/ - Delete User profile.
+    PATCH /api/users/<id>/ -- retired (D3); Team edits staff details.
+
+    There is deliberately no DELETE here. Staff are soft-deactivated, never
+    hard-deleted -- deleting a user would cascade away student personas and
+    orphan the append-only audit trail. This mirrors the original Hub, which
+    removed user deletion entirely.
     """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk, *args, **kwargs):
-        if request.user.role != 'ADMIN':
-            return Response(
-                {"error": "FORBIDDEN", "message": "Only admins can edit user details."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-            
-        target_user = get_object_or_404(User, pk=pk)
-        
-        full_name = request.data.get("full_name")
-        mobile_number = request.data.get("mobile_number")
-
-        # Snapshot before the edit so the log can carry a real before/after
-        # diff -- that is what the activity feed expands to show.
-        before_full_name = target_user.full_name
-        before_mobile_number = target_user.mobile_number
-        
-        if full_name is not None:
-            full_name = full_name.strip()
-            if not full_name:
-                return Response(
-                    {"error": "INVALID_INPUT", "message": "Name cannot be empty."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            target_user.full_name = full_name
-            
-        if "mobile_number" in request.data:
-            target_user.mobile_number = mobile_number.strip() if mobile_number else None
-            
-        target_user.save()
-
-        # Only fields that actually moved, as {field: {old, new}} -- the shape
-        # the feed's changes table renders.
-        changes = {}
-        if target_user.full_name != before_full_name:
-            changes["full_name"] = {"old": before_full_name, "new": target_user.full_name}
-        if target_user.mobile_number != before_mobile_number:
-            changes["mobile_number"] = {"old": before_mobile_number, "new": target_user.mobile_number}
-        
-        # Log activity
-        ActivityLog.objects.create(
-            actor=request.user,
-            actor_email=request.user.email,
-            actor_name=request.user.full_name,
-            actor_role=request.user.role,
-            action="user.update_details",
-            entity_type="profile",
-            entity_id=str(target_user.id),
-            entity_label=target_user.full_name or target_user.email,
-            student=None,
-            changes=changes,
-        )
-        
-        return Response({"success": True, "profile": {
-            "id": str(target_user.id),
-            "full_name": target_user.full_name,
-            "mobile_number": target_user.mobile_number,
-            "email": target_user.email,
-        }}, status=status.HTTP_200_OK)
-
-    # NOTE: there is deliberately no DELETE here. Staff are soft-deactivated
-    # (StaffStatusView), never hard-deleted — deleting a user would cascade
-    # away student personas and orphan the append-only audit trail. This
-    # mirrors the original Hub, which removed user deletion entirely.
+        return retired_endpoint(request, "Staff details are changed through PATCH /api/team/<id>/.")
 
 
 class StaffStatusView(APIView):
-    """
-    POST /api/users/<id>/status/ — deactivate or reactivate a staff member.
-
-    Admin-only. Only mentors and tutors are managed through this flow: admins
-    are peers, one admin never deactivates (or reactivates) another. A mentor/
-    tutor with ACTIVE students still assigned cannot be deactivated until they
-    are handed over (StaffReassignView) — mirrors the Hub's set_staff_active
-    RPC guards. Role is never cleared, so historical attribution survives.
-    """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    """POST /api/users/<id>/status/ -- retired (D3); Team deactivates and reactivates staff."""
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
-        action = request.data.get("action")
-        if action not in ('deactivate', 'reactivate'):
-            return Response(
-                {"error": "INVALID_INPUT", "message": "action must be 'deactivate' or 'reactivate'."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        reason = request.data.get("reason")
-        if reason is not None and not isinstance(reason, str):
-            return Response(
-                {"error": "INVALID_INPUT", "message": "reason must be a string."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        reason = (reason or "").strip() or None
-        if reason and len(reason) > 500:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "reason must be 500 characters or fewer."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        with transaction.atomic():
-            # Lock the target row so the handover guard and the write are one
-            # unit: a concurrent reassign-to-this-user (which locks the
-            # replacement row) or second status change serializes against it.
-            target = User.objects.select_for_update().filter(pk=pk).first()
-            if not target:
-                return Response(
-                    {"error": "NOT_FOUND", "message": "User not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if target.role not in ('ADMIN', 'MENTOR', 'TUTOR'):
-                return Response(
-                    {"error": "INVALID_ROLE", "message": "Only staff can be deactivated."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Admins are peers and out of scope: one admin never deactivates
-            # (or reactivates) another.
-            if target.role == 'ADMIN':
-                return Response(
-                    {"error": "FORBIDDEN", "message": "Administrators cannot be deactivated."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            was_deactivated = target.deactivated_at is not None
-
-            if action == 'deactivate':
-                # Handover guard: no ACTIVE students may still be assigned.
-                assigned = active_student_count(target)
-                if assigned > 0:
-                    return Response(
-                        {
-                            "error": "HANDOVER_REQUIRED",
-                            "message": f"Reassign this staff member's {assigned} active student(s) before deactivating."
-                        },
-                        status=status.HTTP_409_CONFLICT
-                    )
-
-            # The same write and audit as the Team API's deactivate/reactivate.
-            set_account_active(target, action == 'reactivate', actor=request.user, reason=reason)
-
-        log_status_change(request, target, action == 'reactivate', was_deactivated, reason)
-
-        return Response({"success": True}, status=status.HTTP_200_OK)
+        return retired_endpoint(
+            request, "Staff are deactivated through POST /api/team/<id>/deactivate/ and reactivated "
+                     "through POST /api/team/<id>/reactivate/."
+        )
 
 
 class StaffReassignView(APIView):
     """
     POST /api/users/<id>/reassign/ — bulk hand over every ACTIVE student
     assigned to a departing staff member to a replacement, before deactivating
-    them. Re-points that student's open (SCHEDULED) sessions for a tutor
+    them (accounts.manage_team: Team's handover step). Re-points that student's open (SCHEDULED) sessions for a tutor
     handover; completed/cancelled history keeps the old staff pointer for
     attribution, and inactive/expired students are left untouched — mirrors
     the Hub's reassign_all_for_staff RPC.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_team')]
 
     def post(self, request, pk, *args, **kwargs):
         from sessions.models import Session, SessionStatusChoices

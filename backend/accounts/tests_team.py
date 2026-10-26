@@ -578,18 +578,16 @@ class TeamStatusTests(TeamTestCase):
             400, 'UNKNOWN_FIELDS',
         )
 
-    def test_the_existing_status_endpoint_keeps_its_rules(self):
-        # /api/users/<id>/status/ shares the write and the audit; admins stay
-        # out of its reach as before.
-        refused = self.client.post(f'/api/users/{self.other_admin.pk}/status/', {'action': 'deactivate'}, format='json')
-        self.assertEqual(refused.status_code, status.HTTP_403_FORBIDDEN)
-        done = self.client.post(
+    def test_the_old_status_endpoint_is_retired(self):
+        # /api/users/<id>/status/ answers 410 (D3) and changes nothing; Team's
+        # deactivate/reactivate are the only way.
+        retired = self.client.post(
             f'/api/users/{self.tutor.pk}/status/', {'action': 'deactivate', 'reason': 'Paused'}, format='json'
         )
-        self.assertEqual(done.status_code, status.HTTP_200_OK)
+        self.assertEqual(retired.status_code, status.HTTP_410_GONE)
         self.tutor.refresh_from_db()
-        self.assertEqual((self.tutor.is_active, self.tutor.deactivation_reason), (False, 'Paused'))
-        self.assertEqual(ActivityLog.objects.get(action='user.deactivate').context['reason'], 'Paused')
+        self.assertTrue(self.tutor.is_active)
+        self.assertFalse(ActivityLog.objects.filter(action='user.deactivate').exists())
 
 
 class TeamPasswordResetTests(TeamTestCase):
@@ -721,8 +719,11 @@ class TeamPermissionTests(TeamTestCase):
         self.assertFalse(User.objects.get(pk=self.mentor.pk).user_permissions.exists())
 
     def test_you_can_only_grant_or_revoke_what_you_hold(self):
-        superuser_only = {'label': 'View user profiles', 'module': 'Accounts', 'admin_grantable': False}
-        with patch.dict('accounts.team.ASSIGNABLE_PERMISSIONS', {'accounts.view_user': superuser_only}):
+        # Individually grantable, but not on the Admin role group: admins do not
+        # hold it, so only a superuser may grant or revoke it.
+        superuser_only = {'label': 'View user profiles', 'module': 'Accounts',
+                          'roles': ('ADMIN', 'MENTOR', 'TUTOR'), 'grantable': True}
+        with patch.dict('accounts.permission_catalogue.CATALOGUE', {'accounts.view_user': superuser_only}):
             can_grant = {row['permission']: row['can_grant'] for row in self.client.get(CATALOGUE_URL).json()}
             self.assertEqual(can_grant, {'accounts.view_team': True, 'accounts.view_user': False})
             refused = self.put(self.mentor, ['accounts.view_user'])
@@ -743,14 +744,17 @@ class TeamPermissionTests(TeamTestCase):
         self.assert_refused(self.put(self.other_admin, ['accounts.view_team']), 403, 'SUPERUSER_REQUIRED')
 
     def test_me_reports_what_the_role_implies(self):
+        # /me lists every effective permission: the role group's, plus grants.
         def me_permissions(user):
             return self.as_user(user).get(ME_URL).json()['user']['permissions']
 
         self.assertIn('accounts.view_team', me_permissions(self.admin))
-        self.assertEqual(me_permissions(self.mentor), [])
+        self.assertIn('accounts.manage_team', me_permissions(self.admin))
+        self.assertIn('accounts.view_mentored_students', me_permissions(self.mentor))
+        self.assertNotIn('accounts.view_team', me_permissions(self.mentor))
         self.assertEqual(me_permissions(self.parent), [])
         self.mentor.user_permissions.add(view_team_permission())
-        self.assertEqual(me_permissions(User.objects.get(pk=self.mentor.pk)), ['accounts.view_team'])
+        self.assertIn('accounts.view_team', me_permissions(User.objects.get(pk=self.mentor.pk)))
 
 
 class TeamSessionSecurityTests(TeamTestCase):

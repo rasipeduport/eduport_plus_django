@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDownUp, BookOpen, ChevronDown, Loader2, X } from 'lucide-react';
 
 import api from '../lib/api';
+import { PERMISSIONS, can } from '../lib/access';
 import { mentorZoneFormatter } from '../lib/timezone';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -36,20 +37,21 @@ const TABS = [
  * homework, mentors and tutors their students'. Grading (the score form in
  * the sheet) is the tutor's job; the mentor only reviews.
  */
-export default function HomeworkPage({ role }) {
+export default function HomeworkPage({ user }) {
+  // What the caller may do follows their permissions (App.jsx, from /me).
+  const canScore = can(user, PERMISSIONS.scoreHomework);
+  const seesAll = can(user, PERMISSIONS.viewAllHomework);
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // The caller's Hub role (App.jsx, lib/access hubRole).
-  const userRole = role;
-  // Tutors land on the review queue, everyone else on the full list.
-  const [tab, setTab] = useState(role === 'TUTOR' ? 'submitted' : 'all');
+  // Whoever grades their own students' homework (tutors) lands on the review
+  // queue, everyone else on the full list.
+  const [tab, setTab] = useState(canScore && !seesAll ? 'submitted' : 'all');
   const [search, setSearch] = useState('');
   const [tutorFilter, setTutorFilter] = useState('');
   const [sortDesc, setSortDesc] = useState(true);
   const [gradeId, setGradeId] = useState(null);
-
-  const canScore = userRole === 'ADMIN' || userRole === 'TUTOR';
 
   const fetchRows = async () => {
     setLoading(true);
@@ -91,7 +93,7 @@ export default function HomeworkPage({ role }) {
   }, {});
 
   const tutorOptions =
-    userRole === 'ADMIN'
+    seesAll
       ? Array.from(
           new Map(rows.filter((r) => r.tutor_profile).map((r) => [r.tutor_profile.id, { id: r.tutor_profile.id, name: r.tutor_profile.full_name || r.tutor_profile.email }])).values()
         ).sort((a, b) => a.name.localeCompare(b.name))
@@ -104,7 +106,7 @@ export default function HomeworkPage({ role }) {
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-semibold text-zinc-900 dark:text-white">Homework</h1>
         <p className="text-sm text-zinc-500">
-          {userRole === 'MENTOR' ? "Track your students' homework. Submissions are reviewed by the tutor." : 'Review submitted homework and grade it.'}
+          {canScore ? 'Review submitted homework and grade it.' : "Track your students' homework. Submissions are reviewed by the tutor."}
         </p>
       </div>
 

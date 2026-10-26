@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
+import { PERMISSIONS, can } from '@/lib/access';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone';
 import { EMPTY, FieldCard, StatTile } from './profile-primitives';
@@ -43,7 +44,7 @@ function formatMoment(value) {
  * slow to wait for. The API does the reading and the arithmetic; this only
  * reports what came back and asks the page to repaint.
  */
-function QuotaBar({ quota, studentId, onSynced }) {
+function QuotaBar({ quota, studentId, canSync, onSynced }) {
   const [syncing, setSyncing] = useState(false);
   // { tone: 'success' | 'warning' | 'destructive', text } or null. Inline
   // rather than a toast, matching how every dialog in the Hub reports.
@@ -80,7 +81,7 @@ function QuotaBar({ quota, studentId, onSynced }) {
     <FieldCard
       title="Class quota"
       action={
-        studentId ? (
+        studentId && canSync ? (
           <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
             {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             {syncing ? 'Syncing…' : 'Sync from sheet'}
@@ -207,11 +208,13 @@ function StaffLine({ profile }) {
 /**
  * Overview tab: the whole student on one screen, without becoming a
  * dashboard. Four counters, then the enrolment facts as definition lists,
- * then quota and what happens next. Fields the caller's role is not served
- * (a tutor gets no contact details or quota) are dropped, not blanked.
+ * then quota and what happens next. Fields the caller is not served (a tutor
+ * gets no contact details or quota) are dropped, not blanked.
  */
-export function OverviewTab({ student, stats, highlights, role, onOpenTab, onSynced }) {
-  const isAdmin = role === 'admin';
+export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSynced }) {
+  // Email and state are oversight columns on the students table (view all
+  // students); the profile keeps them so.
+  const isAdmin = can(user, PERMISSIONS.viewAllStudents);
   const has = (key) => key in student;
   const quota = stats.quota ?? null;
   const exams = stats.exams ?? null;
@@ -330,7 +333,14 @@ export function OverviewTab({ student, stats, highlights, role, onOpenTab, onSyn
         ) : null}
         <FieldCard title="Academic" fields={academicFields} />
         <FieldCard title="Assigned staff" fields={staffFields} />
-        {quota ? <QuotaBar quota={quota} studentId={student.id} onSynced={onSynced} /> : null}
+        {quota ? (
+          <QuotaBar
+            quota={quota}
+            studentId={student.id}
+            canSync={can(user, PERMISSIONS.syncStudentQuota)}
+            onSynced={onSynced}
+          />
+        ) : null}
         <NextUp highlights={highlights} onOpenTab={onOpenTab} />
         {has('remarks_for_mentor') && student.remarks_for_mentor ? (
           <FieldCard title="Remarks for mentor" fields={[]} className="sm:col-span-2">

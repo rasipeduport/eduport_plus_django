@@ -1,12 +1,12 @@
 """
-Team Management API: the staff accounts (Admin, Mentor, Tutor) that
-administrators create and look after. Mounted at /api/team/ (team_urls.py).
+Team Management API: the staff accounts (Admin, Mentor, Tutor, BDE, Sales TL)
+that administrators create and look after. Mounted at /api/team/ (team_urls.py).
 
 The rules, enforced here whatever the client sends:
 
-* Team managers are active users with the ADMIN role, and superusers -- the
-  people core.permissions.IsAdminUser admits. Staff holding the approved
-  ``accounts.view_team`` permission may read the directory, nothing more.
+* Team managers hold ``accounts.manage_team`` -- the Admin role's group, and
+  superusers. Staff holding ``accounts.view_team`` may read the directory,
+  nothing more.
 * Only staff accounts are targets. A student's id is not found, and no endpoint
   creates a student or gives anyone the STUDENT role.
 * Nobody changes their own account here; a password is changed through
@@ -17,8 +17,10 @@ The rules, enforced here whatever the client sends:
 * Each endpoint accepts a fixed set of fields, so is_superuser, is_staff,
   groups and arbitrary permissions can never be set through it. Unknown fields
   are refused rather than ignored.
-* Permissions come only from ASSIGNABLE_PERMISSIONS, and only someone who holds
-  a permission may grant or revoke it.
+* Individual permissions come only from the catalogue
+  (accounts.permission_catalogue), only within what the account's role may
+  hold, and only someone who holds a permission (accounts.authz) may grant or
+  revoke it. A role change clears the account's individual grants, audited.
 * Temporary passwords are typed by the administrator, checked against
   AUTH_PASSWORD_VALIDATORS, and never returned, logged or audited. The account
   must replace the password before using the app (accounts.middleware).
@@ -42,27 +44,14 @@ from rest_framework.views import APIView
 
 from activity.utils import log_activity
 from core.pagination import paginate_queryset
-from core.permissions import STAFF_ROLES
 from invitations.models import Invitation, InvitationRoleChoices
 from students.models import Student
 
-from .models import USERNAME_MAX_LENGTH, RoleChoices, normalize_username
+from .authz import clear_individual_permissions, has_app_permission, log_permissions_cleared
+from .models import HUB_ROLES, USERNAME_MAX_LENGTH, RoleChoices, normalize_username
+from .permission_catalogue import CATALOGUE, VIEW_TEAM, allowed_for_role, grantable_permissions
 
 User = get_user_model()
-
-VIEW_TEAM = 'accounts.view_team'
-
-# The approved, assignable permissions, keyed "app_label.codename". One is
-# added here only together with the code that enforces it. Every admin holds
-# the ``admin_grantable`` ones through the role, and so may grant them; the
-# others are held only by superusers and by explicit grants.
-ASSIGNABLE_PERMISSIONS = {
-    VIEW_TEAM: {
-        'label': 'View the team directory',
-        'module': 'Team',
-        'admin_grantable': True,
-    },
-}
 
 # Advisory-lock class for Team writes (sessions.services uses 1 and 2).
 _LOCK_CLASS_TEAM = 3
@@ -88,43 +77,17 @@ def _forbidden(code, message):
 
 # ---------------------------------------------------------------- who may act
 
-def is_team_manager(user):
-    return bool(
-        user and user.is_authenticated and user.is_active
-        and (user.role == RoleChoices.ADMIN or user.is_superuser)
-    )
+MANAGE_TEAM = 'accounts.manage_team'
 
 
-def holds_permission(user, perm):
-    """
-    Whether ``user`` holds approved permission ``perm`` -- and so may grant or
-    revoke it. Superusers hold every one, admins every admin-grantable one,
-    anyone else only what was granted to them.
-    """
-    if not (user and user.is_authenticated and user.is_active):
-        return False
-    if user.is_superuser:
-        return True
-    entry = ASSIGNABLE_PERMISSIONS.get(perm)
-    if entry and entry['admin_grantable'] and user.role == RoleChoices.ADMIN:
-        return True
-    return user.has_perm(perm)
-
-
-def effective_permissions(user):
-    """
-    Everything ``user`` holds, as "app_label.codename" strings: Django's own
-    grants plus the approved permissions the role implies. /api/auth/me
-    reports this, so the SPAs' guards mirror holds_permission().
-    """
-    held = set(user.get_all_permissions())
-    held.update(perm for perm in ASSIGNABLE_PERMISSIONS if holds_permission(user, perm))
-    return sorted(held)
+def is_team_manager(user, request=None):
+    """Whether ``user`` holds accounts.manage_team (inactive accounts hold nothing)."""
+    return bool(user) and has_app_permission(user, MANAGE_TEAM, request)
 
 
 class IsTeamManager(BasePermission):
     def has_permission(self, request, view):
-        return is_team_manager(request.user)
+        return is_team_manager(request.user, request)
 
 
 class TeamAccess(BasePermission):
@@ -132,14 +95,9 @@ class TeamAccess(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        if is_team_manager(user):
+        if is_team_manager(user, request):
             return True
-        return (
-            request.method in SAFE_METHODS
-            and user.is_authenticated
-            and user.role in STAFF_ROLES
-            and user.has_perm(VIEW_TEAM)
-        )
+        return request.method in SAFE_METHODS and has_app_permission(user, VIEW_TEAM, request)
 
 
 def check_may_change(actor, account):
@@ -157,14 +115,18 @@ def check_may_assign_role(actor, role):
         raise _forbidden('SUPERUSER_REQUIRED', 'Only a superuser can give someone the Admin role.')
 
 
+def is_last_active_admin(account):
+    """Whether ``account`` is the only active admin left. Shared with the Django admin's user form."""
+    if account.role != RoleChoices.ADMIN or not account.is_active:
+        return False
+    return not User.objects.filter(
+        role=RoleChoices.ADMIN, is_active=True, deactivated_at__isnull=True
+    ).exclude(pk=account.pk).exists()
+
+
 def check_not_last_admin(account):
     """Refuse to deactivate or demote the last active admin."""
-    if account.role != RoleChoices.ADMIN or not account.is_active:
-        return
-    others = User.objects.filter(
-        role=RoleChoices.ADMIN, is_active=True, deactivated_at__isnull=True
-    ).exclude(pk=account.pk)
-    if not others.exists():
+    if is_last_active_admin(account):
         raise TeamError('LAST_ADMIN', 'This is the last active administrator.', status.HTTP_409_CONFLICT)
 
 
@@ -183,7 +145,7 @@ def lock_team_changes():
 
 
 def staff_accounts():
-    return User.objects.filter(role__in=STAFF_ROLES)
+    return User.objects.filter(role__in=HUB_ROLES)
 
 
 def locked_staff_account(pk):
@@ -231,9 +193,12 @@ def log_status_change(request, account, active, was_deactivated, reason):
 
 
 def granted_permissions(account):
-    """Approved permissions granted to ``account`` directly (not via the role)."""
+    """
+    The individually grantable permissions granted to ``account`` directly (not
+    via the role). Iterates the relation, so the list view's prefetch is used.
+    """
     names = {f'{perm.content_type.app_label}.{perm.codename}' for perm in account.user_permissions.all()}
-    return sorted(names & ASSIGNABLE_PERMISSIONS.keys())
+    return sorted(names & grantable_permissions())
 
 
 def _iso(value):
@@ -372,8 +337,8 @@ def clean_mobile_number(value):
 
 def clean_role(value):
     role = value.strip().upper() if isinstance(value, str) else None
-    if role not in STAFF_ROLES:
-        raise TeamError('INVALID_ROLE', 'role must be Admin, Mentor or Tutor.')
+    if role not in HUB_ROLES:
+        raise TeamError('INVALID_ROLE', 'role must be Admin, Mentor, Tutor, BDE or Sales TL.')
     return role
 
 
@@ -448,7 +413,7 @@ class TeamListView(TeamView):
             )
         accounts = accounts.order_by('-created_at', 'id')
 
-        full = is_team_manager(request.user)
+        full = is_team_manager(request.user, request)
         page, meta = paginate_queryset(request, accounts)
         rows = [member_payload(account, full=full) for account in (accounts if page is None else page)]
         return Response(rows if meta is None else {"results": rows, **meta}, status=status.HTTP_200_OK)
@@ -507,7 +472,7 @@ class TeamMemberView(TeamView):
         account = staff_accounts().select_related('invited_by').filter(pk=pk).first()
         if account is None:
             raise TeamError('NOT_FOUND', 'Staff account not found.', status.HTTP_404_NOT_FOUND)
-        return Response(member_payload(account, full=is_team_manager(request.user)), status=status.HTTP_200_OK)
+        return Response(member_payload(account, full=is_team_manager(request.user, request)), status=status.HTTP_200_OK)
 
     def patch(self, request, pk, *args, **kwargs):
         data = request_fields(request, self.update_fields)
@@ -519,6 +484,7 @@ class TeamMemberView(TeamView):
             account = locked_staff_account(pk)
             check_may_change(request.user, account)
             before = {field: getattr(account, field) for field in self.update_fields}
+            cleared = []
 
             if 'username' in data:
                 account.username = clean_username(data['username'], account=account)
@@ -543,6 +509,9 @@ class TeamMemberView(TeamView):
                             status.HTTP_409_CONFLICT,
                         )
                     account.role = role
+                    # Grants made for the old role do not ride along. Rolled
+                    # back with everything else if the save below fails.
+                    cleared = clear_individual_permissions(account)
 
             changed = [field for field in self.update_fields if getattr(account, field) != before[field]]
             if changed:
@@ -573,6 +542,8 @@ class TeamMemberView(TeamView):
                 changes={"role": {"old": before['role'], "new": account.role}},
                 request=request,
             )
+        if cleared:
+            log_permissions_cleared(account, cleared, via='team', request=request)
         return Response(member_payload(account), status=status.HTTP_200_OK)
 
 
@@ -660,7 +631,8 @@ class TeamMemberPermissionsView(TeamView):
     """
     PUT /api/team/<id>/permissions/ {permissions: ["app_label.codename", ...]}
 
-    Replaces the account's directly granted approved permissions.
+    Replaces the account's directly granted permissions. Only the catalogue's
+    individually grantable ones may be named; role groups carry the rest.
     """
     permission_classes = [IsAuthenticated, IsTeamManager]
 
@@ -670,7 +642,7 @@ class TeamMemberPermissionsView(TeamView):
         if not isinstance(requested, list) or not all(isinstance(name, str) for name in requested):
             raise TeamError('INVALID_INPUT', 'permissions must be a list of permission names.')
         requested = set(requested)
-        unknown = sorted(requested - ASSIGNABLE_PERMISSIONS.keys())
+        unknown = sorted(requested - grantable_permissions())
         if unknown:
             raise TeamError(
                 'UNKNOWN_PERMISSION',
@@ -684,7 +656,16 @@ class TeamMemberPermissionsView(TeamView):
             check_may_change(request.user, account)
             current = set(granted_permissions(account))
             added, removed = requested - current, current - requested
-            not_held = sorted(name for name in added | removed if not holds_permission(request.user, name))
+            # The catalogue's ceiling for the account's role. Removing a grant
+            # beyond it is always allowed: that only tidies up.
+            beyond_role = sorted(added - allowed_for_role(account.role))
+            if beyond_role:
+                raise TeamError(
+                    'PERMISSION_NOT_ALLOWED_FOR_ROLE',
+                    f"{account.get_role_display()} accounts cannot hold: {', '.join(beyond_role)}.",
+                    permissions=beyond_role,
+                )
+            not_held = sorted(name for name in added | removed if not has_app_permission(request.user, name, request))
             if not_held:
                 raise TeamError(
                     'PERMISSION_NOT_GRANTABLE',
@@ -711,7 +692,7 @@ class TeamMemberPermissionsView(TeamView):
 
 
 class TeamPermissionCatalogueView(TeamView):
-    """GET /api/team/permissions/ -- the approved catalogue, and what the caller may grant."""
+    """GET /api/team/permissions/ -- the individually grantable permissions, and what the caller may grant."""
     permission_classes = [IsAuthenticated, IsTeamManager]
 
     def get(self, request, *args, **kwargs):
@@ -719,11 +700,11 @@ class TeamPermissionCatalogueView(TeamView):
             [
                 {
                     "permission": name,
-                    "label": entry['label'],
-                    "module": entry['module'],
-                    "can_grant": holds_permission(request.user, name),
+                    "label": CATALOGUE[name]['label'],
+                    "module": CATALOGUE[name]['module'],
+                    "can_grant": has_app_permission(request.user, name, request),
                 }
-                for name, entry in sorted(ASSIGNABLE_PERMISSIONS.items())
+                for name in sorted(grantable_permissions())
             ],
             status=status.HTTP_200_OK,
         )

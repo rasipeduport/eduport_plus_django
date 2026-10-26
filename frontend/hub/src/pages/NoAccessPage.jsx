@@ -1,6 +1,7 @@
 /**
- * Shown instead of the Hub to a signed-in account whose role the Hub has no
- * pages for (lib/access hubRole). It stands alone like the forced password
+ * Shown instead of the Hub to a signed-in account holding no permission that
+ * opens a Hub page (lib/access homePage) -- a role whose permissions are not
+ * set up yet, such as BDE or Sales TL today. It stands alone like the forced password
  * change: no sidebar, no data requests -- the API refuses such an account
  * anyway -- and signing out is the only action.
  */
@@ -31,7 +32,7 @@ export default function NoAccessPage({ user, logout }) {
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#f8fafc]">Your access isn't set up yet</h1>
           <p className="mt-3 text-sm leading-6 text-[#a9b1c4]">
             You signed in as <strong className="text-[#f8fafc]">{user?.username}</strong>, but this account doesn't
-            have a Hub role. Ask an administrator to set up your access, then sign in again.
+            have any Hub access yet. Ask an administrator to set up your access, then sign in again.
           </p>
 
           <button

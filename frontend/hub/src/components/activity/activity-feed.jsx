@@ -38,10 +38,10 @@ const ENTITY_NOUN = {
   profile: 'User',
 };
 
-export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, role }) {
+export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, canFilterByActor = false }) {
   // Mentors and tutors are pinned to their own entries by the API, so the
   // actor filter would have nothing to offer them.
-  const showActorFilter = role === 'ADMIN';
+  const showActorFilter = canFilterByActor;
   const [searchParams, setSearchParams] = useSearchParams();
   const [expanded, setExpanded] = useState(null);
   const [q, setQ] = useState(filters.q);

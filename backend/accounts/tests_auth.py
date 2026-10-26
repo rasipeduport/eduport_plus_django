@@ -384,7 +384,9 @@ class PasswordLoginTests(APITestCase):
         user = response.data['user']
         for key in ('username', 'permissions', 'groups', 'must_change_password', 'is_superuser', 'last_login'):
             self.assertIn(key, user)
-        self.assertEqual(user['permissions'], [])
+        # Every effective permission: here the Mentor role group's.
+        self.assertIn('accounts.view_mentored_students', user['permissions'])
+        self.assertNotIn('accounts.view_all_students', user['permissions'])
         self.assertFalse(response.data['must_change_password'])
         self.assertIn(settings.CSRF_COOKIE_NAME, response.cookies)
 
@@ -633,9 +635,7 @@ class ExistingSessionTests(APITestCase):
                 staff.force_login(self.mentor, backend=backend)
                 self.assertEqual(staff.get(STAFF_ONLY_URL).status_code, status.HTTP_200_OK)
 
-                response = admin_client.post(
-                    f'/api/users/{self.mentor.pk}/status/', {"action": "deactivate"}, format='json'
-                )
+                response = admin_client.post(f'/api/team/{self.mentor.pk}/deactivate/', {}, format='json')
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(staff.get(STAFF_ONLY_URL).status_code, status.HTTP_403_FORBIDDEN)
                 self.assertEqual(staff.get(ME_URL).status_code, status.HTTP_403_FORBIDDEN)

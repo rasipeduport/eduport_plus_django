@@ -6,7 +6,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from core.permissions import IsAdminOrMentor
+from accounts.authz import has_app_permission
+from core.permissions import ByMethod, HasAppPermission
 from activity.utils import log_activity
 from .models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from .sheets import GoogleSheetsService
@@ -79,11 +80,11 @@ def _find_student_invitation(email, student_code, status_filter=None):
 
 class LookupStudentView(APIView):
     """
-    Step 1: Admin or Mentor enters a student code.
+    Step 1: whoever may invite students (accounts.create_invitation) enters a student code.
     Backend fetches the data from the Google Sheet (range A3:AB of 'enrollment data' tab) on demand.
     Returns the mapped data directly without writing to the database yet.
     """
-    permission_classes = [IsAuthenticated, IsAdminOrMentor]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.create_invitation')]
 
     def post(self, request, *args, **kwargs):
         student_code = request.data.get("student_code")
@@ -194,11 +195,17 @@ class LookupStudentView(APIView):
 
 class CreateInvitationView(APIView):
     """
-    Step 2: Admin or Mentor selects Mentor/Tutor/Meet Link and submits to create invitation whitelisting for students.
+    Step 2: the inviter selects Mentor/Tutor/Meet Link and submits to create invitation whitelisting for students.
     Staff are no longer invited (STAFF_INVITATIONS_RETIRED).
-    Also supports listing, editing, and deleting whitelist invitations.
+    Also supports listing, editing, and deleting whitelist invitations. Each
+    method has its own permission; mentors hold none of them (decision D4).
     """
-    permission_classes = [IsAuthenticated, IsAdminOrMentor]
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=HasAppPermission('accounts.view_invitations'),
+        POST=HasAppPermission('accounts.create_invitation'),
+        PATCH=HasAppPermission('accounts.change_invitation'),
+        DELETE=HasAppPermission('accounts.withdraw_invitation'),
+    )]
 
     def get(self, request, *args, **kwargs):
         invitations = Invitation.objects.all().order_by('-created_at')
@@ -241,15 +248,6 @@ class CreateInvitationView(APIView):
             )
 
         email = email.strip().lower()
-
-        # Enforce role invitation permissions:
-        # Admin can invite anyone.
-        # Mentors can invite Students only.
-        if request.user.role == 'MENTOR' and role != 'STUDENT':
-            return Response(
-                {"error": "FORBIDDEN", "message": "Mentors can only invite students."},
-                status=status.HTTP_403_FORBIDDEN
-            )
 
         # Create or update the Invitation whitelist record
         with transaction.atomic():
@@ -414,12 +412,6 @@ class CreateInvitationView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if request.user.role == 'MENTOR' and invitation.role != 'STUDENT':
-            return Response(
-                {"error": "FORBIDDEN", "message": "Mentors can only modify student invitations."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         # A changed address would re-send a staff invitation nobody can redeem.
         if invitation.role != InvitationRoleChoices.STUDENT:
             return Response(STAFF_INVITATIONS_RETIRED, status=status.HTTP_400_BAD_REQUEST)
@@ -498,9 +490,13 @@ class CreateInvitationView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if request.user.role == 'MENTOR' and invitation.role != 'STUDENT':
+        # A legacy staff invitation is the Team's business: withdrawing one
+        # also takes accounts.manage_team.
+        if invitation.role != InvitationRoleChoices.STUDENT and not has_app_permission(
+            request.user, 'accounts.manage_team', request
+        ):
             return Response(
-                {"error": "FORBIDDEN", "message": "Mentors can only delete student invitations."},
+                {"error": "FORBIDDEN", "message": "Only team managers can withdraw staff invitations."},
                 status=status.HTTP_403_FORBIDDEN
             )
 

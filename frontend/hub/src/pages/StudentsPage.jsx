@@ -4,9 +4,9 @@ import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { StudentsTable } from '@/components/students/students-table';
 
-// `role` is the caller's Hub role (App.jsx, lib/access hubRole); it picks the
-// column set and actions, while the API decides which rows come back.
-export default function StudentsPage({ role }) {
+// The caller's permissions (App.jsx, from /me) pick the column set and
+// actions, while the API decides which rows come back.
+export default function StudentsPage({ user }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,7 +46,7 @@ export default function StudentsPage({ role }) {
     <div className="container mx-auto px-4 py-16">
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
 
-      <StudentsTable students={students} role={role.toLowerCase()} onChanged={fetchStudents} />
+      <StudentsTable students={students} user={user} onChanged={fetchStudents} />
     </div>
   );
 }

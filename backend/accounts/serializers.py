@@ -1,15 +1,18 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from students.models import Student
-from .team import effective_permissions
+from .authz import effective_permissions
 
 User = get_user_model()
 
+
 class UserSerializer(serializers.ModelSerializer):
-    # Effective permissions (group + individual + those the role implies, see
-    # accounts.team.holds_permission; superusers hold every one) as
-    # "app_label.codename" strings, and the group names -- the SPAs base their
-    # route and navigation guards on these, so they must mirror the backend.
+    # Effective catalogue permissions (the role's group + individual grants,
+    # within the role's ceiling; superusers hold every one -- accounts.authz),
+    # as sorted "app_label.codename" strings. The Hub bases its navigation,
+    # route guards and in-page actions on these, so they mirror the backend
+    # exactly; the API enforces the same permissions on every request. `groups` stays for compatibility and is always empty:
+    # membership is refused (accounts.signals).
     permissions = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
 
@@ -36,7 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
     def get_permissions(self, obj):
-        return effective_permissions(obj)
+        return sorted(effective_permissions(obj, self.context.get('request')))
 
     def get_groups(self, obj):
         return list(obj.groups.values_list('name', flat=True))

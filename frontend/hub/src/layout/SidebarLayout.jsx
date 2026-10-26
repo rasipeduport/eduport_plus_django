@@ -32,8 +32,7 @@ export default function SidebarLayout({ user, logout, children }) {
     avatar: user?.avatar_url || '',
     initials: getInitials(user?.full_name, user?.email),
     role: user?.role ?? null,
-    // For the sidebar's Team entry (lib/team canViewTeam).
-    is_superuser: Boolean(user?.is_superuser),
+    // What the sidebar offers follows these (lib/access canOpenPage).
     permissions: user?.permissions ?? [],
   };
 

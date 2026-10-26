@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { EXAM_VIEW, PERMISSIONS, SESSION_VIEW, can, canAny } from '@/lib/access';
 import { EditStudentProfileSheet } from './edit-student-profile-sheet';
 import { EditMeetLinkModal } from './edit-meet-link-modal';
 import { ChangeStatusDialog } from './change-status-dialog';
@@ -33,7 +34,7 @@ import { PurgeStudentDialog } from './purge-student-dialog';
  * from the enrolment sheet's "No of classes paid for" column, and
  * PUT /api/students/ now refuses `total_class_quota` outright.
  */
-export function ActionCell({ student, role, onChanged, showProfileLink = true }) {
+export function ActionCell({ student, user, onChanged, showProfileLink = true }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [meetLinkOpen, setMeetLinkOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
@@ -41,7 +42,12 @@ export function ActionCell({ student, role, onChanged, showProfileLink = true })
   const [historyOpen, setHistoryOpen] = useState(false);
   const [purgeOpen, setPurgeOpen] = useState(false);
 
-  const isAdmin = role === 'admin';
+  // Each item follows the permission the API checks for it.
+  const canChange = can(user, PERMISSIONS.changeStudentDetails);
+  const canReassign = can(user, PERMISSIONS.reassignStudentStaff);
+  // The history sheet reads the student's whole activity log.
+  const canSeeHistory = can(user, PERMISSIONS.viewAllActivity);
+  const canPurge = can(user, PERMISSIONS.purgeStudent);
 
   return (
     <div className="flex items-center justify-end gap-0.5">
@@ -70,20 +76,34 @@ export function ActionCell({ student, role, onChanged, showProfileLink = true })
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setProfileOpen(true)}>Edit Profile</DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to={`/sessions?student_id=${student.id}`}>Manage Sessions</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to={`/exams?student_id=${student.id}`}>Manage Exams</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setMeetLinkOpen(true)}>Edit Demo Link</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem>
-          {isAdmin ? (
+          {canChange ? <DropdownMenuItem onSelect={() => setProfileOpen(true)}>Edit Profile</DropdownMenuItem> : null}
+          {canAny(user, SESSION_VIEW) ? (
+            <DropdownMenuItem asChild>
+              <Link to={`/sessions?student_id=${student.id}`}>Manage Sessions</Link>
+            </DropdownMenuItem>
+          ) : null}
+          {canAny(user, EXAM_VIEW) ? (
+            <DropdownMenuItem asChild>
+              <Link to={`/exams?student_id=${student.id}`}>Manage Exams</Link>
+            </DropdownMenuItem>
+          ) : null}
+          {canChange ? (
+            <>
+              <DropdownMenuItem onSelect={() => setMeetLinkOpen(true)}>Edit Demo Link</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem>
+            </>
+          ) : null}
+          {canReassign || canSeeHistory ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setReassignOpen(true)}>Reassign Mentor / Tutor</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>View History</DropdownMenuItem>
+              {canReassign ? (
+                <DropdownMenuItem onSelect={() => setReassignOpen(true)}>Reassign Mentor / Tutor</DropdownMenuItem>
+              ) : null}
+              {canSeeHistory ? <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>View History</DropdownMenuItem> : null}
+            </>
+          ) : null}
+          {canPurge ? (
+            <>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={() => setPurgeOpen(true)}>
                 Delete permanently
@@ -93,20 +113,26 @@ export function ActionCell({ student, role, onChanged, showProfileLink = true })
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <EditStudentProfileSheet student={student} open={profileOpen} onOpenChange={setProfileOpen} onSaved={onChanged} />
-      <EditMeetLinkModal student={student} open={meetLinkOpen} onOpenChange={setMeetLinkOpen} onSaved={onChanged} />
-      <ChangeStatusDialog student={student} open={statusOpen} onOpenChange={setStatusOpen} onSaved={onChanged} />
-      {isAdmin ? (
+      {canChange ? (
         <>
-          <ReassignStaffDialog student={student} open={reassignOpen} onOpenChange={setReassignOpen} onSaved={onChanged} />
-          <StudentHistorySheet
-            studentId={student.id}
-            studentName={student.full_name}
-            open={historyOpen}
-            onOpenChange={setHistoryOpen}
-          />
-          <PurgeStudentDialog student={student} open={purgeOpen} onOpenChange={setPurgeOpen} onSaved={onChanged} />
+          <EditStudentProfileSheet student={student} open={profileOpen} onOpenChange={setProfileOpen} onSaved={onChanged} />
+          <EditMeetLinkModal student={student} open={meetLinkOpen} onOpenChange={setMeetLinkOpen} onSaved={onChanged} />
+          <ChangeStatusDialog student={student} open={statusOpen} onOpenChange={setStatusOpen} onSaved={onChanged} />
         </>
+      ) : null}
+      {canReassign ? (
+        <ReassignStaffDialog student={student} open={reassignOpen} onOpenChange={setReassignOpen} onSaved={onChanged} />
+      ) : null}
+      {canSeeHistory ? (
+        <StudentHistorySheet
+          studentId={student.id}
+          studentName={student.full_name}
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+        />
+      ) : null}
+      {canPurge ? (
+        <PurgeStudentDialog student={student} open={purgeOpen} onOpenChange={setPurgeOpen} onSaved={onChanged} />
       ) : null}
     </div>
   );

@@ -72,7 +72,7 @@ class HomeworkSerializer(serializers.ModelSerializer):
 
     def get_submission_visible(self, obj):
         user = self._user()
-        return bool(user) and can_view_submission(user, obj)
+        return bool(user) and can_view_submission(user, obj, self.context.get('request'))
 
     def get_submission(self, obj):
         if not self.get_submission_visible(obj):

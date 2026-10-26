@@ -5,6 +5,7 @@ import {
   BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink, ChevronDown, X
 } from 'lucide-react';
 import api from '../lib/api';
+import { EXAM_VIEW, PERMISSIONS, can, canAny } from '../lib/access';
 import { describeApiError } from '../lib/api-errors';
 import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
@@ -140,7 +141,7 @@ function ResourceLink({ href, icon: Icon, label, missing = false, file = null })
   );
 }
 
-export default function SessionsPage({ role }) {
+export default function SessionsPage({ user }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const studentIdQuery = searchParams.get('student_id');
 
@@ -161,11 +162,16 @@ export default function SessionsPage({ role }) {
   const [contentSessions, setContentSessions] = useState(null);
   const [selectedStudentId, setSelectedStudentId] = useState(studentIdQuery || '');
 
-  // The caller's Hub role (App.jsx, lib/access hubRole).
-  const userRole = role;
-  // Admins can complete every post-session item themselves; mentors and
-  // tutors keep their split (recording + homework vs. notes).
-  const isAdmin = userRole === 'ADMIN';
+  // What the caller may do follows their permissions (App.jsx, from /me);
+  // the API checks the same ones.
+  const canCreate = can(user, PERMISSIONS.createSession);
+  const canManage = can(user, PERMISSIONS.manageSession);
+  const canCancel = can(user, PERMISSIONS.cancelSession);
+  const canEditNotes = can(user, PERMISSIONS.editSessionNotes);
+  // Whoever oversees every session (admins) can complete every post-session
+  // item themselves; mentors and tutors keep their split (recording +
+  // homework vs. notes).
+  const isAdmin = can(user, PERMISSIONS.viewAllSessions);
 
   // Modals active state
   const [modalType, setModalType] = useState(null); // 'attend' | 'reschedule' | 'links' | 'cancel'
@@ -444,9 +450,10 @@ export default function SessionsPage({ role }) {
     return studentMatch && tabMatch && titleMatch && dateMatch && tutorMatch;
   });
 
-  // Tutor filter choices come from the rows on screen, like the Hub. Tutors
-  // only ever see their own sessions, so the control is hidden for them.
-  const tutorOptions = userRole === 'TUTOR'
+  // Tutor filter choices come from the rows on screen, like the Hub. A tutor
+  // only ever sees their own students' sessions, so the control is hidden
+  // unless the caller may view all sessions or their mentored students'.
+  const tutorOptions = !canAny(user, [PERMISSIONS.viewAllSessions, PERMISSIONS.viewMentoredSessions])
     ? []
     : Array.from(
         new Map(
@@ -618,7 +625,7 @@ export default function SessionsPage({ role }) {
       
       {/* Sessions | Exams switcher + banner when filtering by student */}
       {selectedStudentId && (
-        <StudentSectionTabs studentId={selectedStudentId} active="sessions" canViewExams={userRole !== 'TUTOR'} />
+        <StudentSectionTabs studentId={selectedStudentId} active="sessions" canViewExams={canAny(user, EXAM_VIEW)} />
       )}
       {selectedStudentId && (
         <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
@@ -739,7 +746,7 @@ export default function SessionsPage({ role }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {selectedStudentId && userRole !== 'TUTOR' && (
+        {selectedStudentId && canCreate && (
           <div className="ml-auto">
             <button 
               onClick={() => setCreateOpen(true)}
@@ -807,10 +814,11 @@ export default function SessionsPage({ role }) {
                     ))}
 
                     <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
-                      {userRole === 'TUTOR' ? (
-                        // Tutors own the notes link and nothing else; a
-                        // cancelled class has no notes to add.
-                        activeTab !== 'cancelled' && (
+                      {!canManage ? (
+                        // With only edit_session_notes (tutors), the notes
+                        // link is all there is; a cancelled class has no
+                        // notes to add.
+                        canEditNotes && activeTab !== 'cancelled' && (
                           <StaffActionsDropdown
                             items={[
                               { label: session.notes_link ? 'Update Notes' : 'Add Notes', onClick: () => openModal('notes', session) },
@@ -825,7 +833,7 @@ export default function SessionsPage({ role }) {
                               { label: 'Reschedule', onClick: () => openModal('reschedule', session) },
                             ] : []),
                             { label: 'Edit Resource Links', onClick: () => openModal('links', session) },
-                            ...(activeTab === 'scheduled' ? [
+                            ...(activeTab === 'scheduled' && canCancel ? [
                               { label: 'Cancel Session', onClick: () => openModal('cancel', session), danger: true },
                             ] : []),
                           ]}
@@ -1124,7 +1132,7 @@ export default function SessionsPage({ role }) {
         open={Boolean(gradeHomeworkId)}
         onOpenChange={(v) => !v && setGradeHomeworkId(null)}
         onSaved={() => fetchSessions()}
-        canScore={userRole === 'ADMIN' || userRole === 'TUTOR'}
+        canScore={can(user, PERMISSIONS.scoreHomework)}
       />
 
       {/* Reschedule: the student's stored zone governs the time entered; the

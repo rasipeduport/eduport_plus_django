@@ -15,8 +15,9 @@ from rest_framework.permissions import IsAuthenticated
 
 from students.models import Student
 from activity.utils import log_activity
-from core.permissions import IsStaffOrSelfStudent, IsStaffUser
-from core.querysets import scope_sessions_by_role
+from accounts.authz import has_app_permission
+from core.permissions import HasAnyAppPermission, IsStudentUserFor
+from core.querysets import SESSION_VIEW_PERMISSIONS, reaches, scope_sessions
 from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import TimezoneConversionError, is_valid_timezone
@@ -43,6 +44,15 @@ from .services import (
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+# Whoever holds any of these reaches the sessions endpoints; each write then
+# checks its own permission and that the student is within the caller's
+# session scope (core.querysets.reaches), answering with its own message.
+SESSION_PERMISSIONS = (
+    *SESSION_VIEW_PERMISSIONS,
+    'accounts.create_session', 'accounts.manage_session', 'accounts.cancel_session',
+    'accounts.edit_session_notes',
+)
 
 
 def staff_display_name(user):
@@ -71,10 +81,12 @@ def drop_stale_files(session, changed_fields):
 class SessionsView(APIView):
     """
     GET: List sessions.
-    POST: Create one or more sessions.
-    PUT: Update a single session.
+    POST: Create one or more sessions (accounts.create_session).
+    PUT: Update a single session (accounts.manage_session; with only
+         accounts.edit_session_notes, just the notes link). Students may GET
+         their selected student's sessions and PUT a rating.
     """
-    permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(*SESSION_PERMISSIONS) | IsStudentUserFor('GET', 'PUT')]
 
     def get(self, request, *args, **kwargs):
         queryset = (
@@ -84,14 +96,14 @@ class SessionsView(APIView):
         )
 
         # If the requester is a student, restrict to their own sessions;
-        # mentors/tutors are scoped to their allocated students.
+        # staff to the students their session permissions reach.
         if request.user.role == 'STUDENT':
             student = resolve_selected_student(request)
             if not student:
                 return Response({"sessions": []}, status=status.HTTP_200_OK)
             queryset = queryset.filter(student=student)
         else:
-            queryset = scope_sessions_by_role(queryset, request.user)
+            queryset = scope_sessions(queryset, request.user, request)
 
         # One student's classes (the student profile's Sessions tab, and any
         # caller that wants a single student's list). Applied after the role
@@ -184,13 +196,12 @@ class SessionsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        role = request.user.role
-        if role == 'TUTOR':
+        if not has_app_permission(request.user, 'accounts.create_session', request):
             return Response(
                 {"error": "Forbidden", "message": "Tutors cannot create sessions."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        elif role == 'MENTOR' and student.mentor != request.user:
+        if not reaches('sessions', request.user, student, request):
             return Response(
                 {"error": "Forbidden", "message": "You can only manage sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
@@ -338,11 +349,9 @@ class SessionsView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        role = request.user.role
-
         # Students may only rate their own (currently selected) student's sessions.
         # They cannot change status, links, tutor, or schedule.
-        if role == 'STUDENT':
+        if request.user.role == 'STUDENT':
             selected = resolve_selected_student(request)
             if not selected or session.student_id != selected.id:
                 return Response(
@@ -383,12 +392,18 @@ class SessionsView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        # Tutors own exactly one field: the notes link, on their allocated
-        # students' sessions. Everything else (status, recording, homework,
-        # schedule, tutor, rating) stays admin/mentor-only.
-        if role == 'TUTOR':
-            return self._tutor_update_notes(request, session, data)
-        if role == 'MENTOR' and session.student.mentor != request.user:
+        # Without manage_session, edit_session_notes (tutors) owns exactly one
+        # field: the notes link, on sessions within the caller's scope.
+        # Everything else (status, recording, homework, schedule, tutor,
+        # rating) needs manage_session.
+        if not has_app_permission(request.user, 'accounts.manage_session', request):
+            if has_app_permission(request.user, 'accounts.edit_session_notes', request):
+                return self._tutor_update_notes(request, session, data)
+            return Response(
+                {"error": "Forbidden", "message": "You do not have permission to edit sessions."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if not reaches('sessions', request.user, session.student, request):
             return Response(
                 {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
@@ -409,6 +424,11 @@ class SessionsView(APIView):
                 return Response(
                     {"error": "A cancellation reason is required"},
                     status=status.HTTP_400_BAD_REQUEST
+                )
+            if new_status == 'CANCELLED' and not has_app_permission(request.user, 'accounts.cancel_session', request):
+                return Response(
+                    {"error": "Forbidden", "message": "You do not have permission to cancel sessions."},
+                    status=status.HTTP_403_FORBIDDEN
                 )
 
         # Staff rating updates get the same 1-5 gate the student path has.
@@ -505,6 +525,16 @@ class SessionsView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             tutor_changed = (new_tutor.id if new_tutor else None) != session.tutor_id
+            # A class is handed only to someone who can teach it: an active
+            # tutor (decision D5), the rule the student-level reassignment
+            # already applies.
+            if tutor_changed and new_tutor and not (
+                new_tutor.role == 'TUTOR' and new_tutor.is_active and new_tutor.deactivated_at is None
+            ):
+                return Response(
+                    {"error": "Selected tutor is not an active tutor."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         # The window the session will occupy after this update.
         effective_start = new_start_time or session.start_time
@@ -629,7 +659,7 @@ class SessionsView(APIView):
         Pending until this lands), never on a cancelled one. Logged as
         `session.update_links`, the same entry a mentor's link edit produces.
         """
-        if session.student.tutor_id != request.user.id:
+        if not reaches('sessions', request.user, session.student, request):
             return Response(
                 {"error": "Forbidden", "message": "You can only add notes for your allocated students' sessions."},
                 status=status.HTTP_403_FORBIDDEN
@@ -686,11 +716,11 @@ class SessionFileUploadView(APIView):
     set to the download view's URL -- so from then on the row is treated
     exactly as if that URL had been pasted (completion, filters, "Open").
     Who may upload to a field mirrors who may set its link through PUT:
-    tutors -> notes on their allocated students' sessions; mentors -> any
-    field on their allocated students' sessions; admins -> any. Replaces a
-    previous upload for the same field.
+    manage_session -> any field, edit_session_notes alone -> notes, in both
+    cases on sessions within the caller's session scope. Replaces a previous
+    upload for the same field.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission('accounts.manage_session', 'accounts.edit_session_notes')]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, session_id, field, *args, **kwargs):
@@ -701,19 +731,18 @@ class SessionFileUploadView(APIView):
         except Session.DoesNotExist:
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        role = request.user.role
-        if role == 'TUTOR':
+        if not has_app_permission(request.user, 'accounts.manage_session', request):
             if field != SessionContentField.NOTES:
                 return Response(
                     {"error": "Forbidden", "message": "Tutors can only upload notes."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            if session.student.tutor_id != request.user.id:
+            if not reaches('sessions', request.user, session.student, request):
                 return Response(
                     {"error": "Forbidden", "message": "You can only add notes for your allocated students' sessions."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        elif role == 'MENTOR' and session.student.mentor != request.user:
+        elif not reaches('sessions', request.user, session.student, request):
             return Response(
                 {"error": "Forbidden", "message": "You can only edit sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN
@@ -795,8 +824,9 @@ class SessionFileDownloadView(APIView):
     GET /api/sessions/files/<file_id>/
 
     Streams an uploaded file inline to anyone allowed to see the session it
-    belongs to: admins, the student's mentor/tutor, and the student's own
-    account -- the same scoping the sessions list applies. Honours single
+    belongs to -- the same scoping the sessions list applies, and the
+    student's own account. Open to every signed-in account on purpose: the
+    scope decides, and a refusal reads "no access to this file". Honours single
     byte-range requests so browsers can seek inside recordings.
     """
     permission_classes = [IsAuthenticated]
@@ -811,8 +841,8 @@ class SessionFileDownloadView(APIView):
         if user.role == 'STUDENT':
             allowed = get_usable_students(user).filter(id=session_file.session.student_id).exists()
         else:
-            allowed = scope_sessions_by_role(
-                Session.objects.filter(id=session_file.session_id), user
+            allowed = scope_sessions(
+                Session.objects.filter(id=session_file.session_id), user, request
             ).exists()
         if not allowed:
             return Response(
@@ -885,9 +915,9 @@ class SessionFileDownloadView(APIView):
 class CancelSeriesView(APIView):
     """
     POST: Cancel a scheduled class within a series, shifting/renumbering subsequent classes,
-    and appending a make-up class to the end of the series.
+    and appending a make-up class to the end of the series (accounts.cancel_session).
     """
-    permission_classes = [IsAuthenticated, IsStaffOrSelfStudent]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(*SESSION_PERMISSIONS)]
 
     def post(self, request, *args, **kwargs):
         data = request.data
@@ -906,14 +936,12 @@ class CancelSeriesView(APIView):
         except Session.DoesNotExist:
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        role = request.user.role
-        # Tutors are read-only on sessions; only admins and mentors may cancel.
-        if role == 'TUTOR':
+        if not has_app_permission(request.user, 'accounts.cancel_session', request):
             return Response(
                 {"error": "Forbidden", "message": "Tutors cannot cancel sessions."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        if role == 'MENTOR' and target_session.student.mentor != request.user:
+        if not reaches('sessions', request.user, target_session.student, request):
             return Response(
                 {"error": "Forbidden", "message": "You can only cancel sessions for your allocated students."},
                 status=status.HTTP_403_FORBIDDEN

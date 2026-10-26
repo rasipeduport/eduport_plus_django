@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PERMISSIONS, can } from '@/lib/access';
 import { formatDate, getInitials } from '@/lib/utils';
 import { ActionCell } from './action-cell';
 
@@ -70,17 +71,18 @@ const admissionDateFormatter = new Intl.DateTimeFormat('en-GB', {
 });
 
 /**
- * Build the students table columns for admins and mentors.
+ * Build the students table columns for whoever holds the full student record.
  *
- * Mentors lose the columns that are not theirs to see (email, the mentor
- * assignment, state) and the admin-only row actions. Tutors get a narrower set
- * of their own — see tutor-columns.jsx.
+ * The oversight columns (email, the mentor assignment, state) go to whoever
+ * may view all students; a mentor, who sees only their own, does without
+ * them. The row actions follow the caller's permissions (ActionCell). Tutors
+ * get a narrower set of their own — see tutor-columns.jsx.
  *
  * `onChanged` is called after any row action that mutates a student, so the
  * page can refetch.
  */
-export function createColumns(role, onChanged) {
-  const isAdmin = role === 'admin';
+export function createColumns(user, onChanged) {
+  const isAdmin = can(user, PERMISSIONS.viewAllStudents);
 
   return [
     {
@@ -216,7 +218,7 @@ export function createColumns(role, onChanged) {
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => <ActionCell student={row.original} role={role} onChanged={onChanged} />,
+      cell: ({ row }) => <ActionCell student={row.original} user={user} onChanged={onChanged} />,
       enableHiding: false,
     },
   ];
