@@ -6,6 +6,7 @@ the escalation guards and the audit trail.
 """
 import json
 import threading
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -528,6 +529,29 @@ class TeamStatusTests(TeamTestCase):
         self.assertEqual(row.changes, {'status': {'old': 'active', 'new': 'deactivated'}})
         self.assertEqual(row.context['reason'], 'Left Eduport')
 
+    def test_deactivation_trims_the_reason_keeps_the_role_and_logs_the_profile(self):
+        response = self.client.post(member_url(self.tutor, 'deactivate/'), {'reason': '  Left the company  '}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.tutor.refresh_from_db()
+        self.assertEqual(self.tutor.deactivation_reason, 'Left the company')
+        # The role is kept for historical attribution.
+        self.assertEqual(self.tutor.role, 'TUTOR')
+        row = ActivityLog.objects.get(action='user.deactivate', entity_id=str(self.tutor.id))
+        self.assertEqual(row.entity_type, 'profile')
+        self.assertEqual(row.context['reason'], 'Left the company')
+
+    def test_reactivation_clears_the_reason_and_logs_the_profile(self):
+        self.client.post(member_url(self.tutor, 'deactivate/'), {'reason': 'x'}, format='json')
+        response = self.client.post(member_url(self.tutor, 'reactivate/'), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.tutor.refresh_from_db()
+        self.assertIsNone(self.tutor.deactivation_reason)
+        self.assertEqual(ActivityLog.objects.get(action='user.reactivate').entity_type, 'profile')
+
+    def test_an_unknown_account_is_not_found(self):
+        response = self.client.post(f'{TEAM_URL}{uuid.uuid4()}/deactivate/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_reactivation_restores_access(self):
         self.client.post(member_url(self.tutor, 'deactivate/'), {}, format='json')
         response = self.client.post(member_url(self.tutor, 'reactivate/'), {}, format='json')
@@ -547,10 +571,26 @@ class TeamStatusTests(TeamTestCase):
             profile=self.parent, student_code='TS001', full_name='Kid',
             mentor=self.mentor, tutor=self.tutor, status=StatusChoices.ACTIVE,
         )
-        response = self.client.post(member_url(self.tutor, 'deactivate/'), {}, format='json')
-        self.assert_refused(response, status.HTTP_409_CONFLICT, 'HANDOVER_REQUIRED')
-        self.tutor.refresh_from_db()
-        self.assertTrue(self.tutor.is_active)
+        # Either assignment counts: the student's mentor and tutor both wait.
+        for account in (self.mentor, self.tutor):
+            with self.subTest(role=account.role):
+                response = self.client.post(member_url(account, 'deactivate/'), {}, format='json')
+                self.assert_refused(response, status.HTTP_409_CONFLICT, 'HANDOVER_REQUIRED')
+                account.refresh_from_db()
+                self.assertTrue(account.is_active)
+                self.assertIsNone(account.deactivated_at)
+
+    def test_inactive_and_expired_assignments_do_not_block_deactivation(self):
+        # The handover guard counts ACTIVE students only (Hub parity).
+        for code, state, note in (('TS002', StatusChoices.INACTIVE, 'Paused'), ('TS003', StatusChoices.EXPIRED, 'Left')):
+            Student.objects.create(
+                profile=self.parent, student_code=code, full_name=f'Kid {code}',
+                mentor=self.mentor, tutor=self.tutor, status=state, status_note=note,
+            )
+        for account in (self.mentor, self.tutor):
+            with self.subTest(role=account.role):
+                response = self.client.post(member_url(account, 'deactivate/'), {}, format='json')
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_repeated_requests_are_refused(self):
         self.assert_refused(self.client.post(member_url(self.tutor, 'reactivate/'), {}, format='json'),
@@ -563,6 +603,9 @@ class TeamStatusTests(TeamTestCase):
     def test_only_superusers_deactivate_admins(self):
         self.assert_refused(self.client.post(member_url(self.other_admin, 'deactivate/'), {}, format='json'),
                             403, 'SUPERUSER_REQUIRED')
+        self.other_admin.refresh_from_db()
+        self.assertIsNone(self.other_admin.deactivated_at)
+        self.assertTrue(self.other_admin.is_active)
         response = self.as_user(self.root).post(member_url(self.other_admin, 'deactivate/'), {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -572,22 +615,13 @@ class TeamStatusTests(TeamTestCase):
             with self.subTest(body=body):
                 self.assert_refused(self.client.post(member_url(self.tutor, 'deactivate/'), body, format='json'),
                                     400, error)
+        self.tutor.refresh_from_db()
+        self.assertTrue(self.tutor.is_active)
         self.client.post(member_url(self.tutor, 'deactivate/'), {}, format='json')
         self.assert_refused(
             self.client.post(member_url(self.tutor, 'reactivate/'), {'reason': 'Back'}, format='json'),
             400, 'UNKNOWN_FIELDS',
         )
-
-    def test_the_old_status_endpoint_is_retired(self):
-        # /api/users/<id>/status/ answers 410 (D3) and changes nothing; Team's
-        # deactivate/reactivate are the only way.
-        retired = self.client.post(
-            f'/api/users/{self.tutor.pk}/status/', {'action': 'deactivate', 'reason': 'Paused'}, format='json'
-        )
-        self.assertEqual(retired.status_code, status.HTTP_410_GONE)
-        self.tutor.refresh_from_db()
-        self.assertTrue(self.tutor.is_active)
-        self.assertFalse(ActivityLog.objects.filter(action='user.deactivate').exists())
 
 
 class TeamPasswordResetTests(TeamTestCase):

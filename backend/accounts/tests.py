@@ -1,7 +1,7 @@
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch
 from datetime import timedelta
@@ -489,19 +489,6 @@ class StaffDirectoryAuthorizationTests(APITestCase):
                 with self.subTest(role=role, url=url):
                     self.assertEqual(self.client.get(url).status_code, status.HTTP_403_FORBIDDEN)
 
-    # --- full records: retired (D3) -----------------------------------------
-
-    def test_full_records_are_retired_not_downgraded(self):
-        """?all=true and /api/admins/ answer 410, never the slim payload."""
-        for user in (self.admin, self.mentor, self.tutor):
-            for url, params in ((self.MENTORS_URL, {"all": "true"}), (self.TUTORS_URL, {"all": "true"}), (self.ADMINS_URL, {})):
-                with self.subTest(role=user.role, url=url):
-                    self.client.force_authenticate(user=user)
-                    response = self.client.get(url, params)
-                    self.assertEqual(response.status_code, status.HTTP_410_GONE)
-                    self.assertEqual(response.data.get("error"), "ENDPOINT_RETIRED")
-                    self.assertNotIn("mentors", response.data)
-
     # --- payload shape -------------------------------------------------------
 
     def test_slim_directory_exposes_no_extra_pii(self):
@@ -542,11 +529,11 @@ class StaffDirectoryAuthorizationTests(APITestCase):
 
 class StaffLifecycleTests(APITestCase):
     """
-    Soft-deactivation lifecycle (parity with the Hub's user-exit flow), through
-    Team's deactivate/reactivate (the old status endpoint is retired, D3):
-    team managers only, administrators out of a plain admin's reach, handover
-    guard on ACTIVE students, bulk reassign that re-points open scheduled
-    sessions, session lockout, and reactivation.
+    The staff-exit handover (parity with the Hub's user-exit flow): the bulk
+    reassign that re-points a departing mentor's or tutor's ACTIVE students and
+    their open scheduled sessions, and what deactivation then does to the
+    assignment dropdowns. Deactivation and reactivation themselves are Team's
+    endpoints, tested in accounts.tests_team.TeamStatusTests.
     """
 
     def setUp(self):
@@ -618,119 +605,8 @@ class StaffLifecycleTests(APITestCase):
     def deactivate(self, user, **body):
         return self.client.post(f'/api/team/{user.id}/deactivate/', body, format='json')
 
-    def reactivate(self, user):
-        return self.client.post(f'/api/team/{user.id}/reactivate/', {}, format='json')
-
     def reassign_url(self, user):
         return f'/api/users/{user.id}/reassign/'
-
-    # --- deactivate ----------------------------------------------------------
-
-    def test_deactivate_blocked_while_active_students_assigned(self):
-        res = self.deactivate(self.mentor)
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
-        self.mentor.refresh_from_db()
-        self.assertIsNone(self.mentor.deactivated_at)
-        self.assertTrue(self.mentor.is_active)
-
-    def test_inactive_and_expired_assignments_do_not_block_deactivation(self):
-        """The handover guard counts ACTIVE students only (Hub parity)."""
-        self.active_student.mentor = self.mentor2
-        self.active_student.tutor = self.tutor2
-        self.active_student.save()
-        # mentor/tutor now hold only INACTIVE and EXPIRED students.
-        for target in (self.mentor, self.tutor):
-            with self.subTest(role=target.role):
-                res = self.deactivate(target)
-                self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-    def test_deactivate_sets_lifecycle_fields_and_logs(self):
-        res = self.deactivate(self.tutor2, reason="  Left the company  ")
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tutor2.refresh_from_db()
-        self.assertIsNotNone(self.tutor2.deactivated_at)
-        self.assertEqual(self.tutor2.deactivated_by, self.admin)
-        self.assertEqual(self.tutor2.deactivation_reason, "Left the company")
-        self.assertFalse(self.tutor2.is_active)
-        # Role is kept for historical attribution.
-        self.assertEqual(self.tutor2.role, "TUTOR")
-
-        log = ActivityLog.objects.filter(action='user.deactivate', entity_id=str(self.tutor2.id)).first()
-        self.assertIsNotNone(log)
-        # Normalised entity vocabulary: new rows must not reintroduce 'USER'.
-        self.assertEqual(log.entity_type, 'profile')
-        self.assertEqual(log.changes["status"], {"old": "active", "new": "deactivated"})
-        self.assertEqual(log.context.get("reason"), "Left the company")
-
-    def test_deactivated_staff_session_is_locked_out(self):
-        """
-        A deactivated user's still-live session must die on their next request
-        (is_active=False makes ModelBackend.get_user return None).
-        """
-        live = APIClient()
-        # USERNAME_FIELD is `username`; create_user derived it from the email.
-        self.assertTrue(live.login(username="lc_tutor2", password="password123"))
-        self.assertEqual(live.get('/api/auth/me/').status_code, status.HTTP_200_OK)
-
-        res = self.deactivate(self.tutor2)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        blocked = live.get('/api/auth/me/')
-        self.assertIn(blocked.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
-
-    # --- reactivate ----------------------------------------------------------
-
-    def test_reactivate_clears_lifecycle_fields_and_logs(self):
-        self.deactivate(self.tutor2, reason="x")
-        res = self.reactivate(self.tutor2)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tutor2.refresh_from_db()
-        self.assertIsNone(self.tutor2.deactivated_at)
-        self.assertIsNone(self.tutor2.deactivated_by)
-        self.assertIsNone(self.tutor2.deactivation_reason)
-        self.assertTrue(self.tutor2.is_active)
-
-        log = ActivityLog.objects.filter(action='user.reactivate', entity_id=str(self.tutor2.id)).first()
-        self.assertIsNotNone(log)
-        self.assertEqual(log.entity_type, 'profile')
-        self.assertEqual(log.changes["status"], {"old": "deactivated", "new": "active"})
-
-    # --- guards --------------------------------------------------------------
-
-    def test_admin_target_is_refused(self):
-        """Only a superuser deactivates an administrator; a plain admin never another."""
-        res = self.deactivate(self.other_admin)
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        self.other_admin.refresh_from_db()
-        self.assertIsNone(self.other_admin.deactivated_at)
-
-    def test_student_target_is_refused(self):
-        # Team manages staff accounts only: a student is not found there.
-        res = self.deactivate(self.student_user)
-        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-        self.student_user.refresh_from_db()
-        self.assertTrue(self.student_user.is_active)
-
-    def test_non_admin_caller_is_refused(self):
-        for caller in (self.mentor, self.tutor, self.student_user):
-            with self.subTest(role=caller.role):
-                self.client.force_authenticate(user=caller)
-                res = self.deactivate(self.tutor2)
-                self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_unknown_target_is_404(self):
-        import uuid as uuid_mod
-        res = self.client.post(f'/api/team/{uuid_mod.uuid4()}/deactivate/', {}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_unknown_fields_and_long_reasons_are_rejected(self):
-        res = self.deactivate(self.tutor2, action="obliterate")
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        res = self.deactivate(self.tutor2, reason="x" * 501)
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.tutor2.refresh_from_db()
-        self.assertTrue(self.tutor2.is_active)
 
     # --- reassign ------------------------------------------------------------
 
@@ -827,15 +703,6 @@ class StaffLifecycleTests(APITestCase):
         rows = {t["email"]: t for t in team.data}
         self.assertIn("lc_tutor2@eduport.com", rows)
         self.assertIsNotNone(rows["lc_tutor2@eduport.com"]["deactivated_at"])
-
-    def test_deactivate_blocked_for_tutor_with_active_students(self):
-        """The handover guard applies to tutors exactly as to mentors."""
-        res = self.deactivate(self.tutor)
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
-        self.tutor.refresh_from_db()
-        self.assertIsNone(self.tutor.deactivated_at)
-        self.assertTrue(self.tutor.is_active)
 
     def test_reassign_rejects_malformed_replacement_id(self):
         """A malformed body id must 400 (Hub parity: zod uuid), never 500."""
