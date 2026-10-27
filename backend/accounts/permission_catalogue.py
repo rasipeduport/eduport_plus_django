@@ -21,6 +21,7 @@ migration creating its row.
 
 STAFF = ('ADMIN', 'MENTOR', 'TUTOR')
 ADMIN_ONLY = ('ADMIN',)
+BDE_ONLY = ('BDE',)
 
 VIEW_TEAM = 'accounts.view_team'
 
@@ -86,6 +87,9 @@ CATALOGUE = {
     'accounts.create_invitation': _entry('Invite students', 'Invitations'),
     'accounts.change_invitation': _entry("Change an invitation's email", 'Invitations'),
     'accounts.withdraw_invitation': _entry('Withdraw invitations', 'Invitations'),
+
+    # Booking links (the BDE workspace; bookings app)
+    'accounts.view_own_booking_links': _entry('View their own booking links', 'Booking links', BDE_ONLY),
 }
 
 

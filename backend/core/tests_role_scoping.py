@@ -3,12 +3,13 @@ Scoping is deny-by-default.
 
 Access follows permissions (accounts.authz): the Admin role's group sees
 everything, Mentor and Tutor their allocated students' rows, superusers
-everything whatever their role (decision D1), and every other role -- BDE and
-Sales TL, whose groups are empty, a future one, or a bad value in the column --
-nothing. These tests pin both halves: the scope helpers give each existing role
-exactly what it had, and a role without permissions is refused by every API
-route. Every API view must also say which permission guards it. What each kind
-of caller gets from each endpoint -- lists, profiles, file downloads -- is the
+everything whatever their role (decision D1), BDE only its own booking links,
+and every other role -- Sales TL, whose group is empty, a future one, or a bad
+value in the column -- nothing. These tests pin both halves: the scope helpers
+give each existing role exactly what it had, and a role without permissions is
+refused by every API route (a BDE by every one but its booking links). Every
+API view must also say which permission guards it. What each kind of caller
+gets from each endpoint -- lists, profiles, file downloads -- is the
 authorization matrix's job (core.tests_authz_matrix).
 """
 import re
@@ -42,6 +43,9 @@ ALLOWED_FOR_ANY_ACCOUNT = {
     ('api/auth/me/', 'get'),
     ('api/auth/logout/', 'post'),
 }
+# A BDE also reads its own booking links (accounts.view_own_booking_links), and nothing more.
+ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {('api/bde/booking-links/', 'get')}
+BDE_PERMISSIONS = ['accounts.view_own_booking_links']
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
 _ROUTE_PARAM = re.compile(r'<(?:(\w+):)?\w+>')
 
@@ -102,7 +106,8 @@ class RoleScopingFixture(APITestCase):
             'blank': account('blank', ''),
         }
         a = self.accounts
-        self.unknown_accounts = (a['bde'], a['sales_tl'], a['unknown'], a['blank'])
+        # Every role holding no permission. BDE holds one (its booking links).
+        self.unknown_accounts = (a['sales_tl'], a['unknown'], a['blank'])
 
         def student(code, mentor, tutor, status=StatusChoices.ACTIVE):
             return Student.objects.create(
@@ -196,7 +201,10 @@ class ScopeHelperTests(RoleScopingFixture):
 
 
 class ApiSweepTests(RoleScopingFixture):
-    """Every /api/ route, every method: a role without permissions succeeds only on the account basics."""
+    """
+    Every /api/ route, every method: a role without permissions succeeds only
+    on the account basics, and a BDE only on those and its own booking links.
+    """
 
     def setUp(self):
         super().setUp()
@@ -213,37 +221,49 @@ class ApiSweepTests(RoleScopingFixture):
         for route in ('api/students/', 'api/sessions/files/<uuid:file_id>/', 'api/team/<uuid:pk>/permissions/',
                       'api/homework/files/<uuid:file_id>/', 'api/dashboard/stats/', 'api/student/scorecard/'):
             self.assertIn(route, routes)
-        for route, _method in ALLOWED_FOR_ANY_ACCOUNT:
+        for route, _method in ALLOWED_FOR_BDE:
             self.assertIn(route, routes)
 
+    def leaks(self, account, allowed):
+        """Every (route, method) outside ``allowed`` that answers ``account`` with a 2xx."""
+        self.client.force_authenticate(user=account)
+        found = []
+        for route in sorted(set(api_routes())):
+            for method in METHODS:
+                if (route, method) in allowed:
+                    continue
+                cache.clear()  # each call answers for itself, never with an earlier call's 429
+                path = concrete_path(route)
+                if method == 'get':
+                    res = self.client.get(path)
+                else:
+                    res = getattr(self.client, method)(path, {}, format='json')
+                if 200 <= res.status_code < 300:
+                    found.append(f'{method.upper()} {route} -> {res.status_code}')
+        return found
+
     def test_unknown_roles_get_nothing_from_any_api_route(self):
-        routes = sorted(set(api_routes()))
         for account in self.unknown_accounts:
-            self.client.force_authenticate(user=account)
-            leaks = []
-            for route in routes:
-                for method in METHODS:
-                    if (route, method) in ALLOWED_FOR_ANY_ACCOUNT:
-                        continue
-                    cache.clear()  # each call answers for itself, never with an earlier call's 429
-                    path = concrete_path(route)
-                    if method == 'get':
-                        res = self.client.get(path)
-                    else:
-                        res = getattr(self.client, method)(path, {}, format='json')
-                    if 200 <= res.status_code < 300:
-                        leaks.append(f'{method.upper()} {route} -> {res.status_code}')
             with self.subTest(role=account.role):
-                self.assertEqual(leaks, [])
+                self.assertEqual(self.leaks(account, ALLOWED_FOR_ANY_ACCOUNT), [])
+
+    def test_a_bde_gets_nothing_but_its_own_booking_links(self):
+        bde = self.accounts['bde']
+        self.assertEqual(self.leaks(bde, ALLOWED_FOR_BDE), [])
+        self.client.force_authenticate(user=bde)
+        res = self.client.get('/api/bde/booking-links/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual([link['booking_type'] for link in res.data['links']], ['DEMO', 'DIAGNOSTIC'])
 
     def test_the_account_basics_answer_only_about_the_caller(self):
-        for account in self.unknown_accounts:
+        accounts = [(account, []) for account in self.unknown_accounts] + [(self.accounts['bde'], BDE_PERMISSIONS)]
+        for account, permissions in accounts:
             with self.subTest(role=account.role):
                 self.client.force_authenticate(user=account)
                 res = self.client.get('/api/auth/me/')
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.data['user']['id'], str(account.id))
-                self.assertEqual(res.data['user']['permissions'], [])
+                self.assertEqual(res.data['user']['permissions'], permissions)
                 self.assertNotIn('student_profiles', res.data)
 
 

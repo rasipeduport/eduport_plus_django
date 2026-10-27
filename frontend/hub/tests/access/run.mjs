@@ -79,18 +79,39 @@ const { describeAt } = await import(pathToFileURL(bundle).href);
 
 // --------------------------------------------------------------- scenarios
 const ids = fixtures.ids;
-const fakeMe = (role) => ({ user: { id: `id-${role}`, username: role.toLowerCase(), email: `${role.toLowerCase()}@matrix.test`, full_name: role, role,
-  is_superuser: false, must_change_password: false, permissions: [], groups: [] }, must_change_password: false, csrf_token: 'stub' });
+const fakeMe = (role, permissions = []) => ({ user: { id: `id-${role}`, username: role.toLowerCase(), email: `${role.toLowerCase()}@matrix.test`, full_name: role, role,
+  is_superuser: false, must_change_password: false, permissions, groups: [] }, must_change_password: false, csrf_token: 'stub' });
+
+// BDE booking links (DEVT-5934), laid over the recorded answers, which predate
+// it -- the same answers the backend authorization matrix records. A superuser
+// holds accounts.view_own_booking_links (D1) and is told it is not a BDE; the
+// BDE holds it and is served its own two links.
+const VIEW_OWN_BOOKING_LINKS = 'accounts.view_own_booking_links';
+const BOOKING_LINKS_PATH = '/api/bde/booking-links/';
+function asSuperuserAfterBookingLinks(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...me.body.user.permissions, VIEW_OWN_BOOKING_LINKS].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [BOOKING_LINKS_PATH]: { status: 403, body: { error: 'NOT_A_BDE', message: 'Booking links belong to BDE accounts, and this account is not one.' } },
+  };
+}
+const BDE_LINKS = { status: 200, body: { links: [
+  { booking_type: 'DEMO', url: 'https://plus.eduport.app/demo?ref=DemoToken-0123456789ab', created_at: '2026-10-27T09:00:00+05:30' },
+  { booking_type: 'DIAGNOSTIC', url: 'https://plus.eduport.app/exam?ref=DiagToken-0123456789ab', created_at: '2026-10-27T09:00:00+05:30' },
+] } };
+
 const CALLERS = {
   admin: { answers: fixtures.callers.admin },
-  superuser: { answers: fixtures.callers.superuser },
-  su_mentor: { answers: fixtures.callers.su_mentor },
+  superuser: { answers: asSuperuserAfterBookingLinks(fixtures.callers.superuser) },
+  su_mentor: { answers: asSuperuserAfterBookingLinks(fixtures.callers.su_mentor) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: fixtures.callers.tutor_a },
   tutor_b: { answers: fixtures.callers.tutor_b },
   parent_a: { answers: fixtures.callers.parent_a },
   unknown: { answers: fixtures.callers.unknown },
-  bde: { answers: fixtures.callers.unknown, me: fakeMe('BDE') },
+  bde: { answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS }, me: fakeMe('BDE', [VIEW_OWN_BOOKING_LINKS]) },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };
 const a = ids.stu_a;
@@ -98,7 +119,8 @@ const PATHS = [
   '/dashboard', '/students', `/students/${a}`, `/students/${a}?tab=sessions`, `/students/${a}?tab=exams`,
   `/students/${a}?tab=homework`, `/students/${a}?tab=documents`, `/students/${a}?tab=activity`, `/students/${a}?tab=notes`,
   `/students/${ids.stu_b}`, '/sessions', `/sessions?student_id=${a}`, '/exams', `/exams?student_id=${a}`, '/homework',
-  '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/admins', '/nowhere',
+  '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
+  '/admins', '/nowhere',
 ];
 const labelOf = Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name]));
 const symbolic = (value) => JSON.parse(JSON.stringify(value).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => `{${labelOf[id] || 'id'}}`));

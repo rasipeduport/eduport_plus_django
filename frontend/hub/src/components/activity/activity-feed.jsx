@@ -25,6 +25,7 @@ const ENTITY_TYPES = [
   { value: 'homework', label: 'Homework' },
   { value: 'invitation', label: 'Invitation' },
   { value: 'profile', label: 'User' },
+  { value: 'booking_link', label: 'Booking link' },
 ];
 
 const ENTITY_NOUN = {
@@ -36,6 +37,7 @@ const ENTITY_NOUN = {
   homework: 'Homework',
   invitation: 'Invitation',
   profile: 'User',
+  booking_link: 'Booking link',
 };
 
 export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, canFilterByActor = false }) {

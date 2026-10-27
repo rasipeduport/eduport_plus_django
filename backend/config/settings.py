@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'activity',
     'exams',
     'homework',
+    'bookings',
 ]
 
 MIDDLEWARE = [
@@ -465,3 +466,8 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='rasip.eduport@gmail.com'
 # Frontend URLs for redirect links
 HUB_URL = env('HUB_URL', default='http://localhost:3000')
 LEARN_URL = env('LEARN_URL', default='http://localhost:3001')
+
+# The public site whose /demo and /exam pages parents book on; a BDE's booking
+# links (bookings app) point there. They are only ever meant for parents, so
+# the default is the live site in every environment.
+MARKETING_SITE_URL = env('MARKETING_SITE_URL', default='https://plus.eduport.app')

@@ -48,6 +48,8 @@ export const PERMISSIONS = {
   createInvitation: 'accounts.create_invitation',
   changeInvitation: 'accounts.change_invitation',
   withdrawInvitation: 'accounts.withdraw_invitation',
+
+  viewOwnBookingLinks: 'accounts.view_own_booking_links',
 };
 
 const P = PERMISSIONS;
@@ -79,6 +81,8 @@ export const PAGE_PERMISSIONS = {
   '/team': [P.viewTeam, P.manageTeam],
   '/invitations': [P.viewInvitations],
   '/activity': ACTIVITY_VIEW,
+  // The BDE workspace. Last, so it is the home page only of whoever has no other page.
+  '/booking-links': [P.viewOwnBookingLinks],
 };
 
 /** Whether the student action menu (components/students/action-cell) offers `user` anything. */

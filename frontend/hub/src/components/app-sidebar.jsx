@@ -1,4 +1,4 @@
-import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, History, LayoutDashboard, Mail, UsersRound } from 'lucide-react';
+import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, History, LayoutDashboard, Link2, Mail, UsersRound } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -15,6 +15,8 @@ const navMain = [
   { title: 'Team', url: '/team', icon: UsersRound },
   { title: 'Invitations', url: '/invitations', icon: Mail },
   { title: 'Activity', url: '/activity', icon: History },
+  // The BDE workspace.
+  { title: 'Booking links', url: '/booking-links', icon: Link2 },
 ];
 
 export function AppSidebar({ user, logout, ...props }) {

@@ -27,6 +27,20 @@ DATA_DIR = Path(__file__).resolve().parent / 'authz_matrix_data'
 BASELINE = DATA_DIR / 'baseline.json'
 APPROVED = DATA_DIR / 'approved_changes.json'
 
+# Where BDE is not answered as the unknown role: it holds
+# accounts.view_own_booking_links, so /me lists it and the booking-links
+# endpoint serves the BDE its own two links (tokens recorded by shape).
+BDE_PERMISSIONS = ['accounts.view_own_booking_links']
+BDE_OWN_LINKS = {
+    'status': 200,
+    'records': [],
+    'fields': ['links', 'links[].booking_type', 'links[].created_at', 'links[].url'],
+    'capture': [
+        {'booking_type': 'DEMO', 'url': 'https://plus.eduport.app/demo?ref=<token>'},
+        {'booking_type': 'DIAGNOSTIC', 'url': 'https://plus.eduport.app/exam?ref=<token>'},
+    ],
+}
+
 
 class AuthorizationMatrixTests(TestCase):
     @classmethod
@@ -38,6 +52,8 @@ class AuthorizationMatrixTests(TestCase):
         cls._override = override_settings(
             MEDIA_ROOT=cls._media,
             PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'],
+            # Booking links are recorded with their URL; pin the site they point at.
+            MARKETING_SITE_URL='https://plus.eduport.app',
         )
         cls._override.enable()
 
@@ -56,9 +72,10 @@ class AuthorizationMatrixTests(TestCase):
             logging.disable(logging.NOTSET)
 
     def test_new_roles_reach_what_an_unknown_role_reaches(self):
-        # BDE and Sales TL have role groups but no catalogue permission yet: in
-        # every scenario open to signed-in accounts they must be answered as
-        # the account whose role nothing knows -- no data and no action.
+        # Sales TL has a role group but no catalogue permission yet: in every
+        # scenario open to signed-in accounts it must be answered as the
+        # account whose role nothing knows -- no data and no action. So must
+        # BDE, except where its one permission shows (BDE_OWN_LINKS above).
         world = build_world()
         add_new_role_accounts(world)
         results = self.run_quietly(world, like_unknown=tuple(NEW_ROLES))
@@ -70,13 +87,21 @@ class AuthorizationMatrixTests(TestCase):
                 result['capture'].pop('role', None)
             return result
 
+        def expected(scenario, caller, unknown):
+            if caller == 'bde' and scenario == 'auth.me':
+                return {**unknown, 'capture': {**unknown['capture'], 'permissions': BDE_PERMISSIONS}}
+            if caller == 'bde' and scenario == 'bde.booking_links':
+                return BDE_OWN_LINKS
+            return unknown
+
         scenarios = sorted({key.split(' @ ')[0] for key in results})
         self.assertGreater(len(scenarios), 100)
+        self.assertIn('bde.booking_links', scenarios)
         for scenario in scenarios:
             unknown = as_anyone(results[f'{scenario} @ unknown'], 'unknown')
             for caller in NEW_ROLES:
                 with self.subTest(scenario=scenario, caller=caller):
-                    self.assertEqual(as_anyone(results[f'{scenario} @ {caller}'], caller), unknown)
+                    self.assertEqual(as_anyone(results[f'{scenario} @ {caller}'], caller), expected(scenario, caller, unknown))
 
     def test_every_api_route_is_in_the_matrix(self):
         covered = {route.rstrip('/') for route in exercised_routes(build_world())}

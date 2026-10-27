@@ -8,9 +8,9 @@ import { EMAIL_RE } from './utils';
 
 export const TEAM_URL = '/api/team/';
 export const TEAM_PERMISSIONS_URL = '/api/team/permissions/';
-// The staff roles Team manages (backend accounts.models HUB_ROLES). BDE and
-// Sales TL sign in to the Hub but hold no permission yet, so they see the
-// No Access page until their modules exist.
+// The staff roles Team manages (backend accounts.models HUB_ROLES). A BDE
+// signs in to the Hub for their booking links; Sales TL holds no permission
+// yet, so it sees the No Access page until its module exists.
 export const TEAM_ROLES = [
   { value: 'ADMIN', label: 'Admin' },
   { value: 'MENTOR', label: 'Mentor' },

@@ -50,6 +50,8 @@ export const ACTION_LABELS = {
   'user.sign_in_failed': 'Sign-in refused',
   'user.unlock': 'Account unlocked',
   'user.lockout_update': 'Lockout changed',
+  // BDE workspace.
+  'booking_link.issue': 'Booking link issued',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -233,6 +235,10 @@ export function describeActivity(row) {
       return 'Reactivated the account';
     case 'user.unlock':
       return 'Cleared the sign-in lockout';
+    case 'booking_link.issue': {
+      const type = row.entity_label;
+      return type ? `Issued a ${type.toLowerCase()} booking link` : 'Issued a booking link';
+    }
     default:
       return actionLabel(row.action);
   }

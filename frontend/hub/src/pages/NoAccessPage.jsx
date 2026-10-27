@@ -1,7 +1,7 @@
 /**
  * Shown instead of the Hub to a signed-in account holding no permission that
  * opens a Hub page (lib/access homePage) -- a role whose permissions are not
- * set up yet, such as BDE or Sales TL today. It stands alone like the forced password
+ * set up yet, such as Sales TL today. It stands alone like the forced password
  * change: no sidebar, no data requests -- the API refuses such an account
  * anyway -- and signing out is the only action.
  */

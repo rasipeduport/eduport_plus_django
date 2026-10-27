@@ -872,7 +872,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
    "result": {
     "capture": {
      "groups": [],
@@ -910,6 +910,7 @@
       "accounts.view_mentored_sessions",
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
+      "accounts.view_own_booking_links",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -947,7 +948,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
    "result": {
     "capture": {
      "groups": [],
@@ -985,6 +986,7 @@
       "accounts.view_mentored_sessions",
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
+      "accounts.view_own_booking_links",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1022,7 +1024,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
    "result": {
     "capture": {
      "groups": [],
@@ -1060,6 +1062,7 @@
       "accounts.view_mentored_sessions",
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
+      "accounts.view_own_booking_links",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1184,6 +1187,155 @@
      "tutor_b"
     ],
     "status": 200
+   }
+  },
+  "bde.booking_links @ admin": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ anon": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "The BDE workspace endpoint, like every staff endpoint, needs a signed-in account.",
+   "result": {
+    "capture": [],
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ mentor_a": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ mentor_b": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ parent_a": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ su_mentor": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds the permission (D1) but is not a BDE. Links belong to active BDE accounts only, so the endpoint answers NOT_A_BDE and issues nothing.",
+   "result": {
+    "capture": [],
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Booking links belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ su_tutor": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds the permission (D1) but is not a BDE. Links belong to active BDE accounts only, so the endpoint answers NOT_A_BDE and issues nothing.",
+   "result": {
+    "capture": [],
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Booking links belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ superuser": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds the permission (D1) but is not a BDE. Links belong to active BDE accounts only, so the endpoint answers NOT_A_BDE and issues nothing.",
+   "result": {
+    "capture": [],
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Booking links belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ tutor_a": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ tutor_b": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.booking_links @ unknown": {
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
+   "result": {
+    "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
    }
   },
   "dashboard.staff @ su_mentor": {

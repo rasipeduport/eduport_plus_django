@@ -14,6 +14,7 @@ import InvitationsPage from './pages/InvitationsPage';
 import ActivityPage from './pages/ActivityPage';
 import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
+import BookingLinksPage from './pages/BookingLinksPage';
 import { canOpenPage, homePage } from './lib/access';
 
 /**
@@ -60,6 +61,9 @@ function HubRoutes({ user, logout }) {
         <Route path="/team/:memberId" element={page('/team', <TeamMemberPage user={user} />)} />
         {/* The API pins whoever holds only view_own_activity to their own entries. */}
         <Route path="/activity" element={page('/activity', <ActivityPage user={user} />)} />
+        {/* The BDE workspace: a BDE's own permanent booking links. The API
+            serves each BDE only their own. */}
+        <Route path="/booking-links" element={page('/booking-links', <BookingLinksPage />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

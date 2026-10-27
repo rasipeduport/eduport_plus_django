@@ -59,7 +59,8 @@ SIGNED_IN = tuple(caller for caller in CALLERS if caller != 'anon')
 # baseline has no results for them, and their accounts would change what other
 # callers list -- so tests_authz_matrix adds them to a world of their own
 # (add_new_role_accounts) and checks that each is answered exactly as the
-# account with an unknown role is: no data, no action.
+# account with an unknown role is: no data, no action. The one exception is
+# what BDE holds, its own booking links (tests_authz_matrix lists it).
 NEW_ROLES = {'bde': 'BDE', 'sales_tl': 'SALES_TL'}
 
 
@@ -305,6 +306,17 @@ def _member(data):
     return {'permissions': data.get('permissions'), 'role': data.get('role')}
 
 
+# A booking link's token is random, so a run records its shape, not its value.
+_LINK_TOKEN_RE = re.compile(r'([?&]ref=)[A-Za-z0-9_-]{22}$')
+
+
+def _booking_links(data):
+    return [
+        {'booking_type': link.get('booking_type'), 'url': _LINK_TOKEN_RE.sub(r'\1<token>', link.get('url') or '')}
+        for link in data.get('links') or []
+    ]
+
+
 def _create_session(w, stu):
     date, time = w.day(30)
     return {'student_id': w.id(stu), 'base_title': 'Matrix Class', 'series': False, 'timezone': TZ,
@@ -471,6 +483,9 @@ SCENARIOS = [
              lambda w: {'id': w.id('inv_pending'), 'new_email': 'changed.parent@matrix.test'}),
     Scenario('invitations.withdraw.student', 'delete', '/api/invitations/', lambda w: {'id': w.id('inv_pending')}),
     Scenario('invitations.withdraw.legacy_staff', 'delete', '/api/invitations/', lambda w: {'id': w.id('inv_legacy')}),
+
+    # --- BDE workspace --------------------------------------------------------
+    Scenario('bde.booking_links', 'get', '/api/bde/booking-links/', capture=_booking_links),
 ]
 
 
