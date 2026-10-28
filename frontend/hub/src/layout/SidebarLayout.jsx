@@ -16,6 +16,7 @@ const PORTED_PATHS = new Set([
   '/activity',
   '/team',
   '/booking-links',
+  '/booking-slots',
 ]);
 
 // Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon

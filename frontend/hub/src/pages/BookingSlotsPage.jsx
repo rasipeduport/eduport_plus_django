@@ -473,7 +473,7 @@ export default function BookingSlotsPage() {
 
   return (
     <div className="container mx-auto px-4 py-16">
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-semibold">Booking slots</h1>
         <p className="text-muted-foreground text-sm">
           The one-hour slots parents book for a demo class or a diagnostic test. Each slot&apos;s status follows its
@@ -483,7 +483,7 @@ export default function BookingSlotsPage() {
         </p>
       </div>
 
-      <div className="mb-6 flex flex-col gap-4">
+      <div className="mb-4 flex flex-col gap-3">
         <Tabs value={type} onValueChange={(value) => choose({ type: value })}>
           <TabsList>
             {TYPES.map((entry) => (
