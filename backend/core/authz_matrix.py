@@ -317,6 +317,13 @@ def _booking_links(data):
     ]
 
 
+def _public_booking(w):
+    date, _time = w.day(2)
+    return {'date': date, 'time': '19:30', 'parent_name': 'Matrix Parent', 'student_name': 'Matrix Child',
+            'phone': {'dial_code': '+971', 'number': '0501234567'}, 'school': 'Matrix School',
+            'student_class': 'Class 8', 'syllabus': 'CBSE', 'ref': None}
+
+
 def _create_session(w, stu):
     date, time = w.day(30)
     return {'student_id': w.id(stu), 'base_title': 'Matrix Class', 'series': False, 'timezone': TZ,
@@ -486,6 +493,10 @@ SCENARIOS = [
 
     # --- BDE workspace --------------------------------------------------------
     Scenario('bde.booking_links', 'get', '/api/bde/booking-links/', capture=_booking_links),
+
+    # --- public booking API (the marketing site's server key only) ------------
+    Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
+    Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
 ]
 
 

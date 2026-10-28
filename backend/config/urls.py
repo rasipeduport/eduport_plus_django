@@ -57,6 +57,8 @@ urlpatterns = [
     path('api/homework/', include('homework.urls', namespace='homework')),
     # The BDE workspace: a BDE's own permanent booking links.
     path('api/bde/', include('bookings.urls', namespace='bookings')),
+    # The public Demo/Diagnostic booking API, for the marketing site's server only.
+    path('api/public/', include('bookings.public_urls', namespace='public_bookings')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
     path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),

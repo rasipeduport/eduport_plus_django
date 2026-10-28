@@ -2533,6 +2533,270 @@
     "status": 403
    }
   },
+  "public.booking_calendar @ admin": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ anon": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 401
+   }
+  },
+  "public.booking_calendar @ mentor_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ mentor_b": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ parent_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ su_mentor": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ su_tutor": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ superuser": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ tutor_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ tutor_b": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_calendar @ unknown": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ admin": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ anon": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 401
+   }
+  },
+  "public.booking_create @ mentor_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ mentor_b": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ parent_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ su_mentor": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ su_tutor": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ superuser": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ tutor_a": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ tutor_b": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.booking_create @ unknown": {
+   "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
+   "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "sessions.attend.a @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
    "note": "A superuser with the Mentor or Tutor role is no longer held to that role's scope: they act as an administrator (same results as the Admin-role superuser). The Django admin warns about the combination.",

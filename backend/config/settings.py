@@ -244,6 +244,10 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'login_ip': env('LOGIN_THROTTLE_IP_RATE', default='10/min'),
         'password_change': env('PASSWORD_CHANGE_THROTTLE_RATE', default='10/hour'),
+        # The public booking API, per parent address (bookings.throttles).
+        # The pages poll the calendar every 8 seconds while a parent picks a time.
+        'public_booking': env('PUBLIC_BOOKING_THROTTLE_RATE', default='10/hour'),
+        'public_booking_calendar': env('PUBLIC_BOOKING_CALENDAR_THROTTLE_RATE', default='120/min'),
     },
     # The browsable API renders interactive write forms for every endpoint --
     # a development tool. Production serves JSON only.
@@ -471,3 +475,12 @@ LEARN_URL = env('LEARN_URL', default='http://localhost:3001')
 # links (bookings app) point there. They are only ever meant for parents, so
 # the default is the live site in every environment.
 MARKETING_SITE_URL = env('MARKETING_SITE_URL', default='https://plus.eduport.app')
+
+# Bookings one phone number may make in 24 hours (siblings share it), counted
+# in the database so it holds across workers.
+BOOKING_PHONE_DAILY_LIMIT = env.int('BOOKING_PHONE_DAILY_LIMIT', default=5)
+
+# Keys the marketing site's server presents to the public booking API
+# (bookings.authentication), comma-separated so one can be rotated. None set
+# means the API answers nobody.
+BOOKING_SERVICE_API_KEYS = env.list('BOOKING_SERVICE_API_KEYS', default=[])

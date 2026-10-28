@@ -52,6 +52,12 @@ export const ACTION_LABELS = {
   'user.lockout_update': 'Lockout changed',
   // BDE workspace.
   'booking_link.issue': 'Booking link issued',
+  // Public Demo/Diagnostic bookings.
+  'booking.create': 'Booking received',
+  'booking.cancel': 'Booking cancelled',
+  'booking_slot.close': 'Slot closed',
+  'booking_slot.reopen': 'Slot reopened',
+  'booking_schedule.update': 'Booking times changed',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -238,6 +244,27 @@ export function describeActivity(row) {
     case 'booking_link.issue': {
       const type = row.entity_label;
       return type ? `Issued a ${type.toLowerCase()} booking link` : 'Issued a booking link';
+    }
+    case 'booking.create': {
+      const type = String(row.context?.booking_type ?? '').toLowerCase();
+      const via = row.context?.referral_status === 'ATTRIBUTED' ? ' through a BDE link' : '';
+      return `Booked a ${type || 'demo'} slot${via}`;
+    }
+    case 'booking.cancel': {
+      const reason = reasonOf(row);
+      return reason ? `Cancelled the booking — ${reason}` : 'Cancelled the booking';
+    }
+    case 'booking_slot.close': {
+      const reason = reasonOf(row);
+      return reason ? `Closed the slot — ${reason}` : 'Closed the slot';
+    }
+    case 'booking_slot.reopen':
+      return 'Reopened the slot';
+    case 'booking_schedule.update': {
+      const parts = [];
+      if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);
+      if (row.context?.removed?.length) parts.push(`removed ${row.context.removed.join(', ')}`);
+      return parts.length ? `Booking times: ${parts.join('; ')}` : 'Changed the booking times';
     }
     default:
       return actionLabel(row.action);

@@ -26,6 +26,7 @@ const ENTITY_TYPES = [
   { value: 'invitation', label: 'Invitation' },
   { value: 'profile', label: 'User' },
   { value: 'booking_link', label: 'Booking link' },
+  { value: 'booking', label: 'Booking' },
 ];
 
 const ENTITY_NOUN = {
@@ -38,6 +39,9 @@ const ENTITY_NOUN = {
   invitation: 'Invitation',
   profile: 'User',
   booking_link: 'Booking link',
+  booking: 'Booking',
+  booking_slot: 'Slot',
+  booking_schedule: 'Schedule',
 };
 
 export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, canFilterByActor = false }) {
@@ -193,7 +197,9 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
                         {format(new Date(row.created_at), 'd MMM yyyy, h:mm a')}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{row.actor_name ?? row.actor_email ?? 'Unknown'}</div>
+                        <div className="font-medium">
+                          {row.actor_name ?? row.actor_email ?? (row.context?.via === 'public_booking' ? 'Booking page' : 'Unknown')}
+                        </div>
                         {row.actor_role ? (
                           <div className="text-muted-foreground text-xs capitalize">{row.actor_role.toLowerCase()}</div>
                         ) : null}
