@@ -84,8 +84,9 @@ const fakeMe = (role, permissions = []) => ({ user: { id: `id-${role}`, username
 
 // BDE booking links (DEVT-5934), laid over the recorded answers, which predate
 // it -- the same answers the backend authorization matrix records. A superuser
-// holds accounts.view_own_booking_links (D1) and is told it is not a BDE; the
-// BDE holds it and is served its own two links.
+// holds accounts.view_own_booking_links (D1) and is told it is not a BDE, but
+// the Hub opens the page only for the BDE role; the BDE holds it and is served
+// its own two links.
 const VIEW_OWN_BOOKING_LINKS = 'accounts.view_own_booking_links';
 const BOOKING_LINKS_PATH = '/api/bde/booking-links/';
 function asSuperuserAfterBookingLinks(answers) {

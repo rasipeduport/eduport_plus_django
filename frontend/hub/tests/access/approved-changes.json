@@ -76,7 +76,7 @@
   },
   "/activity @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/activity",
     "noAccess": false,
@@ -89,8 +89,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "All actions",
@@ -122,8 +121,8 @@
    }
   },
   "/activity @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/activity",
     "noAccess": false,
@@ -136,8 +135,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "All actions",
@@ -244,7 +242,7 @@
   },
   "/admins @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team?role=ADMIN",
     "noAccess": false,
@@ -257,8 +255,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Add staff member",
@@ -291,8 +288,8 @@
    }
   },
   "/admins @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/team?role=ADMIN",
     "noAccess": false,
@@ -305,8 +302,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Add staff member",
@@ -495,9 +491,9 @@
   },
   "/booking-links @ su_mentor": {
    "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), so the page is offered; the API answers NOT_A_BDE and the page says booking links are issued to BDE accounts. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
@@ -508,28 +504,44 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
-    "links": [],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
     "headers": [],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
     ]
    }
   },
   "/booking-links @ superuser": {
    "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), so the page is offered; the API answers NOT_A_BDE and the page says booking links are issued to BDE accounts. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
@@ -540,20 +552,36 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
-    "links": [],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
     "headers": [],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
     ]
    }
   },
@@ -834,8 +862,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Available",
@@ -892,8 +919,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Available",
@@ -1110,7 +1136,7 @@
   },
   "/dashboard @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1123,8 +1149,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Oct 20 \u2013 Oct 26",
@@ -1158,8 +1183,8 @@
    }
   },
   "/dashboard @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1172,8 +1197,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Oct 20 \u2013 Oct 26",
@@ -1288,7 +1312,7 @@
   },
   "/exams @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/exams",
     "noAccess": false,
@@ -1301,8 +1325,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -1341,8 +1364,8 @@
    }
   },
   "/exams @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/exams",
     "noAccess": false,
@@ -1355,8 +1378,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -1484,7 +1506,7 @@
   },
   "/exams?student_id={stu_a} @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/exams?student_id={stu_a}",
     "noAccess": false,
@@ -1497,8 +1519,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Clear Filter",
@@ -1545,8 +1566,8 @@
    }
   },
   "/exams?student_id={stu_a} @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/exams?student_id={stu_a}",
     "noAccess": false,
@@ -1559,8 +1580,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Clear Filter",
@@ -1681,7 +1701,7 @@
   },
   "/homework @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/homework",
     "noAccess": false,
@@ -1694,8 +1714,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "All4",
@@ -1727,8 +1746,8 @@
    }
   },
   "/homework @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/homework",
     "noAccess": false,
@@ -1741,8 +1760,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "All4",
@@ -1844,7 +1862,7 @@
   },
   "/invitations @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/invitations",
     "noAccess": false,
@@ -1857,8 +1875,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -1886,8 +1903,8 @@
    }
   },
   "/invitations @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/invitations",
     "noAccess": false,
@@ -1900,8 +1917,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -2005,7 +2021,7 @@
   },
   "/nowhere @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2018,8 +2034,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Oct 20 \u2013 Oct 26",
@@ -2053,8 +2068,8 @@
    }
   },
   "/nowhere @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2067,8 +2082,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Oct 20 \u2013 Oct 26",
@@ -2180,7 +2194,7 @@
   },
   "/sessions @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/sessions",
     "noAccess": false,
@@ -2193,8 +2207,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -2230,8 +2243,8 @@
    }
   },
   "/sessions @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/sessions",
     "noAccess": false,
@@ -2244,8 +2257,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -2364,7 +2376,7 @@
   },
   "/sessions?student_id={stu_a} @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/sessions?student_id={stu_a}",
     "noAccess": false,
@@ -2377,8 +2389,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Clear Filter",
@@ -2419,8 +2430,8 @@
    }
   },
   "/sessions?student_id={stu_a} @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/sessions?student_id={stu_a}",
     "noAccess": false,
@@ -2433,8 +2444,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Clear Filter",
@@ -2564,7 +2574,7 @@
   },
   "/students @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students",
     "noAccess": false,
@@ -2577,8 +2587,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -2625,8 +2634,8 @@
    }
   },
   "/students @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students",
     "noAccess": false,
@@ -2639,8 +2648,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Columns",
@@ -2770,7 +2778,7 @@
   },
   "/students/{stu_a} @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}",
     "noAccess": false,
@@ -2783,8 +2791,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -2825,8 +2832,8 @@
    }
   },
   "/students/{stu_a} @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}",
     "noAccess": false,
@@ -2839,8 +2846,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -2963,7 +2969,7 @@
   },
   "/students/{stu_a}?tab=activity @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
     "noAccess": false,
@@ -2976,8 +2982,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3017,8 +3022,8 @@
    }
   },
   "/students/{stu_a}?tab=activity @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
     "noAccess": false,
@@ -3031,8 +3036,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3172,7 +3176,7 @@
   },
   "/students/{stu_a}?tab=documents @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
     "noAccess": false,
@@ -3185,8 +3189,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3244,8 +3247,8 @@
    }
   },
   "/students/{stu_a}?tab=documents @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
     "noAccess": false,
@@ -3258,8 +3261,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3411,7 +3413,7 @@
   },
   "/students/{stu_a}?tab=exams @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
     "noAccess": false,
@@ -3424,8 +3426,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3477,8 +3478,8 @@
    }
   },
   "/students/{stu_a}?tab=exams @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
     "noAccess": false,
@@ -3491,8 +3492,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3633,7 +3633,7 @@
   },
   "/students/{stu_a}?tab=homework @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
     "noAccess": false,
@@ -3646,8 +3646,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3694,8 +3693,8 @@
    }
   },
   "/students/{stu_a}?tab=homework @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
     "noAccess": false,
@@ -3708,8 +3707,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3838,7 +3836,7 @@
   },
   "/students/{stu_a}?tab=notes @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
     "noAccess": false,
@@ -3851,8 +3849,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -3892,8 +3889,8 @@
    }
   },
   "/students/{stu_a}?tab=notes @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
     "noAccess": false,
@@ -3906,8 +3903,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -4044,7 +4040,7 @@
   },
   "/students/{stu_a}?tab=sessions @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
     "noAccess": false,
@@ -4057,8 +4053,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -4113,8 +4108,8 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
     "noAccess": false,
@@ -4127,8 +4122,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -4266,7 +4260,7 @@
   },
   "/students/{stu_b} @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/students/{stu_b}",
     "noAccess": false,
@@ -4279,8 +4273,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -4321,8 +4314,8 @@
    }
   },
   "/students/{stu_b} @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/students/{stu_b}",
     "noAccess": false,
@@ -4335,8 +4328,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity",
@@ -4451,7 +4443,7 @@
   },
   "/team @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team",
     "noAccess": false,
@@ -4464,8 +4456,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Add staff member",
@@ -4497,8 +4488,8 @@
    }
   },
   "/team @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking links (the superuser holds accounts.view_own_booking_links under D1); nothing else changes. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
    "result": {
     "at": "/team",
     "noAccess": false,
@@ -4511,8 +4502,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Add staff member",
@@ -4626,7 +4616,7 @@
   },
   "/team/{mentor_c} @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team/{mentor_c}",
     "noAccess": false,
@@ -4639,8 +4629,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity Log",
@@ -4681,7 +4670,7 @@
   },
   "/team/{mentor_c} @ superuser": {
    "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team/{mentor_c}",
     "noAccess": false,
@@ -4694,8 +4683,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity Log",
@@ -4855,7 +4843,7 @@
   },
   "/team/{mentor_c}?tab=activity @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team/{mentor_c}?tab=activity",
     "noAccess": false,
@@ -4868,8 +4856,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity Log",
@@ -4911,7 +4898,7 @@
   },
   "/team/{mentor_c}?tab=activity @ superuser": {
    "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5934 the sidebar also offers Booking links (accounts.view_own_booking_links). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
    "result": {
     "at": "/team/{mentor_c}?tab=activity",
     "noAccess": false,
@@ -4924,8 +4911,7 @@
      "/team",
      "/invitations",
      "/activity",
-     "/booking-slots",
-     "/booking-links"
+     "/booking-slots"
     ],
     "buttons": [
      "Activity Log",

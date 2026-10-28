@@ -3,8 +3,9 @@
 // role's ceiling; superusers hold every one). One place for the No Access
 // gate, the route guards, the sidebar and every in-page action, so they can
 // never disagree. The API enforces the same permissions on every request; this
-// only decides what the Hub offers. Nothing here reads the role: an account
-// holding no permission gets no pages at all, whatever its role.
+// only decides what the Hub offers. Only the BDE workspace reads the role (see
+// canOpenPage): an account holding no permission gets no pages at all, whatever
+// its role.
 
 export const PERMISSIONS = {
   viewTeam: 'accounts.view_team',
@@ -96,6 +97,9 @@ export function hasStudentActions(user) {
 
 /** Whether `user` may open the page at `path` (a top-level path such as '/exams'). */
 export function canOpenPage(user, path) {
+  // Booking links belong to BDE accounts only. A superuser holds the
+  // permission too (D1) but has no links, so the page is BDE-only.
+  if (path === '/booking-links' && user?.role !== 'BDE') return false;
   const permissions = PAGE_PERMISSIONS[path];
   return Boolean(permissions) && canAny(user, permissions);
 }
