@@ -49,21 +49,22 @@
   },
   "/activity @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -77,9 +78,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -225,21 +229,22 @@
   },
   "/admins @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -253,9 +258,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -372,7 +380,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 21 – Oct 27",
+     "Oct 21 \u2013 Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -404,30 +412,42 @@
   },
   "/booking-links @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The page is unchanged; the sidebar also offers the BDE's Dashboard and My Enquiries.",
+   "note": "The page is unchanged; the sidebar also offers the BDE's Dashboard and My Enquiries. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -446,7 +466,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 – Oct 27",
+     "Oct 21 \u2013 Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -529,7 +549,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -577,7 +597,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -621,7 +641,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 – Oct 27",
+     "Oct 21 \u2013 Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -660,7 +680,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 – Oct 27",
+     "Oct 21 \u2013 Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -749,11 +769,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM – 11:30 AM",
-     "Status of 11:30 AM – 12:30 PM",
-     "Status of 7:30 AM – 8:30 AM",
-     "Status of 8:30 AM – 9:30 AM",
-     "Status of 9:30 AM – 10:30 AM"
+     "Status of 10:30 AM \u2013 11:30 AM",
+     "Status of 11:30 AM \u2013 12:30 PM",
+     "Status of 7:30 AM \u2013 8:30 AM",
+     "Status of 8:30 AM \u2013 9:30 AM",
+     "Status of 9:30 AM \u2013 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -764,21 +784,22 @@
   },
   "/booking-slots?type=demo&date=2026-10-29 @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -792,9 +813,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -814,7 +838,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 – Oct 28",
+     "Oct 22 \u2013 Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -923,11 +947,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM – 11:30 AM",
-     "Status of 11:30 AM – 12:30 PM",
-     "Status of 7:30 AM – 8:30 AM",
-     "Status of 8:30 AM – 9:30 AM",
-     "Status of 9:30 AM – 10:30 AM"
+     "Status of 10:30 AM \u2013 11:30 AM",
+     "Status of 11:30 AM \u2013 12:30 PM",
+     "Status of 7:30 AM \u2013 8:30 AM",
+     "Status of 8:30 AM \u2013 9:30 AM",
+     "Status of 9:30 AM \u2013 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -980,11 +1004,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM – 11:30 AM",
-     "Status of 11:30 AM – 12:30 PM",
-     "Status of 7:30 AM – 8:30 AM",
-     "Status of 8:30 AM – 9:30 AM",
-     "Status of 9:30 AM – 10:30 AM"
+     "Status of 10:30 AM \u2013 11:30 AM",
+     "Status of 11:30 AM \u2013 12:30 PM",
+     "Status of 7:30 AM \u2013 8:30 AM",
+     "Status of 8:30 AM \u2013 9:30 AM",
+     "Status of 9:30 AM \u2013 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -1007,7 +1031,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 – Oct 28",
+     "Oct 22 \u2013 Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1046,7 +1070,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 – Oct 28",
+     "Oct 22 \u2013 Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1109,7 +1133,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1141,21 +1165,22 @@
   },
   "/dashboard @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE dashboard: its own enquiry and booking counts, upcoming bookings and recent enquiries (GET /api/bde/dashboard/), with Add enquiry and links to My Enquiries and its booking links.",
+   "note": "The BDE dashboard: its own enquiry and booking counts, upcoming bookings and recent enquiries (GET /api/bde/dashboard/), with Add enquiry and links to My Enquiries and its booking links. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -1169,9 +1194,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -1194,7 +1222,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1242,7 +1270,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1290,7 +1318,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1322,14 +1350,13 @@
   },
   "/enquiries @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "My Enquiries: the BDE's own enquiries with search, status and source filters, paging and Add enquiry (GET /api/bde/enquiries/).",
+   "note": "My Enquiries: the BDE's own enquiries with search, status and source filters, paging and Add enquiry (GET /api/bde/enquiries/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/enquiries",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
@@ -1379,7 +1406,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1462,7 +1489,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1510,7 +1537,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1554,7 +1581,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1593,7 +1620,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1656,7 +1683,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1688,14 +1715,13 @@
   },
   "/enquiries/{enquiry_a} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/).",
+   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/enquiries/{enquiry_a}",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Toggle Sidebar"
@@ -1735,7 +1761,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1818,7 +1844,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1866,7 +1892,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1910,7 +1936,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1949,7 +1975,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2049,21 +2075,22 @@
   },
   "/exams @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -2077,9 +2104,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -2253,21 +2283,22 @@
   },
   "/exams?student_id={stu_a} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -2281,9 +2312,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -2458,21 +2492,22 @@
   },
   "/homework @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -2486,9 +2521,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -2629,21 +2667,22 @@
   },
   "/invitations @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -2657,9 +2696,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -2766,7 +2808,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2798,21 +2840,22 @@
   },
   "/nowhere @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -2826,9 +2869,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -2851,7 +2897,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2899,7 +2945,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 – Oct 26",
+     "Oct 20 \u2013 Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2981,21 +3027,22 @@
   },
   "/sessions @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -3009,9 +3056,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -3173,21 +3223,22 @@
   },
   "/sessions?student_id={stu_a} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -3201,9 +3252,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -3381,21 +3435,22 @@
   },
   "/students @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -3409,9 +3464,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -3595,21 +3653,22 @@
   },
   "/students/{stu_a} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -3623,9 +3682,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -3796,21 +3858,22 @@
   },
   "/students/{stu_a}?tab=activity @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -3824,9 +3887,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -4013,21 +4079,22 @@
   },
   "/students/{stu_a}?tab=documents @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -4041,9 +4108,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -4260,21 +4330,22 @@
   },
   "/students/{stu_a}?tab=exams @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -4288,9 +4359,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -4490,21 +4564,22 @@
   },
   "/students/{stu_a}?tab=homework @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -4518,9 +4593,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -4703,21 +4781,22 @@
   },
   "/students/{stu_a}?tab=notes @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -4731,9 +4810,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -4917,21 +4999,22 @@
   },
   "/students/{stu_a}?tab=sessions @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -4945,9 +5028,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -5147,21 +5233,22 @@
   },
   "/students/{stu_b} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -5175,9 +5262,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -5340,21 +5430,22 @@
   },
   "/team @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -5368,9 +5459,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -5523,21 +5617,22 @@
   },
   "/team/{mentor_c} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -5551,9 +5646,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }
@@ -5760,21 +5858,22 @@
   },
   "/team/{mentor_c}?tab=activity @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard. With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard carries Share Demo Link and Share Diagnostic Link cards (Copy Link, with Share on WhatsApp and Preview Link in their menus, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
     "nav": [
      "/dashboard",
-     "/enquiries",
-     "/booking-links"
+     "/enquiries"
     ],
     "buttons": [
      "Add enquiry",
+     "Copy Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
      "Toggle Sidebar"
     ],
     "links": [
-     "/booking-links",
      "/enquiries",
      "/enquiries/{enquiry_a}",
      "/enquiries?status=BOOKED"
@@ -5788,9 +5887,12 @@
     ],
     "tabs": [],
     "filters": [],
-    "menus": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
      "GET /api/bde/dashboard/"
     ]
    }

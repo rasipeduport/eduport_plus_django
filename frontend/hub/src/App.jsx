@@ -14,7 +14,6 @@ import InvitationsPage from './pages/InvitationsPage';
 import ActivityPage from './pages/ActivityPage';
 import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
-import BookingLinksPage from './pages/BookingLinksPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
@@ -73,9 +72,10 @@ function HubRoutes({ user, logout }) {
             Diagnostic slots parents book. The API enforces the same permission
             and keeps every booking. */}
         <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
-        {/* The BDE workspace: a BDE's own permanent booking links. The API
-            serves each BDE only their own. */}
-        <Route path="/booking-links" element={page('/booking-links', <BookingLinksPage />)} />
+        {/* A BDE's booking links are shared from their dashboard now (the
+            Share Demo / Diagnostic Link cards), so the former page's address
+            lands there. */}
+        <Route path="/booking-links" element={<Navigate to="/dashboard" replace />} />
         {/* A BDE's own enquiries. The API serves each BDE only theirs: another
             BDE's enquiry is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />

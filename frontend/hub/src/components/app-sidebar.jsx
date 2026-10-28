@@ -7,7 +7,6 @@ import {
   History,
   Inbox,
   LayoutDashboard,
-  Link2,
   Mail,
   UsersRound,
 } from 'lucide-react';
@@ -31,8 +30,7 @@ const navMain = [
   { title: 'Activity', url: '/activity', icon: History },
   // The slots parents book, for administrators.
   { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
-  // The BDE workspace.
-  { title: 'Booking links', url: '/booking-links', icon: Link2 },
+  // A BDE's booking links are shared from their dashboard (Share Demo / Diagnostic Link).
 ];
 
 export function AppSidebar({ user, logout, ...props }) {

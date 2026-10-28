@@ -78,8 +78,9 @@ export function canAny(user, permissions) {
 
 // Each page opens for whoever holds any of its permissions, in sidebar order.
 export const PAGE_PERMISSIONS = {
-  // The staff dashboard, or a BDE's own (App.jsx picks by isBde).
-  '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries],
+  // The staff dashboard, or a BDE's own (App.jsx picks by isBde). A BDE's
+  // booking links are shared from it, so holding them opens it too.
+  '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries, P.viewOwnBookingLinks],
   '/students': STUDENT_VIEW,
   '/sessions': SESSION_VIEW,
   '/exams': EXAM_VIEW,
@@ -91,12 +92,11 @@ export const PAGE_PERMISSIONS = {
   '/booking-slots': [P.manageBookingSlots],
   // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.
   '/enquiries': [P.viewOwnEnquiries],
-  '/booking-links': [P.viewOwnBookingLinks],
 };
 
 // Pages for BDE accounts only. A superuser holds their permissions too (D1)
 // but owns no links or enquiries, so these pages read the role as well.
-const BDE_PAGES = new Set(['/enquiries', '/booking-links']);
+const BDE_PAGES = new Set(['/enquiries']);
 
 /** Whether `user` is a BDE: the Hub then offers the BDE workspace, the BDE dashboard included. */
 export function isBde(user) {

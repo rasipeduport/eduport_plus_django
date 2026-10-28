@@ -7,7 +7,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   Inbox,
-  Link2,
   PlusIcon,
   Users,
 } from 'lucide-react';
@@ -21,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Tile } from '@/components/dashboard/kpi-cards';
 import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-primitives';
+import { ShareLinkCards } from '@/components/dashboard/share-link-cards';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 
@@ -257,15 +257,10 @@ export default function BdeDashboardPage({ user }) {
             Add enquiry
           </Button>
         ) : null}
-        {canShareLinks ? (
-          <Button variant="ghost" asChild>
-            <Link to="/booking-links">
-              <Link2 />
-              Share booking links
-            </Link>
-          </Button>
-        ) : null}
       </div>
+
+      {/* The BDE's own booking links, shared from here: the Hub has no separate Booking links page. */}
+      {canShareLinks ? <ShareLinkCards /> : null}
 
       {content}
 
