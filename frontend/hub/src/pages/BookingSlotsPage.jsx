@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 // Slot times and dates are Indian time, whatever zone this device is in
 // (backend bookings.scheduling).
@@ -24,18 +25,35 @@ const TYPES = [
   { value: 'diagnostic', label: 'Diagnostic test' },
 ];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-// The statuses the API computes from bookings -- the words the parents'
-// booking pages show.
-const STATUS_VARIANT = {
-  Available: 'success',
-  'Filling Fast': 'info',
-  'Only a Few Left': 'warning',
-  'Fully Booked': 'secondary',
-};
-// What an administrator may set: the slot on its automatic status, or
-// Unavailable (the API's reopen and close).
-const OPEN = 'open';
-const UNAVAILABLE = 'unavailable';
+// The four statuses of the parents' booking pages and the Google Sheets
+// calendar, from free to full, in that calendar's colours.
+const STATUSES = [
+  {
+    label: 'Available',
+    badge: 'bg-green-500/15 text-green-800 dark:bg-green-500/15 dark:text-green-400',
+    dot: 'bg-green-500',
+  },
+  {
+    label: 'Filling Fast',
+    badge: 'bg-yellow-400/25 text-yellow-800 dark:bg-yellow-400/15 dark:text-yellow-300',
+    dot: 'bg-yellow-400',
+  },
+  {
+    label: 'Only a Few Left',
+    badge: 'bg-orange-500/15 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300',
+    dot: 'bg-orange-500',
+  },
+  {
+    label: 'Fully Booked',
+    badge: 'bg-red-900/15 text-red-900 dark:bg-red-900/40 dark:text-red-200',
+    dot: 'bg-red-900 dark:bg-red-400',
+  },
+];
+const STATUS_STYLE = Object.fromEntries(STATUSES.map((status) => [status.label, status]));
+// The one status an administrator sets by hand: it stops new bookings (the
+// API's close; parents see a closed slot as Fully Booked). Every other status
+// follows the slot's bookings.
+const FULLY_BOOKED = 'Fully Booked';
 
 const pad = (value) => String(value).padStart(2, '0');
 
@@ -89,10 +107,10 @@ function parentNote(day) {
 
 function statusNotice(slot, action, day) {
   const label = slotLabel(slot);
-  if (!day.changed?.length) return `${label} was already ${action === 'close' ? 'Unavailable' : 'open'}.`;
-  if (action === 'close') return `${label} is now Unavailable.`;
+  if (!day.changed?.length) return `${label} was already ${action === 'close' ? 'closed to new bookings' : 'following its bookings'}.`;
+  if (action === 'close') return `${label} is now Fully Booked: it takes no new bookings.`;
   const now = day.slots.find((entry) => entry.time === slot.time);
-  return `${label} is open again: ${now?.status ?? slot.open_status}.`;
+  return `${label} follows its bookings again: ${now?.status ?? slot.open_status}.`;
 }
 
 function loadError(err) {
@@ -105,16 +123,15 @@ function loadError(err) {
   };
 }
 
+/** The status parents see, in its colour; a lock marks one an administrator set. */
 function StatusBadge({ slot }) {
-  if (slot.closed) {
-    return (
-      <Badge variant="outline">
-        <LockIcon />
-        Unavailable
-      </Badge>
-    );
-  }
-  return <Badge variant={STATUS_VARIANT[slot.status] ?? 'secondary'}>{slot.status}</Badge>;
+  return (
+    <Badge className={cn('border-transparent', STATUS_STYLE[slot.status]?.badge)}>
+      {slot.closed ? <LockIcon /> : null}
+      {slot.status}
+      {slot.closed ? <span className="sr-only"> (set by an administrator)</span> : null}
+    </Badge>
+  );
 }
 
 function Closure({ slot }) {
@@ -123,27 +140,36 @@ function Closure({ slot }) {
   const when = at ? `${formatShortDateInZone(at, ZONE)}, ${formatTimeInZone(at, ZONE)} IST` : null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span>{[slot.closed_by ? `By ${slot.closed_by}` : 'By the schedule command', when].filter(Boolean).join(' · ')}</span>
+      <span>{[slot.closed_by ? `Set by ${slot.closed_by}` : 'Set by the schedule command', when].filter(Boolean).join(' · ')}</span>
       {slot.close_reason ? <span className="text-foreground">“{slot.close_reason}”</span> : null}
-      <span>Parents see Fully Booked.</span>
+      <span>
+        {slot.open_status === FULLY_BOOKED ? 'Its bookings fill it as well.' : `From its bookings: ${slot.open_status}.`}
+      </span>
     </div>
   );
 }
 
 /**
- * A slot's status setting. Unavailable is the only override; the other
- * choice puts the slot back on its automatic status and is named for what
- * its bookings make it, so a full slot reads Fully Booked, never Available.
+ * A slot's status, chosen from the four the booking pages use. Two of them
+ * can be picked: Fully Booked, which stops new bookings, and the status the
+ * slot's bookings give it, which lifts that. The others would misstate the
+ * booking count -- a full slot can never be made Available -- so they are
+ * shown but cannot be picked.
  */
 function StatusSelect({ slot, disabled, onChoose }) {
+  const choosable = new Set([FULLY_BOOKED, slot.open_status]);
   return (
-    <Select value={slot.closed ? UNAVAILABLE : OPEN} onValueChange={(value) => onChoose(slot, value)} disabled={disabled}>
-      <SelectTrigger size="sm" aria-label={`Status of ${slotLabel(slot)}`} className="w-40">
+    <Select value={slot.status} onValueChange={(value) => onChoose(slot, value)} disabled={disabled}>
+      <SelectTrigger size="sm" aria-label={`Status of ${slotLabel(slot)}`} className="w-44">
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper" align="end">
-        <SelectItem value={OPEN}>{slot.open_status}</SelectItem>
-        <SelectItem value={UNAVAILABLE}>Unavailable</SelectItem>
+        {STATUSES.map((status) => (
+          <SelectItem key={status.label} value={status.label} disabled={!choosable.has(status.label)}>
+            <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', status.dot)} />
+            {status.label}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );
@@ -172,8 +198,8 @@ function NoAccess() {
 
 /**
  * Confirms one slot's new status before anything is saved: the slot, its
- * current status and the one it would get. Making it Unavailable takes an
- * optional reason, kept with the slot.
+ * current status and the one it would get. Setting it to Fully Booked takes
+ * an optional reason, kept with the slot.
  */
 function StatusChangeDialog({ change, typeLabel, date, onConfirm, onOpenChange }) {
   const open = Boolean(change);
@@ -201,11 +227,11 @@ function StatusChangeDialog({ change, typeLabel, date, onConfirm, onOpenChange }
   let effect;
   if (closing) {
     const kept = slot.booked ? ` Its ${plural(slot.booked, 'booking')} ${slot.booked === 1 ? 'is' : 'are'} kept.` : '';
-    effect = `Parents can't book it: the booking page shows it as Fully Booked.${kept}`;
+    effect = `Parents can't book it: it shows as Fully Booked until you set it back to the status its bookings give it.${kept}`;
   } else {
     effect = free
-      ? `Parents can book its ${plural(free, 'remaining seat')}.`
-      : 'All its seats are booked, so it stays Fully Booked until a booking is cancelled.';
+      ? `Its status follows its bookings again: parents can book its ${plural(free, 'remaining seat')}.`
+      : 'Its status follows its bookings again; all its seats are booked, so it stays Fully Booked.';
   }
 
   const handleConfirm = async () => {
@@ -240,7 +266,7 @@ function StatusChangeDialog({ change, typeLabel, date, onConfirm, onOpenChange }
         </dd>
         <dt className="text-muted-foreground">New status</dt>
         <dd>
-          <StatusBadge slot={{ ...slot, closed: closing, status: slot.open_status }} />
+          <StatusBadge slot={{ ...slot, closed: closing, status: closing ? FULLY_BOOKED : slot.open_status }} />
         </dd>
       </dl>
       <p className="text-muted-foreground text-sm">{effect}</p>
@@ -269,9 +295,9 @@ function StatusChangeDialog({ change, typeLabel, date, onConfirm, onOpenChange }
  * status parents see -- and each slot's status, set from a dropdown and
  * confirmed before it is saved. The API (Django) is the only judge:
  * Available, Filling Fast, Only a Few Left and Fully Booked follow the
- * bookings; an administrator can only make a slot Unavailable, which keeps
- * its bookings and takes no new one, or put it back on that automatic
- * status. The booking type and date live in the URL
+ * bookings; an administrator can only set a slot to Fully Booked (closing
+ * it: it keeps its bookings and takes no new one) or put it back on the
+ * status its bookings give it. The booking type and date live in the URL
  * (?type=demo&date=2026-10-29), so a view can be linked.
  */
 export default function BookingSlotsPage() {
@@ -326,10 +352,12 @@ export default function BookingSlotsPage() {
   const reload = () => setReloadKey((key) => key + 1);
 
   // Picking a status only asks: the dropdown keeps showing the saved one
-  // until the change is confirmed and the API answers.
+  // until the change is confirmed and the API answers. Fully Booked closes an
+  // open slot; the status its bookings give it reopens a closed one.
   const chooseStatus = (slot, value) => {
-    if (value === (slot.closed ? UNAVAILABLE : OPEN)) return;
-    setPendingChange({ slot, action: value === UNAVAILABLE ? 'close' : 'reopen' });
+    if (value === slot.status) return;
+    if (value === FULLY_BOOKED && !slot.closed) setPendingChange({ slot, action: 'close' });
+    else if (slot.closed && value === slot.open_status) setPendingChange({ slot, action: 'reopen' });
   };
 
   const saveStatus = async ({ slot, action }, reason) => {
@@ -369,13 +397,13 @@ export default function BookingSlotsPage() {
     content = <SlotsSkeleton />;
   } else {
     const booked = slots.reduce((sum, slot) => sum + slot.booked, 0);
-    const unavailable = slots.filter((slot) => slot.closed).length;
+    const closed = slots.filter((slot) => slot.closed).length;
     content = (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1 text-sm">
           <p>{parentNote(current)}</p>
           <p className="text-muted-foreground">
-            {plural(slots.length, 'slot')} · {booked} booked · {unavailable} unavailable · up to {current.capacity}{' '}
+            {plural(slots.length, 'slot')} · {booked} booked · {closed} closed by an administrator · up to {current.capacity}{' '}
             bookings a slot
           </p>
         </div>
@@ -427,7 +455,7 @@ export default function BookingSlotsPage() {
                     </TableCell>
                     {editable ? (
                       <TableCell>
-                        {/* A time no longer offered can only be put back (the API makes offered times unavailable only). */}
+                        {/* A time no longer offered can only be put back (the API closes offered times only). */}
                         {slot.scheduled || slot.closed ? (
                           <StatusSelect slot={slot} disabled={saving} onChoose={chooseStatus} />
                         ) : null}
@@ -449,9 +477,9 @@ export default function BookingSlotsPage() {
         <h1 className="text-2xl font-semibold">Booking slots</h1>
         <p className="text-muted-foreground text-sm">
           The one-hour slots parents book for a demo class or a diagnostic test. Each slot&apos;s status follows its
-          bookings (Available, Filling Fast, Only a Few Left, Fully Booked); set a slot to Unavailable to stop new
-          bookings. It keeps the bookings it holds and shows as Fully Booked on the booking page until you set it back.
-          Times are Indian time (IST).
+          bookings: Available, Filling Fast, Only a Few Left or Fully Booked. To stop new bookings, set a slot to Fully
+          Booked; it keeps the bookings it holds (marked with a lock) until you set it back to the status its bookings
+          give it. Times are Indian time (IST).
         </p>
       </div>
 

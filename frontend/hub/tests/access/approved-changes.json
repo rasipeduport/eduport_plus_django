@@ -657,7 +657,7 @@
   },
   "/booking-slots?type=demo&date=2026-10-29 @ admin": {
    "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "An administrator holds accounts.manage_booking_slots: the page offers the date's slots, each with a status dropdown (Unavailable, or back to the status its bookings give it).",
+   "note": "An administrator holds accounts.manage_booking_slots: the page offers the date's slots, each with a status dropdown of the four booking statuses (Fully Booked to stop new bookings, or back to the status its bookings give it).",
    "result": {
     "at": "/booking-slots?type=demo&date=2026-10-29",
     "noAccess": false,
@@ -684,8 +684,7 @@
      "Refresh",
      "Thu, 29 Oct 2026",
      "Toggle Sidebar",
-     "Tomorrow",
-     "Unavailable"
+     "Tomorrow"
     ],
     "links": [],
     "headers": [
@@ -850,8 +849,7 @@
      "Refresh",
      "Thu, 29 Oct 2026",
      "Toggle Sidebar",
-     "Tomorrow",
-     "Unavailable"
+     "Tomorrow"
     ],
     "links": [],
     "headers": [
@@ -909,8 +907,7 @@
      "Refresh",
      "Thu, 29 Oct 2026",
      "Toggle Sidebar",
-     "Tomorrow",
-     "Unavailable"
+     "Tomorrow"
     ],
     "links": [],
     "headers": [
