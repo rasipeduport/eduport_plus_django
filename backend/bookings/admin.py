@@ -36,7 +36,8 @@ class BookingSlotAdmin(ReadOnlyAdmin):
 
 @admin.register(Lead)
 class LeadAdmin(ReadOnlyAdmin):
-    list_display = ('student_name', 'parent_name', 'phone_key', 'grade', 'owner_bde', 'created_at')
+    list_display = ('student_name', 'parent_name', 'phone_key', 'grade', 'source', 'owner_bde', 'created_at')
+    list_filter = ('source',)
     search_fields = ('student_name', 'parent_name', 'phone_key')
     list_select_related = ('owner_bde',)
 

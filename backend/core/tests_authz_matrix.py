@@ -27,10 +27,11 @@ DATA_DIR = Path(__file__).resolve().parent / 'authz_matrix_data'
 BASELINE = DATA_DIR / 'baseline.json'
 APPROVED = DATA_DIR / 'approved_changes.json'
 
-# Where BDE is not answered as the unknown role: it holds
-# accounts.view_own_booking_links, so /me lists it and the booking-links
-# endpoint serves the BDE its own two links (tokens recorded by shape).
-BDE_PERMISSIONS = ['accounts.view_own_booking_links']
+# Where BDE is not answered as the unknown role: it holds its workspace's
+# permissions, so /me lists them, the booking-links endpoint serves the BDE its
+# own two links (tokens recorded by shape), and the dashboard and enquiry
+# endpoints its own enquiry (lead_a, given to it by add_new_role_accounts).
+BDE_PERMISSIONS = ['accounts.add_enquiry', 'accounts.view_own_booking_links', 'accounts.view_own_enquiries']
 BDE_OWN_LINKS = {
     'status': 200,
     'records': [],
@@ -39,6 +40,35 @@ BDE_OWN_LINKS = {
         {'booking_type': 'DEMO', 'url': 'https://plus.eduport.app/demo?ref=<token>'},
         {'booking_type': 'DIAGNOSTIC', 'url': 'https://plus.eduport.app/exam?ref=<token>'},
     ],
+}
+ENQUIRY_ROW_FIELDS = [
+    'added_at', 'grade', 'id', 'next_booking', 'parent_name', 'phone', 'source', 'source_label', 'status',
+    'status_label', 'student_name',
+]
+ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
+    'bookings', 'country', 'created_at', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus', 'timezone',
+])
+BDE_WORKSPACE = {
+    'bde.booking_links': BDE_OWN_LINKS,
+    'bde.dashboard': {
+        'status': 200,
+        'records': ['lead_a'],
+        'fields': sorted([
+            'bookings', 'bookings.DEMO', 'bookings.DEMO.total', 'bookings.DEMO.upcoming', 'bookings.DIAGNOSTIC',
+            'bookings.DIAGNOSTIC.total', 'bookings.DIAGNOSTIC.upcoming', 'enquiries', 'enquiries.last_7_days',
+            'enquiries.total', 'recent_enquiries', 'timezone', 'upcoming', 'upcoming.rows', 'upcoming.total',
+            *(f'recent_enquiries[].{field}' for field in ENQUIRY_ROW_FIELDS),
+        ]),
+        'capture': {'enquiries': {'total': 1, 'last_7_days': 1}, 'upcoming': 0},
+    },
+    'bde.enquiries.list': {
+        'status': 200,
+        'records': ['lead_a'],
+        'fields': sorted(['count', 'page', 'page_size', 'results', *(f'results[].{field}' for field in ENQUIRY_ROW_FIELDS)]),
+    },
+    'bde.enquiries.detail': {'status': 200, 'records': ['lead_a'], 'fields': ENQUIRY_FIELDS},
+    # Rolled back with the scenario, like every write the matrix makes.
+    'bde.enquiries.create': {'status': 201, 'records': ['new'], 'fields': ENQUIRY_FIELDS},
 }
 
 
@@ -75,7 +105,7 @@ class AuthorizationMatrixTests(TestCase):
         # Sales TL has a role group but no catalogue permission yet: in every
         # scenario open to signed-in accounts it must be answered as the
         # account whose role nothing knows -- no data and no action. So must
-        # BDE, except where its one permission shows (BDE_OWN_LINKS above).
+        # BDE, except where its own workspace shows (BDE_WORKSPACE above).
         world = build_world()
         add_new_role_accounts(world)
         results = self.run_quietly(world, like_unknown=tuple(NEW_ROLES))
@@ -90,13 +120,13 @@ class AuthorizationMatrixTests(TestCase):
         def expected(scenario, caller, unknown):
             if caller == 'bde' and scenario == 'auth.me':
                 return {**unknown, 'capture': {**unknown['capture'], 'permissions': BDE_PERMISSIONS}}
-            if caller == 'bde' and scenario == 'bde.booking_links':
-                return BDE_OWN_LINKS
+            if caller == 'bde' and scenario in BDE_WORKSPACE:
+                return BDE_WORKSPACE[scenario]
             return unknown
 
         scenarios = sorted({key.split(' @ ')[0] for key in results})
         self.assertGreater(len(scenarios), 100)
-        self.assertIn('bde.booking_links', scenarios)
+        self.assertLessEqual(set(BDE_WORKSPACE), set(scenarios))
         for scenario in scenarios:
             unknown = as_anyone(results[f'{scenario} @ unknown'], 'unknown')
             for caller in NEW_ROLES:

@@ -131,16 +131,58 @@ function withBookingSlots(answers) {
   };
 }
 
+// BDE portal phase 1 (dashboard and My Enquiries), laid over the same
+// recorded answers: accounts.view_own_enquiries and accounts.add_enquiry,
+// which the BDE's role group carries and a superuser holds (D1) -- the Hub
+// still opens the enquiry pages for the BDE role only, and gives a superuser
+// the staff dashboard. The BDE is served its own dashboard and one enquiry,
+// on fixed dates, so nothing shown moves with the clock.
+const VIEW_OWN_ENQUIRIES = 'accounts.view_own_enquiries';
+const ADD_ENQUIRY = 'accounts.add_enquiry';
+const ENQUIRY_ID = '5d1f0c2e-8a47-4c3b-9e61-2f7a9b0c4d18';
+const BDE_DASHBOARD_PATH = '/api/bde/dashboard/';
+const ENQUIRIES_PATH = '/api/bde/enquiries/';
+const ENQUIRY_PATH = `${ENQUIRIES_PATH}${ENQUIRY_ID}/`;
+const NEXT_DEMO = { id: '0b8e4a91-3c2d-4f5e-8a7b-6c9d0e1f2a3b', booking_type: 'DEMO', date: '2026-10-30', time: '19:30',
+  starts_at: '2026-10-30T14:00:00+00:00' };
+const ENQUIRY_ROW = { id: ENQUIRY_ID, parent_name: 'Asha Nair', phone: '+971 501234567', student_name: 'Riya', grade: 'Class 8',
+  source: 'DEMO_LINK', source_label: 'Demo link', status: 'BOOKED', status_label: 'Demo booked', next_booking: NEXT_DEMO,
+  added_at: '2026-10-27T09:00:00+05:30' };
+const BDE_DASHBOARD = { status: 200, body: { timezone: 'Asia/Kolkata', enquiries: { total: 1, last_7_days: 1 },
+  bookings: { DEMO: { total: 1, upcoming: 1 }, DIAGNOSTIC: { total: 0, upcoming: 0 } },
+  upcoming: { total: 1, rows: [{ ...NEXT_DEMO, enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] },
+  recent_enquiries: [ENQUIRY_ROW] } };
+const BDE_ENQUIRIES = { status: 200, body: { results: [ENQUIRY_ROW], count: 1, page: 1, page_size: 25 } };
+const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+971', phone_number: '501234567',
+  school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', created_at: '2026-10-27T09:00:00+05:30',
+  timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null }] } };
+const NOT_A_BDE = { status: 403, body: { error: 'NOT_A_BDE', message: 'Enquiries belong to BDE accounts, and this account is not one.' } };
+function asSuperuserAfterEnquiries(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...me.body.user.permissions, ADD_ENQUIRY, VIEW_OWN_ENQUIRIES].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [BDE_DASHBOARD_PATH]: NOT_A_BDE,
+    [ENQUIRIES_PATH]: NOT_A_BDE,
+    [ENQUIRY_PATH]: NOT_A_BDE,
+  };
+}
+
 const CALLERS = {
   admin: { answers: withBookingSlots(fixtures.callers.admin) },
-  superuser: { answers: withBookingSlots(asSuperuserAfterBookingLinks(fixtures.callers.superuser)) },
-  su_mentor: { answers: withBookingSlots(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor)) },
+  superuser: { answers: withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.superuser))) },
+  su_mentor: { answers: withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: fixtures.callers.tutor_a },
   tutor_b: { answers: fixtures.callers.tutor_b },
   parent_a: { answers: fixtures.callers.parent_a },
   unknown: { answers: fixtures.callers.unknown },
-  bde: { answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS }, me: fakeMe('BDE', [VIEW_OWN_BOOKING_LINKS]) },
+  bde: {
+    answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS, [BDE_DASHBOARD_PATH]: BDE_DASHBOARD,
+      [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY },
+    me: fakeMe('BDE', [ADD_ENQUIRY, VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES]),
+  },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };
 const a = ids.stu_a;
@@ -149,9 +191,9 @@ const PATHS = [
   `/students/${a}?tab=homework`, `/students/${a}?tab=documents`, `/students/${a}?tab=activity`, `/students/${a}?tab=notes`,
   `/students/${ids.stu_b}`, '/sessions', `/sessions?student_id=${a}`, '/exams', `/exams?student_id=${a}`, '/homework',
   '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
-  `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/admins', '/nowhere',
+  `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/enquiries', `/enquiries/${ENQUIRY_ID}`, '/admins', '/nowhere',
 ];
-const labelOf = Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name]));
+const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a' };
 const symbolic = (value) => JSON.parse(JSON.stringify(value).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => `{${labelOf[id] || 'id'}}`));
 // Activity rows name the moment the fixture world was recorded ("26 Oct, 12:27 PM");
 // a re-recorded fixtures.json moves it, so it never counts as a difference.

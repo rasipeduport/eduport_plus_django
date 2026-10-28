@@ -13,6 +13,7 @@ const breadcrumbConfig = {
   '/exams': [{ label: 'Exams' }],
   '/homework': [{ label: 'Homework' }],
   '/invitations': [{ label: 'Invitations' }],
+  '/enquiries': [{ label: 'My Enquiries' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
   // "Activity log" heading, so the crumb only repeated it.
 };
@@ -24,6 +25,7 @@ const breadcrumbConfig = {
 const breadcrumbPatterns = [
   { pattern: /^\/students\/[^/]+$/, trail: [{ label: 'Students', href: '/students' }, { label: 'Profile' }] },
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
+  { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
 ];
 
 export function getBreadcrumbs(pathname) {

@@ -16,7 +16,10 @@ import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
 import BookingLinksPage from './pages/BookingLinksPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
-import { canOpenPage, homePage } from './lib/access';
+import BdeDashboardPage from './pages/BdeDashboardPage';
+import EnquiriesPage from './pages/EnquiriesPage';
+import EnquiryPage from './pages/EnquiryPage';
+import { canOpenPage, homePage, isBde } from './lib/access';
 
 /**
  * Everything behind sign-in. The account comes from AuthProvider's /me
@@ -39,7 +42,11 @@ function HubRoutes({ user, logout }) {
   return (
     <SidebarLayout user={user} logout={logout}>
       <Routes>
-        <Route path="/dashboard" element={page('/dashboard', <DashboardPage user={user} />)} />
+        {/* A BDE's dashboard is their own enquiries and bookings; everyone else's the staff one. */}
+        <Route
+          path="/dashboard"
+          element={page('/dashboard', isBde(user) ? <BdeDashboardPage user={user} /> : <DashboardPage user={user} />)}
+        />
         <Route path="/students" element={page('/students', <StudentsPage user={user} />)} />
         {/* One student's full record. Scoped by the API: a mentor or tutor
             opening someone else's student gets a 404. */}
@@ -69,6 +76,10 @@ function HubRoutes({ user, logout }) {
         {/* The BDE workspace: a BDE's own permanent booking links. The API
             serves each BDE only their own. */}
         <Route path="/booking-links" element={page('/booking-links', <BookingLinksPage />)} />
+        {/* A BDE's own enquiries. The API serves each BDE only theirs: another
+            BDE's enquiry is answered as one that does not exist. */}
+        <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
+        <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

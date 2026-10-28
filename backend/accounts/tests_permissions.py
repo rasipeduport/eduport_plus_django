@@ -40,6 +40,7 @@ SEED = importlib.import_module('accounts.migrations.0008_role_groups')
 SEED_NEW_ROLES = importlib.import_module('accounts.migrations.0009_hub_roles_bde_sales_tl')
 SEED_BDE = importlib.import_module('accounts.migrations.0010_bde_booking_links_permission')
 SEED_SLOTS = importlib.import_module('accounts.migrations.0011_booking_slots_permission')
+SEED_ENQUIRIES = importlib.import_module('accounts.migrations.0012_bde_enquiries_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -83,23 +84,24 @@ EXPECTED_ROLE_PERMISSIONS = {
     ),
 }
 ADMIN_ONLY = names('manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots')
-# What the new roles' groups carry, each its own module only: BDE its booking
-# links (migration 0010), Sales TL nothing yet.
+# What later migrations add, one module each: BDE its booking links (0010),
+# ADMIN the booking slots (0011), BDE its enquiries (0012).
+BOOKING_LINK_PERMISSIONS = names('view_own_booking_links')
+BOOKING_SLOT_PERMISSIONS = names('manage_booking_slots')
+ENQUIRY_PERMISSIONS = names('view_own_enquiries', 'add_enquiry')
+# What the new roles' groups carry, each its own modules only: BDE its booking
+# links and enquiries, Sales TL nothing yet.
 NEW_ROLE_PERMISSIONS = {
-    'BDE': names('view_own_booking_links'),
+    'BDE': BOOKING_LINK_PERMISSIONS | ENQUIRY_PERMISSIONS,
     'SALES_TL': set(),
 }
-# What later migrations add to the groups 0008 seeded: ADMIN manages the
-# booking slots (0011).
-LATER_ROLE_PERMISSIONS = {
-    'ADMIN': names('manage_booking_slots'),
-}
-# What every role group carries after 0010, and today.
-GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, **NEW_ROLE_PERMISSIONS}
-EXPECTED_GROUP_PERMISSIONS = {
+# What every role group carries after 0010, after 0011, and today.
+GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
+GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
-    **{role: GROUP_PERMISSIONS_AT_0010[role] | added for role, added in LATER_ROLE_PERMISSIONS.items()},
+    'ADMIN': GROUP_PERMISSIONS_AT_0010['ADMIN'] | BOOKING_SLOT_PERMISSIONS,
 }
+EXPECTED_GROUP_PERMISSIONS = {**GROUP_PERMISSIONS_AT_0011, **NEW_ROLE_PERMISSIONS}
 
 
 def permission(name):
@@ -136,8 +138,8 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_43(self):
-        self.assertEqual(len(CATALOGUE), 43)
+    def test_the_catalogue_is_the_approved_45(self):
+        self.assertEqual(len(CATALOGUE), 45)
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -173,13 +175,18 @@ class CatalogueTests(PermissionTestCase):
         self.assertEqual(grantable_permissions(), {VIEW_TEAM})
 
     def test_the_migrations_seed_what_the_catalogue_declares(self):
-        self.assertEqual(SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS, hub_permission_meta())
+        self.assertEqual(
+            SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS,
+            hub_permission_meta(),
+        )
         seeded = {role: names(*codenames) for role, _name, codenames in SEED.ROLE_GROUPS}
         self.assertEqual(seeded, EXPECTED_ROLE_PERMISSIONS)
-        self.assertEqual(SEED_BDE.ROLE, 'BDE')
-        self.assertEqual(names(*(codename for codename, _name in SEED_BDE.HUB_PERMISSIONS)), NEW_ROLE_PERMISSIONS['BDE'])
-        self.assertEqual(SEED_SLOTS.ROLE, 'ADMIN')
-        self.assertEqual(names(*(codename for codename, _name in SEED_SLOTS.HUB_PERMISSIONS)), LATER_ROLE_PERMISSIONS['ADMIN'])
+        for seed, role, expected in ((SEED_BDE, 'BDE', BOOKING_LINK_PERMISSIONS),
+                                     (SEED_SLOTS, 'ADMIN', BOOKING_SLOT_PERMISSIONS),
+                                     (SEED_ENQUIRIES, 'BDE', ENQUIRY_PERMISSIONS)):
+            with self.subTest(seed=seed.__name__):
+                self.assertEqual(seed.ROLE, role)
+                self.assertEqual(names(*(codename for codename, _name in seed.HUB_PERMISSIONS)), expected)
 
 
 # ------------------------------------------------------------------- seed
@@ -709,13 +716,20 @@ class SeedFunctionTests(PermissionTestCase):
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         self.assertEqual(before, after)
 
+    def test_running_the_enquiries_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_ENQUIRIES.grant_bde_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
 
 # --------------------------------------------------------------- new roles
 
 class NewRoleTests(PermissionTestCase):
     """
     BDE and Sales TL: staff accounts with a role group, each reaching only its
-    own module -- BDE its booking links, Sales TL nothing until its module exists.
+    own modules -- BDE its booking links and enquiries, Sales TL nothing until
+    its module exists.
     """
 
     def test_their_ceiling_beats_their_group(self):
@@ -756,7 +770,7 @@ class NewRoleTests(PermissionTestCase):
 
 
 class MigrationReversalTests(TransactionTestCase):
-    """0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
+    """0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
 
     def groups(self):
         return {
@@ -790,7 +804,17 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0011_booking_slots_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0011)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0012_bde_enquiries_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0012 alone reverses: BDE's group is back to its booking links and the enquiry rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0011_booking_slots_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0011)
+        self.assertFalse(Permission.objects.filter(codename__in=('view_own_enquiries', 'add_enquiry')).exists())
 
         # 0011 alone reverses: ADMIN's group is back to 0008's and its permission row gone.
         executor = MigrationExecutor(connection)
@@ -811,5 +835,5 @@ class MigrationReversalTests(TransactionTestCase):
         self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
 
         executor = MigrationExecutor(connection)
-        executor.migrate([('accounts', '0011_booking_slots_permission')])  # back to the leaf
+        executor.migrate([('accounts', '0012_bde_enquiries_permissions')])  # back to the leaf
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)

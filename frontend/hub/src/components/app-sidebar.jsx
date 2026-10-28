@@ -1,4 +1,16 @@
-import { BookOpen, CalendarCheck, CalendarClock, ClipboardList, GraduationCap, History, LayoutDashboard, Link2, Mail, UsersRound } from 'lucide-react';
+import {
+  BookOpen,
+  CalendarCheck,
+  CalendarClock,
+  ClipboardList,
+  GraduationCap,
+  History,
+  Inbox,
+  LayoutDashboard,
+  Link2,
+  Mail,
+  UsersRound,
+} from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -7,6 +19,8 @@ import { canOpenPage } from '@/lib/access';
 
 const navMain = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  // The BDE workspace: a BDE's own enquiries.
+  { title: 'My Enquiries', url: '/enquiries', icon: Inbox },
   { title: 'Students', url: '/students', icon: GraduationCap },
   { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
   { title: 'Exams', url: '/exams', icon: ClipboardList },

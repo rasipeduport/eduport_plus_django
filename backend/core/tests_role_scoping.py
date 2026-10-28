@@ -3,11 +3,11 @@ Scoping is deny-by-default.
 
 Access follows permissions (accounts.authz): the Admin role's group sees
 everything, Mentor and Tutor their allocated students' rows, superusers
-everything whatever their role (decision D1), BDE only its own booking links,
-and every other role -- Sales TL, whose group is empty, a future one, or a bad
+everything whatever their role (decision D1), BDE only its own booking links
+and enquiries, and every other role -- Sales TL, whose group is empty, a future one, or a bad
 value in the column -- nothing. These tests pin both halves: the scope helpers
 give each existing role exactly what it had, and a role without permissions is
-refused by every API route (a BDE by every one but its booking links). Every
+refused by every API route (a BDE by every one but its own workspace). Every
 API view must also say which permission guards it. What each kind of caller
 gets from each endpoint -- lists, profiles, file downloads -- is the
 authorization matrix's job (core.tests_authz_matrix).
@@ -44,9 +44,16 @@ ALLOWED_FOR_ANY_ACCOUNT = {
     ('api/auth/me/', 'get'),
     ('api/auth/logout/', 'post'),
 }
-# A BDE also reads its own booking links (accounts.view_own_booking_links), and nothing more.
-ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {('api/bde/booking-links/', 'get')}
-BDE_PERMISSIONS = ['accounts.view_own_booking_links']
+# A BDE also reads its own booking links (accounts.view_own_booking_links), its
+# dashboard and its enquiries (accounts.view_own_enquiries), and nothing more.
+# Adding an enquiry (accounts.add_enquiry) needs a valid body, so the sweep's
+# empty one is refused; tests_enquiries covers it.
+ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
+    ('api/bde/booking-links/', 'get'),
+    ('api/bde/dashboard/', 'get'),
+    ('api/bde/enquiries/', 'get'),
+}
+BDE_PERMISSIONS = ['accounts.add_enquiry', 'accounts.view_own_booking_links', 'accounts.view_own_enquiries']
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
 _ROUTE_PARAM = re.compile(r'<(?:(\w+):)?\w+>')
 
@@ -107,7 +114,7 @@ class RoleScopingFixture(APITestCase):
             'blank': account('blank', ''),
         }
         a = self.accounts
-        # Every role holding no permission. BDE holds one (its booking links).
+        # Every role holding no permission. BDE holds its own workspace's.
         self.unknown_accounts = (a['sales_tl'], a['unknown'], a['blank'])
 
         def student(code, mentor, tutor, status=StatusChoices.ACTIVE):
@@ -204,7 +211,7 @@ class ScopeHelperTests(RoleScopingFixture):
 class ApiSweepTests(RoleScopingFixture):
     """
     Every /api/ route, every method: a role without permissions succeeds only
-    on the account basics, and a BDE only on those and its own booking links.
+    on the account basics, and a BDE only on those and its own workspace.
     """
 
     def setUp(self):
@@ -248,7 +255,7 @@ class ApiSweepTests(RoleScopingFixture):
             with self.subTest(role=account.role):
                 self.assertEqual(self.leaks(account, ALLOWED_FOR_ANY_ACCOUNT), [])
 
-    def test_a_bde_gets_nothing_but_its_own_booking_links(self):
+    def test_a_bde_gets_nothing_but_its_own_workspace(self):
         bde = self.accounts['bde']
         self.assertEqual(self.leaks(bde, ALLOWED_FOR_BDE), [])
         self.client.force_authenticate(user=bde)

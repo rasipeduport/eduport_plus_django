@@ -1,20 +1,26 @@
 from datetime import datetime
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.permissions import HasAppPermission
+from core.pagination import page_params
+from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
+from . import enquiries
 from .booking_service import BookingBusy, set_slots_closed
+from .leads import InvalidLeadDetails
 from .models import SLOT_CAPACITY, SLOT_MINUTES, SlotTime
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state
-from .serializers import BookingLinkSerializer, SlotChangeSerializer
+from .serializers import BookingLinkSerializer, EnquiryCreateSerializer, SlotChangeSerializer
 from .services import links_for, owns_booking_links
+
+VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
 
 
 class BdeBookingLinksView(APIView):
@@ -42,6 +48,141 @@ class BdeBookingLinksView(APIView):
             )
         links = links_for(request.user, request=request)
         return Response({"links": BookingLinkSerializer(links, many=True).data}, status=status.HTTP_200_OK)
+
+
+def _bde_error(code, message, http_status, **extra):
+    return Response({'error': code, 'message': message, **extra}, status=http_status)
+
+
+class BdeWorkspaceView(APIView):
+    """
+    The BDE's own enquiries (bookings.enquiries). Guarded by catalogue
+    permissions only the BDE role may hold; a superuser holds them as well
+    (decision D1) without being a BDE, owns no enquiries and may not add one,
+    so the BDE check below answers NOT_A_BDE before anything is read.
+    Nothing in a request chooses whose enquiries are read: always the caller's.
+    """
+
+    @staticmethod
+    def non_bde_refusal(request):
+        """The NOT_A_BDE answer for an account that is not an active BDE, else None."""
+        if owns_booking_links(request.user):
+            return None
+        return _bde_error(
+            'NOT_A_BDE', 'Enquiries belong to BDE accounts, and this account is not one.', status.HTTP_403_FORBIDDEN,
+        )
+
+
+class BdeDashboardView(BdeWorkspaceView):
+    """
+    GET /api/bde/dashboard/
+    The BDE dashboard: how many enquiries the caller owns, their demo and
+    diagnostic bookings, the next bookings and the latest enquiries.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
+
+    def get(self, request, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        return Response(enquiries.dashboard(request.user), status=status.HTTP_200_OK)
+
+
+class BdeEnquiriesView(BdeWorkspaceView):
+    """
+    GET  /api/bde/enquiries/?q=&status=&source=&page=&page_size=
+         The caller's enquiries, newest to them first, always paged:
+         {"results", "count", "page", "page_size"}. ``q`` matches the parent's
+         or student's name or the phone number; ``status`` is an
+         EnquiryStatus, ``source`` one of enquiries.SOURCE_FILTERS.
+    POST /api/bde/enquiries/
+         Add an enquiry by hand (EnquiryCreateSerializer); 201 with the
+         enquiry, or 409 ENQUIRY_EXISTS when the phone number and student
+         already make one -- carrying ``enquiry_id`` only when it is the
+         caller's own.
+    """
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=VIEW_OWN_ENQUIRIES,
+        POST=HasAppPermission('accounts.add_enquiry'),
+    )]
+
+    def get(self, request, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        params = request.query_params
+        state = (params.get('status') or '').strip().upper()
+        source = (params.get('source') or '').strip().upper()
+        if state and state not in enquiries.EnquiryStatus.values:
+            return _bde_error('INVALID_INPUT', 'Unknown enquiry status.', status.HTTP_400_BAD_REQUEST, fields=['status'])
+        if source and source not in enquiries.SOURCE_FILTERS:
+            return _bde_error('INVALID_INPUT', 'Unknown enquiry source.', status.HTTP_400_BAD_REQUEST, fields=['source'])
+
+        now = timezone.now()
+        leads = enquiries.search(enquiries.own_leads(request.user), params.get('q'))
+        if source:
+            leads = enquiries.filter_source(leads, source)
+        leads = enquiries.listed(leads, now)
+        if state:
+            leads = leads.filter(enquiry_status=state)
+
+        page, page_size = page_params(request)
+        offset = (page - 1) * page_size
+        return Response(
+            {
+                'results': enquiries.enquiry_rows(leads[offset:offset + page_size], now),
+                'count': leads.count(),
+                'page': page,
+                'page_size': page_size,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        serializer = EnquiryCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _bde_error('VALIDATION_ERROR', 'Check the enquiry details.', status.HTTP_400_BAD_REQUEST,
+                              fields=serializer.errors)
+        try:
+            lead = enquiries.add_enquiry(request.user, serializer.validated_data, request=request)
+        except InvalidLeadDetails as exc:
+            return _bde_error('VALIDATION_ERROR', exc.message, status.HTTP_400_BAD_REQUEST,
+                              fields={exc.field: [exc.message]})
+        except enquiries.EnquiryExists as exc:
+            if exc.lead is not None:
+                return _bde_error('ENQUIRY_EXISTS', 'This child is already in your enquiries.',
+                                  status.HTTP_409_CONFLICT, enquiry_id=str(exc.lead.pk))
+            return _bde_error(
+                'ENQUIRY_EXISTS',
+                'An enquiry for this child and phone number is already registered. '
+                'Ask an administrator if it should be yours.',
+                status.HTTP_409_CONFLICT,
+            )
+        now = timezone.now()
+        lead = enquiries.listed(enquiries.own_leads(request.user), now).get(pk=lead.pk)
+        return Response(enquiries.enquiry_detail(lead, now), status=status.HTTP_201_CREATED)
+
+
+class BdeEnquiryDetailView(BdeWorkspaceView):
+    """
+    GET /api/bde/enquiries/<id>/
+    One of the caller's enquiries in full, with its bookings. Another BDE's
+    enquiry, or one nobody owns, is answered exactly as one that does not exist.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
+
+    def get(self, request, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        now = timezone.now()
+        lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=pk), now).first()
+        if lead is None:
+            return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
+        return Response(enquiries.enquiry_detail(lead, now), status=status.HTTP_200_OK)
 
 
 def _refuse(message, code, http_status=status.HTTP_400_BAD_REQUEST, **extra):

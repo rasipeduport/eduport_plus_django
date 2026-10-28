@@ -1,5 +1,7 @@
 import { format } from 'date-fns';
 
+import { sourceLabel } from './enquiries';
+
 // Short, human label per action — used for badges and the action filter.
 export const ACTION_LABELS = {
   'student.create': 'Student added',
@@ -52,6 +54,7 @@ export const ACTION_LABELS = {
   'user.lockout_update': 'Lockout changed',
   // BDE workspace.
   'booking_link.issue': 'Booking link issued',
+  'enquiry.create': 'Enquiry added',
   // Public Demo/Diagnostic bookings.
   'booking.create': 'Booking received',
   'booking.cancel': 'Booking cancelled',
@@ -244,6 +247,11 @@ export function describeActivity(row) {
     case 'booking_link.issue': {
       const type = row.entity_label;
       return type ? `Issued a ${type.toLowerCase()} booking link` : 'Issued a booking link';
+    }
+    case 'enquiry.create': {
+      // The log keeps no names (backend bookings.enquiries): the class and source only.
+      const source = row.context?.source ? sourceLabel(row.context.source) : null;
+      return source ? `Added an enquiry (${source.toLowerCase()})` : 'Added an enquiry';
     }
     case 'booking.create': {
       const type = String(row.context?.booking_type ?? '').toLowerCase();

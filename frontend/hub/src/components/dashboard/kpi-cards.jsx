@@ -5,7 +5,8 @@ import { remainingToday, sessionsToday } from '@/lib/session-day';
 import { cn } from '@/lib/utils';
 import { ToneIcon } from './dashboard-primitives';
 
-function Tile({ icon, tone, label, value, hint, hintTone = 'muted', to }) {
+/** One headline number; a link when `to` is given. Shared with the BDE dashboard. */
+export function Tile({ icon, tone, label, value, hint, hintTone = 'muted', to }) {
   const body = (
     <>
       <ToneIcon icon={icon} tone={tone} />

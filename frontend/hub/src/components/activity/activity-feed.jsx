@@ -27,6 +27,7 @@ const ENTITY_TYPES = [
   { value: 'profile', label: 'User' },
   { value: 'booking_link', label: 'Booking link' },
   { value: 'booking', label: 'Booking' },
+  { value: 'lead', label: 'Enquiry' },
 ];
 
 const ENTITY_NOUN = {
@@ -42,6 +43,7 @@ const ENTITY_NOUN = {
   booking: 'Booking',
   booking_slot: 'Slot',
   booking_schedule: 'Schedule',
+  lead: 'Enquiry',
 };
 
 export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, canFilterByActor = false }) {

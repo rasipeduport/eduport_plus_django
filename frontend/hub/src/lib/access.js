@@ -4,8 +4,8 @@
 // gate, the route guards, the sidebar and every in-page action, so they can
 // never disagree. The API enforces the same permissions on every request; this
 // only decides what the Hub offers. Only the BDE workspace reads the role (see
-// canOpenPage): an account holding no permission gets no pages at all, whatever
-// its role.
+// canOpenPage and isBde): an account holding no permission gets no pages at
+// all, whatever its role.
 
 export const PERMISSIONS = {
   viewTeam: 'accounts.view_team',
@@ -51,6 +51,8 @@ export const PERMISSIONS = {
   withdrawInvitation: 'accounts.withdraw_invitation',
 
   viewOwnBookingLinks: 'accounts.view_own_booking_links',
+  viewOwnEnquiries: 'accounts.view_own_enquiries',
+  addEnquiry: 'accounts.add_enquiry',
 
   manageBookingSlots: 'accounts.manage_booking_slots',
 };
@@ -76,7 +78,8 @@ export function canAny(user, permissions) {
 
 // Each page opens for whoever holds any of its permissions, in sidebar order.
 export const PAGE_PERMISSIONS = {
-  '/dashboard': [P.viewStaffDashboard],
+  // The staff dashboard, or a BDE's own (App.jsx picks by isBde).
+  '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries],
   '/students': STUDENT_VIEW,
   '/sessions': SESSION_VIEW,
   '/exams': EXAM_VIEW,
@@ -86,9 +89,19 @@ export const PAGE_PERMISSIONS = {
   '/activity': ACTIVITY_VIEW,
   // The Demo and Diagnostic slots parents book, for administrators.
   '/booking-slots': [P.manageBookingSlots],
-  // The BDE workspace. Last, so it is the home page only of whoever has no other page.
+  // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.
+  '/enquiries': [P.viewOwnEnquiries],
   '/booking-links': [P.viewOwnBookingLinks],
 };
+
+// Pages for BDE accounts only. A superuser holds their permissions too (D1)
+// but owns no links or enquiries, so these pages read the role as well.
+const BDE_PAGES = new Set(['/enquiries', '/booking-links']);
+
+/** Whether `user` is a BDE: the Hub then offers the BDE workspace, the BDE dashboard included. */
+export function isBde(user) {
+  return user?.role === 'BDE';
+}
 
 /** Whether the student action menu (components/students/action-cell) offers `user` anything. */
 export function hasStudentActions(user) {
@@ -97,9 +110,7 @@ export function hasStudentActions(user) {
 
 /** Whether `user` may open the page at `path` (a top-level path such as '/exams'). */
 export function canOpenPage(user, path) {
-  // Booking links belong to BDE accounts only. A superuser holds the
-  // permission too (D1) but has no links, so the page is BDE-only.
-  if (path === '/booking-links' && user?.role !== 'BDE') return false;
+  if (BDE_PAGES.has(path) && !isBde(user)) return false;
   const permissions = PAGE_PERMISSIONS[path];
   return Boolean(permissions) && canAny(user, permissions);
 }

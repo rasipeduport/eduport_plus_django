@@ -48,29 +48,39 @@
    }
   },
   "/activity @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -214,29 +224,39 @@
    }
   },
   "/admins @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -352,7 +372,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "Oct 21 – Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -383,12 +403,14 @@
    }
   },
   "/booking-links @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The page is unchanged; the sidebar also offers the BDE's Dashboard and My Enquiries.",
    "result": {
     "at": "/booking-links",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
@@ -424,7 +446,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "Oct 21 – Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -507,7 +529,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -555,7 +577,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -599,7 +621,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "Oct 21 – Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -638,7 +660,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "Oct 21 – Oct 27",
      "Toggle Sidebar"
     ],
     "links": [
@@ -727,11 +749,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM \u2013 11:30 AM",
-     "Status of 11:30 AM \u2013 12:30 PM",
-     "Status of 7:30 AM \u2013 8:30 AM",
-     "Status of 8:30 AM \u2013 9:30 AM",
-     "Status of 9:30 AM \u2013 10:30 AM"
+     "Status of 10:30 AM – 11:30 AM",
+     "Status of 11:30 AM – 12:30 PM",
+     "Status of 7:30 AM – 8:30 AM",
+     "Status of 8:30 AM – 9:30 AM",
+     "Status of 9:30 AM – 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -741,29 +763,39 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ bde": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "Booking slots are not this role's page: the route guard sends the BDE to its booking links page.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -782,7 +814,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 \u2013 Oct 28",
+     "Oct 22 – Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -891,11 +923,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM \u2013 11:30 AM",
-     "Status of 11:30 AM \u2013 12:30 PM",
-     "Status of 7:30 AM \u2013 8:30 AM",
-     "Status of 8:30 AM \u2013 9:30 AM",
-     "Status of 9:30 AM \u2013 10:30 AM"
+     "Status of 10:30 AM – 11:30 AM",
+     "Status of 11:30 AM – 12:30 PM",
+     "Status of 7:30 AM – 8:30 AM",
+     "Status of 8:30 AM – 9:30 AM",
+     "Status of 9:30 AM – 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -948,11 +980,11 @@
      "Diagnostic test"
     ],
     "filters": [
-     "Status of 10:30 AM \u2013 11:30 AM",
-     "Status of 11:30 AM \u2013 12:30 PM",
-     "Status of 7:30 AM \u2013 8:30 AM",
-     "Status of 8:30 AM \u2013 9:30 AM",
-     "Status of 9:30 AM \u2013 10:30 AM"
+     "Status of 10:30 AM – 11:30 AM",
+     "Status of 11:30 AM – 12:30 PM",
+     "Status of 7:30 AM – 8:30 AM",
+     "Status of 8:30 AM – 9:30 AM",
+     "Status of 9:30 AM – 10:30 AM"
     ],
     "menus": [],
     "calls": [
@@ -975,7 +1007,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 \u2013 Oct 28",
+     "Oct 22 – Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1014,7 +1046,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 \u2013 Oct 28",
+     "Oct 22 – Oct 28",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1077,7 +1109,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1108,29 +1140,39 @@
    }
   },
   "/dashboard @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE dashboard: its own enquiry and booking counts, upcoming bookings and recent enquiries (GET /api/bde/dashboard/), with Add enquiry and links to My Enquiries and its booking links.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -1152,7 +1194,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1200,7 +1242,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1227,6 +1269,728 @@
      "GET /api/homework/",
      "GET /api/sessions/",
      "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ bde": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "My Enquiries: the BDE's own enquiries with search, status and source filters, paging and Add enquiry (GET /api/bde/enquiries/).",
+   "result": {
+    "at": "/enquiries",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/booking-links"
+    ],
+    "buttons": [
+     "Add enquiry",
+     "All sources",
+     "All statuses",
+     "Next",
+     "Previous",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/enquiries/{enquiry_a}"
+    ],
+    "headers": [
+     "Class",
+     "Next booking",
+     "Open",
+     "Parent",
+     "Phone",
+     "Source",
+     "Status",
+     "Student"
+    ],
+    "tabs": [],
+    "filters": [
+     "Filter by source",
+     "Filter by status"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/enquiries/"
+    ]
+   }
+  },
+  "/enquiries @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A student account gets no Hub page here, as on every Hub path; no enquiry endpoint is called.",
+   "result": {
+    "at": "/enquiries",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/enquiries @ sales_tl": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "This account holds no permission, so the new path shows No Access, as every path does for it.",
+   "result": {
+    "at": "/enquiries",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/enquiries @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/team",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_b}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "This account holds no permission, so the new path shows No Access, as every path does for it.",
+   "result": {
+    "at": "/enquiries",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ bde": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/).",
+   "result": {
+    "at": "/enquiries/{enquiry_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/booking-links"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/enquiries",
+     "https://wa.me/971501234567",
+     "tel:+971501234567"
+    ],
+    "headers": [
+     "Booked on",
+     "Status",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/enquiries/{enquiry_a}/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A student account gets no Hub page here, as on every Hub path; no enquiry endpoint is called.",
+   "result": {
+    "at": "/enquiries/{enquiry_a}",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ sales_tl": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "This account holds no permission, so the new path shows No Access, as every path does for it.",
+   "result": {
+    "at": "/enquiries/{enquiry_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/team",
+     "/activity"
+    ],
+    "buttons": [
+     "Oct 20 – Oct 26",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_b}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/enquiries/{enquiry_a} @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "This account holds no permission, so the new path shows No Access, as every path does for it.",
+   "result": {
+    "at": "/enquiries/{enquiry_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
     ]
    }
   },
@@ -1284,29 +2048,39 @@
    }
   },
   "/exams @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -1478,29 +2252,39 @@
    }
   },
   "/exams?student_id={stu_a} @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -1673,29 +2457,39 @@
    }
   },
   "/homework @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -1834,29 +2628,39 @@
    }
   },
   "/invitations @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -1962,7 +2766,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1993,29 +2797,39 @@
    }
   },
   "/nowhere @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -2037,7 +2851,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2085,7 +2899,7 @@
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "Oct 20 – Oct 26",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2166,29 +2980,39 @@
    }
   },
   "/sessions @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -2348,29 +3172,39 @@
    }
   },
   "/sessions?student_id={stu_a} @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -2546,29 +3380,39 @@
    }
   },
   "/students @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -2750,29 +3594,39 @@
    }
   },
   "/students/{stu_a} @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -2941,29 +3795,39 @@
    }
   },
   "/students/{stu_a}?tab=activity @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -3148,29 +4012,39 @@
    }
   },
   "/students/{stu_a}?tab=documents @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -3385,29 +4259,39 @@
    }
   },
   "/students/{stu_a}?tab=exams @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -3605,29 +4489,39 @@
    }
   },
   "/students/{stu_a}?tab=homework @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -3808,29 +4702,39 @@
    }
   },
   "/students/{stu_a}?tab=notes @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -4012,29 +4916,39 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -4232,29 +5146,39 @@
    }
   },
   "/students/{stu_b} @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -4415,29 +5339,39 @@
    }
   },
   "/team @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -4588,29 +5522,39 @@
    }
   },
   "/team/{mentor_c} @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },
@@ -4815,29 +5759,39 @@
    }
   },
   "/team/{mentor_c}?tab=activity @ bde": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "The BDE holds accounts.view_own_booking_links, so the Hub opens on its booking links page -- its only page -- instead of No Access, and every other path sends it there.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE now holds accounts.view_own_enquiries, so the Hub opens on its own dashboard (its first page) instead of its booking links; the sidebar offers Dashboard, My Enquiries and Booking links, and every path the BDE may not open sends it to the dashboard.",
    "result": {
-    "at": "/booking-links",
+    "at": "/dashboard",
     "noAccess": false,
     "nav": [
+     "/dashboard",
+     "/enquiries",
      "/booking-links"
     ],
     "buttons": [
-     "Copy link",
+     "Add enquiry",
      "Toggle Sidebar"
     ],
     "links": [
-     "https://wa.me/?text=Book%20a%20Maths%20diagnostic%20test%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fexam%3Fref%3DDiagToken-0123456789ab",
-     "https://wa.me/?text=Book%20a%20demo%20class%20with%20Eduport%20Plus%3A%20https%3A%2F%2Fplus.eduport.app%2Fdemo%3Fref%3DDemoToken-0123456789ab"
+     "/booking-links",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
     ],
-    "headers": [],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
     "tabs": [],
     "filters": [],
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/booking-links/"
+     "GET /api/bde/dashboard/"
     ]
    }
   },

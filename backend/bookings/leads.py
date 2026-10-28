@@ -51,6 +51,18 @@ def name_key(name):
     return ' '.join(kept.split())
 
 
+def student_name_key(name):
+    """``name_key(name)`` as a lead stores it, or InvalidLeadDetails when it is empty or too long."""
+    key = name_key(name)
+    if not key:
+        raise InvalidLeadDetails('student_name', 'Enter the student name.')
+    # NFKC can lengthen text (one ligature becomes several letters), so a name
+    # that fits its own column can still overflow the key's.
+    if len(key) > Lead._meta.get_field('student_name_key').max_length:
+        raise InvalidLeadDetails('student_name', 'Enter a shorter student name.')
+    return key
+
+
 def match_lead(details):
     """
     The lead for these details, created if new, with its contact details
@@ -59,13 +71,7 @@ def match_lead(details):
     get_or_create then reads the committed row.
     """
     dial, national, phone_key = normalize_phone(details['phone_dial_code'], details['phone_number'])
-    student_key = name_key(details['student_name'])
-    if not student_key:
-        raise InvalidLeadDetails('student_name', 'Enter the student name.')
-    # NFKC can lengthen text (one ligature becomes several letters), so a name
-    # that fits its own column can still overflow the key's.
-    if len(student_key) > Lead._meta.get_field('student_name_key').max_length:
-        raise InvalidLeadDetails('student_name', 'Enter a shorter student name.')
+    student_key = student_name_key(details['student_name'])
     latest = {
         'parent_name': details['parent_name'],
         'phone_dial_code': dial,

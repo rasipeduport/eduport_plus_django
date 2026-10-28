@@ -26,7 +26,7 @@ function zoneLabel(date) {
  * already holds; the date and zone are the browser's, the same clock the
  * session times on this page are shown in.
  */
-export function DashboardHeader({ user }) {
+export function DashboardHeader({ user, subtitle = "Here's what's happening across Eduport Plus." }) {
   const now = new Date();
   const firstName = (user?.full_name || '').trim().split(' ')[0] || null;
   const zone = zoneLabel(now);
@@ -38,7 +38,7 @@ export function DashboardHeader({ user }) {
           {greetingFor(now)}
           {firstName ? `, ${firstName}` : ''} <span aria-hidden="true">👋</span>
         </h1>
-        <p className="text-muted-foreground mt-1 text-sm">Here&apos;s what&apos;s happening across Eduport Plus.</p>
+        <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2.5">
         <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">

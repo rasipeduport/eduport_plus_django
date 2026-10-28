@@ -873,11 +873,12 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), so a superuser now lists 45.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
+      "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.cancel_exam",
       "accounts.cancel_session",
@@ -913,6 +914,7 @@
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
+      "accounts.view_own_enquiries",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -950,11 +952,12 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), so a superuser now lists 45.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
+      "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.cancel_exam",
       "accounts.cancel_session",
@@ -990,6 +993,7 @@
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
+      "accounts.view_own_enquiries",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1027,11 +1031,12 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), so a superuser now lists 45.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
+      "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.cancel_exam",
       "accounts.cancel_session",
@@ -1067,6 +1072,7 @@
       "accounts.view_mentored_students",
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
+      "accounts.view_own_enquiries",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1334,6 +1340,602 @@
    "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
    "result": {
     "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ anon": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ mentor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ su_tutor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.dashboard @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "capture": {
+     "enquiries": null,
+     "upcoming": null
+    },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ anon": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ mentor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ su_tutor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.create @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ anon": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ mentor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ su_tutor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.detail @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ admin": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ anon": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ mentor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ mentor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ parent_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ su_mentor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ su_tutor": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ superuser": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ tutor_a": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ tutor_b": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.list @ unknown": {
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
      "detail"

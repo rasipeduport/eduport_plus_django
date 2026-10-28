@@ -17,6 +17,7 @@ const PORTED_PATHS = new Set([
   '/team',
   '/booking-links',
   '/booking-slots',
+  '/enquiries',
 ]);
 
 // Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon
@@ -38,10 +39,14 @@ export default function SidebarLayout({ user, logout, children }) {
     permissions: user?.permissions ?? [],
   };
 
-  // The student profile (/students/<id>) and a staff member's page
-  // (/team/<id>) are built on the design tokens like the lists they open
-  // from, so they take the raw layout too.
-  const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/') || pathname.startsWith('/team/');
+  // The student profile (/students/<id>), a staff member's page (/team/<id>)
+  // and an enquiry (/enquiries/<id>) are built on the design tokens like the
+  // lists they open from, so they take the raw layout too.
+  const isPorted =
+    PORTED_PATHS.has(pathname) ||
+    pathname.startsWith('/students/') ||
+    pathname.startsWith('/team/') ||
+    pathname.startsWith('/enquiries/');
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen()}>

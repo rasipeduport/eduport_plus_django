@@ -17,7 +17,8 @@ three bookings at most per slot, on a schedule of times of day per booking
 type (SlotTime). A slot on a given date (BookingSlot) exists once someone
 books or closes it. Each booking (Booking) belongs to a lead (Lead): one
 parent's enquiry for one child, matched by phone and student name.
-bookings.booking_service is the only writer.
+bookings.booking_service is the only writer of bookings; the leads a BDE adds
+by hand (their enquiries) are written by bookings.enquiries.
 """
 import secrets
 import uuid
@@ -226,12 +227,28 @@ class BookingSlot(models.Model):
         return f"{self.get_booking_type_display()} {self.local_date} {self.local_time:%H:%M}"
 
 
+class LeadSource(models.TextChoices):
+    """How an enquiry first reached Eduport Plus."""
+    BOOKING_PAGE = 'BOOKING_PAGE', 'Booking page'
+    PHONE_CALL = 'PHONE_CALL', 'Phone call'
+    WHATSAPP = 'WHATSAPP', 'WhatsApp'
+    WALK_IN = 'WALK_IN', 'Walk-in'
+    REFERRAL = 'REFERRAL', 'Referral'
+    SOCIAL_MEDIA = 'SOCIAL_MEDIA', 'Social media'
+    OTHER = 'OTHER', 'Other'
+
+
+# What a BDE may pick when adding an enquiry by hand; BOOKING_PAGE is set only
+# by a public booking.
+MANUAL_LEAD_SOURCES = [value for value in LeadSource.values if value != LeadSource.BOOKING_PAGE]
+
+
 class Lead(models.Model):
     """
     One parent's enquiry for one child: matched by phone and student name, so
     siblings sharing a parent's phone stay separate leads. The owner is the
-    first BDE whose valid link brought a booking, and is never overwritten by
-    a later one.
+    first BDE whose valid link brought a booking, or the BDE who added it by
+    hand, and is never overwritten by a later one.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     parent_name = models.CharField(max_length=255)
@@ -245,6 +262,9 @@ class Lead(models.Model):
     grade = models.CharField(max_length=50)
     syllabus = models.CharField(max_length=100)
     country = models.CharField(max_length=100, blank=True, default='')
+    # A lead the booking pages create came from them; a BDE adding one by hand
+    # names how it reached them (bookings.enquiries).
+    source = models.CharField(max_length=20, choices=LeadSource.choices, default=LeadSource.BOOKING_PAGE)
     owner_bde = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -276,6 +296,10 @@ class Lead(models.Model):
                     | Q(owner_bde__isnull=False, owner_assigned_at__isnull=False)
                 ),
                 name='leads_owner_fields_together',
+            ),
+            models.CheckConstraint(
+                condition=Q(source__in=LeadSource.values),
+                name='leads_known_source',
             ),
         ]
 

@@ -93,6 +93,10 @@ CATALOGUE = {
 
     # Booking slots (the public Demo/Diagnostic booking pages; bookings app)
     'accounts.manage_booking_slots': _entry('Manage booking slots', 'Booking slots', ADMIN_ONLY),
+
+    # Enquiries (the BDE workspace: the leads a BDE owns; bookings app)
+    'accounts.view_own_enquiries': _entry('View their own enquiries', 'Enquiries', BDE_ONLY),
+    'accounts.add_enquiry': _entry('Add enquiries', 'Enquiries', BDE_ONLY),
 }
 
 

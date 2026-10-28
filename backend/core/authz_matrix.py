@@ -33,7 +33,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from activity.models import ActivityLog
-from bookings.models import BookingType, SlotTime
+from bookings.models import BookingType, Lead, SlotTime
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
@@ -61,7 +61,7 @@ SIGNED_IN = tuple(caller for caller in CALLERS if caller != 'anon')
 # callers list -- so tests_authz_matrix adds them to a world of their own
 # (add_new_role_accounts) and checks that each is answered exactly as the
 # account with an unknown role is: no data, no action. The one exception is
-# what BDE holds, its own booking links (tests_authz_matrix lists it).
+# what BDE holds, its own workspace (tests_authz_matrix lists it).
 NEW_ROLES = {'bde': 'BDE', 'sales_tl': 'SALES_TL'}
 
 
@@ -125,6 +125,8 @@ def add_account(w, label, role, superuser=False, **extra):
 def add_new_role_accounts(w):
     for label, role in NEW_ROLES.items():
         add_account(w, label, role)
+    # The BDE's own enquiry, for the BDE workspace scenarios.
+    Lead.objects.filter(pk=w['lead_a'].pk).update(owner_bde=w['bde'], owner_assigned_at=w.now)
 
 
 def build_world():
@@ -269,6 +271,14 @@ def build_world():
     # so the slot-management scenarios have a slot to show and close.
     for booking_type in (BookingType.DEMO, BookingType.DIAGNOSTIC):
         SlotTime.objects.create(booking_type=booking_type, start_time=time(19, 30))
+
+    # A lead (an enquiry), owned by nobody here: no caller is a BDE. The
+    # new-role world gives it to its BDE (add_new_role_accounts).
+    w.add('lead_a', Lead.objects.create(
+        id=fixed_id('lead_a'), parent_name='Matrix Parent', phone_dial_code='+971', phone_number='509000001',
+        phone_key='+971509000001', student_name='Matrix Lead', student_name_key='matrix lead',
+        school_name='Matrix School', grade='Class 8', syllabus='CBSE',
+    ))
     return w
 
 
@@ -321,6 +331,10 @@ def _booking_links(data):
         {'booking_type': link.get('booking_type'), 'url': _LINK_TOKEN_RE.sub(r'\1<token>', link.get('url') or '')}
         for link in data.get('links') or []
     ]
+
+
+def _bde_dashboard(data):
+    return {'enquiries': data.get('enquiries'), 'upcoming': (data.get('upcoming') or {}).get('total')}
 
 
 def _public_booking(w):
@@ -499,6 +513,12 @@ SCENARIOS = [
 
     # --- BDE workspace --------------------------------------------------------
     Scenario('bde.booking_links', 'get', '/api/bde/booking-links/', capture=_booking_links),
+    Scenario('bde.dashboard', 'get', '/api/bde/dashboard/', capture=_bde_dashboard),
+    Scenario('bde.enquiries.list', 'get', '/api/bde/enquiries/'),
+    Scenario('bde.enquiries.detail', 'get', '/api/bde/enquiries/{lead_a}/'),
+    Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
+        'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
+        'student_name': 'Matrix Walk-in', 'grade': 'Class 6', 'source': 'WALK_IN'}),
 
     # --- public booking API (the marketing site's server key only) ------------
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
