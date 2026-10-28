@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Tile } from '@/components/dashboard/kpi-cards';
 import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-primitives';
-import { ShareLinkCards } from '@/components/dashboard/share-link-cards';
+import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 
@@ -244,23 +244,24 @@ export default function BdeDashboardPage({ user }) {
     <div className="container mx-auto flex flex-col gap-5 px-4 py-16">
       <DashboardHeader user={user} subtitle="Your enquiries and their bookings at a glance." />
 
-      <div className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link to="/enquiries">
-            <Inbox />
-            My Enquiries
-          </Link>
-        </Button>
-        {canAdd ? (
-          <Button variant="outline" onClick={() => setAddOpen(true)}>
-            <PlusIcon />
-            Add enquiry
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/enquiries">
+              <Inbox />
+              My Enquiries
+            </Link>
           </Button>
-        ) : null}
+          {canAdd ? (
+            <Button variant="outline" onClick={() => setAddOpen(true)}>
+              <PlusIcon />
+              Add enquiry
+            </Button>
+          ) : null}
+        </div>
+        {/* The BDE's own booking links, shared from here: the Hub has no separate Booking links page. */}
+        {canShareLinks ? <ShareLinkButtons /> : null}
       </div>
-
-      {/* The BDE's own booking links, shared from here: the Hub has no separate Booking links page. */}
-      {canShareLinks ? <ShareLinkCards /> : null}
 
       {content}
 
