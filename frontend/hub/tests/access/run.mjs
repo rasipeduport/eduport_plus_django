@@ -102,10 +102,38 @@ const BDE_LINKS = { status: 200, body: { links: [
   { booking_type: 'DIAGNOSTIC', url: 'https://plus.eduport.app/exam?ref=DiagToken-0123456789ab', created_at: '2026-10-27T09:00:00+05:30' },
 ] } };
 
+// Booking slot management (DEVT-5973), laid over the same recorded answers:
+// accounts.manage_booking_slots, which the administrator's role group carries
+// and a superuser holds (D1), and one date's slots as the API serves them. The
+// page is opened at that fixed date, so nothing it shows moves with the clock.
+const MANAGE_BOOKING_SLOTS = 'accounts.manage_booking_slots';
+const SLOTS_DATE = '2026-10-29';
+const SLOTS_PATH = `/api/booking-slots/demo/${SLOTS_DATE}/`;
+const slotRow = (time, end_time, booked, open_status, closedBy = null) => ({ time, end_time, scheduled: true, booked, capacity: 3,
+  status: closedBy ? 'Fully Booked' : open_status, open_status, closed: Boolean(closedBy),
+  closed_at: closedBy ? '2026-10-28T09:30:00+00:00' : null, closed_by: closedBy, close_reason: closedBy ? 'Teacher training' : '' });
+const SLOTS_DAY = { status: 200, body: { booking_type: 'DEMO', date: SLOTS_DATE, timezone: 'Asia/Kolkata', slot_minutes: 60, capacity: 3,
+  parent_state: 'open', window: { first: '2026-10-29', last: '2026-11-04' }, editable: true, slots: [
+    slotRow('07:30', '08:30', 0, 'Available'),
+    slotRow('08:30', '09:30', 1, 'Filling Fast'),
+    slotRow('09:30', '10:30', 2, 'Only a Few Left'),
+    slotRow('10:30', '11:30', 3, 'Fully Booked'),
+    slotRow('11:30', '12:30', 1, 'Filling Fast', 'ADMIN'),
+  ] } };
+function withBookingSlots(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...me.body.user.permissions, MANAGE_BOOKING_SLOTS].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [SLOTS_PATH]: SLOTS_DAY,
+  };
+}
+
 const CALLERS = {
-  admin: { answers: fixtures.callers.admin },
-  superuser: { answers: asSuperuserAfterBookingLinks(fixtures.callers.superuser) },
-  su_mentor: { answers: asSuperuserAfterBookingLinks(fixtures.callers.su_mentor) },
+  admin: { answers: withBookingSlots(fixtures.callers.admin) },
+  superuser: { answers: withBookingSlots(asSuperuserAfterBookingLinks(fixtures.callers.superuser)) },
+  su_mentor: { answers: withBookingSlots(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor)) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: fixtures.callers.tutor_a },
   tutor_b: { answers: fixtures.callers.tutor_b },
@@ -120,7 +148,7 @@ const PATHS = [
   `/students/${a}?tab=homework`, `/students/${a}?tab=documents`, `/students/${a}?tab=activity`, `/students/${a}?tab=notes`,
   `/students/${ids.stu_b}`, '/sessions', `/sessions?student_id=${a}`, '/exams', `/exams?student_id=${a}`, '/homework',
   '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
-  '/admins', '/nowhere',
+  `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/admins', '/nowhere',
 ];
 const labelOf = Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name]));
 const symbolic = (value) => JSON.parse(JSON.stringify(value).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => `{${labelOf[id] || 'id'}}`));

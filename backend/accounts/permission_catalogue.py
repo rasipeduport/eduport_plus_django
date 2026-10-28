@@ -90,6 +90,9 @@ CATALOGUE = {
 
     # Booking links (the BDE workspace; bookings app)
     'accounts.view_own_booking_links': _entry('View their own booking links', 'Booking links', BDE_ONLY),
+
+    # Booking slots (the public Demo/Diagnostic booking pages; bookings app)
+    'accounts.manage_booking_slots': _entry('Manage booking slots', 'Booking slots', ADMIN_ONLY),
 }
 
 

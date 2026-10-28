@@ -698,7 +698,7 @@
   },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots).",
    "result": {
     "capture": {
      "groups": [],
@@ -712,6 +712,7 @@
       "accounts.create_invitation",
       "accounts.create_session",
       "accounts.delete_any_student_note",
+      "accounts.manage_booking_slots",
       "accounts.manage_exam",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -872,7 +873,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
    "result": {
     "capture": {
      "groups": [],
@@ -887,6 +888,7 @@
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
+      "accounts.manage_booking_slots",
       "accounts.manage_exam",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -948,7 +950,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
    "result": {
     "capture": {
      "groups": [],
@@ -963,6 +965,7 @@
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
+      "accounts.manage_booking_slots",
       "accounts.manage_exam",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1024,7 +1027,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), so a superuser now lists 42.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links) and accounts.manage_booking_slots with DEVT-5973 (booking slots), so a superuser now lists 43.",
    "result": {
     "capture": {
      "groups": [],
@@ -1039,6 +1042,7 @@
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
+      "accounts.manage_booking_slots",
       "accounts.manage_exam",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1330,6 +1334,434 @@
    "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
    "result": {
     "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ admin": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "An administrator manages the slots: the date's slots, and closing or reopening them.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "changed",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_change @ anon": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ mentor_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ mentor_b": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ parent_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ su_mentor": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "changed",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_change @ su_tutor": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "changed",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_change @ superuser": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "changed",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_change @ tutor_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ tutor_b": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_change @ unknown": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ admin": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "An administrator manages the slots: the date's slots, and closing or reopening them.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_day @ anon": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ mentor_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ mentor_b": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ parent_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ su_mentor": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_day @ su_tutor": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_day @ superuser": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "result": {
+    "fields": [
+     "booking_type",
+     "capacity",
+     "date",
+     "editable",
+     "parent_state",
+     "slot_minutes",
+     "slots",
+     "slots[].booked",
+     "slots[].capacity",
+     "slots[].close_reason",
+     "slots[].closed",
+     "slots[].closed_at",
+     "slots[].closed_by",
+     "slots[].end_time",
+     "slots[].open_status",
+     "slots[].scheduled",
+     "slots[].status",
+     "slots[].time",
+     "timezone",
+     "window",
+     "window.first",
+     "window.last"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "bookings.slot_day @ tutor_a": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ tutor_b": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.slot_day @ unknown": {
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "note": "Slot management is not this role's: refused.",
+   "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
      "detail"

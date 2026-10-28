@@ -1,4 +1,4 @@
-import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, History, LayoutDashboard, Link2, Mail, UsersRound } from 'lucide-react';
+import { BookOpen, CalendarCheck, CalendarClock, ClipboardList, GraduationCap, History, LayoutDashboard, Link2, Mail, UsersRound } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -15,6 +15,8 @@ const navMain = [
   { title: 'Team', url: '/team', icon: UsersRound },
   { title: 'Invitations', url: '/invitations', icon: Mail },
   { title: 'Activity', url: '/activity', icon: History },
+  // The slots parents book, for administrators.
+  { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
   // The BDE workspace.
   { title: 'Booking links', url: '/booking-links', icon: Link2 },
 ];

@@ -226,6 +226,32 @@ def reopen_slot(booking_type, local_date, local_time, actor=None):
     return slot, True
 
 
+def set_slots_closed(booking_type, local_date, times, closed, actor=None, reason=''):
+    """
+    Close (``closed=True``) or reopen several slots of one date together: all
+    of them, or -- when a slot stays locked past LOCK_TIMEOUT -- none
+    (BookingBusy). Bookings are never touched: a closed slot keeps the ones it
+    holds, and a reopened one takes new ones only while seats remain. Slots
+    are locked in time order, so two such changes cannot deadlock. Returns the
+    times whose state changed.
+    """
+    changed = []
+    try:
+        with transaction.atomic():
+            for start in sorted(set(times)):
+                if closed:
+                    _slot, did_change = close_slot(booking_type, local_date, start, actor=actor, reason=reason)
+                else:
+                    _slot, did_change = reopen_slot(booking_type, local_date, start, actor=actor)
+                if did_change:
+                    changed.append(start)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    return changed
+
+
 def set_schedule(booking_type, times, actor=None, via='model'):
     """
     Make ``times`` exactly the active times of ``booking_type``: listed times

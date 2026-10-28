@@ -50,6 +50,8 @@ export const PERMISSIONS = {
   withdrawInvitation: 'accounts.withdraw_invitation',
 
   viewOwnBookingLinks: 'accounts.view_own_booking_links',
+
+  manageBookingSlots: 'accounts.manage_booking_slots',
 };
 
 const P = PERMISSIONS;
@@ -81,6 +83,8 @@ export const PAGE_PERMISSIONS = {
   '/team': [P.viewTeam, P.manageTeam],
   '/invitations': [P.viewInvitations],
   '/activity': ACTIVITY_VIEW,
+  // The Demo and Diagnostic slots parents book, for administrators.
+  '/booking-slots': [P.manageBookingSlots],
   // The BDE workspace. Last, so it is the home page only of whoever has no other page.
   '/booking-links': [P.viewOwnBookingLinks],
 };

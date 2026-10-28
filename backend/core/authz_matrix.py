@@ -19,7 +19,7 @@ mocked; mail goes to Django's test outbox; uploads land in the test MEDIA_ROOT.
 """
 import re
 import uuid
-from datetime import timedelta
+from datetime import time, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -33,6 +33,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from activity.models import ActivityLog
+from bookings.models import BookingType, SlotTime
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
@@ -263,6 +264,11 @@ def build_world():
     activity('act_mentor_a', 'mentor_a', 'stu_a')
     activity('act_tutor_a', 'tutor_a', 'stu_a')
     activity('act_mentor_b', 'mentor_b', 'stu_b')
+
+    # The booking schedule (bookings app): one evening time per booking type,
+    # so the slot-management scenarios have a slot to show and close.
+    for booking_type in (BookingType.DEMO, BookingType.DIAGNOSTIC):
+        SlotTime.objects.create(booking_type=booking_type, start_time=time(19, 30))
     return w
 
 
@@ -497,6 +503,12 @@ SCENARIOS = [
     # --- public booking API (the marketing site's server key only) ------------
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
     Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
+
+    # --- booking slots (administrators) ----------------------------------------
+    # A date that stays ahead of the clock, so it is always one that may change.
+    Scenario('bookings.slot_day', 'get', '/api/booking-slots/demo/2099-01-05/'),
+    Scenario('bookings.slot_change', 'post', '/api/booking-slots/demo/2099-01-05/',
+             {'action': 'close', 'times': ['19:30'], 'reason': 'Matrix'}),
 ]
 
 

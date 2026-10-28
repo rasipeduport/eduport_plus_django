@@ -38,6 +38,9 @@ FILLING_FAST = 'Filling Fast'
 ONLY_A_FEW_LEFT = 'Only a Few Left'
 FULLY_BOOKED = 'Fully Booked'
 
+# Where a date stands for parents today (parent_state).
+PAST, TODAY, OPEN, UPCOMING = 'past', 'today', 'open', 'upcoming'
+
 
 def indian_today(now=None):
     return (now or timezone.now()).astimezone(BOOKING_TIMEZONE).date()
@@ -113,3 +116,52 @@ def calendar(booking_type, now=None):
             entries.append({'time': start.strftime('%H:%M'), 'status': status})
         dates.append({'date': day.isoformat(), 'status': day_status([e['status'] for e in entries]), 'slots': entries})
     return dates
+
+
+def parent_state(booking_type, local_date, now=None):
+    """PAST and TODAY are no longer bookable, OPEN is in the window, UPCOMING lies beyond it."""
+    today = indian_today(now)
+    if local_date < today:
+        return PAST
+    if local_date == today:
+        return TODAY
+    return OPEN if local_date in booking_window(booking_type, now) else UPCOMING
+
+
+def day_slots(booking_type, local_date):
+    """
+    One date's slots as staff manage them: every active time, plus any other
+    time that still holds a booking or a closure that day (one retired after
+    it was booked), each with its booked count, the status parents see -- a
+    closed slot is Fully Booked to them, whatever it holds -- and the status
+    its bookings give it while open, which reopening it restores.
+    """
+    rows = {
+        slot.local_time: slot
+        for slot in BookingSlot.objects.filter(booking_type=booking_type, local_date=local_date)
+        .select_related('closed_by')
+        .annotate(booked=Count('bookings', filter=Q(bookings__status=BookingStatus.BOOKED)))
+    }
+    scheduled = set(active_times(booking_type))
+    kept = {start for start, slot in rows.items() if slot.booked or slot.closed_at is not None}
+    entries = []
+    for start in sorted(scheduled | kept):
+        slot = rows.get(start)
+        booked = slot.booked if slot else 0
+        capacity = min(slot.capacity, SLOT_CAPACITY) if slot else SLOT_CAPACITY
+        closed = slot is not None and slot.closed_at is not None
+        end = (start.hour * 60 + start.minute + SLOT_MINUTES) % (24 * 60)
+        entries.append({
+            'time': start.strftime('%H:%M'),
+            'end_time': f'{end // 60:02d}:{end % 60:02d}',
+            'scheduled': start in scheduled,
+            'booked': booked,
+            'capacity': capacity,
+            'status': FULLY_BOOKED if closed else status_for_count(booked, capacity),
+            'open_status': status_for_count(booked, capacity),
+            'closed': closed,
+            'closed_at': slot.closed_at if closed else None,
+            'closed_by': slot.closed_by if closed else None,
+            'close_reason': slot.close_reason if closed else '',
+        })
+    return entries

@@ -15,6 +15,7 @@ import ActivityPage from './pages/ActivityPage';
 import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
 import BookingLinksPage from './pages/BookingLinksPage';
+import BookingSlotsPage from './pages/BookingSlotsPage';
 import { canOpenPage, homePage } from './lib/access';
 
 /**
@@ -61,6 +62,10 @@ function HubRoutes({ user, logout }) {
         <Route path="/team/:memberId" element={page('/team', <TeamMemberPage user={user} />)} />
         {/* The API pins whoever holds only view_own_activity to their own entries. */}
         <Route path="/activity" element={page('/activity', <ActivityPage user={user} />)} />
+        {/* Booking slots for administrators: close or reopen the Demo and
+            Diagnostic slots parents book. The API enforces the same permission
+            and keeps every booking. */}
+        <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
         {/* The BDE workspace: a BDE's own permanent booking links. The API
             serves each BDE only their own. */}
         <Route path="/booking-links" element={page('/booking-links', <BookingLinksPage />)} />
