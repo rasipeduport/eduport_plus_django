@@ -169,13 +169,84 @@ function asSuperuserAfterEnquiries(answers) {
   };
 }
 
+// Booking management (Phase 3, on the Phase 2 API), laid over the same
+// recorded answers: accounts.view_all_bookings and accounts.assign_booking_tutor,
+// which the administrator's role group carries and a superuser holds (D1).
+// They are served every booking (one with no tutor yet, one assigned) and one
+// booking in full, on fixed dates, so nothing shown moves with the clock.
+const VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings';
+const ASSIGN_BOOKING_TUTOR = 'accounts.assign_booking_tutor';
+const BOOKING_ID = '7c0b6a52-3e1d-4f8a-9b2c-5d4e3f2a1b0c';
+const BOOKINGS_PATH = '/api/bookings/';
+const BOOKING_PATH = `${BOOKINGS_PATH}${BOOKING_ID}/`;
+const bookingSlot = (id, booking_type, date, time, starts_at, ends_at) => ({ id, booking_type, date, time, starts_at, ends_at,
+  started: false, ended: false });
+const UNASSIGNED_BOOKING = { id: BOOKING_ID, booking_type: 'DEMO', status: 'BOOKED',
+  slot: bookingSlot('1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b', 'DEMO', '2026-10-31', '19:30', '2026-10-31T14:00:00+00:00', '2026-10-31T15:00:00+00:00'),
+  student_name: 'Riya', grade: 'Class 8', parent_name: 'Asha Nair', phone: '+971 501234567', tutor: null, bde: null,
+  booked_at: '2026-10-28T09:00:00+00:00' };
+const ASSIGNED_BOOKING = { id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', booking_type: 'DIAGNOSTIC', status: 'BOOKED',
+  slot: bookingSlot('2a3b4c5d-6e7f-4809-9a1b-2c3d4e5f6a7b', 'DIAGNOSTIC', '2026-11-01', '10:00', '2026-11-01T04:30:00+00:00', '2026-11-01T05:30:00+00:00'),
+  student_name: 'Ali', grade: 'Class 9', parent_name: 'Sara Khan', phone: '+91 9800000002',
+  tutor: { id: '3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f', full_name: 'Tutor A' }, bde: null, booked_at: '2026-10-28T10:00:00+00:00' };
+const BOOKINGS_LIST = { status: 200, body: { results: [UNASSIGNED_BOOKING, ASSIGNED_BOOKING], count: 2, page: 1, page_size: 25,
+  timezone: 'Asia/Kolkata' } };
+const BOOKING_DETAIL = { status: 200, body: { ...UNASSIGNED_BOOKING, timezone: 'Asia/Kolkata', seat: 1,
+  lead: { id: '4d5e6f7a-8b9c-4d0e-9f1a-2b3c4d5e6f7a', phone_dial_code: '+971', phone_number: '501234567',
+    school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', source: 'BOOKING_PAGE', owner_bde: null },
+  referral_status: 'NO_REF', tutor_assigned_at: null, tutor_assigned_by: null, tutor_changeable: true, tutor_change_refusal: null,
+  cancelled_at: null, cancelled_by: null, cancel_reason: '' } };
+function withBookings(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...me.body.user.permissions, ASSIGN_BOOKING_TUTOR, VIEW_ALL_BOOKINGS].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [BOOKINGS_PATH]: BOOKINGS_LIST,
+    [BOOKING_PATH]: BOOKING_DETAIL,
+  };
+}
+
+// My Bookings for tutors (Phase 4, on the tutor bookings API), laid over the
+// same recorded answers: accounts.view_assigned_bookings, which the tutor's
+// role group carries and a superuser holds (D1) -- the Hub still opens the
+// page for the TUTOR role only. The tutors are served their own bookings (one
+// upcoming, one cancelled) and one in full, on fixed dates; a superuser, who
+// teaches none, is served the empty list the API answers.
+const VIEW_ASSIGNED_BOOKINGS = 'accounts.view_assigned_bookings';
+const MY_BOOKING_ID = '6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c2d';
+const MY_BOOKINGS_PATH = '/api/tutor/bookings/';
+const MY_BOOKING_PATH = `${MY_BOOKINGS_PATH}${MY_BOOKING_ID}/`;
+const mySlot = (date, time, starts_at, ends_at) => ({ date, time, starts_at, ends_at, started: false, ended: false });
+const MY_BOOKING = { id: MY_BOOKING_ID, booking_type: 'DEMO', status: 'BOOKED',
+  slot: mySlot('2026-10-31', '19:30', '2026-10-31T14:00:00+00:00', '2026-10-31T15:00:00+00:00'),
+  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates' };
+const MY_CANCELLED_BOOKING = { id: '8d7c6b5a-4e3f-4a2b-9c1d-0e9f8a7b6c5d', booking_type: 'DIAGNOSTIC', status: 'CANCELLED',
+  slot: mySlot('2026-11-01', '10:00', '2026-11-01T04:30:00+00:00', '2026-11-01T05:30:00+00:00'),
+  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India' };
+const myBookings = (results) => ({ status: 200, body: { results, count: results.length, page: 1, page_size: 25,
+  timezone: 'Asia/Kolkata' } });
+const NO_SUCH_BOOKING = { status: 404, body: { error: 'NOT_FOUND', message: 'No such booking.' } };
+function withAssignedBookings(answers, own = []) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...me.body.user.permissions, VIEW_ASSIGNED_BOOKINGS].sort();
+  const detail = own.find((booking) => booking.id === MY_BOOKING_ID);
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [MY_BOOKINGS_PATH]: myBookings(own),
+    [MY_BOOKING_PATH]: detail ? { status: 200, body: { ...detail, timezone: 'Asia/Kolkata' } } : NO_SUCH_BOOKING,
+  };
+}
+const OWN_BOOKINGS = [MY_BOOKING, MY_CANCELLED_BOOKING];
+
 const CALLERS = {
-  admin: { answers: withBookingSlots(fixtures.callers.admin) },
-  superuser: { answers: withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.superuser))) },
-  su_mentor: { answers: withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))) },
+  admin: { answers: withBookings(withBookingSlots(fixtures.callers.admin)) },
+  superuser: { answers: withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.superuser))))) },
+  su_mentor: { answers: withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))) },
   mentor_a: { answers: fixtures.callers.mentor_a },
-  tutor_a: { answers: fixtures.callers.tutor_a },
-  tutor_b: { answers: fixtures.callers.tutor_b },
+  tutor_a: { answers: withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS) },
+  tutor_b: { answers: withAssignedBookings(fixtures.callers.tutor_b) },
   parent_a: { answers: fixtures.callers.parent_a },
   unknown: { answers: fixtures.callers.unknown },
   bde: {
@@ -192,12 +263,18 @@ const PATHS = [
   `/students/${ids.stu_b}`, '/sessions', `/sessions?student_id=${a}`, '/exams', `/exams?student_id=${a}`, '/homework',
   '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
   `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/enquiries', `/enquiries/${ENQUIRY_ID}`, '/admins', '/nowhere',
+  '/bookings', `/bookings?booking=${BOOKING_ID}`, '/my-bookings', `/my-bookings?booking=${MY_BOOKING_ID}`,
 ];
-const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a' };
+const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
+  [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a' };
 const symbolic = (value) => JSON.parse(JSON.stringify(value).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => `{${labelOf[id] || 'id'}}`));
 // Activity rows name the moment the fixture world was recorded ("26 Oct, 12:27 PM");
 // a re-recorded fixtures.json moves it, so it never counts as a difference.
-const timeless = (value) => JSON.parse(JSON.stringify(value ?? null).replace(/\d{1,2} [A-Z][a-z]{2}, \d{1,2}:\d{2} [AP]M\b/g, '{time}'));
+// The staff dashboard's week button names the current week ("Oct 23 – Oct 29"),
+// which moves with the clock the tests run on: neither is a difference.
+const timeless = (value) => JSON.parse(JSON.stringify(value ?? null)
+  .replace(/\d{1,2} [A-Z][a-z]{2}, \d{1,2}:\d{2} [AP]M\b/g, '{time}')
+  .replace(/\b[A-Z][a-z]{2} \d{1,2} – [A-Z][a-z]{2} \d{1,2}\b/g, '{week}'));
 
 const results = {};
 for (const [caller, setup] of Object.entries(CALLERS)) {

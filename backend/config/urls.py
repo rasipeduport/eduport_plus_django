@@ -59,6 +59,10 @@ urlpatterns = [
     path('api/bde/', include('bookings.urls', namespace='bookings')),
     # Booking slots for administrators: close or reopen one date's Demo/Diagnostic slots.
     path('api/booking-slots/', include('bookings.slot_urls', namespace='booking_slots')),
+    # Booking management for administrators: every booking, and the tutor teaching it.
+    path('api/bookings/', include('bookings.booking_urls', namespace='booking_management')),
+    # My Bookings for tutors: the bookings assigned to the caller, read-only.
+    path('api/tutor/bookings/', include('bookings.tutor_urls', namespace='tutor_bookings')),
     # The public Demo/Diagnostic booking API, for the marketing site's server only.
     path('api/public/', include('bookings.public_urls', namespace='public_bookings')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),

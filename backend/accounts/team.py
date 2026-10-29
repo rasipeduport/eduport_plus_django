@@ -43,6 +43,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from activity.utils import log_activity
+from bookings.booking_service import upcoming_assignments
 from core.pagination import paginate_queryset
 from invitations.models import Invitation, InvitationRoleChoices
 from students.models import Student
@@ -159,6 +160,24 @@ def locked_staff_account(pk):
 def active_student_count(account):
     """ACTIVE students still assigned to ``account`` as mentor or tutor."""
     return Student.objects.filter(status='ACTIVE').filter(Q(mentor=account) | Q(tutor=account)).count()
+
+
+def upcoming_booking_refusal(account, action):
+    """
+    Why ``account`` may not stop being an active tutor (``action``, e.g.
+    "deactivating") while Demo/Diagnostic bookings still to come are assigned
+    to them, or None. Unlike students and classes there is no handover for
+    bookings yet, so they are never moved or dropped here: the refusal says
+    what to do. The caller holds the account's row lock, which
+    bookings.booking_service.assign_tutor takes too.
+    """
+    assigned = upcoming_assignments(account).count()
+    if not assigned:
+        return None
+    return (
+        f"This tutor is assigned {assigned} upcoming Demo/Diagnostic booking(s). "
+        f"Assign them to another tutor, or unassign them, before {action}."
+    )
 
 
 def set_account_active(account, active, actor=None, reason=None):
@@ -508,6 +527,9 @@ class TeamMemberView(TeamView):
                             f"Reassign this staff member's {assigned} active student(s) before changing their role.",
                             status.HTTP_409_CONFLICT,
                         )
+                    refusal = upcoming_booking_refusal(account, 'changing their role')
+                    if refusal:
+                        raise TeamError('BOOKING_HANDOVER_REQUIRED', refusal, status.HTTP_409_CONFLICT)
                     account.role = role
                     # Grants made for the old role do not ride along. Rolled
                     # back with everything else if the save below fails.
@@ -581,6 +603,9 @@ class TeamMemberStatusView(TeamView):
                         f"Reassign this staff member's {assigned} active student(s) before deactivating.",
                         status.HTTP_409_CONFLICT,
                     )
+                refusal = upcoming_booking_refusal(account, 'deactivating')
+                if refusal:
+                    raise TeamError('BOOKING_HANDOVER_REQUIRED', refusal, status.HTTP_409_CONFLICT)
             set_account_active(account, self.activate, actor=request.user, reason=reason)
 
         log_status_change(request, account, self.activate, was_deactivated, reason)

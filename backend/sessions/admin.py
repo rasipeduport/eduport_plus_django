@@ -15,7 +15,15 @@ class SessionAdmin(admin.ModelAdmin):
         ('Series Metadata', {'fields': ('series_id', 'class_number')}),
         ('Metadata', {'fields': ('created_at', 'updated_at')}),
     )
-    readonly_fields = ('created_at', 'updated_at')
+    # Who teaches a class, when, and whether it is still on are scheduling
+    # decisions: the sessions API checks them (quota, the student's and the
+    # tutor's other classes, Demo/Diagnostic bookings, an active tutor) under
+    # the scheduling lock. The admin can neither edit them nor add a class,
+    # so it cannot double-book a tutor; links, feedback and deletion stay.
+    readonly_fields = ('student', 'tutor', 'start_time', 'end_time', 'status', 'created_at', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False
 
 admin.site.register(Session, SessionAdmin)
 

@@ -1,7 +1,9 @@
 import {
   BookOpen,
   CalendarCheck,
+  CalendarCheck2,
   CalendarClock,
+  CalendarDays,
   ClipboardList,
   GraduationCap,
   History,
@@ -28,16 +30,24 @@ const navMain = [
   { title: 'Team', url: '/team', icon: UsersRound },
   { title: 'Invitations', url: '/invitations', icon: Mail },
   { title: 'Activity', url: '/activity', icon: History },
-  // The slots parents book, for administrators.
-  { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
   // A BDE's booking links are shared from their dashboard (Share Demo / Diagnostic Link).
+];
+
+// The Demo and Diagnostic bookings parents make: for administrators each
+// booking and its tutor, and the slots they are booked into; for a tutor the
+// bookings they are assigned to teach.
+const navDemoDiagnostic = [
+  { title: 'Bookings', url: '/bookings', icon: CalendarCheck2 },
+  { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
+  { title: 'My Bookings', url: '/my-bookings', icon: CalendarDays },
 ];
 
 export function AppSidebar({ user, logout, ...props }) {
   // Exactly the pages the route guards in App.jsx open for this account
   // (lib/access): those its permissions open. An account holding none is
-  // offered nothing.
+  // offered nothing, and a section none of whose pages open is not shown.
   const items = navMain.filter((item) => canOpenPage(user, item.url));
+  const demoDiagnostic = navDemoDiagnostic.filter((item) => canOpenPage(user, item.url));
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -57,6 +67,7 @@ export function AppSidebar({ user, logout, ...props }) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={items} />
+        {demoDiagnostic.length ? <NavMain label="Demo & Diagnostic" items={demoDiagnostic} /> : null}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} logout={logout} />

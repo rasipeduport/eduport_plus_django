@@ -27,6 +27,11 @@ class SlotChangeSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
 
 
+class TutorAssignmentSerializer(serializers.Serializer):
+    """Assigning a booking's tutor (bookings.management_views.BookingTutorView): the tutor's account id, nothing else."""
+    tutor_id = serializers.UUIDField()
+
+
 class EnquiryCreateSerializer(serializers.Serializer):
     """
     An enquiry a BDE adds by hand (bookings.enquiries.add_enquiry). Classes and

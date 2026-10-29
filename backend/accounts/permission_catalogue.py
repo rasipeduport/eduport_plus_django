@@ -21,6 +21,7 @@ migration creating its row.
 
 STAFF = ('ADMIN', 'MENTOR', 'TUTOR')
 ADMIN_ONLY = ('ADMIN',)
+TUTOR_ONLY = ('TUTOR',)
 BDE_ONLY = ('BDE',)
 
 VIEW_TEAM = 'accounts.view_team'
@@ -97,6 +98,15 @@ CATALOGUE = {
     # Enquiries (the BDE workspace: the leads a BDE owns; bookings app)
     'accounts.view_own_enquiries': _entry('View their own enquiries', 'Enquiries', BDE_ONLY),
     'accounts.add_enquiry': _entry('Add enquiries', 'Enquiries', BDE_ONLY),
+
+    # Booking management (Admin / Coordinator: every Demo and Diagnostic
+    # booking, its parent and child, and the tutor teaching it; bookings app)
+    'accounts.view_all_bookings': _entry('View all bookings', 'Bookings', ADMIN_ONLY),
+    'accounts.assign_booking_tutor': _entry("Assign a booking's tutor", 'Bookings', ADMIN_ONLY),
+
+    # My Bookings (the tutor's own: the Demo and Diagnostic bookings assigned
+    # to them, with the child and the slot only; bookings app)
+    'accounts.view_assigned_bookings': _entry('View the bookings assigned to them', 'Bookings', TUTOR_ONLY),
 }
 
 

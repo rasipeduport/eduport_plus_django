@@ -702,9 +702,29 @@ class StaffReassignView(APIView):
         exams_repointed = 0
         additional_exams_repointed = 0
 
+        from sessions.services import (
+            find_handover_conflict, handover_conflict_response_data, lock_scheduling, lock_tutor_schedule,
+        )
+
+        # The students whose classes would move to the new tutor, read before
+        # anything is locked: their scheduling locks and the new tutor's come
+        # first (sessions.services.lock_scheduling), in the order every class
+        # and booking write takes them, so none of their classes and no
+        # commitment of the new tutor's can change between the check and the
+        # move. A student assigned to the departing tutor meanwhile is left
+        # to them -- deactivation still waits for their handover.
+        tutor_student_ids = sorted(
+            Student.objects.filter(tutor=old_staff, status='ACTIVE').values_list('id', flat=True), key=str
+        )
+
         with transaction.atomic():
+            if tutor_student_ids:
+                for student_id in tutor_student_ids:
+                    lock_scheduling(student_id, None)
+                if new_tutor_id:
+                    lock_tutor_schedule(new_tutor_id)
             mentor_students = Student.objects.filter(mentor=old_staff, status='ACTIVE')
-            tutor_students = Student.objects.filter(tutor=old_staff, status='ACTIVE')
+            tutor_students = Student.objects.filter(tutor=old_staff, status='ACTIVE', id__in=tutor_student_ids)
             need_mentor = mentor_students.exists()
             need_tutor = tutor_students.exists()
 
@@ -742,6 +762,14 @@ class StaffReassignView(APIView):
                         },
                         status=status.HTTP_409_CONFLICT
                     )
+            open_sessions = Session.objects.filter(student__in=tutor_students, status=SessionStatusChoices.SCHEDULED)
+            if need_tutor:
+                # Every open class the new tutor takes over must fit their
+                # schedule: one student at a time, classes and Demo/Diagnostic
+                # bookings alike. Checked before anything moves.
+                clash = find_handover_conflict(open_sessions, new_tutor)
+                if clash is not None:
+                    return Response(handover_conflict_response_data(*clash, new_tutor), status=status.HTTP_409_CONFLICT)
 
             if need_mentor:
                 # Open exam work of the departing mentor's ACTIVE students moves
@@ -756,11 +784,7 @@ class StaffReassignView(APIView):
             # Tutor handover: re-point open scheduled sessions first, then the
             # student pointer (the session query keys off the student pointer).
             if need_tutor:
-                sessions_repointed = Session.objects.filter(
-                    student__tutor=old_staff,
-                    student__status='ACTIVE',
-                    status=SessionStatusChoices.SCHEDULED
-                ).update(tutor=new_tutor)
+                sessions_repointed = open_sessions.update(tutor=new_tutor)
                 students_tutor_reassigned = tutor_students.update(tutor=new_tutor)
 
         summary = {

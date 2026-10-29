@@ -14,6 +14,8 @@ const breadcrumbConfig = {
   '/homework': [{ label: 'Homework' }],
   '/invitations': [{ label: 'Invitations' }],
   '/enquiries': [{ label: 'My Enquiries' }],
+  '/bookings': [{ label: 'Bookings' }],
+  '/my-bookings': [{ label: 'My Bookings' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
   // "Activity log" heading, so the crumb only repeated it.
 };
