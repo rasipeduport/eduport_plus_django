@@ -256,6 +256,11 @@ def is_assignable_tutor(user):
     )
 
 
+def assignable_tutors():
+    """Every account ``is_assignable_tutor`` accepts, as a queryset: the tutors a picker offers."""
+    return User.objects.filter(role=RoleChoices.TUTOR, is_active=True, deactivated_at__isnull=True)
+
+
 def find_tutor_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     """
     The first thing that keeps ``tutor`` from teaching ``[starts_at, ends_at)``,
@@ -271,22 +276,31 @@ def find_tutor_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     Availability for a slot is this plus is_assignable_tutor; assign_tutor
     repeats both under its locks, so a caller's earlier answer is never enough.
     """
-    session = (
-        Session.objects.filter(
-            tutor=tutor,
-            status=SessionStatusChoices.SCHEDULED,
-            start_time__lt=ends_at,
-            end_time__gt=starts_at,
-        )
-        .order_by('start_time')
-        .first()
-    )
+    session = _overlapping_classes(starts_at, ends_at).filter(tutor=tutor).order_by('start_time').first()
     if session is not None:
-        return TutorConflict(CONFLICT_SESSION, session.id, session.start_time, session.end_time)
+        return _class_conflict(session)
     booking = find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=exclude_booking)
     if booking is not None:
-        return TutorConflict(CONFLICT_BOOKING, booking.id, booking.slot.starts_at, booking.slot.ends_at)
+        return _booking_conflict(booking)
     return None
+
+
+def tutor_conflicts(tutors, starts_at, ends_at, exclude_booking=None):
+    """
+    ``find_tutor_conflict`` for many tutors at once, in two queries: each of
+    ``tutors`` kept from ``[starts_at, ends_at)``, mapped to its first
+    TutorConflict (a class before a booking, as there); a free tutor is
+    absent. What a tutor picker shows -- never what an assignment trusts:
+    assign_tutor checks again under its locks.
+    """
+    found = {}
+    classes = _overlapping_classes(starts_at, ends_at).filter(tutor__in=tutors).order_by('start_time')
+    for session in classes:
+        found.setdefault(session.tutor_id, _class_conflict(session))
+    bookings = _overlapping_bookings(starts_at, ends_at, exclude_booking).filter(assigned_tutor__in=tutors)
+    for booking in bookings.select_related('slot').order_by('slot__starts_at'):
+        found.setdefault(booking.assigned_tutor_id, _booking_conflict(booking))
+    return found
 
 
 def find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=None):
@@ -302,15 +316,37 @@ def find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     tutor's scheduling lock (sessions.services.lock_scheduling /
     lock_tutor_schedule), so neither write can slip past the other.
     """
+    bookings = _overlapping_bookings(starts_at, ends_at, exclude_booking).filter(assigned_tutor=tutor)
+    return bookings.select_related('slot').order_by('slot__starts_at').first()
+
+
+def _overlapping_classes(starts_at, ends_at):
+    """SCHEDULED classes overlapping ``[starts_at, ends_at)``: the rule of sessions.services.find_conflict."""
+    return Session.objects.filter(
+        status=SessionStatusChoices.SCHEDULED,
+        start_time__lt=ends_at,
+        end_time__gt=starts_at,
+    )
+
+
+def _overlapping_bookings(starts_at, ends_at, exclude_booking=None):
+    """BOOKED bookings whose slot overlaps ``[starts_at, ends_at)``, ``exclude_booking`` left out."""
     bookings = Booking.objects.filter(
-        assigned_tutor=tutor,
         status=BookingStatus.BOOKED,
         slot__starts_at__lt=ends_at,
         slot__ends_at__gt=starts_at,
     )
     if exclude_booking is not None:
         bookings = bookings.exclude(pk=exclude_booking.pk)
-    return bookings.select_related('slot').order_by('slot__starts_at').first()
+    return bookings
+
+
+def _class_conflict(session):
+    return TutorConflict(CONFLICT_SESSION, session.id, session.start_time, session.end_time)
+
+
+def _booking_conflict(booking):
+    return TutorConflict(CONFLICT_BOOKING, booking.id, booking.slot.starts_at, booking.slot.ends_at)
 
 
 def upcoming_assignments(tutor, now=None):

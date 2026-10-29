@@ -33,7 +33,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from activity.models import ActivityLog
-from bookings.models import BookingType, Lead, SlotTime
+from bookings.models import Booking, BookingSlot, BookingType, Lead, ReferralStatus, SlotTime
+from bookings.scheduling import indian_today, slot_instants
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
@@ -279,6 +280,26 @@ def build_world():
         phone_key='+971509000001', student_name='Matrix Lead', student_name_key='matrix lead',
         school_name='Matrix School', grade='Class 8', syllabus='CBSE',
     ))
+
+    # A Demo booking of another lead, nobody's either, with no tutor yet: the
+    # booking-management scenarios list it, show it, offer it the tutors and
+    # assign one. Its slot, 19:30 IST two days ahead, clears every fixture
+    # class (09:30 IST) and still has seats for the public booking scenario.
+    w.add('lead_b', Lead.objects.create(
+        id=fixed_id('lead_b'), parent_name='Matrix Booker', phone_dial_code='+971', phone_number='509000002',
+        phone_key='+971509000002', student_name='Matrix Booked', student_name_key='matrix booked',
+        school_name='Matrix School', grade='Class 7', syllabus='CBSE',
+    ))
+    slot_day = indian_today(w.now) + timedelta(days=2)
+    starts_at, ends_at = slot_instants(slot_day, time(19, 30))
+    w.add('slot_a', BookingSlot.objects.create(
+        id=fixed_id('slot_a'), booking_type=BookingType.DEMO, local_date=slot_day, local_time=time(19, 30),
+        starts_at=starts_at, ends_at=ends_at,
+    ))
+    w.add('booking_a', Booking.objects.create(
+        id=fixed_id('booking_a'), booking_type=BookingType.DEMO, lead=w['lead_b'], slot=w['slot_a'], seat=1,
+        referral_status=ReferralStatus.NO_REF,
+    ))
     return w
 
 
@@ -335,6 +356,10 @@ def _booking_links(data):
 
 def _bde_dashboard(data):
     return {'enquiries': data.get('enquiries'), 'upcoming': (data.get('upcoming') or {}).get('total')}
+
+
+def _tutor_statuses(data):
+    return {tutor.get('full_name'): tutor.get('status') for tutor in data.get('tutors') or []}
 
 
 def _public_booking(w):
@@ -529,6 +554,14 @@ SCENARIOS = [
     Scenario('bookings.slot_day', 'get', '/api/booking-slots/demo/2099-01-05/'),
     Scenario('bookings.slot_change', 'post', '/api/booking-slots/demo/2099-01-05/',
              {'action': 'close', 'times': ['19:30'], 'reason': 'Matrix'}),
+
+    # --- booking management (administrators) -------------------------------------
+    Scenario('bookings.list', 'get', '/api/bookings/'),
+    Scenario('bookings.detail', 'get', '/api/bookings/{booking_a}/'),
+    Scenario('bookings.tutors', 'get', '/api/bookings/{booking_a}/tutors/', capture=_tutor_statuses),
+    Scenario('bookings.slot_tutors', 'get', '/api/bookings/slots/{slot_a}/tutors/', capture=_tutor_statuses),
+    Scenario('bookings.assign_tutor', 'put', '/api/bookings/{booking_a}/tutor/', lambda w: {'tutor_id': w.id('tutor_a')}),
+    Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/{booking_a}/tutor/'),
 ]
 
 
