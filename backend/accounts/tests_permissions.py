@@ -42,6 +42,7 @@ SEED_BDE = importlib.import_module('accounts.migrations.0010_bde_booking_links_p
 SEED_SLOTS = importlib.import_module('accounts.migrations.0011_booking_slots_permission')
 SEED_ENQUIRIES = importlib.import_module('accounts.migrations.0012_bde_enquiries_permissions')
 SEED_BOOKINGS = importlib.import_module('accounts.migrations.0013_booking_management_permissions')
+SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_assigned_bookings_permission')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -88,29 +89,35 @@ ADMIN_ONLY = names(
     'manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots',
     'view_all_bookings', 'assign_booking_tutor',
 )
+TUTOR_ONLY = names('view_assigned_bookings')
 # What later migrations add, one module each: BDE its booking links (0010),
 # ADMIN the booking slots (0011), BDE its enquiries (0012), ADMIN booking
-# management (0013).
+# management (0013), TUTOR its own bookings (0014).
 BOOKING_LINK_PERMISSIONS = names('view_own_booking_links')
 BOOKING_SLOT_PERMISSIONS = names('manage_booking_slots')
 ENQUIRY_PERMISSIONS = names('view_own_enquiries', 'add_enquiry')
 BOOKING_MANAGEMENT_PERMISSIONS = names('view_all_bookings', 'assign_booking_tutor')
+ASSIGNED_BOOKING_PERMISSIONS = names('view_assigned_bookings')
 # What the new roles' groups carry, each its own modules only: BDE its booking
 # links and enquiries, Sales TL nothing yet.
 NEW_ROLE_PERMISSIONS = {
     'BDE': BOOKING_LINK_PERMISSIONS | ENQUIRY_PERMISSIONS,
     'SALES_TL': set(),
 }
-# What every role group carries after 0010, after 0011, after 0012, and today.
+# What every role group carries after 0010, after 0011, after 0012, after 0013, and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
     'ADMIN': GROUP_PERMISSIONS_AT_0010['ADMIN'] | BOOKING_SLOT_PERMISSIONS,
 }
 GROUP_PERMISSIONS_AT_0012 = {**GROUP_PERMISSIONS_AT_0011, **NEW_ROLE_PERMISSIONS}
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0013 = {
     **GROUP_PERMISSIONS_AT_0012,
     'ADMIN': GROUP_PERMISSIONS_AT_0012['ADMIN'] | BOOKING_MANAGEMENT_PERMISSIONS,
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    **GROUP_PERMISSIONS_AT_0013,
+    'TUTOR': GROUP_PERMISSIONS_AT_0013['TUTOR'] | ASSIGNED_BOOKING_PERMISSIONS,
 }
 
 
@@ -148,8 +155,8 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_47(self):
-        self.assertEqual(len(CATALOGUE), 47)
+    def test_the_catalogue_is_the_approved_48(self):
+        self.assertEqual(len(CATALOGUE), 48)
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -171,6 +178,7 @@ class CatalogueTests(PermissionTestCase):
 
     def test_ceilings(self):
         self.assertEqual({name for name, entry in CATALOGUE.items() if entry['roles'] == ('ADMIN',)}, ADMIN_ONLY)
+        self.assertEqual({name for name, entry in CATALOGUE.items() if entry['roles'] == ('TUTOR',)}, TUTOR_ONLY)
         for role, expected in EXPECTED_GROUP_PERMISSIONS.items():
             with self.subTest(role=role):
                 self.assertLessEqual(expected, allowed_for_role(role))
@@ -187,7 +195,7 @@ class CatalogueTests(PermissionTestCase):
     def test_the_migrations_seed_what_the_catalogue_declares(self):
         self.assertEqual(
             SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
-            + SEED_BOOKINGS.HUB_PERMISSIONS,
+            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
         seeded = {role: names(*codenames) for role, _name, codenames in SEED.ROLE_GROUPS}
@@ -195,7 +203,8 @@ class CatalogueTests(PermissionTestCase):
         for seed, role, expected in ((SEED_BDE, 'BDE', BOOKING_LINK_PERMISSIONS),
                                      (SEED_SLOTS, 'ADMIN', BOOKING_SLOT_PERMISSIONS),
                                      (SEED_ENQUIRIES, 'BDE', ENQUIRY_PERMISSIONS),
-                                     (SEED_BOOKINGS, 'ADMIN', BOOKING_MANAGEMENT_PERMISSIONS)):
+                                     (SEED_BOOKINGS, 'ADMIN', BOOKING_MANAGEMENT_PERMISSIONS),
+                                     (SEED_TUTOR_BOOKINGS, 'TUTOR', ASSIGNED_BOOKING_PERMISSIONS)):
             with self.subTest(seed=seed.__name__):
                 self.assertEqual(seed.ROLE, role)
                 self.assertEqual(names(*(codename for codename, _name in seed.HUB_PERMISSIONS)), expected)
@@ -477,7 +486,7 @@ class GroupAuditTests(PermissionTestCase):
     def test_clearing_is_audited(self):
         role_group('TUTOR').permissions.clear()
         row = self.rows().get()
-        self.assertEqual(set(row.context['removed']), EXPECTED_ROLE_PERMISSIONS['TUTOR'])
+        self.assertEqual(set(row.context['removed']), EXPECTED_GROUP_PERMISSIONS['TUTOR'])
 
     def test_changes_from_the_permission_side_are_audited(self):
         permission('accounts.create_session').group_set.add(role_group('TUTOR'))
@@ -662,7 +671,7 @@ class RolePermissionsCommandTests(PermissionTestCase):
                      ('STUDENT', 'accounts.create_session'), ('TUTOR', 'accounts.nothing')):
             with self.subTest(args=args), self.assertRaises(CommandError):
                 self.run_command('grant', *args, '--apply')
-        self.assertEqual(effective_permissions(self.tutor), EXPECTED_ROLE_PERMISSIONS['TUTOR'])
+        self.assertEqual(effective_permissions(self.tutor), EXPECTED_GROUP_PERMISSIONS['TUTOR'])
 
     def test_revoke(self):
         self.run_command('revoke', 'MENTOR', 'accounts.sync_student_quota', '--apply')
@@ -740,6 +749,12 @@ class SeedFunctionTests(PermissionTestCase):
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         self.assertEqual(before, after)
 
+    def test_running_the_tutor_bookings_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_TUTOR_BOOKINGS.grant_tutor_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
 
 # --------------------------------------------------------------- new roles
 
@@ -788,7 +803,7 @@ class NewRoleTests(PermissionTestCase):
 
 
 class MigrationReversalTests(TransactionTestCase):
-    """0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
+    """0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
 
     def groups(self):
         return {
@@ -830,7 +845,17 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0013_booking_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0013)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0014 alone reverses: TUTOR's group is back to 0008's and its permission row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0013_booking_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0013)
+        self.assertFalse(Permission.objects.filter(codename='view_assigned_bookings').exists())
 
         # 0013 alone reverses: ADMIN's group is back to 0011's and the booking-management rows gone.
         executor = MigrationExecutor(connection)
@@ -863,5 +888,5 @@ class MigrationReversalTests(TransactionTestCase):
         self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
 
         executor = MigrationExecutor(connection)
-        executor.migrate([('accounts', '0013_booking_management_permissions')])  # back to the leaf
+        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])  # back to the leaf
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)

@@ -283,8 +283,9 @@ def build_world():
 
     # A Demo booking of another lead, nobody's either, with no tutor yet: the
     # booking-management scenarios list it, show it, offer it the tutors and
-    # assign one. Its slot, 19:30 IST two days ahead, clears every fixture
-    # class (09:30 IST) and still has seats for the public booking scenario.
+    # assign one; no tutor's My Bookings shows it. Its slot, 19:30 IST two
+    # days ahead, clears every fixture class (09:30 IST) and still has seats
+    # for the public booking scenario.
     w.add('lead_b', Lead.objects.create(
         id=fixed_id('lead_b'), parent_name='Matrix Booker', phone_dial_code='+971', phone_number='509000002',
         phone_key='+971509000002', student_name='Matrix Booked', student_name_key='matrix booked',
@@ -562,6 +563,11 @@ SCENARIOS = [
     Scenario('bookings.slot_tutors', 'get', '/api/bookings/slots/{slot_a}/tutors/', capture=_tutor_statuses),
     Scenario('bookings.assign_tutor', 'put', '/api/bookings/{booking_a}/tutor/', lambda w: {'tutor_id': w.id('tutor_a')}),
     Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/{booking_a}/tutor/'),
+
+    # --- My Bookings (tutors: the bookings assigned to them) ----------------------
+    # booking_a has no tutor, so a tutor lists none and is not shown it.
+    Scenario('tutor_bookings.list', 'get', '/api/tutor/bookings/'),
+    Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/{booking_a}/'),
 ]
 
 

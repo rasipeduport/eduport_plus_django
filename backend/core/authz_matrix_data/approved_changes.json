@@ -875,7 +875,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), and accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), so a superuser now lists 47.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
    "result": {
     "capture": {
      "groups": [],
@@ -909,6 +909,7 @@
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
+      "accounts.view_assigned_bookings",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -956,7 +957,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), and accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), so a superuser now lists 47.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
    "result": {
     "capture": {
      "groups": [],
@@ -990,6 +991,7 @@
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
+      "accounts.view_assigned_bookings",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -1037,7 +1039,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), and accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), so a superuser now lists 47.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
    "result": {
     "capture": {
      "groups": [],
@@ -1071,6 +1073,7 @@
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
+      "accounts.view_assigned_bookings",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -1118,7 +1121,7 @@
   },
   "auth.me @ tutor_a": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4).",
    "result": {
     "capture": {
      "groups": [],
@@ -1126,6 +1129,7 @@
       "accounts.add_student_note",
       "accounts.edit_session_notes",
       "accounts.score_homework",
+      "accounts.view_assigned_bookings",
       "accounts.view_homework_submissions",
       "accounts.view_own_activity",
       "accounts.view_staff_dashboard",
@@ -1163,7 +1167,7 @@
   },
   "auth.me @ tutor_b": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4).",
    "result": {
     "capture": {
      "groups": [],
@@ -1171,6 +1175,7 @@
       "accounts.add_student_note",
       "accounts.edit_session_notes",
       "accounts.score_homework",
+      "accounts.view_assigned_bookings",
       "accounts.view_homework_submissions",
       "accounts.view_own_activity",
       "accounts.view_staff_dashboard",
@@ -9420,6 +9425,295 @@
      "mentor_c"
     ],
     "status": 200
+   }
+  },
+  "tutor_bookings.detail @ admin": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.detail @ anon": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.detail @ mentor_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.detail @ mentor_b": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.detail @ parent_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.detail @ su_mentor": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but is shown only a booking assigned to them: booking_a is not, so it is answered as a booking that does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.detail @ su_tutor": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but is shown only a booking assigned to them: booking_a is not, so it is answered as a booking that does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.detail @ superuser": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but is shown only a booking assigned to them: booking_a is not, so it is answered as a booking that does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.detail @ tutor_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "booking_a is not assigned to this tutor: answered as a booking that does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.detail @ tutor_b": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "booking_a is not assigned to this tutor: answered as a booking that does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.detail @ unknown": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ admin": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ anon": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "No credentials: refused as not signed in.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ mentor_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ mentor_b": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ parent_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.list @ su_mentor": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but lists only the bookings assigned to them: none.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "timezone"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "tutor_bookings.list @ su_tutor": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but lists only the bookings assigned to them: none.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "timezone"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "tutor_bookings.list @ superuser": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A superuser holds the permission whatever the role (D1) but lists only the bookings assigned to them: none.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "timezone"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "tutor_bookings.list @ tutor_a": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A tutor lists the bookings assigned to them: booking_a has no tutor, so none.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "timezone"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "tutor_bookings.list @ tutor_b": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "A tutor lists the bookings assigned to them: booking_a has no tutor, so none.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "timezone"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "tutor_bookings.list @ unknown": {
+   "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
+   "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
    }
   }
  },
