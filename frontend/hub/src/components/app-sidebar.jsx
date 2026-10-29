@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   CalendarCheck2,
   CalendarClock,
+  CalendarDays,
   ClipboardList,
   GraduationCap,
   History,
@@ -32,11 +33,13 @@ const navMain = [
   // A BDE's booking links are shared from their dashboard (Share Demo / Diagnostic Link).
 ];
 
-// The Demo and Diagnostic bookings parents make, for administrators: each
-// booking and its tutor, and the slots they are booked into.
+// The Demo and Diagnostic bookings parents make: for administrators each
+// booking and its tutor, and the slots they are booked into; for a tutor the
+// bookings they are assigned to teach.
 const navDemoDiagnostic = [
   { title: 'Bookings', url: '/bookings', icon: CalendarCheck2 },
   { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
+  { title: 'My Bookings', url: '/my-bookings', icon: CalendarDays },
 ];
 
 export function AppSidebar({ user, logout, ...props }) {

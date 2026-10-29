@@ -16,6 +16,7 @@ import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
+import TutorBookingsPage from './pages/TutorBookingsPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
 import EnquiryPage from './pages/EnquiryPage';
@@ -78,6 +79,10 @@ function HubRoutes({ user, logout }) {
             Diagnostic slots parents book. The API enforces the same permission
             and keeps every booking. */}
         <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
+        {/* A tutor's own Demo and Diagnostic bookings, read-only, one opened
+            at ?booking=<id>. The API serves only the bookings assigned to the
+            caller: any other is answered as one that does not exist. */}
+        <Route path="/my-bookings" element={page('/my-bookings', <TutorBookingsPage />)} />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}

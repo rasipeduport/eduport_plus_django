@@ -67,6 +67,26 @@ export function listParams(filters, page, pageSize) {
   return params;
 }
 
+// My Bookings for tutors: the /api/tutor/bookings/ contract (backend
+// bookings/tutor_views.py and bookings/tutor_bookings.py). The API serves the
+// caller only the bookings assigned to them, each with the child and the slot
+// and nothing of the parent, the BDE or the assignment.
+export const TUTOR_BOOKINGS_URL = '/api/tutor/bookings/';
+export const tutorBookingUrl = (id) => `${TUTOR_BOOKINGS_URL}${id}/`;
+
+/** The tutor list's filters from the page URL; a value the API would refuse is dropped, as in readFilters. */
+export function readTutorFilters(searchParams) {
+  const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
+  return { type: pick('type', TYPE_VALUES), when: pick('when', WHEN_VALUES) || DEFAULT_WHEN };
+}
+
+/** The query the tutor list endpoint takes. It reads "all" itself (backend tutor_bookings.parse_filters). */
+export function tutorListParams(filters, page, pageSize) {
+  const params = { page, page_size: pageSize, when: filters.when };
+  if (filters.type) params.type = filters.type;
+  return params;
+}
+
 /** Where a booking stands: cancelled, or by its slot's clock -- upcoming, in progress, done. */
 export function bookingState(booking) {
   if (booking.status === 'CANCELLED') return { label: 'Cancelled', variant: 'outline' };

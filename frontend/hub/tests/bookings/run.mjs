@@ -1,12 +1,15 @@
-// Booking-management page tests: the real Bookings page (src/pages/BookingsPage.jsx)
-// in jsdom, its API answered per test by api-stub.js, driven as an
-// administrator would -- filters, paging, the detail sheet, and assigning,
-// reassigning and unassigning a tutor, including the API's refusals.
+// Booking page tests: the real Bookings page (src/pages/BookingsPage.jsx) in
+// jsdom, its API answered per test by api-stub.js, driven as an administrator
+// would -- filters, paging, the detail sheet, and assigning, reassigning and
+// unassigning a tutor, including the API's refusals -- and the tutor's My
+// Bookings page (src/pages/TutorBookingsPage.jsx), read-only, showing the
+// child and the slot and never the parent, the BDE or the assignment.
 //
 //   npm run test:bookings
 //
-// Which roles may open the page at all is the access tests' job
-// (tests/access, path /bookings).
+// Which callers the Hub routes to each page is the access tests' job
+// (tests/access, paths /bookings and /my-bookings); the role gate itself
+// (lib/access canOpenPage) is checked here too.
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -69,7 +72,7 @@ const quiet = console.error;
 console.error = () => {};
 process.on('unhandledRejection', () => {});
 
-const { mount, act } = await import(pathToFileURL(bundle).href);
+const { mount, act, canOpenPage, homePage } = await import(pathToFileURL(bundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -451,6 +454,202 @@ test('without accounts.assign_booking_tutor the page is read-only', async () => 
   assert.ok(clean(topDialog().textContent).includes('Tutor A'), 'the booking still shows its tutor');
 });
 
+// ------------------------------------------------------------ My Bookings (tutors)
+const MINE = '/api/tutor/bookings/';
+const VIEW_ASSIGNED = 'accounts.view_assigned_bookings';
+const TUTOR = { id: 'tutor', role: 'TUTOR', permissions: [VIEW_ASSIGNED, 'accounts.view_staff_dashboard'] };
+
+// The tutor API's rows (backend bookings.tutor_bookings): the slot, without its id, and the child.
+const mySlot = (date, time) => ({ date, time, starts_at: `${date}T14:00:00+00:00`, ends_at: `${date}T15:00:00+00:00`,
+  started: false, ended: false });
+const MY_RIYA = { id: 'b-riya', booking_type: 'DEMO', status: 'BOOKED', slot: mySlot('2026-10-31', '19:30'),
+  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates' };
+const MY_ALI = { id: 'b-ali', booking_type: 'DIAGNOSTIC', status: 'CANCELLED', slot: mySlot('2026-11-01', '10:00'),
+  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India' };
+const mine = (results, count = results.length, page = 1) => ({ results, count, page, page_size: 25, timezone: 'Asia/Kolkata' });
+const myDetail = (row) => ({ ...row, timezone: 'Asia/Kolkata' });
+
+// What the administrators' API carries and the tutor one never sends. Were it
+// ever to arrive, the page must still render none of it.
+const PRIVATE = {
+  parent_name: 'Asha Nair', phone: '+971 501234567', phone_dial_code: '+971', phone_number: '501234567',
+  tutor: { id: 't-a', full_name: 'Tutor A' }, bde: { id: 'bde-1', full_name: 'Bde One' }, referral_status: 'ATTRIBUTED',
+  tutor_assigned_at: '2026-10-29T06:00:00+00:00', tutor_assigned_by: { id: 'admin', full_name: 'Admin One' },
+  tutor_changeable: true, cancelled_by: { id: 'admin', full_name: 'Admin One' }, cancel_reason: 'Parent asked to move it',
+  seat: 2, booked_at: '2026-10-28T09:00:00+00:00',
+  lead: { id: 'lead-1', phone_number: '501234567', source: 'BOOKING_PAGE', owner_bde: { id: 'bde-2', full_name: 'Bde Two' } },
+  details: { parent_name: 'Asha Nair', phone: '+971 501234567', display_time: '06:00 pm - 07:00 pm' },
+};
+const PRIVATE_TEXT = ['Asha Nair', '501234567', '+971', 'Tutor A', 'Bde One', 'Bde Two', 'Admin One', 'Parent asked',
+  'ATTRIBUTED', "Through a BDE's link", 'Booking page', '06:00 pm', '28 Oct 2026', '29 Oct 2026', 'Parent', 'Phone',
+  'Seat', 'Assigned by', 'Assigned on', 'Credited', 'Came in', 'BDE', 'Tutor'];
+
+const tab = (name) => [...document.querySelectorAll('[role="tab"]')].find((element) => clean(element.textContent) === name);
+const labels = (root = document.body) => [...new Set([...root.querySelectorAll('button')].map(
+  (element) => clean(element.textContent) || element.getAttribute('aria-label')))].sort();
+
+test('My Bookings: loading, then the tutor\'s bookings -- the slot in IST, the child, and a cancelled one as Cancelled', async () => {
+  const answer = deferred();
+  serve({ [`GET ${MINE}`]: () => answer.promise });
+  await open('/my-bookings', TUTOR);
+  assert.ok(document.querySelector('[data-slot="skeleton"]'), 'a loading skeleton while the list loads');
+  assert.deepEqual(calls('GET', MINE)[0].params, { page: 1, page_size: 25, when: 'upcoming' });
+
+  answer.resolve({ status: 200, data: mine([MY_RIYA, MY_ALI]) });
+  await settle();
+  assert.ok(!document.querySelector('[data-slot="skeleton"]'), 'the skeleton is gone');
+  assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
+    ['When (IST)', 'Type', 'Student', 'Syllabus', 'School', 'Country', 'Status', 'Actions']);
+  const [riya, ali] = rows();
+  assert.match(clean(riya.textContent),
+    /^Sat, 31 Oct7:30 PMDemo classRiyaClass 8CBSEDelhi Private SchoolUnited Arab EmiratesUpcomingView$/);
+  assert.match(clean(ali.textContent), /^Sun, 1 Nov10:00 AMDiagnostic testAliClass 9IGCSEAl Noor SchoolIndiaCancelledView$/);
+  assert.match(bodyText(), /My Bookings.*Times are Indian time \(IST\)\..*Showing 1–2 of 2/);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')),
+    "the administrators' API is never called");
+});
+
+test('My Bookings: read-only -- no assignment action in the list or the sheet, and nothing but reads', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_RIYA]), [`GET ${MINE}${MY_RIYA.id}/`]: myDetail(MY_RIYA) });
+  await open(`/my-bookings?booking=${MY_RIYA.id}`, TUTOR);
+  assert.ok(clean(topDialog().textContent).includes('Delhi Private School'), 'the sheet is open');
+  for (const label of ['Assign', 'Change', 'Assign tutor', 'Change tutor', 'Unassign', 'Reassign']) {
+    assert.ok(!button(label), `no ${label} button`);
+  }
+  // Every control there is: the filters, paging, Refresh, View -- and the sheet's Close.
+  assert.deepEqual(labels(topDialog()), ['Close']);
+  assert.deepEqual(labels(rows()[0].closest('.container')),
+    ['All', 'Demo', 'Diagnostic', 'Next', 'Previous', 'Refresh', 'Upcoming', 'View']);
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+});
+
+test('My Bookings: an error, then Try again', async () => {
+  let attempts = 0;
+  serve({ [`GET ${MINE}`]: () => (attempts++ === 0 ? fail(500, { message: 'Your bookings could not be read.' }) : ok(mine([MY_RIYA]))) });
+  await open('/my-bookings', TUTOR);
+  assert.match(bodyText(), /Your bookings could not be read\./);
+  assert.equal(rows().length, 0);
+  await click(button('Try again'));
+  assert.equal(rows().length, 1);
+  assert.equal(calls('GET', MINE).length, 2);
+});
+
+test('My Bookings: a refusal from the API shows no access, and no rows', async () => {
+  serve({ [`GET ${MINE}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open('/my-bookings', TUTOR);
+  assert.match(bodyText(), /You don't have access to My Bookings\.You do not have permission to perform this action\./);
+  assert.equal(rows().length, 0);
+});
+
+test('My Bookings: empty -- none upcoming, or none matching the filters', async () => {
+  serve({ [`GET ${MINE}`]: mine([]) });
+  const page = await open('/my-bookings', TUTOR);
+  assert.match(clean(rows()[0].textContent), /^No upcoming bookings assigned to you\.$/);
+  assert.match(bodyText(), /No results/);
+  await page.unmount();
+  globalThis.__bookingsApi.calls = [];
+  await open('/my-bookings?when=past', TUTOR);
+  assert.match(clean(rows()[0].textContent), /^No bookings match these filters\.$/);
+  assert.equal(calls('GET', MINE)[0].params.when, 'past');
+});
+
+test('My Bookings: Upcoming, Past and All, and Demo / Diagnostic, reach the API and the URL; paging', async () => {
+  serve({ [`GET ${MINE}`]: (entry) => ok(mine([MY_RIYA], 60, entry.params.page)) });
+  const page = await open('/my-bookings', TUTOR);
+  const query = () => Object.fromEntries(new URLSearchParams(page.location().search));
+  assert.match(bodyText(), /Showing 1–25 of 60.*Page 1 of 3/);
+  assert.ok(button('Previous').disabled);
+  await click(button('Next'));
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 2, page_size: 25, when: 'upcoming' });
+  assert.match(bodyText(), /Showing 26–50 of 60.*Page 2 of 3/);
+
+  await choose('Filter by when', 'Past');
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 1, page_size: 25, when: 'past' }, 'a filter starts again at page 1');
+  await choose('Filter by when', 'All dates');
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 1, page_size: 25, when: 'all' });
+  await mouseDown(tab('Diagnostic'));
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 1, page_size: 25, when: 'all', type: 'DIAGNOSTIC' });
+  assert.deepEqual(query(), { when: 'all', type: 'DIAGNOSTIC' });
+  await mouseDown(tab('Demo'));
+  await choose('Filter by when', 'Upcoming');
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 1, page_size: 25, when: 'upcoming', type: 'DEMO' });
+  assert.deepEqual(query(), { type: 'DEMO' }, 'Upcoming is the default, so the URL leaves it out');
+
+  await click(button('Clear'));
+  assert.deepEqual(calls('GET', MINE).at(-1).params, { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(query(), {});
+});
+
+test('My Bookings: an unknown filter value in the URL is dropped, and no other parameter is sent', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_RIYA]) });
+  await open('/my-bookings?type=TRIAL&when=tomorrow&tutor=t-other&status=BOOKED&q=Ali', TUTOR);
+  assert.deepEqual(calls('GET', MINE)[0].params, { page: 1, page_size: 25, when: 'upcoming' });
+});
+
+test('My Bookings: View opens the booking read-only in the side sheet', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_RIYA, MY_ALI]), [`GET ${MINE}${MY_ALI.id}/`]: myDetail(MY_ALI) });
+  const page = await open('/my-bookings', TUTOR);
+  await click(button('View the booking for Ali'));
+  assert.equal(new URLSearchParams(page.location().search).get('booking'), MY_ALI.id);
+  assert.equal(calls('GET', `${MINE}${MY_ALI.id}/`).length, 1);
+  const text = clean(topDialog().textContent);
+  assert.match(text, /^Ali.*Sun, 1 Nov · 10:00 AM IST · Class 9.*Diagnostic test.*Cancelled/);
+  assert.match(text, /This booking was cancelled\. There is no class to teach\./);
+  assert.match(text,
+    /BookingTypeDiagnostic testWhenSun, 1 Nov · 10:00 AM ISTStatusCancelled.*StudentNameAliClassClass 9SyllabusIGCSESchoolAl Noor SchoolCountryIndia/);
+});
+
+test('My Bookings: a booking no longer assigned to the tutor is not found', async () => {
+  serve({
+    [`GET ${MINE}`]: mine([]),
+    [`GET ${MINE}b-gone/`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
+  });
+  await open('/my-bookings?booking=b-gone', TUTOR);
+  assert.match(clean(topDialog().textContent), /Booking not found.*It may no longer be assigned to you/);
+});
+
+test('My Bookings: nothing but the child and the slot is rendered, whatever else the API sends', async () => {
+  const leaky = { ...MY_RIYA, ...PRIVATE };
+  serve({ [`GET ${MINE}`]: mine([leaky]), [`GET ${MINE}${MY_RIYA.id}/`]: myDetail(leaky) });
+  await open(`/my-bookings?booking=${MY_RIYA.id}`, TUTOR);
+  const text = bodyText();
+  assert.ok(text.includes('Delhi Private School') && clean(topDialog().textContent).includes('United Arab Emirates'),
+    'the booking itself is shown, in the list and the sheet');
+  for (const value of PRIVATE_TEXT) {
+    assert.ok(!text.includes(value), `${value} is not rendered`);
+  }
+  assert.ok(!document.querySelector('a[href^="tel:"], a[href*="wa.me"], a[href^="mailto:"]'), 'no contact links');
+});
+
+test('My Bookings opens only for the Tutor role holding accounts.view_assigned_bookings', async () => {
+  const account = (role, permissions, extra = {}) => ({ role, permissions, is_superuser: false, ...extra });
+  assert.ok(canOpenPage(account('TUTOR', [VIEW_ASSIGNED]), '/my-bookings'), 'a tutor holding it');
+  assert.ok(canOpenPage(account('TUTOR', [VIEW_ASSIGNED], { is_superuser: true }), '/my-bookings'),
+    'a superuser with the Tutor role, who may be assigned bookings');
+  const refused = {
+    'a tutor without it': account('TUTOR', ['accounts.view_staff_dashboard', 'accounts.view_tutored_sessions']),
+    // A superuser holds every permission (D1); the role decides.
+    'a superuser with the Admin role': account('ADMIN', [VIEW_ASSIGNED, 'accounts.view_all_bookings'], { is_superuser: true }),
+    'a superuser with the Mentor role': account('MENTOR', [VIEW_ASSIGNED], { is_superuser: true }),
+    // Even holding it, no other role is offered the page.
+    'an administrator': account('ADMIN', [VIEW_ASSIGNED, 'accounts.view_all_bookings', 'accounts.assign_booking_tutor']),
+    'a mentor': account('MENTOR', [VIEW_ASSIGNED]),
+    'a BDE': account('BDE', [VIEW_ASSIGNED, 'accounts.view_own_enquiries']),
+    'a Sales TL': account('SALES_TL', [VIEW_ASSIGNED]),
+    'a student': account('STUDENT', [VIEW_ASSIGNED]),
+    'an unknown role': account('UNASSIGNED', [VIEW_ASSIGNED]),
+    'nobody signed in': null,
+  };
+  for (const [who, user] of Object.entries(refused)) {
+    assert.ok(!canOpenPage(user, '/my-bookings'), `not for ${who}`);
+  }
+  // Tutors keep their dashboard as home; the page is home only to a tutor with nothing else.
+  assert.equal(homePage(TUTOR), '/dashboard');
+  assert.equal(homePage(account('TUTOR', [VIEW_ASSIGNED])), '/my-bookings');
+  // And the administrators' page stays theirs.
+  assert.ok(!canOpenPage(TUTOR, '/bookings'));
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {
@@ -467,6 +666,6 @@ for (const { name, fn } of tests) {
   }
 }
 console.error = quiet;
-console.log(`${tests.length - failed}/${tests.length} booking-management tests passed.`);
+console.log(`${tests.length - failed}/${tests.length} booking page tests passed.`);
 window.close();
 process.exit(failed ? 1 : 0);
