@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import api from '@/lib/api';
 import { passwordChangeFailure } from '@/lib/auth-errors';
@@ -22,6 +22,35 @@ function FieldError({ failure, field }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+// A password input with its own show/hide toggle, matching LoginPage's.
+function PasswordInput({ id, invalid, describedBy, disabled, ...inputProps }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={shown ? 'text' : 'password'}
+        disabled={disabled}
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={describedBy}
+        className={`${INPUT_CLASS} pr-12 [&::-ms-reveal]:hidden`}
+        {...inputProps}
+      />
+      <button
+        type="button"
+        onClick={() => setShown((value) => !value)}
+        disabled={disabled}
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-pressed={shown}
+        aria-controls={id}
+        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-[#77819a] transition-colors hover:text-[#f8fafc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd65b] disabled:opacity-60"
+      >
+        {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
     </div>
   );
 }
@@ -153,15 +182,13 @@ export default function ChangePasswordPage({ user, logout }) {
               <label htmlFor="hub-current-password" className={LABEL_CLASS}>
                 Current (temporary) password
               </label>
-              <input
+              <PasswordInput
                 id="hub-current-password"
-                type="password"
                 value={current}
                 onChange={(e) => setCurrent(e.target.value)}
                 autoComplete="current-password"
                 disabled={pending}
-                aria-invalid={failure?.field === 'current' ? true : undefined}
-                className={INPUT_CLASS}
+                invalid={failure?.field === 'current'}
               />
               <FieldError failure={failure} field="current" />
             </div>
@@ -169,16 +196,14 @@ export default function ChangePasswordPage({ user, logout }) {
               <label htmlFor="hub-new-password" className={LABEL_CLASS}>
                 New password
               </label>
-              <input
+              <PasswordInput
                 id="hub-new-password"
-                type="password"
                 value={next}
                 onChange={(e) => setNext(e.target.value)}
                 autoComplete="new-password"
                 disabled={pending}
-                aria-invalid={failure?.field === 'next' ? true : undefined}
-                aria-describedby="hub-new-password-hint"
-                className={INPUT_CLASS}
+                invalid={failure?.field === 'next'}
+                describedBy="hub-new-password-hint"
               />
               <p id="hub-new-password-hint" className="mt-1.5 text-xs leading-5 text-[#77819a]">
                 {PASSWORD_RULE}
@@ -189,15 +214,13 @@ export default function ChangePasswordPage({ user, logout }) {
               <label htmlFor="hub-confirm-password" className={LABEL_CLASS}>
                 Confirm new password
               </label>
-              <input
+              <PasswordInput
                 id="hub-confirm-password"
-                type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 autoComplete="new-password"
                 disabled={pending}
-                aria-invalid={failure?.field === 'confirm' ? true : undefined}
-                className={INPUT_CLASS}
+                invalid={failure?.field === 'confirm'}
               />
               <FieldError failure={failure} field="confirm" />
             </div>
