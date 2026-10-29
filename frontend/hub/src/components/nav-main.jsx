@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 
-import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 
-export function NavMain({ items }) {
+// `label` names a section of the sidebar (e.g. "Demo & Diagnostic"); the main section has none.
+export function NavMain({ items, label }) {
   const location = useLocation();
 
   return (
     <SidebarGroup>
+      {label ? <SidebarGroupLabel>{label}</SidebarGroupLabel> : null}
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>

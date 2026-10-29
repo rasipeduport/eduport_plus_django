@@ -55,6 +55,8 @@ export const PERMISSIONS = {
   addEnquiry: 'accounts.add_enquiry',
 
   manageBookingSlots: 'accounts.manage_booking_slots',
+  viewAllBookings: 'accounts.view_all_bookings',
+  assignBookingTutor: 'accounts.assign_booking_tutor',
 };
 
 const P = PERMISSIONS;
@@ -88,6 +90,8 @@ export const PAGE_PERMISSIONS = {
   '/team': [P.viewTeam, P.manageTeam],
   '/invitations': [P.viewInvitations],
   '/activity': ACTIVITY_VIEW,
+  // Every Demo and Diagnostic booking and the tutor teaching it, for administrators.
+  '/bookings': [P.viewAllBookings],
   // The Demo and Diagnostic slots parents book, for administrators.
   '/booking-slots': [P.manageBookingSlots],
   // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.

@@ -2,8 +2,8 @@
  "description": "Hub access results that may differ from baseline.json (recorded from the Hub at commit 3d56003, before navigation and page decisions moved to permissions). Each entry under \"changes\" is keyed \"<path> @ <caller>\" and holds the new expected \"result\", the \"decision\" that approved it and a short \"note\". Anything not listed here must match the baseline exactly.",
  "changes": {
   "/activity @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/activity",
     "noAccess": false,
@@ -16,6 +16,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -90,8 +91,8 @@
    }
   },
   "/activity @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/activity",
     "noAccess": false,
@@ -104,6 +105,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -136,8 +138,8 @@
    }
   },
   "/activity @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/activity",
     "noAccess": false,
@@ -150,6 +152,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -182,8 +185,8 @@
    }
   },
   "/admins @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team?role=ADMIN",
     "noAccess": false,
@@ -196,6 +199,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -271,8 +275,8 @@
    }
   },
   "/admins @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team?role=ADMIN",
     "noAccess": false,
@@ -285,6 +289,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -318,8 +323,8 @@
    }
   },
   "/admins @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team?role=ADMIN",
     "noAccess": false,
@@ -332,6 +337,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -365,8 +371,8 @@
    }
   },
   "/booking-links @ admin": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "Booking links are not this role's page: the route guard sends the caller to their home page. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Booking links are not this role's page: the route guard sends the caller to their home page. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -379,10 +385,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -535,8 +542,8 @@
    }
   },
   "/booking-links @ su_mentor": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -549,10 +556,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -583,8 +591,8 @@
    }
   },
   "/booking-links @ superuser": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -597,10 +605,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -729,8 +738,8 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "An administrator holds accounts.manage_booking_slots: the page offers the date's slots, each with a status dropdown of the four booking statuses (Fully Booked to stop new bookings, or back to the status its bookings give it).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An administrator holds accounts.manage_booking_slots: the page offers the date's slots, each with a status dropdown of the four booking statuses (Fully Booked to stop new bookings, or back to the status its bookings give it). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/booking-slots?type=demo&date=2026-10-29",
     "noAccess": false,
@@ -743,6 +752,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -908,8 +918,8 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ su_mentor": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), so the page is offered as to an administrator.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds the permission (D1), so the page is offered as to an administrator. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/booking-slots?type=demo&date=2026-10-29",
     "noAccess": false,
@@ -922,6 +932,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -965,8 +976,8 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds the permission (D1), so the page is offered as to an administrator.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds the permission (D1), so the page is offered as to an administrator. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/booking-slots?type=demo&date=2026-10-29",
     "noAccess": false,
@@ -979,6 +990,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -1120,8 +1132,8 @@
    }
   },
   "/dashboard @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1134,10 +1146,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1210,8 +1223,8 @@
    }
   },
   "/dashboard @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1224,10 +1237,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1258,8 +1272,8 @@
    }
   },
   "/dashboard @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1272,10 +1286,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1306,8 +1321,8 @@
    }
   },
   "/enquiries @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1320,10 +1335,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1477,8 +1493,8 @@
    }
   },
   "/enquiries @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1491,10 +1507,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1525,8 +1542,8 @@
    }
   },
   "/enquiries @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1539,10 +1556,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1671,8 +1689,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1685,10 +1703,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1832,8 +1851,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1846,10 +1865,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1880,8 +1900,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1894,10 +1914,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2026,8 +2047,8 @@
    }
   },
   "/exams @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams",
     "noAccess": false,
@@ -2040,6 +2061,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2121,8 +2143,8 @@
    }
   },
   "/exams @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams",
     "noAccess": false,
@@ -2135,6 +2157,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2174,8 +2197,8 @@
    }
   },
   "/exams @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams",
     "noAccess": false,
@@ -2188,6 +2211,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2227,8 +2251,8 @@
    }
   },
   "/exams?student_id={stu_a} @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams?student_id={stu_a}",
     "noAccess": false,
@@ -2241,6 +2265,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2330,8 +2355,8 @@
    }
   },
   "/exams?student_id={stu_a} @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams?student_id={stu_a}",
     "noAccess": false,
@@ -2344,6 +2369,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2391,8 +2417,8 @@
    }
   },
   "/exams?student_id={stu_a} @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/exams?student_id={stu_a}",
     "noAccess": false,
@@ -2405,6 +2431,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2452,8 +2479,8 @@
    }
   },
   "/homework @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/homework",
     "noAccess": false,
@@ -2466,6 +2493,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2540,8 +2568,8 @@
    }
   },
   "/homework @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/homework",
     "noAccess": false,
@@ -2554,6 +2582,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2586,8 +2615,8 @@
    }
   },
   "/homework @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/homework",
     "noAccess": false,
@@ -2600,6 +2629,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2632,8 +2662,8 @@
    }
   },
   "/invitations @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/invitations",
     "noAccess": false,
@@ -2646,6 +2676,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2716,8 +2747,8 @@
    }
   },
   "/invitations @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/invitations",
     "noAccess": false,
@@ -2730,6 +2761,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2758,8 +2790,8 @@
    }
   },
   "/invitations @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/invitations",
     "noAccess": false,
@@ -2772,6 +2804,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -2800,8 +2833,8 @@
    }
   },
   "/nowhere @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2814,10 +2847,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2890,8 +2924,8 @@
    }
   },
   "/nowhere @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2904,10 +2938,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2938,8 +2973,8 @@
    }
   },
   "/nowhere @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2952,10 +2987,11 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2986,8 +3022,8 @@
    }
   },
   "/sessions @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions",
     "noAccess": false,
@@ -3000,6 +3036,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3078,8 +3115,8 @@
    }
   },
   "/sessions @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions",
     "noAccess": false,
@@ -3092,6 +3129,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3128,8 +3166,8 @@
    }
   },
   "/sessions @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions",
     "noAccess": false,
@@ -3142,6 +3180,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3178,8 +3217,8 @@
    }
   },
   "/sessions?student_id={stu_a} @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions?student_id={stu_a}",
     "noAccess": false,
@@ -3192,6 +3231,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3275,8 +3315,8 @@
    }
   },
   "/sessions?student_id={stu_a} @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions?student_id={stu_a}",
     "noAccess": false,
@@ -3289,6 +3329,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3330,8 +3371,8 @@
    }
   },
   "/sessions?student_id={stu_a} @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/sessions?student_id={stu_a}",
     "noAccess": false,
@@ -3344,6 +3385,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3385,8 +3427,8 @@
    }
   },
   "/students @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students",
     "noAccess": false,
@@ -3399,6 +3441,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3488,8 +3531,8 @@
    }
   },
   "/students @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students",
     "noAccess": false,
@@ -3502,6 +3545,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3549,8 +3593,8 @@
    }
   },
   "/students @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students",
     "noAccess": false,
@@ -3563,6 +3607,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3610,8 +3655,8 @@
    }
   },
   "/students/{stu_a} @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}",
     "noAccess": false,
@@ -3624,6 +3669,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3707,8 +3753,8 @@
    }
   },
   "/students/{stu_a} @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}",
     "noAccess": false,
@@ -3721,6 +3767,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3762,8 +3809,8 @@
    }
   },
   "/students/{stu_a} @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}",
     "noAccess": false,
@@ -3776,6 +3823,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3817,8 +3865,8 @@
    }
   },
   "/students/{stu_a}?tab=activity @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
     "noAccess": false,
@@ -3831,6 +3879,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3838,13 +3887,13 @@
      "Documents",
      "Exams4",
      "Homework3",
-     "Mentor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM",
+     "Mentor AMatrix fixtureMatrix fixture{time}",
      "Notes",
      "Open menu",
      "Overview",
      "Sessions6",
      "Toggle Sidebar",
-     "Tutor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM"
+     "Tutor AMatrix fixtureMatrix fixture{time}"
     ],
     "links": [
      "/students"
@@ -3913,8 +3962,8 @@
    }
   },
   "/students/{stu_a}?tab=activity @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
     "noAccess": false,
@@ -3927,6 +3976,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3967,8 +4017,8 @@
    }
   },
   "/students/{stu_a}?tab=activity @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
     "noAccess": false,
@@ -3981,6 +4031,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -3988,13 +4039,13 @@
      "Documents",
      "Exams4",
      "Homework3",
-     "Mentor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM",
+     "Mentor AMatrix fixtureMatrix fixture{time}",
      "Notes",
      "Open menu",
      "Overview",
      "Sessions6",
      "Toggle Sidebar",
-     "Tutor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM"
+     "Tutor AMatrix fixtureMatrix fixture{time}"
     ],
     "links": [
      "/students"
@@ -4021,8 +4072,8 @@
    }
   },
   "/students/{stu_a}?tab=documents @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
     "noAccess": false,
@@ -4035,6 +4086,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4135,8 +4187,8 @@
    }
   },
   "/students/{stu_a}?tab=documents @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
     "noAccess": false,
@@ -4149,6 +4201,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4207,8 +4260,8 @@
    }
   },
   "/students/{stu_a}?tab=documents @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
     "noAccess": false,
@@ -4221,6 +4274,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4279,8 +4333,8 @@
    }
   },
   "/students/{stu_a}?tab=exams @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
     "noAccess": false,
@@ -4293,6 +4347,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4387,8 +4442,8 @@
    }
   },
   "/students/{stu_a}?tab=exams @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
     "noAccess": false,
@@ -4401,6 +4456,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4453,8 +4509,8 @@
    }
   },
   "/students/{stu_a}?tab=exams @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
     "noAccess": false,
@@ -4467,6 +4523,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4519,8 +4576,8 @@
    }
   },
   "/students/{stu_a}?tab=homework @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
     "noAccess": false,
@@ -4533,6 +4590,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4622,8 +4680,8 @@
    }
   },
   "/students/{stu_a}?tab=homework @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
     "noAccess": false,
@@ -4636,6 +4694,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4683,8 +4742,8 @@
    }
   },
   "/students/{stu_a}?tab=homework @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
     "noAccess": false,
@@ -4697,6 +4756,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4744,8 +4804,8 @@
    }
   },
   "/students/{stu_a}?tab=notes @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
     "noAccess": false,
@@ -4758,6 +4818,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4840,8 +4901,8 @@
    }
   },
   "/students/{stu_a}?tab=notes @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
     "noAccess": false,
@@ -4854,6 +4915,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4894,8 +4956,8 @@
    }
   },
   "/students/{stu_a}?tab=notes @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
     "noAccess": false,
@@ -4908,6 +4970,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -4948,8 +5011,8 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
     "noAccess": false,
@@ -4962,6 +5025,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5059,8 +5123,8 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
     "noAccess": false,
@@ -5073,6 +5137,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5128,8 +5193,8 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
     "noAccess": false,
@@ -5142,6 +5207,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5197,8 +5263,8 @@
    }
   },
   "/students/{stu_b} @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_b}",
     "noAccess": false,
@@ -5211,6 +5277,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5294,8 +5361,8 @@
    }
   },
   "/students/{stu_b} @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_b}",
     "noAccess": false,
@@ -5308,6 +5375,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5349,8 +5417,8 @@
    }
   },
   "/students/{stu_b} @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/students/{stu_b}",
     "noAccess": false,
@@ -5363,6 +5431,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5404,8 +5473,8 @@
    }
   },
   "/team @ admin": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the administrator holds accounts.manage_booking_slots); nothing else changes. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team",
     "noAccess": false,
@@ -5418,6 +5487,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5492,8 +5562,8 @@
    }
   },
   "/team @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team",
     "noAccess": false,
@@ -5506,6 +5576,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5538,8 +5609,8 @@
    }
   },
   "/team @ superuser": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The sidebar also offers Booking slots (the superuser holds accounts.manage_booking_slots under D1); nothing else changes. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team",
     "noAccess": false,
@@ -5552,6 +5623,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5584,8 +5656,8 @@
    }
   },
   "/team/{mentor_c} @ admin": {
-   "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}",
     "noAccess": false,
@@ -5598,6 +5670,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5680,8 +5753,8 @@
    }
   },
   "/team/{mentor_c} @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}",
     "noAccess": false,
@@ -5694,6 +5767,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5734,8 +5808,8 @@
    }
   },
   "/team/{mentor_c} @ superuser": {
-   "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}",
     "noAccess": false,
@@ -5748,6 +5822,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5825,8 +5900,8 @@
    }
   },
   "/team/{mentor_c}?tab=activity @ admin": {
-   "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}?tab=activity",
     "noAccess": false,
@@ -5839,6 +5914,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5922,8 +5998,8 @@
    }
   },
   "/team/{mentor_c}?tab=activity @ su_mentor": {
-   "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}?tab=activity",
     "noAccess": false,
@@ -5936,6 +6012,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -5977,8 +6054,8 @@
    }
   },
   "/team/{mentor_c}?tab=activity @ superuser": {
-   "decision": "BDE and Sales TL integration: Team offers the two new roles.",
-   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "The Team member page's role picker lists BDE and Sales TL alongside Admin, Mentor and Tutor (Admin only for superusers, as before). Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes.",
    "result": {
     "at": "/team/{mentor_c}?tab=activity",
     "noAccess": false,
@@ -5991,6 +6068,7 @@
      "/team",
      "/invitations",
      "/activity",
+     "/bookings",
      "/booking-slots"
     ],
     "buttons": [
@@ -6065,6 +6143,815 @@
     "calls": [
      "GET /api/auth/me/",
      "GET /api/team/{mentor_c}/"
+    ]
+   }
+  },
+  "/bookings @ admin": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/"
+    ]
+   }
+  },
+  "/bookings @ bde": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries"
+    ],
+    "buttons": [
+     "Add enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/"
+    ]
+   }
+  },
+  "/bookings @ mentor_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings @ parent_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A student account is sent to Learn here, as on every path; nothing renders and nothing is asked of the API.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/bookings @ sales_tl": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An account holding no permission gets the No Access page here, as on every path.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/bookings @ su_mentor": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/"
+    ]
+   }
+  },
+  "/bookings @ superuser": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/"
+    ]
+   }
+  },
+  "/bookings @ tutor_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings @ tutor_b": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/team",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_b}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings @ unknown": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An account holding no permission gets the No Access page here, as on every path.",
+   "result": {
+    "at": "/bookings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ admin": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/",
+     "GET /api/bookings/{booking_a}/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ bde": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries"
+    ],
+    "buttons": [
+     "Add enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ mentor_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ parent_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A student account is sent to Learn here, as on every path; nothing renders and nothing is asked of the API.",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ sales_tl": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An account holding no permission gets the No Access page here, as on every path.",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ su_mentor": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/",
+     "GET /api/bookings/{booking_a}/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ superuser": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "All",
+     "All statuses",
+     "All tutors",
+     "Any date",
+     "Assign",
+     "Change",
+     "Demo",
+     "Diagnostic",
+     "Next",
+     "Previous",
+     "Refresh",
+     "Toggle Sidebar",
+     "Upcoming",
+     "View"
+    ],
+    "links": [],
+    "headers": [
+     "Actions",
+     "Parent",
+     "Status",
+     "Student",
+     "Tutor",
+     "Type",
+     "When (IST)"
+    ],
+    "tabs": [
+     "All",
+     "Demo",
+     "Diagnostic"
+    ],
+    "filters": [
+     "Filter by status",
+     "Filter by tutor assignment",
+     "Filter by when"
+    ],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bookings/",
+     "GET /api/bookings/{booking_a}/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ tutor_a": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ tutor_b": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/team",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_b}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/bookings?booking={booking_a} @ unknown": {
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "note": "An account holding no permission gets the No Access page here, as on every path.",
+   "result": {
+    "at": "/bookings?booking={booking_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
     ]
    }
   }

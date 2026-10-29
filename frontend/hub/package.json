@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "format:check": "prettier --check .",
     "test:access": "node tests/access/run.mjs",
+    "test:bookings": "node tests/bookings/run.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

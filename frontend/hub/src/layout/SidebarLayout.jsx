@@ -16,6 +16,7 @@ const PORTED_PATHS = new Set([
   '/activity',
   '/team',
   '/booking-slots',
+  '/bookings',
   '/enquiries',
 ]);
 
