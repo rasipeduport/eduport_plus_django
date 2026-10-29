@@ -44,9 +44,14 @@ class LeadAdmin(ReadOnlyAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(ReadOnlyAdmin):
-    list_display = ('booking_type', 'slot', 'lead', 'seat', 'status', 'referral_status', 'attributed_bde', 'created_at')
+    # The assigned tutor is shown, never set here: assignments are made by
+    # booking_service.assign_tutor, which checks the tutor is free.
+    list_display = (
+        'booking_type', 'slot', 'lead', 'seat', 'status', 'assigned_tutor', 'referral_status', 'attributed_bde',
+        'created_at',
+    )
     list_filter = ('booking_type', 'status', 'referral_status')
-    list_select_related = ('slot', 'lead', 'attributed_bde')
+    list_select_related = ('slot', 'lead', 'assigned_tutor', 'attributed_bde')
     actions = ['cancel_selected']
 
     @admin.action(description='Cancel selected bookings')

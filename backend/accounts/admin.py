@@ -9,7 +9,7 @@ from activity.utils import log_activity
 from .authz import acting_as, clear_individual_permissions, log_permissions_cleared
 from .models import HUB_ROLES, RoleChoices, User
 from .permission_catalogue import allowed_for_role
-from .team import active_student_count, is_last_active_admin, staff_email_conflict
+from .team import active_student_count, is_last_active_admin, staff_email_conflict, upcoming_booking_refusal
 
 # Maintained by accounts.backends on every password check; editable here so an
 # administrator can unlock an account by clearing both.
@@ -45,14 +45,22 @@ class RoleChangeRuleMixin:
     """
     A role changed here follows the Team API's rules (accounts.team): a mentor's
     or tutor's active students are handed over first, and the last active admin
-    keeps the role.
+    keeps the role. A tutor assigned upcoming Demo/Diagnostic bookings keeps
+    both the role and the account active until those are reassigned.
     """
 
     def clean(self):
         cleaned_data = super().clean()
         account, new_role = self.instance, cleaned_data.get('role')
         # Until _post_clean() applies the form, the instance holds the saved role.
-        if account.pk and new_role and new_role != account.role:
+        role_changing = bool(account.pk and new_role and new_role != account.role)
+        deactivating = bool(account.pk and account.is_active and cleaned_data.get('is_active') is False)
+        if role_changing or deactivating:
+            # The admin's change view runs in one transaction: holding the
+            # account row (as Team and bookings.booking_service.assign_tutor
+            # do) keeps a booking from being assigned before this saves.
+            User.objects.select_for_update(no_key=True).filter(pk=account.pk).first()
+        if role_changing:
             assigned = active_student_count(account)
             if assigned:
                 self.add_error(
@@ -60,6 +68,14 @@ class RoleChangeRuleMixin:
                 )
             elif is_last_active_admin(account):
                 self.add_error('role', 'This is the last active administrator.')
+            else:
+                refusal = upcoming_booking_refusal(account, 'changing their role')
+                if refusal:
+                    self.add_error('role', refusal)
+        if deactivating:
+            refusal = upcoming_booking_refusal(account, 'deactivating')
+            if refusal:
+                self.add_error('is_active', refusal)
         return cleaned_data
 
 

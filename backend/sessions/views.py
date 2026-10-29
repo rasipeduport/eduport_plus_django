@@ -22,6 +22,7 @@ from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import TimezoneConversionError, is_valid_timezone
 from exams.services import find_exam_conflict_for_session
+from bookings.booking_service import find_booking_conflict, is_assignable_tutor
 from homework.services import HomeworkStateError, assert_assignment_editable, sync_homework_for_session
 from .models import Session, SessionStatusChoices, SessionContentField, SessionFile
 from .serializers import SessionSerializer, SessionFileSerializer
@@ -37,6 +38,8 @@ from .services import (
     find_internal_overlap,
     lock_scheduling,
     conflict_response_data,
+    booking_conflict_response_data,
+    inactive_tutor_response_data,
     SERIES_ITEMS_OVERLAP,
     apply_content_filter,
     validate_content_upload,
@@ -212,6 +215,12 @@ class SessionsView(APIView):
                 {"error": "This student has no tutor assigned. Assign a tutor before creating a session."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        # Classes are taught only by an active tutor (decision D5).
+        if not is_assignable_tutor(student.tutor):
+            return Response(
+                inactive_tutor_response_data("This series" if is_series else "This session"),
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Validate items and calculate total requested hours
         validated_items = []
@@ -288,6 +297,15 @@ class SessionsView(APIView):
                 if conflict:
                     return Response(
                         conflict_response_data(conflict, student, message_zone, label),
+                        status=status.HTTP_409_CONFLICT
+                    )
+                # Tuition is one-to-one: nor over a Demo or Diagnostic booking
+                # the tutor teaches (bookings.booking_service.assign_tutor
+                # takes the same tutor lock before assigning one).
+                booking_conflict = find_booking_conflict(student.tutor, v["start_time"], v["end_time"])
+                if booking_conflict:
+                    return Response(
+                        booking_conflict_response_data(booking_conflict, student.tutor, student, message_zone, label),
                         status=status.HTTP_409_CONFLICT
                     )
                 # A class may not overlap one of the student's scheduled exams either.
@@ -539,7 +557,13 @@ class SessionsView(APIView):
         # The window the session will occupy after this update.
         effective_start = new_start_time or session.start_time
         effective_end = new_end_time or session.end_time
-        needs_conflict_check = bool(new_start_time) or tutor_changed
+        # A cancelled or attended class put back to SCHEDULED takes its time
+        # again, so it is checked like a new one.
+        will_be_scheduled = (new_status or session.status) == SessionStatusChoices.SCHEDULED
+        reinstating = will_be_scheduled and session.status != SessionStatusChoices.SCHEDULED
+        needs_conflict_check = bool(new_start_time) or tutor_changed or reinstating
+        # Only a scheduled class holds its tutor's time.
+        holds_tutor = will_be_scheduled and new_tutor is not None
 
         # Apply Updates
         allowed_fields = [
@@ -553,6 +577,9 @@ class SessionsView(APIView):
             # tutor swap cannot race a concurrent booking.
             if needs_conflict_check:
                 lock_scheduling(session.student_id, new_tutor.id if new_tutor else None)
+                # A new tutor was checked above; the one the class keeps must be active too (decision D5).
+                if holds_tutor and not is_assignable_tutor(new_tutor):
+                    return Response(inactive_tutor_response_data(), status=status.HTTP_400_BAD_REQUEST)
                 conflict = find_conflict(
                     session.student, new_tutor, effective_start, effective_end, exclude_id=session.id
                 )
@@ -561,6 +588,14 @@ class SessionsView(APIView):
                         conflict_response_data(conflict, session.student, None, "This session"),
                         status=status.HTTP_409_CONFLICT
                     )
+                # Tuition is one-to-one: nor over a Demo or Diagnostic booking the tutor teaches.
+                if holds_tutor:
+                    booking_conflict = find_booking_conflict(new_tutor, effective_start, effective_end)
+                    if booking_conflict:
+                        return Response(
+                            booking_conflict_response_data(booking_conflict, new_tutor, session.student, None, "This session"),
+                            status=status.HTTP_409_CONFLICT
+                        )
             if new_start_time and new_end_time:
                 exam_conflict = find_exam_conflict_for_session(session.student, new_start_time, new_end_time)
                 if exam_conflict:
@@ -1018,6 +1053,9 @@ class CancelSeriesView(APIView):
             )
 
         new_last_end_time = new_last_start_time + timedelta(hours=new_last_duration)
+        # The make-up class is taught by the student's tutor: an active one (decision D5).
+        if student.tutor and not is_assignable_tutor(student.tutor):
+            return Response(inactive_tutor_response_data("The make-up class"), status=status.HTTP_400_BAD_REQUEST)
 
         # Conflict check, shifting, renumbering and creation share one
         # transaction and the scheduling lock (see lock_scheduling).
@@ -1032,6 +1070,15 @@ class CancelSeriesView(APIView):
             if conflict:
                 return Response(
                     conflict_response_data(conflict, student, None, "The make-up class"),
+                    status=status.HTTP_409_CONFLICT
+                )
+            # Tuition is one-to-one: nor over a Demo or Diagnostic booking the tutor teaches.
+            booking_conflict = (
+                find_booking_conflict(student.tutor, new_last_start_time, new_last_end_time) if student.tutor else None
+            )
+            if booking_conflict:
+                return Response(
+                    booking_conflict_response_data(booking_conflict, student.tutor, student, None, "The make-up class"),
                     status=status.HTTP_409_CONFLICT
                 )
             exam_conflict = find_exam_conflict_for_session(student, new_last_start_time, new_last_end_time)

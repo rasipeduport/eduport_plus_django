@@ -1,6 +1,6 @@
 """
-Creating and cancelling bookings, closing slots and setting the schedule: the
-one place booking rows are written.
+Creating and cancelling bookings, assigning their tutors, closing slots and
+setting the schedule: the one place booking rows are written.
 
 create_booking runs in one transaction:
 
@@ -20,15 +20,25 @@ impossible even for code that skipped the lock; the lock is what keeps the
 count right and concurrent requests off that index. A lock wait longer than
 LOCK_TIMEOUT, or a deadlock, answers BookingBusy (CAPACITY_CHECK_UNAVAILABLE)
 instead of holding the request.
+
+assign_tutor takes the slot and booking locks in the same order, then the
+tutor's scheduling lock -- the one sessions take before booking a class for
+that tutor -- and the tutor's account row, so a class being scheduled, the
+account being deactivated or another assignment for the same tutor all wait
+for it (or it for them) and the availability it checks is still true when it
+commits.
 """
 from dataclasses import dataclass
-from datetime import date as date_type, time as time_type, timedelta
+from datetime import date as date_type, datetime, time as time_type, timedelta
 
 from django.conf import settings
 from django.db import OperationalError, connection, transaction
 from django.utils import timezone
 
+from accounts.models import RoleChoices, User
 from activity.utils import log_activity
+from sessions.models import Session, SessionStatusChoices
+from sessions.services import lock_tutor_schedule
 
 from .attribution import resolve_referral
 from .leads import match_lead, normalize_phone
@@ -73,6 +83,47 @@ class BookingBusy(BookingError):
     code = 'CAPACITY_CHECK_UNAVAILABLE'
     http_status = 503
     message = 'Could not check this slot right now. Please try again.'
+
+
+class BookingCancelled(BookingError):
+    code = 'BOOKING_CANCELLED'
+    http_status = 409
+    message = 'This booking is cancelled, so its tutor cannot be changed.'
+
+
+class SlotStarted(BookingError):
+    code = 'SLOT_STARTED'
+    http_status = 409
+    message = 'This booking has already started, so its tutor cannot be changed.'
+
+
+class TutorNotAssignable(BookingError):
+    code = 'INVALID_TUTOR'
+    message = 'Selected tutor is not an active tutor.'
+
+
+class TutorUnavailable(BookingError):
+    code = 'TUTOR_UNAVAILABLE'
+    http_status = 409
+    message = 'This tutor already has a class or another booking at this time.'
+
+    def __init__(self, conflict):
+        super().__init__(self.message)
+        self.conflict = conflict
+
+
+# What keeps a tutor from a slot (TutorConflict.kind).
+CONFLICT_SESSION = 'session'
+CONFLICT_BOOKING = 'booking'
+
+
+@dataclass(frozen=True)
+class TutorConflict:
+    """A scheduled class (sessions.Session) or a live booking the tutor already teaches in the window."""
+    kind: str
+    id: object
+    starts_at: datetime
+    ends_at: datetime
 
 
 @dataclass(frozen=True)
@@ -192,6 +243,157 @@ def cancel_booking(booking, actor=None, reason=''):
     return booking, True
 
 
+def is_assignable_tutor(user):
+    """
+    Whether ``user`` may be given a booking to teach: an active TUTOR account,
+    the rule every tutor assignment in the Hub applies (decision D5).
+    """
+    return bool(
+        user is not None
+        and user.role == RoleChoices.TUTOR
+        and user.is_active
+        and user.deactivated_at is None
+    )
+
+
+def find_tutor_conflict(tutor, starts_at, ends_at, exclude_booking=None):
+    """
+    The first thing that keeps ``tutor`` from teaching ``[starts_at, ends_at)``,
+    as a TutorConflict, or None. Tuition is one-to-one, so a tutor teaches one
+    student at a time: a SCHEDULED class of theirs blocks the window (the rule
+    of sessions.services.find_conflict -- attended and cancelled classes do
+    not, and touching windows do not overlap), and so does any other BOOKED
+    booking assigned to them whose slot overlaps it -- another booking in the
+    same slot included, whatever seats remain, and either booking type.
+    ``exclude_booking`` is the booking being assigned. A cancelled booking
+    keeps its tutor but blocks nothing.
+
+    Availability for a slot is this plus is_assignable_tutor; assign_tutor
+    repeats both under its locks, so a caller's earlier answer is never enough.
+    """
+    session = (
+        Session.objects.filter(
+            tutor=tutor,
+            status=SessionStatusChoices.SCHEDULED,
+            start_time__lt=ends_at,
+            end_time__gt=starts_at,
+        )
+        .order_by('start_time')
+        .first()
+    )
+    if session is not None:
+        return TutorConflict(CONFLICT_SESSION, session.id, session.start_time, session.end_time)
+    booking = find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=exclude_booking)
+    if booking is not None:
+        return TutorConflict(CONFLICT_BOOKING, booking.id, booking.slot.starts_at, booking.slot.ends_at)
+    return None
+
+
+def find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=None):
+    """
+    The first BOOKED booking assigned to ``tutor`` whose slot overlaps
+    ``[starts_at, ends_at)`` (half-open, so touching windows do not overlap),
+    with its slot, or None. Cancelled bookings keep their tutor but block
+    nothing, and an unassigned booking holds no tutor at all.
+
+    The one definition of a tutor's booking commitments: find_tutor_conflict
+    asks it before a booking is assigned, and the sessions views before a
+    class is scheduled, rescheduled or handed to a tutor -- each under the
+    tutor's scheduling lock (sessions.services.lock_scheduling /
+    lock_tutor_schedule), so neither write can slip past the other.
+    """
+    bookings = Booking.objects.filter(
+        assigned_tutor=tutor,
+        status=BookingStatus.BOOKED,
+        slot__starts_at__lt=ends_at,
+        slot__ends_at__gt=starts_at,
+    )
+    if exclude_booking is not None:
+        bookings = bookings.exclude(pk=exclude_booking.pk)
+    return bookings.select_related('slot').order_by('slot__starts_at').first()
+
+
+def upcoming_assignments(tutor, now=None):
+    """
+    The BOOKED bookings assigned to ``tutor`` whose slot has not ended. An
+    account holding any may not stop being an active tutor (Team deactivation
+    or role change, the Django admin): there is no rule yet for handing a
+    booking to another tutor, so they are reassigned or unassigned first
+    (assign_tutor / unassign_tutor), never left on an account that cannot
+    teach them. The caller holds the account's row lock, which assign_tutor
+    also takes, so no assignment can land after the count.
+    """
+    now = now or timezone.now()
+    return Booking.objects.filter(assigned_tutor=tutor, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+
+
+def assign_tutor(booking, tutor, actor=None, now=None):
+    """
+    Make ``tutor`` the one who teaches ``booking``; returns (booking, changed).
+
+    Only an active TUTOR (else TutorNotAssignable), only while the booking is
+    booked (BookingCancelled) and its slot has not started (SlotStarted), and
+    only when the tutor is free for the whole slot (TutorUnavailable, see
+    find_tutor_conflict). Every check is made again under the locks, whatever
+    the caller saw before. The same tutor again changes nothing and is not
+    logged; another tutor replaces the current one -- a reassignment, checked
+    exactly like a first assignment.
+    """
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            booking = _locked_booking(booking)
+            _check_tutor_changeable(booking, now)
+            tutor = _locked_tutor(tutor.pk)
+            if not is_assignable_tutor(tutor):
+                raise TutorNotAssignable()
+            if booking.assigned_tutor_id == tutor.pk:
+                return booking, False
+            conflict = find_tutor_conflict(tutor, booking.slot.starts_at, booking.slot.ends_at, exclude_booking=booking)
+            if conflict is not None:
+                raise TutorUnavailable(conflict)
+            previous_tutor_id = booking.assigned_tutor_id
+            booking.assigned_tutor = tutor
+            booking.tutor_assigned_at = timezone.now()
+            booking.tutor_assigned_by = actor
+            booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    _log_tutor_change(booking, 'booking.assign_tutor', actor, previous_tutor_id, tutor.pk)
+    return booking, True
+
+
+def unassign_tutor(booking, actor=None, now=None):
+    """
+    Take the tutor off ``booking``, clearing who was assigned, when and by
+    whom; returns (booking, changed). Under the same rules as assign_tutor --
+    booked, slot not started -- so a cancelled or past booking keeps the
+    tutor it had. A booking with no tutor is left as it is.
+    """
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            booking = _locked_booking(booking)
+            _check_tutor_changeable(booking, now)
+            previous_tutor_id = booking.assigned_tutor_id
+            if previous_tutor_id is None:
+                return booking, False
+            booking.assigned_tutor = None
+            booking.tutor_assigned_at = None
+            booking.tutor_assigned_by = None
+            booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    _log_tutor_change(booking, 'booking.unassign_tutor', actor, previous_tutor_id, None)
+    return booking, True
+
+
 def close_slot(booking_type, local_date, local_time, actor=None, reason=''):
     """Close one slot: it shows as Fully Booked and takes no new booking. Returns (slot, changed)."""
     with transaction.atomic():
@@ -304,6 +506,52 @@ def _locked_slot(booking_type, local_date, local_time):
         defaults={'starts_at': starts_at, 'ends_at': ends_at},
     )
     return BookingSlot.objects.select_for_update().get(pk=slot.pk)
+
+
+def _locked_booking(booking):
+    """``booking`` read again under its slot's lock and then its own: the order every booking write takes them in."""
+    BookingSlot.objects.select_for_update().filter(pk=booking.slot_id).first()
+    return Booking.objects.select_for_update().select_related('slot').get(pk=booking.pk)
+
+
+def _check_tutor_changeable(booking, now):
+    if booking.status != BookingStatus.BOOKED:
+        raise BookingCancelled()
+    if booking.slot.starts_at <= now:
+        raise SlotStarted()
+
+
+def _locked_tutor(tutor_id):
+    """
+    Account ``tutor_id``, or None, once nothing else is scheduling it: first
+    the tutor's scheduling lock (sessions.services.lock_tutor_schedule, the
+    tutor key of lock_scheduling), which a class being scheduled for this
+    tutor holds until it commits, so the conflict check then sees it; then the
+    account row, locked FOR NO KEY UPDATE like Team's
+    (accounts.team.locked_staff_account), so the account cannot be deactivated
+    before this assignment commits. NO KEY leaves rows that only reference the
+    account (a new session, a log entry) unblocked.
+    """
+    lock_tutor_schedule(tutor_id)
+    return User.objects.select_for_update(no_key=True).filter(pk=tutor_id).first()
+
+
+def _log_tutor_change(booking, action, actor, old_tutor_id, new_tutor_id):
+    log_activity(
+        action=action,
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(booking.slot),
+        # Ids only, as for every booking entry: no student, parent, phone or tutor name.
+        context={
+            'booking_type': booking.booking_type,
+            'slot_starts_at': booking.slot.starts_at.isoformat(),
+            'lead_id': str(booking.lead_id),
+            'old_tutor_id': _str_or_none(old_tutor_id),
+            'new_tutor_id': _str_or_none(new_tutor_id),
+        },
+        actor=actor,
+    )
 
 
 def _lead_details(request):

@@ -28,6 +28,7 @@ from students.quota_sync import (
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
+from sessions.services import find_handover_conflict, handover_conflict_response_data, lock_scheduling
 from activity.utils import log_activity
 from accounts.authz import has_app_permission
 from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser
@@ -476,6 +477,12 @@ class StudentReassignView(APIView):
         exams_repointed = 0
         additional_exams_repointed = 0
         with transaction.atomic():
+            # The scheduling locks of this student and the new tutor
+            # (sessions.services.lock_scheduling) come before any row lock, in
+            # the order every class and booking write takes them: a class or a
+            # booking assignment for either waits for this reassignment, or it
+            # for them, so the tutor check below stays true until the move.
+            lock_scheduling(student_id, new_tutor_id)
             # Row lock on the student serialises two admins reassigning at once.
             student = Student.objects.select_for_update().filter(id=student_id).first()
             if not student:
@@ -516,6 +523,14 @@ class StudentReassignView(APIView):
                         {"error": "INVALID_TUTOR", "message": "Selected tutor is not an active tutor."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+            # The open classes the new tutor takes over must fit their
+            # schedule: one student at a time, classes and Demo/Diagnostic
+            # bookings alike. Checked before anything moves.
+            open_sessions = Session.objects.filter(student=student, status=SessionStatusChoices.SCHEDULED)
+            if new_tutor is not None:
+                clash = find_handover_conflict(open_sessions, new_tutor)
+                if clash is not None:
+                    return Response(handover_conflict_response_data(*clash, new_tutor), status=status.HTTP_409_CONFLICT)
 
             update_fields = ['updated_at']
             if mentor_changed:
@@ -528,9 +543,7 @@ class StudentReassignView(APIView):
                 student.mentor = new_mentor
                 update_fields.append('mentor')
             if tutor_changed:
-                sessions_repointed = Session.objects.filter(
-                    student=student, status=SessionStatusChoices.SCHEDULED
-                ).update(tutor=new_tutor)
+                sessions_repointed = open_sessions.update(tutor=new_tutor)
                 student.tutor = new_tutor
                 update_fields.append('tutor')
             student.save(update_fields=update_fields)

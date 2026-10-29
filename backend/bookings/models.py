@@ -16,7 +16,8 @@ Bookings: the public Demo and Diagnostic booking pages book one-hour slots,
 three bookings at most per slot, on a schedule of times of day per booking
 type (SlotTime). A slot on a given date (BookingSlot) exists once someone
 books or closes it. Each booking (Booking) belongs to a lead (Lead): one
-parent's enquiry for one child, matched by phone and student name.
+parent's enquiry for one child, matched by phone and student name. A booking
+is taught one-to-one by the tutor assigned to it (Booking.assigned_tutor).
 bookings.booking_service is the only writer of bookings; the leads a BDE adds
 by hand (their enquiries) are written by bookings.enquiries.
 """
@@ -351,6 +352,25 @@ class Booking(models.Model):
         related_name='cancelled_bookings'
     )
     cancel_reason = models.TextField(blank=True, default='')
+    # The tutor who teaches this booking. Tuition is one-to-one: each booking
+    # is one student's class with its own tutor, and a tutor teaches one
+    # booking at a time (bookings.booking_service.assign_tutor). A cancelled
+    # booking keeps its tutor, as the record of who was to teach it.
+    assigned_tutor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='assigned_bookings'
+    )
+    tutor_assigned_at = models.DateTimeField(null=True, blank=True)
+    tutor_assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tutor_assignments_made'
+    )
 
     class Meta:
         db_table = 'bookings'
@@ -402,9 +422,20 @@ class Booking(models.Model):
                 ),
                 name='bookings_attributed_only_when_attributed',
             ),
+            # A tutor comes with the moment they were assigned. Who assigned
+            # them may since be gone (SET_NULL), but is never kept without a tutor.
+            models.CheckConstraint(
+                condition=(
+                    Q(assigned_tutor__isnull=True, tutor_assigned_at__isnull=True, tutor_assigned_by__isnull=True)
+                    | Q(assigned_tutor__isnull=False, tutor_assigned_at__isnull=False)
+                ),
+                name='bookings_tutor_assignment_fields',
+            ),
         ]
         indexes = [
             models.Index(fields=['attributed_bde', 'created_at'], name='bookings_bde_created_idx'),
+            # A tutor's bookings and their slots: the availability check.
+            models.Index(fields=['assigned_tutor', 'slot'], name='bookings_tutor_slot_idx'),
         ]
 
     def __str__(self):
