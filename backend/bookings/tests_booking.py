@@ -33,7 +33,19 @@ from .booking_service import (
     set_schedule,
 )
 from .leads import InvalidLeadDetails, name_key, normalize_phone
-from .models import Booking, BookingLink, BookingSlot, BookingStatus, BookingType, Lead, ReferralStatus, SlotTime
+from .models import (
+    BOOKING_MODELS,
+    BookingLink,
+    BookingSlot,
+    BookingStatus,
+    BookingType,
+    CancelReason,
+    DemoBooking,
+    Lead,
+    ReferralStatus,
+    SlotTime,
+    booking_model,
+)
 from .scheduling import (
     AVAILABLE,
     BOOKING_TIMEZONE,
@@ -88,6 +100,28 @@ def schedule():
             SlotTime.objects.create(booking_type=booking_type, start_time=at)
 
 
+def make_booking(booking_type=DEMO, **fields):
+    """A booking row of ``booking_type`` written straight to its table, as a test needs one."""
+    return booking_model(booking_type).objects.create(**fields)
+
+
+def all_bookings(**filters):
+    """Every booking, of both types, matching ``filters``."""
+    return [booking for model in BOOKING_MODELS for booking in model.objects.filter(**filters)]
+
+
+def booking_count(**filters):
+    """How many bookings, of both types, match ``filters``."""
+    return sum(model.objects.filter(**filters).count() for model in BOOKING_MODELS)
+
+
+def get_booking(**filters):
+    """The one booking, of either type, matching ``filters``."""
+    found = all_bookings(**filters)
+    assert len(found) == 1, f'{len(found)} bookings match {filters}'
+    return found[0]
+
+
 class BookingTestCase(TestCase):
     def setUp(self):
         schedule()
@@ -110,9 +144,9 @@ class ConstraintTests(BookingTestCase):
         return Lead.objects.create(**values)
 
     def booking(self, slot, lead, seat=1, **fields):
-        values = dict(booking_type=DEMO, lead=lead, slot=slot, seat=seat, referral_status=ReferralStatus.NO_REF)
+        values = dict(lead=lead, slot=slot, seat=seat, referral_status=ReferralStatus.NO_REF)
         values.update(fields)
-        return Booking.objects.create(**values)
+        return make_booking(**values)
 
     def assertRefused(self, create):
         with self.assertRaises(IntegrityError), transaction.atomic():
@@ -131,7 +165,7 @@ class ConstraintTests(BookingTestCase):
         self.assertRefused(lambda: self.booking(slot, riya, seat=2))
         self.assertRefused(lambda: self.booking(slot, ali, seat=4))
         # A cancelled booking frees both its seat and its lead's place.
-        Booking.objects.filter(pk=first.pk).update(status=CANCELLED, cancelled_at=timezone.now())
+        DemoBooking.objects.filter(pk=first.pk).update(status=CANCELLED, cancelled_at=timezone.now(), cancel_reason_code='OTHER')
         self.booking(slot, riya, seat=1)
 
     def test_cancellation_and_referral_fields_agree_with_the_status(self):
@@ -248,6 +282,18 @@ class LeadTests(BookingTestCase):
         self.assertEqual(Lead.objects.get(pk=riya.lead_id).school_name, 'New School')
         self.assertEqual(Lead.objects.count(), 2)
 
+    def test_a_later_booking_never_replaces_the_syllabus_a_lead_has(self):
+        diagnostic, _ = book(booking_type=DIAGNOSTIC, syllabus='IGCSE')
+        demo, _ = book(at=MORNING, syllabus='CBSE', school='New School')
+        self.assertEqual(demo.lead_id, diagnostic.lead_id)
+        lead = Lead.objects.get(pk=demo.lead_id)
+        # The other details follow the latest booking; the booking keeps what it was sent.
+        self.assertEqual((lead.syllabus, lead.school_name, demo.details['syllabus']), ('IGCSE', 'New School', 'CBSE'))
+        # A lead without one (an enquiry added by hand) takes the first a booking sends.
+        Lead.objects.filter(pk=lead.pk).update(syllabus='')
+        book(booking_type=DIAGNOSTIC, at=MORNING, syllabus='IB')
+        self.assertEqual(Lead.objects.get(pk=lead.pk).syllabus, 'IB')
+
 
 class AttributionTests(BookingTestCase):
     def test_every_outcome(self):
@@ -297,13 +343,13 @@ class BookingServiceTests(BookingTestCase):
         again, created = book(phone='501234567')
         self.assertFalse(created)
         self.assertEqual(again.pk, first.pk)
-        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(booking_count(), 1)
 
     def test_three_bookings_fill_a_slot_and_a_fourth_is_refused(self):
         self.assertEqual([book(student=name)[0].seat for name in ('A', 'B', 'C')], [1, 2, 3])
         with self.assertRaises(SlotFull):
             book(student='D')
-        self.assertEqual(Booking.objects.filter(status=BOOKED).count(), 3)
+        self.assertEqual(booking_count(status=BOOKED), 3)
         # The refused booking left no lead behind.
         self.assertFalse(Lead.objects.filter(student_name='D').exists())
 
@@ -311,17 +357,17 @@ class BookingServiceTests(BookingTestCase):
         first, _ = book(student='A')
         book(student='B')
         book(student='C')
-        cancelled, changed = cancel_booking(first, reason='Parent asked')
+        cancelled, changed = cancel_booking(first, reason_code=CancelReason.PARENT_REQUEST)
         self.assertTrue(changed)
-        self.assertEqual((cancelled.status, cancelled.cancel_reason), (CANCELLED, 'Parent asked'))
-        self.assertFalse(cancel_booking(first)[1])
+        self.assertEqual((cancelled.status, cancelled.cancel_reason_code), (CANCELLED, 'PARENT_REQUEST'))
+        self.assertFalse(cancel_booking(first, reason_code=CancelReason.OTHER)[1])
         self.assertEqual(book(student='D')[0].seat, 1)
-        self.assertEqual(Booking.objects.count(), 4)
-        self.assertEqual(Booking.objects.filter(status=BOOKED).count(), 3)
+        self.assertEqual(booking_count(), 4)
+        self.assertEqual(booking_count(status=BOOKED), 3)
 
     def test_a_cancelled_child_may_book_the_same_slot_again(self):
         first, _ = book(at=MORNING)
-        cancel_booking(first)
+        cancel_booking(first, reason_code=CancelReason.OTHER)
         again, created = book(at=MORNING)
         self.assertTrue(created)
         self.assertNotEqual(again.pk, first.pk)
@@ -373,7 +419,7 @@ class BookingServiceTests(BookingTestCase):
 
     def test_the_activity_log_names_no_one(self):
         booking, _ = book(ref=self.demo.token)
-        cancel_booking(booking, actor=account('admin_one', role='ADMIN'), reason='Duplicate')
+        cancel_booking(booking, actor=account('admin_one', role='ADMIN'), reason_code=CancelReason.DUPLICATE)
         created = ActivityLog.objects.get(action='booking.create')
         self.assertEqual((created.entity_type, created.entity_id), ('booking', str(booking.id)))
         self.assertEqual(created.entity_label, 'Demo · 28 Oct 2026, 19:30 IST')
@@ -461,20 +507,20 @@ class ConcurrentBookingTests(TransactionTestCase):
         outcomes = self.race([request(student=f'Child {i}') for i in range(6)])
         self.assertEqual(self.kinds(outcomes), ['created'] * 3 + ['full'] * 3, outcomes)
         self.assertEqual(BookingSlot.objects.count(), 1)
-        self.assertEqual(sorted(Booking.objects.values_list('seat', flat=True)), [1, 2, 3])
+        self.assertEqual(sorted(booking.seat for booking in all_bookings()), [1, 2, 3])
 
     def test_four_requests_for_the_last_seat(self):
         create_booking(request(student='A'), now=NOW)
         create_booking(request(student='B'), now=NOW)
         outcomes = self.race([request(student=f'Late {i}') for i in range(4)])
         self.assertEqual(self.kinds(outcomes), ['created'] + ['full'] * 3, outcomes)
-        self.assertEqual(Booking.objects.filter(status=BOOKED).count(), 3)
+        self.assertEqual(booking_count(status=BOOKED), 3)
 
     def test_identical_submissions_make_one_booking(self):
         outcomes = self.race([request() for _ in range(4)])
         self.assertEqual(self.kinds(outcomes), ['created'] + ['replay'] * 3, outcomes)
         self.assertEqual(len({pk for _, pk in outcomes}), 1)
-        self.assertEqual((Booking.objects.count(), Lead.objects.count()), (1, 1))
+        self.assertEqual((booking_count(), Lead.objects.count()), (1, 1))
 
     def test_a_slot_locked_too_long_answers_busy(self):
         create_booking(request(student='A'), now=NOW)
@@ -499,7 +545,7 @@ class ConcurrentBookingTests(TransactionTestCase):
         finally:
             release.set()
             holder.join(timeout=15)
-        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(booking_count(), 1)
 
     def test_two_bdes_racing_for_a_new_lead(self):
         first, second = account('bde_one'), account('bde_two')
@@ -508,4 +554,4 @@ class ConcurrentBookingTests(TransactionTestCase):
         lead = Lead.objects.get()
         self.assertIn(lead.owner_bde, (first, second))
         self.assertEqual(lead.owner_link.bde, lead.owner_bde)
-        self.assertEqual({booking.attributed_bde for booking in Booking.objects.all()}, {first, second})
+        self.assertEqual({booking.attributed_bde for booking in all_bookings()}, {first, second})

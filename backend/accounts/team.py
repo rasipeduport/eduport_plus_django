@@ -171,7 +171,7 @@ def upcoming_booking_refusal(account, action):
     what to do. The caller holds the account's row lock, which
     bookings.booking_service.assign_tutor takes too.
     """
-    assigned = upcoming_assignments(account).count()
+    assigned = len(upcoming_assignments(account))
     if not assigned:
         return None
     return (

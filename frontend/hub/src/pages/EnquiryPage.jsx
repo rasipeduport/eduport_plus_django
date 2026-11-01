@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 
 import api from '@/lib/api';
-import { enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
+import { bdeBookingCancelUrl } from '@/lib/bookings';
+import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
+import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 
 function Field({ label, children }) {
   return (
@@ -35,10 +37,17 @@ function Field({ label, children }) {
 
 function bookingState(booking) {
   if (booking.status === 'CANCELLED') return { label: 'Cancelled', variant: 'outline' };
+  if (booking.status === 'RESCHEDULED') return { label: 'Rescheduled', variant: 'outline' };
+  if (booking.status === 'COMPLETED') return { label: 'Completed', variant: 'secondary' };
   return booking.ended ? { label: 'Done', variant: 'secondary' } : { label: 'Upcoming', variant: 'success' };
 }
 
-function BookingsPanel({ bookings }) {
+/**
+ * The enquiry's bookings. Its owner BDE may cancel one that is still booked
+ * (Q22) -- the API says which in each booking's `actions` and checks again,
+ * that the lead is theirs, on every request.
+ */
+function BookingsPanel({ bookings, onCancel }) {
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
       {bookings.length === 0 ? (
@@ -56,6 +65,9 @@ function BookingsPanel({ bookings }) {
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Booked on</TableHead>
+                <TableHead className="w-px">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,6 +83,18 @@ function BookingsPanel({ bookings }) {
                       <Badge variant={state.variant}>{state.label}</Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">{formatDay(booking.booked_at)}</TableCell>
+                    <TableCell>
+                      {booking.actions?.cancel ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onCancel(booking)}
+                          aria-label={`Cancel the ${bookingTypeLabel(booking.booking_type).toLowerCase()} on ${slotLabel(booking)}`}
+                        >
+                          Cancel
+                        </Button>
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -120,6 +144,8 @@ export default function EnquiryPage() {
   const [enquiry, setEnquiry] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [cancelling, setCancelling] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -219,7 +245,12 @@ export default function EnquiryPage() {
           </Panel>
         </div>
 
-        <BookingsPanel bookings={enquiry.bookings ?? []} />
+        <BookingsPanel
+          bookings={enquiry.bookings ?? []}
+          onCancel={(booking) =>
+            setCancelling({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
+          }
+        />
       </div>
     );
   }
@@ -232,7 +263,27 @@ export default function EnquiryPage() {
           My Enquiries
         </Link>
       </Button>
+      {notice ? (
+        <p role="status" className="bg-success/10 text-success mb-4 rounded-md px-3 py-2 text-sm">
+          {notice}
+        </p>
+      ) : null}
       {content}
+      <CancelBookingDialog
+        booking={cancelling}
+        open={Boolean(cancelling)}
+        onOpenChange={(open) => {
+          if (!open) setCancelling(null);
+        }}
+        cancelUrl={(booking) => bdeBookingCancelUrl(booking.booking_type, booking.id)}
+        onCancelled={(updated) => {
+          // The API answers the enquiry as it now stands.
+          setEnquiry(updated);
+          setNotice(
+            `Cancelled ${updated.student_name}'s ${bookingTypeLabel(cancelling.booking_type).toLowerCase()} on ${slotLabel(cancelling.slot)}.`
+          );
+        }}
+      />
     </div>
   );
 }

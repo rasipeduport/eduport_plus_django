@@ -32,9 +32,9 @@ from bookings.booking_service import (
     create_booking,
     unassign_tutor,
 )
-from bookings.models import Booking
+from bookings.models import CancelReason, DemoBooking
 from bookings.scheduling import indian_today
-from bookings.tests_booking import request as booking_request
+from bookings.tests_booking import all_bookings, request as booking_request
 from students import views as student_views
 
 from .models import Session, SessionStatusChoices
@@ -225,7 +225,7 @@ class DepartingTutorBookingTests(BookingWorld, APITestCase):
         self.assertEqual(self.client.patch(team_url(self.tutor_c), {"role": "MENTOR"}, format='json').status_code, status.HTTP_200_OK)
 
     def test_cancelled_and_past_bookings_do_not_hold_the_account(self):
-        cancel_booking(self.demo, actor=self.admin)
+        cancel_booking(self.demo, actor=self.admin, reason_code=CancelReason.OTHER)
         # A Demo taught last week: booked, assigned, and over.
         last_week = timezone.now() - timedelta(days=7)
         past_day = indian_today(last_week) + timedelta(days=1)
@@ -233,7 +233,7 @@ class DepartingTutorBookingTests(BookingWorld, APITestCase):
         assign_tutor(past, self.tutor_c, actor=self.admin, now=last_week)
         self.assertEqual(self.deactivate(self.tutor_c).status_code, status.HTTP_200_OK)
         # Both keep their tutor as history.
-        self.assertEqual(set(Booking.objects.values_list('assigned_tutor', flat=True)), {self.tutor_c.id})
+        self.assertEqual({booking.assigned_tutor_id for booking in all_bookings()}, {self.tutor_c.id})
 
     def test_a_tutor_without_bookings_deactivates_as_before(self):
         self.assertEqual(self.deactivate(self.tutor_b).status_code, status.HTTP_409_CONFLICT)  # Tom is still Binu's: HANDOVER_REQUIRED
@@ -378,7 +378,7 @@ class ConcurrentHandoverTests(HandoverWorld, TransactionTestCase):
             )
         self.assertIn(results, ({'reassign': 200, 'assign': 'unavailable'}, {'reassign': 409, 'assign': 'assigned'}), results)
         binu_class = Session.objects.filter(pk=clash.pk, tutor=self.tutor_b).exists()
-        binu_demo = Booking.objects.filter(pk=self.demo.pk, assigned_tutor=self.tutor_b).exists()
+        binu_demo = DemoBooking.objects.filter(pk=self.demo.pk, assigned_tutor=self.tutor_b).exists()
         self.assertNotEqual(binu_class, binu_demo)
 
     def test_a_student_reassignment_racing_a_class_for_the_new_tutor(self):
@@ -417,4 +417,4 @@ class ConcurrentHandoverTests(HandoverWorld, TransactionTestCase):
         self.assertIn(results, ({'deactivate': 200, 'assign': 'not assignable'}, {'deactivate': 409, 'assign': 'assigned'}), results)
         free.refresh_from_db()
         # Never a deactivated account holding an upcoming booking.
-        self.assertFalse(free.deactivated_at is not None and Booking.objects.filter(pk=self.demo.pk, assigned_tutor=free).exists())
+        self.assertFalse(free.deactivated_at is not None and DemoBooking.objects.filter(pk=self.demo.pk, assigned_tutor=free).exists())

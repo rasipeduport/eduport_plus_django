@@ -155,7 +155,9 @@ const BDE_DASHBOARD = { status: 200, body: { timezone: 'Asia/Kolkata', enquiries
 const BDE_ENQUIRIES = { status: 200, body: { results: [ENQUIRY_ROW], count: 1, page: 1, page_size: 25 } };
 const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+971', phone_number: '501234567',
   school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', created_at: '2026-10-27T09:00:00+05:30',
-  timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null }] } };
+  timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null,
+    // What the API offers the owner BDE (P3, Q22): cancel it; No-show once its slot starts.
+    actions: { cancel: true, no_show: false } }] } };
 const NOT_A_BDE = { status: 403, body: { error: 'NOT_A_BDE', message: 'Enquiries belong to BDE accounts, and this account is not one.' } };
 function asSuperuserAfterEnquiries(answers) {
   const me = answers['/api/auth/me/'];
@@ -172,12 +174,15 @@ function asSuperuserAfterEnquiries(answers) {
 // Booking management (Phase 3, on the Phase 2 API), laid over the same
 // recorded answers: accounts.view_all_bookings and accounts.assign_booking_tutor,
 // which the administrator's role group carries and a superuser holds (D1).
-// They are served every booking (one with no tutor yet, one assigned) and one
-// booking in full, on fixed dates, so nothing shown moves with the clock.
+// Each type is its own list since the Diagnostic/Demo split: they are served
+// the Demo list the page opens on (one booking with no tutor yet, one
+// assigned), an empty Diagnostic list and one Demo booking in full, on fixed
+// dates, so nothing shown moves with the clock.
 const VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings';
 const ASSIGN_BOOKING_TUTOR = 'accounts.assign_booking_tutor';
 const BOOKING_ID = '7c0b6a52-3e1d-4f8a-9b2c-5d4e3f2a1b0c';
-const BOOKINGS_PATH = '/api/bookings/';
+const BOOKINGS_PATH = '/api/bookings/demo/';
+const DIAGNOSTIC_BOOKINGS_PATH = '/api/bookings/diagnostic/';
 const BOOKING_PATH = `${BOOKINGS_PATH}${BOOKING_ID}/`;
 const bookingSlot = (id, booking_type, date, time, starts_at, ends_at) => ({ id, booking_type, date, time, starts_at, ends_at,
   started: false, ended: false });
@@ -185,8 +190,8 @@ const UNASSIGNED_BOOKING = { id: BOOKING_ID, booking_type: 'DEMO', status: 'BOOK
   slot: bookingSlot('1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b', 'DEMO', '2026-10-31', '19:30', '2026-10-31T14:00:00+00:00', '2026-10-31T15:00:00+00:00'),
   student_name: 'Riya', grade: 'Class 8', parent_name: 'Asha Nair', phone: '+971 501234567', tutor: null, bde: null,
   booked_at: '2026-10-28T09:00:00+00:00' };
-const ASSIGNED_BOOKING = { id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', booking_type: 'DIAGNOSTIC', status: 'BOOKED',
-  slot: bookingSlot('2a3b4c5d-6e7f-4809-9a1b-2c3d4e5f6a7b', 'DIAGNOSTIC', '2026-11-01', '10:00', '2026-11-01T04:30:00+00:00', '2026-11-01T05:30:00+00:00'),
+const ASSIGNED_BOOKING = { id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d', booking_type: 'DEMO', status: 'BOOKED',
+  slot: bookingSlot('2a3b4c5d-6e7f-4809-9a1b-2c3d4e5f6a7b', 'DEMO', '2026-11-01', '10:00', '2026-11-01T04:30:00+00:00', '2026-11-01T05:30:00+00:00'),
   student_name: 'Ali', grade: 'Class 9', parent_name: 'Sara Khan', phone: '+91 9800000002',
   tutor: { id: '3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f', full_name: 'Tutor A' }, bde: null, booked_at: '2026-10-28T10:00:00+00:00' };
 const BOOKINGS_LIST = { status: 200, body: { results: [UNASSIGNED_BOOKING, ASSIGNED_BOOKING], count: 2, page: 1, page_size: 25,
@@ -195,7 +200,10 @@ const BOOKING_DETAIL = { status: 200, body: { ...UNASSIGNED_BOOKING, timezone: '
   lead: { id: '4d5e6f7a-8b9c-4d0e-9f1a-2b3c4d5e6f7a', phone_dial_code: '+971', phone_number: '501234567',
     school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', source: 'BOOKING_PAGE', owner_bde: null },
   referral_status: 'NO_REF', tutor_assigned_at: null, tutor_assigned_by: null, tutor_changeable: true, tutor_change_refusal: null,
-  cancelled_at: null, cancelled_by: null, cancel_reason: '' } };
+  cancelled_at: null, cancelled_by: null, cancel_reason: '', cancel_reason_code: '', rescheduled_at: null, rescheduled_by: null,
+  reschedule_reason: '', reschedule_reason_code: '', rescheduled_from: null, rescheduled_to: null,
+  // What the API offers an administrator for this booking (P3): cancel and move it; No-show once its slot starts.
+  actions: { cancel: true, no_show: false, reschedule: true } } };
 function withBookings(answers) {
   const me = answers['/api/auth/me/'];
   const permissions = [...me.body.user.permissions, ASSIGN_BOOKING_TUTOR, VIEW_ALL_BOOKINGS].sort();
@@ -203,6 +211,7 @@ function withBookings(answers) {
     ...answers,
     '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
     [BOOKINGS_PATH]: BOOKINGS_LIST,
+    [DIAGNOSTIC_BOOKINGS_PATH]: { status: 200, body: { ...BOOKINGS_LIST.body, results: [], count: 0 } },
     [BOOKING_PATH]: BOOKING_DETAIL,
   };
 }
@@ -212,11 +221,12 @@ function withBookings(answers) {
 // role group carries and a superuser holds (D1) -- the Hub still opens the
 // page for the TUTOR role only. The tutors are served their own bookings (one
 // upcoming, one cancelled) and one in full, on fixed dates; a superuser, who
-// teaches none, is served the empty list the API answers.
+// teaches none, is served the empty list the API answers. A booking is opened
+// by its type and its id (?booking=<id>&booking_type=DEMO).
 const VIEW_ASSIGNED_BOOKINGS = 'accounts.view_assigned_bookings';
 const MY_BOOKING_ID = '6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c2d';
 const MY_BOOKINGS_PATH = '/api/tutor/bookings/';
-const MY_BOOKING_PATH = `${MY_BOOKINGS_PATH}${MY_BOOKING_ID}/`;
+const MY_BOOKING_PATH = `${MY_BOOKINGS_PATH}demo/${MY_BOOKING_ID}/`;
 const mySlot = (date, time, starts_at, ends_at) => ({ date, time, starts_at, ends_at, started: false, ended: false });
 const MY_BOOKING = { id: MY_BOOKING_ID, booking_type: 'DEMO', status: 'BOOKED',
   slot: mySlot('2026-10-31', '19:30', '2026-10-31T14:00:00+00:00', '2026-10-31T15:00:00+00:00'),
@@ -252,7 +262,9 @@ const CALLERS = {
   bde: {
     answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS, [BDE_DASHBOARD_PATH]: BDE_DASHBOARD,
       [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY },
-    me: fakeMe('BDE', [ADD_ENQUIRY, VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES]),
+    // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
+    me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', 'accounts.create_demo_booking', 'accounts.manage_own_conversion',
+      'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, 'accounts.view_own_lead_reports']),
   },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };
@@ -263,7 +275,7 @@ const PATHS = [
   `/students/${ids.stu_b}`, '/sessions', `/sessions?student_id=${a}`, '/exams', `/exams?student_id=${a}`, '/homework',
   '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
   `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/enquiries', `/enquiries/${ENQUIRY_ID}`, '/admins', '/nowhere',
-  '/bookings', `/bookings?booking=${BOOKING_ID}`, '/my-bookings', `/my-bookings?booking=${MY_BOOKING_ID}`,
+  '/bookings', `/bookings?booking=${BOOKING_ID}`, '/my-bookings', `/my-bookings?booking=${MY_BOOKING_ID}&booking_type=DEMO`,
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a' };

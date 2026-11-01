@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 
-from .booking_service import cancel_booking
-from .models import Booking, BookingSlot, BookingStatus, Lead, SlotTime
+from .booking_service import BookingError, cancel_booking
+from .models import BookingEvent, BookingSlot, CancelReason, DemoBooking, DiagnosticBooking, Lead, SlotTime
 
 
 class ReadOnlyAdmin(admin.ModelAdmin):
@@ -42,22 +42,60 @@ class LeadAdmin(ReadOnlyAdmin):
     list_select_related = ('owner_bde',)
 
 
-@admin.register(Booking)
 class BookingAdmin(ReadOnlyAdmin):
-    # The assigned tutor is shown, never set here: assignments are made by
-    # booking_service.assign_tutor, which checks the tutor is free.
+    """
+    One booking table (Diagnostic or Demo). The assigned tutor is shown, never
+    set here: assignments are made by booking_service.assign_tutor, which
+    checks the tutor is free.
+    """
     list_display = (
-        'booking_type', 'slot', 'lead', 'seat', 'status', 'assigned_tutor', 'referral_status', 'attributed_bde',
-        'created_at',
+        'slot', 'lead', 'seat', 'status', 'channel', 'assigned_tutor', 'referral_status', 'attributed_bde', 'created_at',
     )
-    list_filter = ('booking_type', 'status', 'referral_status')
+    list_filter = ('status', 'channel', 'referral_status')
     list_select_related = ('slot', 'lead', 'assigned_tutor', 'attributed_bde')
-    actions = ['cancel_selected']
+    actions = ['cancel_selected', 'mark_selected_no_show']
 
-    @admin.action(description='Cancel selected bookings')
+    @admin.action(description='Cancel selected bookings (reason: Other)')
     def cancel_selected(self, request, queryset):
-        cancelled = 0
-        for booking in queryset.filter(status=BookingStatus.BOOKED):
-            _booking, changed = cancel_booking(booking, actor=request.user, reason='Cancelled in the Django admin.')
-            cancelled += int(changed)
-        self.message_user(request, f'Cancelled {cancelled} booking(s).', messages.SUCCESS)
+        self._cancel(request, queryset, CancelReason.OTHER)
+
+    @admin.action(description='Mark selected bookings as No-show (started slots only)')
+    def mark_selected_no_show(self, request, queryset):
+        self._cancel(request, queryset, CancelReason.NO_SHOW)
+
+    def _cancel(self, request, queryset, reason_code):
+        # Only booked bookings: a completed or rescheduled one can no longer be
+        # cancelled, and No-show waits for the slot to start -- the service
+        # refuses both too. The reason is a code, never free text (M1).
+        cancelled, skipped = 0, 0
+        for booking in queryset:
+            try:
+                _booking, changed = cancel_booking(booking, reason_code=reason_code, actor=request.user)
+            except BookingError:
+                changed = False
+            if changed:
+                cancelled += 1
+            else:
+                skipped += 1
+        message = f'Cancelled {cancelled} booking(s).'
+        if skipped:
+            message += f' Skipped {skipped} that could not be cancelled this way.'
+        self.message_user(request, message, messages.SUCCESS)
+
+
+@admin.register(DiagnosticBooking)
+class DiagnosticBookingAdmin(BookingAdmin):
+    pass
+
+
+@admin.register(DemoBooking)
+class DemoBookingAdmin(BookingAdmin):
+    pass
+
+
+@admin.register(BookingEvent)
+class BookingEventAdmin(ReadOnlyAdmin):
+    # Never a name or phone number: the event's data holds ids and values only.
+    list_display = ('created_at', 'kind', 'diagnostic_booking', 'demo_booking', 'actor')
+    list_filter = ('kind',)
+    list_select_related = ('diagnostic_booking', 'demo_booking', 'actor')

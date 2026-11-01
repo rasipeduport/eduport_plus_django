@@ -25,7 +25,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from bookings import booking_service
 from bookings.booking_service import CONFLICT_SESSION, TutorUnavailable, assign_tutor, cancel_booking, create_booking
-from bookings.models import Booking, BookingType, SlotTime
+from bookings.models import BookingType, CancelReason, DemoBooking, SlotTime
 from bookings.scheduling import BOOKING_TIMEZONE, indian_today
 from bookings.tests_booking import request as booking_request
 from students.models import StatusChoices, Student
@@ -169,7 +169,7 @@ class SessionsAgainstBookingsTests(BookingWorld, APITestCase):
         self.booking('Ali', booking_type=DIAGNOSTIC, at=AFTERNOON)
         self.assertEqual(self.post_class(self.student_a, '16:00').status_code, status.HTTP_200_OK)
         # Cancelled, the Demo keeps Anu as its record but no longer holds her time.
-        cancel_booking(self.demo, actor=self.admin, reason='Parent cancelled')
+        cancel_booking(self.demo, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
         self.assertEqual(self.post_class(self.student_a, '19:30').status_code, status.HTTP_200_OK)
 
     # ------------------------------------------------- changing a class
@@ -318,7 +318,7 @@ class ConcurrentCommitmentTests(BookingWorld, TransactionTestCase):
 
     def assertOneCommitment(self, results, session_ok):
         self.assertIn(results, ({'session': 200, 'assignment': 'unavailable'}, {'session': 409, 'assignment': 'assigned'}), results)
-        assigned = Booking.objects.filter(pk=self.demo.pk, assigned_tutor=self.tutor_a).exists()
+        assigned = DemoBooking.objects.filter(pk=self.demo.pk, assigned_tutor=self.tutor_a).exists()
         self.assertEqual(assigned, results['assignment'] == 'assigned')
         self.assertEqual(session_ok(), results['session'] == 200)
 

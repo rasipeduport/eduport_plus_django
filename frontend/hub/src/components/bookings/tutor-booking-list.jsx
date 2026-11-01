@@ -117,7 +117,7 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onOpen(booking.id)}
+                          onClick={() => onOpen(booking)}
                           aria-label={`View the booking for ${booking.student_name}`}
                         >
                           View

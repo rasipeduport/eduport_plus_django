@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { apiErrorMessage } from '@/lib/api-errors';
+import { bookingPagePath } from '@/lib/bookings';
 import { formatDateInZone, formatShortDateInZone, formatTimeInZone, utcToZonedWallTime } from '@/lib/timezone';
 import { FormDialog } from '@/components/form-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -175,6 +176,33 @@ function StatusSelect({ slot, disabled, onChoose }) {
   );
 }
 
+/**
+ * The bookings holding a slot's seats, in seat order, each a link to its
+ * detail on the Bookings page. The API lists them only for those who may see
+ * every booking (null otherwise), so the count stands alone for anyone else.
+ */
+function SeatHolders({ slot }) {
+  if (!slot.bookings?.length) return null;
+  return (
+    <ul className="mt-1 flex flex-col gap-0.5 text-xs">
+      {slot.bookings.map((booking) => {
+        const label = `Seat ${booking.seat}: ${booking.student_name}${booking.status === 'COMPLETED' ? ' (Completed)' : ''}`;
+        return (
+          <li key={booking.id}>
+            <Link
+              to={bookingPagePath(booking.booking_type, booking.id)}
+              aria-label={`${label}, ${slotLabel(slot)}: open the booking`}
+              className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            >
+              {label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function SlotsSkeleton() {
   return (
     <div className="flex flex-col gap-2" aria-busy="true">
@@ -297,8 +325,9 @@ function StatusChangeDialog({ change, typeLabel, date, onConfirm, onOpenChange }
  * Available, Filling Fast, Only a Few Left and Fully Booked follow the
  * bookings; an administrator can only set a slot to Fully Booked (closing
  * it: it keeps its bookings and takes no new one) or put it back on the
- * status its bookings give it. The booking type and date live in the URL
- * (?type=demo&date=2026-10-29), so a view can be linked.
+ * status its bookings give it. Each booked seat links to its booking on the
+ * Bookings page, for those who may see every booking. The booking type and
+ * date live in the URL (?type=demo&date=2026-10-29), so a view can be linked.
  */
 export default function BookingSlotsPage() {
   const [params, setParams] = useSearchParams();
@@ -446,6 +475,7 @@ export default function BookingSlotsPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">
                       {slot.booked} / {slot.capacity}
+                      <SeatHolders slot={slot} />
                     </TableCell>
                     <TableCell>
                       <StatusBadge slot={slot} />

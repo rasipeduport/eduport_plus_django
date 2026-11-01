@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from activity.models import ActivityLog
 
 from .booking_service import BookingRequest, create_booking
-from .models import Booking, BookingLink, BookingSlot, BookingStatus, BookingType, Lead, LeadSource, ReferralStatus, SlotTime
+from .models import BookingLink, BookingSlot, BookingStatus, BookingType, Lead, LeadSource, ReferralStatus, SlotTime, booking_model
 from .scheduling import BOOKING_TIMEZONE, booking_window, slot_instants
 
 User = get_user_model()
@@ -48,11 +48,13 @@ def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED):
         booking_type=booking_type, local_date=local_date, local_time=EVENING,
         defaults={'starts_at': starts_at, 'ends_at': ends_at},
     )
-    seat = slot.bookings.filter(status=BookingStatus.BOOKED).count() + 1
-    cancelled = status == BookingStatus.CANCELLED
-    return Booking.objects.create(
-        booking_type=booking_type, lead=of, slot=slot, seat=seat, status=status,
-        referral_status=ReferralStatus.NO_REF, cancelled_at=timezone.now() if cancelled else None,
+    model = booking_model(booking_type)
+    seat = model.objects.filter(slot=slot, status=BookingStatus.BOOKED).count() + 1
+    cancelled, moved = status == BookingStatus.CANCELLED, status == BookingStatus.RESCHEDULED
+    return model.objects.create(
+        lead=of, slot=slot, seat=seat, status=status, referral_status=ReferralStatus.NO_REF,
+        cancelled_at=timezone.now() if cancelled else None, cancel_reason_code='OTHER' if cancelled else '',
+        rescheduled_at=timezone.now() if moved else None, reschedule_reason_code='OTHER' if moved else '',
     )
 
 
@@ -103,7 +105,7 @@ class ScopeTests(EnquiryTestCase):
         mine = lead(self.bde, 'Riya')
         booking(mine, 2)
         cancelled = booking(mine, 3, DIAGNOSTIC, status=BookingStatus.CANCELLED)
-        Booking.objects.filter(pk=cancelled.pk).update(cancel_reason='Parent asked', cancelled_by=self.other_bde)
+        type(cancelled).objects.filter(pk=cancelled.pk).update(cancel_reason='Parent asked', cancelled_by=self.other_bde)
 
         response = self.client.get(f'{ENQUIRIES}{mine.id}/')
         self.assertEqual(response.status_code, 200)
@@ -112,8 +114,9 @@ class ScopeTests(EnquiryTestCase):
         self.assertEqual(data['phone'], '+971 501234567')
         self.assertEqual([b['status'] for b in data['bookings']], ['CANCELLED', 'BOOKED'])
         for row in data['bookings']:
+            # What the owner BDE may do with it (Q22), but never who cancelled it or why.
             self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'ended',
-                                        'booked_at', 'cancelled_at'})
+                                        'booked_at', 'cancelled_at', 'actions'})
         self.assertNotIn('Parent asked', response.content.decode())
         self.assertNotIn('owner_bde', data)
 
@@ -143,6 +146,21 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual(booked['next_booking']['time'], '19:30')
         self.assertEqual((rows[str(self.done.id)]['status'], rows[str(self.done.id)]['status_label']), ('DONE', 'Booking done'))
         self.assertEqual(rows[str(self.cancelled.id)]['status'], 'CANCELLED')
+
+    def test_a_rescheduled_booking_never_decides_the_status(self):
+        moved_then_booked = lead(self.bde, 'Moved On', phone='501000005')
+        booking(moved_then_booked, 1, status=BookingStatus.RESCHEDULED)
+        booking(moved_then_booked, 3)
+        moved_then_cancelled = lead(self.bde, 'Moved Off', phone='501000006')
+        booking(moved_then_cancelled, 1, status=BookingStatus.RESCHEDULED)
+        booking(moved_then_cancelled, 3, status=BookingStatus.CANCELLED)
+        # Only moved bookings, the replacement missing (a reschedule never leaves this): no booking held, not cancelled.
+        moved_only = lead(self.bde, 'Moved Only', phone='501000007')
+        booking(moved_only, 1, status=BookingStatus.RESCHEDULED)
+        rows = {row['id']: row['status'] for row in self.client.get(ENQUIRIES).json()['results']}
+        self.assertEqual((rows[str(moved_then_booked.id)], rows[str(moved_then_cancelled.id)], rows[str(moved_only.id)]),
+                         ('BOOKED', 'CANCELLED', 'NEW'))
+        self.assertNotIn(str(moved_only.id), self.ids(self.client.get(ENQUIRIES, {'status': 'cancelled'})))
 
     def test_status_filter(self):
         expected = {'NEW': self.new, 'BOOKED': self.booked, 'DONE': self.done, 'CANCELLED': self.cancelled}

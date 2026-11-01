@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeable } from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
+import { BookingHistory } from './booking-history';
 import { BookingStateBadge, TutorName } from './booking-badges';
 
 function Section({ title, action, children }) {
@@ -33,6 +34,17 @@ function Detail({ label, children }) {
   );
 }
 
+function ChainLink({ link, onOpen, label }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span>{slotLabel(link.slot)}</span>
+      <Button variant="link" size="sm" className="h-auto p-0" onClick={() => onOpen?.(link.id)} aria-label={label}>
+        Open
+      </Button>
+    </span>
+  );
+}
+
 function DetailSkeleton() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true">
@@ -44,14 +56,30 @@ function DetailSkeleton() {
 }
 
 /**
- * One booking in full (GET /api/bookings/<id>/): its tutor first -- with
+ * One booking in full (GET /api/bookings/<type>/<id>/, `bookingType` being
+ * the page's tab), with Reschedule and Cancel booking when the API's
+ * `actions` allow them (the page's dialogs, `onReschedule` / `onCancel`), the
+ * bookings before and after it when it was moved (`onOpenBooking`), and its
+ * history on request. Its tutor first -- with
  * Assign / Change and Unassign for holders of accounts.assign_booking_tutor
  * while the booking is booked and its slot has not started -- then the slot,
  * the child, the parent and any cancellation. Only what the API returns is
  * shown. Assigning opens the page's tutor dialog (`onAssign`); unassigning
- * happens here, confirmed first (DELETE /api/bookings/<id>/tutor/).
+ * happens here, confirmed first (DELETE /api/bookings/<type>/<id>/tutor/).
  */
-export function BookingDetailSheet({ bookingId, open, onOpenChange, canAssign, reloadKey, onAssign, onChanged }) {
+export function BookingDetailSheet({
+  bookingType,
+  bookingId,
+  open,
+  onOpenChange,
+  canAssign,
+  reloadKey,
+  onAssign,
+  onChanged,
+  onReschedule,
+  onCancel,
+  onOpenBooking,
+}) {
   const [booking, setBooking] = useState(null);
   const [failure, setFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -60,11 +88,11 @@ export function BookingDetailSheet({ bookingId, open, onOpenChange, canAssign, r
   const [unassigning, setUnassigning] = useState(false);
 
   useEffect(() => {
-    if (!open || !bookingId) return undefined;
+    if (!open || !bookingId || !bookingType) return undefined;
     let active = true;
     setFailure(null);
     api
-      .get(bookingUrl(bookingId))
+      .get(bookingUrl(bookingType, bookingId))
       .then((response) => {
         if (active) setBooking(response.data);
       })
@@ -74,16 +102,16 @@ export function BookingDetailSheet({ bookingId, open, onOpenChange, canAssign, r
     return () => {
       active = false;
     };
-  }, [open, bookingId, reloadKey, retryKey]);
+  }, [open, bookingType, bookingId, reloadKey, retryKey]);
 
   // Nothing of another booking shows while this one loads.
-  const shown = booking && booking.id === bookingId ? booking : null;
+  const shown = booking && booking.id === bookingId && booking.booking_type === bookingType ? booking : null;
 
   async function unassign() {
     setUnassigning(true);
     setUnassignError(null);
     try {
-      const response = await api.delete(bookingTutorUrl(bookingId));
+      const response = await api.delete(bookingTutorUrl(bookingType, bookingId));
       setBooking(response.data);
       setUnassignOpen(false);
       onChanged?.(response.data);
@@ -150,9 +178,32 @@ export function BookingDetailSheet({ bookingId, open, onOpenChange, canAssign, r
           ) : null}
         </Section>
 
-        <Section title="Booking">
+        <Section
+          title="Booking"
+          action={
+            shown.actions?.reschedule || shown.actions?.cancel ? (
+              <div className="flex gap-2">
+                {shown.actions?.reschedule ? (
+                  <Button variant="outline" size="sm" onClick={() => onReschedule?.(shown)}>
+                    Reschedule
+                  </Button>
+                ) : null}
+                {shown.actions?.cancel ? (
+                  <Button variant="destructive" size="sm" onClick={() => onCancel?.(shown)}>
+                    Cancel booking
+                  </Button>
+                ) : null}
+              </div>
+            ) : null
+          }
+        >
           <Detail label="Type">{bookingTypeLabel(shown.booking_type)}</Detail>
           <Detail label="When">{slotLabel(shown.slot)}</Detail>
+          {shown.rescheduled_from ? (
+            <Detail label="Moved from">
+              <ChainLink link={shown.rescheduled_from} onOpen={onOpenBooking} label="Open the booking it replaced" />
+            </Detail>
+          ) : null}
           <Detail label="Seat">{shown.seat ? String(shown.seat) : null}</Detail>
           <Detail label="Booked on">{formatDay(shown.booked_at)}</Detail>
           <Detail label="Came in">{referralLabel(shown.referral_status)}</Detail>
@@ -183,6 +234,21 @@ export function BookingDetailSheet({ bookingId, open, onOpenChange, canAssign, r
             <Detail label="Reason">{shown.cancel_reason}</Detail>
           </Section>
         ) : null}
+
+        {shown.status === 'RESCHEDULED' ? (
+          <Section title="Rescheduled">
+            <Detail label="Moved on">{formatDay(shown.rescheduled_at)}</Detail>
+            <Detail label="By">{shown.rescheduled_by?.full_name}</Detail>
+            <Detail label="Reason">{shown.reschedule_reason}</Detail>
+            {shown.rescheduled_to ? (
+              <Detail label="Moved to">
+                <ChainLink link={shown.rescheduled_to} onOpen={onOpenBooking} label="Open the new booking" />
+              </Detail>
+            ) : null}
+          </Section>
+        ) : null}
+
+        <BookingHistory bookingType={bookingType} bookingId={shown.id} reloadKey={reloadKey} />
       </div>
     );
   }

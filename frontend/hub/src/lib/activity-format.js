@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 
+import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
 import { sourceLabel } from './enquiries';
 
 // Short, human label per action — used for badges and the action filter.
@@ -55,9 +56,13 @@ export const ACTION_LABELS = {
   // BDE workspace.
   'booking_link.issue': 'Booking link issued',
   'enquiry.create': 'Enquiry added',
-  // Public Demo/Diagnostic bookings.
+  // Demo/Diagnostic bookings. An action is labelled once something logs it:
+  // the action filter offers every label here.
   'booking.create': 'Booking received',
   'booking.cancel': 'Booking cancelled',
+  'booking.reschedule': 'Booking rescheduled',
+  'booking.assign_tutor': 'Tutor assigned',
+  'booking.unassign_tutor': 'Tutor unassigned',
   'booking_slot.close': 'Slot closed',
   'booking_slot.reopen': 'Slot reopened',
   'booking_schedule.update': 'Booking times changed',
@@ -105,6 +110,12 @@ const SIGN_IN_REFUSALS = {
 };
 
 const formatRole = (role) => (typeof role === 'string' ? role.charAt(0) + role.slice(1).toLowerCase() : '—');
+
+/** "a demo booking" / "a diagnostic booking" from the entry's context, or "a booking". */
+function bookingOfType(row) {
+  const type = String(row.context?.booking_type ?? '').toLowerCase();
+  return type ? `a ${type} booking` : 'a booking';
+}
 
 function reasonOf(row) {
   const reason = row.context?.reason;
@@ -259,9 +270,24 @@ export function describeActivity(row) {
       return `Booked a ${type || 'demo'} slot${via}`;
     }
     case 'booking.cancel': {
-      const reason = reasonOf(row);
+      // A reason code since P3; entries from before carry the text they were given.
+      const reason = cancelReasonLabel(row.context?.reason_code) || reasonOf(row);
       return reason ? `Cancelled the booking — ${reason}` : 'Cancelled the booking';
     }
+    case 'booking.reschedule': {
+      const reason = rescheduleReasonLabel(row.context?.reason_code);
+      let tutor = '';
+      if (row.context?.tutor_carried_over) tutor = '; the tutor carried over';
+      else if (row.context?.tutor_id) tutor = '; the tutor was not free, so it needs one';
+      return `Rescheduled ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}${tutor}`;
+    }
+    // The log keeps ids only (backend booking_service): the booking's type, never who teaches it.
+    case 'booking.assign_tutor':
+      return row.context?.old_tutor_id
+        ? `Reassigned the tutor of ${bookingOfType(row)}`
+        : `Assigned a tutor to ${bookingOfType(row)}`;
+    case 'booking.unassign_tutor':
+      return `Unassigned the tutor from ${bookingOfType(row)}`;
     case 'booking_slot.close': {
       const reason = reasonOf(row);
       return reason ? `Closed the slot — ${reason}` : 'Closed the slot';

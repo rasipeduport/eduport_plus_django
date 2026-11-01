@@ -31,7 +31,19 @@ APPROVED = DATA_DIR / 'approved_changes.json'
 # permissions, so /me lists them, the booking-links endpoint serves the BDE its
 # own two links (tokens recorded by shape), and the dashboard and enquiry
 # endpoints its own enquiry (lead_a, given to it by add_new_role_accounts).
-BDE_PERMISSIONS = ['accounts.add_enquiry', 'accounts.view_own_booking_links', 'accounts.view_own_enquiries']
+BDE_PERMISSIONS = [
+    'accounts.add_enquiry',
+    'accounts.cancel_booking',
+    'accounts.create_demo_booking',
+    'accounts.manage_own_conversion',
+    'accounts.share_booking_report',
+    'accounts.view_own_booking_links',
+    'accounts.view_own_enquiries',
+    'accounts.view_own_lead_reports',
+]
+# Sales TL holds the Conversion Tracker's two permissions (0015); like BDE's
+# workflow ones, they open nothing yet, so only /me differs from the unknown role.
+SALES_TL_PERMISSIONS = ['accounts.manage_team_conversion', 'accounts.view_conversion_tracker']
 BDE_OWN_LINKS = {
     'status': 200,
     'records': [],
@@ -69,6 +81,9 @@ BDE_WORKSPACE = {
     'bde.enquiries.detail': {'status': 200, 'records': ['lead_a'], 'fields': ENQUIRY_FIELDS},
     # Rolled back with the scenario, like every write the matrix makes.
     'bde.enquiries.create': {'status': 201, 'records': ['new'], 'fields': ENQUIRY_FIELDS},
+    # booking_a's lead is not the BDE's own: answered as a booking that does not exist (Q22).
+    'bde.bookings.cancel': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                            'fields': ['error', 'message']},
 }
 
 
@@ -102,10 +117,11 @@ class AuthorizationMatrixTests(TestCase):
             logging.disable(logging.NOTSET)
 
     def test_new_roles_reach_what_an_unknown_role_reaches(self):
-        # Sales TL has a role group but no catalogue permission yet: in every
+        # Sales TL's catalogue permissions (0015) open no endpoint yet: in every
         # scenario open to signed-in accounts it must be answered as the
-        # account whose role nothing knows -- no data and no action. So must
-        # BDE, except where its own workspace shows (BDE_WORKSPACE above).
+        # account whose role nothing knows -- no data and no action -- but for
+        # the permissions /me lists. So must BDE, except where its own
+        # workspace shows (BDE_WORKSPACE above). This is the Sales TL ceiling.
         world = build_world()
         add_new_role_accounts(world)
         results = self.run_quietly(world, like_unknown=tuple(NEW_ROLES))
@@ -120,6 +136,8 @@ class AuthorizationMatrixTests(TestCase):
         def expected(scenario, caller, unknown):
             if caller == 'bde' and scenario == 'auth.me':
                 return {**unknown, 'capture': {**unknown['capture'], 'permissions': BDE_PERMISSIONS}}
+            if caller == 'sales_tl' and scenario == 'auth.me':
+                return {**unknown, 'capture': {**unknown['capture'], 'permissions': SALES_TL_PERMISSIONS}}
             if caller == 'bde' and scenario in BDE_WORKSPACE:
                 return BDE_WORKSPACE[scenario]
             return unknown

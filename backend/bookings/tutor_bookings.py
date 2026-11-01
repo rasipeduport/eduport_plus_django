@@ -7,17 +7,17 @@ unassigned only by the Admin / Coordinator (bookings.booking_service).
 
 What a tutor is shown is written out field by field below, never taken from a
 model or from bookings.coordination's rows, so nothing reaches a tutor by
-being added elsewhere: not the parent's name or phone, not Booking.details
-(the submission, which holds both), not the BDE or the referral, not who
-assigned the tutor or when, not the cancellation's reason or author, nor the
-lead's own id.
+being added elsewhere: not the parent's name or phone, not a booking's
+``details`` (the submission, which holds both), not the BDE or the referral,
+not who assigned the tutor or when, not the cancellation's reason or author,
+nor the lead's own id.
 
 The views guard these with accounts.view_assigned_bookings, which only the
 TUTOR role may hold. Which bookings are read is the caller's alone: always
 ``assigned_to(request.user)``, whatever a request says.
 """
 from .coordination import PAST, UPCOMING, filtered, slot_brief
-from .models import Booking, BookingType
+from .models import BOOKING_MODELS, BookingType, booking_model
 from .scheduling import BOOKING_TIMEZONE_NAME
 
 ALL = 'all'
@@ -55,18 +55,25 @@ def parse_filters(params):
     return filters, invalid
 
 
-def assigned_to(tutor):
+def assigned_to(tutor, model):
     """
-    The bookings ``tutor`` is assigned now, booked or cancelled (a cancelled
-    booking keeps its tutor), and no others: one reassigned or unassigned is
-    no longer theirs.
+    The bookings of ``model``'s type (a booking table) ``tutor`` is assigned
+    now, whatever their status (a cancelled, rescheduled or completed booking
+    keeps its tutor), and no others: one reassigned or unassigned is no longer
+    theirs.
     """
-    return Booking.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead')
+    return model.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead')
 
 
 def listed(tutor, now, booking_type=None, when=UPCOMING):
-    """``tutor``'s bookings narrowed by ``parse_filters``' filters, soonest slot first (``when=past``: most recent first)."""
-    return filtered(assigned_to(tutor), now, booking_type=booking_type, when=when)
+    """
+    ``tutor``'s bookings of both types (or of ``booking_type``) narrowed by
+    ``parse_filters``' filters, soonest slot first (``when=past``: most recent
+    first), as a list.
+    """
+    models = [booking_model(booking_type)] if booking_type else BOOKING_MODELS
+    bookings = [booking for model in models for booking in filtered(assigned_to(tutor, model), now, when=when)]
+    return sorted(bookings, key=lambda booking: (booking.slot.starts_at, booking.created_at), reverse=when == PAST)
 
 
 def booking_row(booking, now):

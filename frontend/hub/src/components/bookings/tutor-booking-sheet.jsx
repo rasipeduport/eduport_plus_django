@@ -29,23 +29,24 @@ function Detail({ label, children }) {
 }
 
 /**
- * One booking the tutor is assigned to teach (GET /api/tutor/bookings/<id>/):
+ * One booking the tutor is assigned to teach (GET /api/tutor/bookings/<type>/<id>/):
  * the slot in Indian time and the child it is for. Read-only, and only the
  * fields below are read -- nothing of the parent, the BDE or the assignment.
  * A booking no longer assigned to the caller is answered 404, as one that does
- * not exist.
+ * not exist; a link without a known `bookingType` names no booking, so it is
+ * not found without asking the API.
  */
-export function TutorBookingSheet({ bookingId, open, onOpenChange, reloadKey }) {
+export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, reloadKey }) {
   const [booking, setBooking] = useState(null);
   const [failure, setFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (!open || !bookingId) return undefined;
+    if (!open || !bookingId || !bookingType) return undefined;
     let active = true;
     setFailure(null);
     api
-      .get(tutorBookingUrl(bookingId))
+      .get(tutorBookingUrl(bookingType, bookingId))
       .then((response) => {
         if (active) setBooking(response.data);
       })
@@ -55,13 +56,17 @@ export function TutorBookingSheet({ bookingId, open, onOpenChange, reloadKey }) 
     return () => {
       active = false;
     };
-  }, [open, bookingId, reloadKey, retryKey]);
+  }, [open, bookingType, bookingId, reloadKey, retryKey]);
 
   // Nothing of another booking shows while this one loads.
-  const shown = booking && booking.id === bookingId ? booking : null;
+  const shown = booking && booking.id === bookingId && booking.booking_type === bookingType ? booking : null;
+
+  // A link naming a booking without a known type names none. (While the sheet
+  // closes there is no booking at all, and nothing to say about one.)
+  const untyped = Boolean(bookingId) && !bookingType;
 
   let body;
-  if (failure && failure.status === 404) {
+  if (untyped || (failure && failure.status === 404)) {
     body = (
       <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
         <SearchXIcon className="text-muted-foreground size-8" />

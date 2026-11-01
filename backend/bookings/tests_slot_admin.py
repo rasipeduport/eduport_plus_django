@@ -8,17 +8,22 @@ Dates are relative to the real clock: the API judges past and future by it.
 from datetime import time, timedelta
 from unittest import mock
 
+from django.contrib.auth.models import Permission
 from django.db import OperationalError
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
+from accounts.models import RoleGroup
 from activity.models import ActivityLog
 
 from . import booking_service
-from .booking_service import BookingBusy, SlotFull, create_booking, set_schedule, set_slots_closed
-from .models import Booking, BookingSlot, BookingStatus, BookingType, SlotTime
+from .booking_service import (
+    BookingBusy, SlotFull, assign_tutor, cancel_booking, create_booking, reschedule_booking, set_schedule,
+    set_slots_closed,
+)
+from .models import BookingSlot, BookingStatus, BookingType, CancelReason, RescheduleReason, SlotTime, booking_model
 from .scheduling import AVAILABLE, FILLING_FAST, FULLY_BOOKED, ONLY_A_FEW_LEFT, calendar, indian_today
-from .tests_booking import account, request
+from .tests_booking import account, all_bookings, booking_count, request
 
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 MORNING, EVENING = time(10, 0), time(19, 30)
@@ -53,6 +58,12 @@ class SlotAdminTestCase(APITestCase):
     def slot(self, response, at):
         return next(entry for entry in response.json()['slots'] if entry['time'] == at)
 
+    def holder(self, booking):
+        """A booking as its slot lists it, read back from the database."""
+        booking.refresh_from_db()
+        return {'id': str(booking.id), 'booking_type': booking.booking_type, 'seat': booking.seat,
+                'status': booking.status, 'student_name': booking.lead.student_name}
+
     def parents_see(self, at, booking_type=DEMO):
         day = next(entry for entry in calendar(booking_type) if entry['date'] == self.day.isoformat())
         return next(entry['status'] for entry in day['slots'] if entry['time'] == at)
@@ -60,9 +71,8 @@ class SlotAdminTestCase(APITestCase):
 
 class DayTests(SlotAdminTestCase):
     def test_every_time_with_its_bookings_and_the_status_parents_see(self):
-        self.book(MORNING)
-        self.book(EVENING)
-        self.book(EVENING)
+        morning = self.book(MORNING)
+        first, second = self.book(EVENING), self.book(EVENING)
         res = self.client.get(self.url())
         self.assertEqual(res.status_code, 200)
         body = res.json()
@@ -74,14 +84,16 @@ class DayTests(SlotAdminTestCase):
         self.assertEqual(body['window']['first'], (self.today + timedelta(days=1)).isoformat())
         self.assertEqual(body['slots'], [
             {'time': '10:00', 'end_time': '11:00', 'scheduled': True, 'booked': 1, 'capacity': 3, 'status': FILLING_FAST,
-             'open_status': FILLING_FAST, 'closed': False, 'closed_at': None, 'closed_by': None, 'close_reason': ''},
+             'open_status': FILLING_FAST, 'closed': False, 'closed_at': None, 'closed_by': None, 'close_reason': '',
+             'bookings': [self.holder(morning)]},
             {'time': '19:30', 'end_time': '20:30', 'scheduled': True, 'booked': 2, 'capacity': 3, 'status': ONLY_A_FEW_LEFT,
-             'open_status': ONLY_A_FEW_LEFT, 'closed': False, 'closed_at': None, 'closed_by': None, 'close_reason': ''},
+             'open_status': ONLY_A_FEW_LEFT, 'closed': False, 'closed_at': None, 'closed_by': None, 'close_reason': '',
+             'bookings': [self.holder(first), self.holder(second)]},
         ])
         # Each booking type keeps its own slots.
         diagnostic = self.client.get(self.url(kind='diagnostic')).json()
-        self.assertEqual([(s['time'], s['booked'], s['status']) for s in diagnostic['slots']],
-                         [('10:00', 0, AVAILABLE), ('19:30', 0, AVAILABLE)])
+        self.assertEqual([(s['time'], s['booked'], s['status'], s['bookings']) for s in diagnostic['slots']],
+                         [('10:00', 0, AVAILABLE, []), ('19:30', 0, AVAILABLE, [])])
 
     def test_where_a_date_stands_for_parents(self):
         for offset, state, editable in ((-1, 'past', False), (0, 'today', True), (1, 'open', True),
@@ -97,6 +109,51 @@ class DayTests(SlotAdminTestCase):
         self.assertEqual([(s['time'], s['scheduled'], s['booked']) for s in slots], [('10:00', False, 1), ('19:30', True, 0)])
         # Only an offered time can be closed.
         self.assertEqual(self.change('close', '10:00').json()['code'], 'UNKNOWN_TIME')
+
+
+class SeatHolderTests(SlotAdminTestCase):
+    """Each slot names the bookings holding its seats, so the page can link each to its detail."""
+
+    def test_only_bookings_that_hold_a_seat_in_seat_order(self):
+        cancelled, kept, moved = self.book(), self.book(), self.book()
+        cancel_booking(cancelled, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin)
+        replacement = reschedule_booking(moved, self.day, MORNING, reason_code=RescheduleReason.OTHER,
+                                         actor=self.admin).booking
+        done = self.book()  # takes the lowest free seat, below ``kept``
+        assign_tutor(done, account('slot_tutor', role='TUTOR'), actor=self.admin)
+        booking_model(DEMO).objects.filter(pk=done.pk).update(status=BookingStatus.COMPLETED, completed_at=timezone.now())
+
+        res = self.client.get(self.url())
+        evening = self.slot(res, '19:30')
+        self.assertEqual(evening['bookings'], [self.holder(done), self.holder(kept)])  # seat order, not booking order
+        self.assertEqual(evening['booked'], len(evening['bookings']))
+        self.assertEqual({entry['status'] for entry in evening['bookings']}, {'BOOKED', 'COMPLETED'})
+        # A moved booking is listed in its new slot only; a cancelled one nowhere.
+        self.assertEqual(self.slot(res, '10:00')['bookings'], [self.holder(replacement)])
+        listed = {entry['id'] for slot in res.json()['slots'] for entry in slot['bookings']}
+        self.assertFalse(listed & {str(cancelled.id), str(moved.id)})
+
+    def test_each_type_lists_its_own_and_a_change_answers_them_too(self):
+        demo = self.book()
+        diagnostic = self.book(booking_type=DIAGNOSTIC)
+        self.assertEqual(self.slot(self.client.get(self.url()), '19:30')['bookings'], [self.holder(demo)])
+        self.assertEqual(self.slot(self.client.get(self.url(kind='diagnostic')), '19:30')['bookings'],
+                         [self.holder(diagnostic)])
+        # Closing keeps the bookings, and says so.
+        self.assertEqual(self.slot(self.change('close', '19:30'), '19:30')['bookings'], [self.holder(demo)])
+
+    def test_only_for_those_who_may_see_every_booking(self):
+        self.book()
+        RoleGroup.objects.get(role='ADMIN').group.permissions.remove(Permission.objects.get(codename='view_all_bookings'))
+        self.client.force_authenticate(type(self.admin).objects.get(pk=self.admin.pk))
+        res = self.client.get(self.url())
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual([(s['booked'], s['bookings']) for s in res.json()['slots']], [(0, None), (1, None)])
+        self.assertNotIn('Child 1', res.content.decode())
+        self.assertEqual(self.slot(self.change('close', '19:30'), '19:30')['bookings'], None)
+        # A superuser holds every permission (decision D1).
+        self.client.force_authenticate(account('slot_root', role='MENTOR', is_superuser=True))
+        self.assertEqual(len(self.slot(self.client.get(self.url()), '19:30')['bookings']), 1)
 
 
 class CloseAndReopenTests(SlotAdminTestCase):
@@ -115,7 +172,7 @@ class CloseAndReopenTests(SlotAdminTestCase):
         self.assertTrue(slot['closed_at'])
         # The bookings stay as they were; the slot takes no new one.
         self.assertEqual(
-            list(Booking.objects.filter(pk__in=[b.pk for b in held]).values_list('status', flat=True)),
+            [booking.status for booking in all_bookings(pk__in=[b.pk for b in held])],
             [BookingStatus.BOOKED, BookingStatus.BOOKED],
         )
         with self.assertRaises(SlotFull):
@@ -160,7 +217,7 @@ class CloseAndReopenTests(SlotAdminTestCase):
         self.assertEqual(self.change('reopen', '10:00', '19:30').json()['changed'], ['10:00', '19:30'])
         self.assertEqual(self.change('reopen', '10:00').json()['changed'], [])
         self.assertEqual(ActivityLog.objects.filter(action__startswith='booking_slot.').count(), 4)
-        self.assertEqual(Booking.objects.count(), 0)
+        self.assertEqual(booking_count(), 0)
 
     def test_dates_beyond_the_window_can_be_closed_ahead(self):
         later = self.today + timedelta(days=30)

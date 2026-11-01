@@ -1745,7 +1745,7 @@
   },
   "/enquiries/{enquiry_a} @ bde": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard.",
+   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard. Since BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31) the owner BDE may cancel a booking of their own enquiry that is still booked: a Cancel button per booking, offered when the API's actions say so; the API checks the lead is theirs on every request.",
    "result": {
     "at": "/enquiries/{enquiry_a}",
     "noAccess": false,
@@ -1754,6 +1754,7 @@
      "/enquiries"
     ],
     "buttons": [
+     "Cancel",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1762,6 +1763,7 @@
      "tel:+971501234567"
     ],
     "headers": [
+     "Actions",
      "Booked on",
      "Status",
      "Type",
@@ -6157,8 +6159,8 @@
    }
   },
   "/bookings @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6175,7 +6177,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6197,11 +6198,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6213,7 +6212,7 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/"
+     "GET /api/bookings/demo/"
     ]
    }
   },
@@ -6340,8 +6339,8 @@
    }
   },
   "/bookings @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6358,7 +6357,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6380,11 +6378,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6396,13 +6392,13 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/"
+     "GET /api/bookings/demo/"
     ]
    }
   },
   "/bookings @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6419,7 +6415,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6441,11 +6436,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6457,7 +6450,7 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/"
+     "GET /api/bookings/demo/"
     ]
    }
   },
@@ -6562,8 +6555,8 @@
    }
   },
   "/bookings?booking={booking_a} @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6580,7 +6573,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6602,11 +6594,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6618,8 +6608,8 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/",
-     "GET /api/bookings/{booking_a}/"
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/demo/{booking_a}/"
     ]
    }
   },
@@ -6746,8 +6736,8 @@
    }
   },
   "/bookings?booking={booking_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6764,7 +6754,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6786,11 +6775,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6802,14 +6789,14 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/",
-     "GET /api/bookings/{booking_a}/"
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/demo/{booking_a}/"
     ]
    }
   },
   "/bookings?booking={booking_a} @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/).",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6826,7 +6813,6 @@
      "/booking-slots"
     ],
     "buttons": [
-     "All",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6848,11 +6834,9 @@
      "Status",
      "Student",
      "Tutor",
-     "Type",
      "When (IST)"
     ],
     "tabs": [
-     "All",
      "Demo",
      "Diagnostic"
     ],
@@ -6864,8 +6848,8 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bookings/",
-     "GET /api/bookings/{booking_a}/"
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/demo/{booking_a}/"
     ]
    }
   },
@@ -7929,9 +7913,9 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ admin": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ admin": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -7978,9 +7962,9 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ bde": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ bde": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8020,9 +8004,9 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ mentor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ mentor_a": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8062,11 +8046,11 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ parent_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A student account is sent to Learn here, as on every path; nothing renders and nothing is asked of the API.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ parent_a": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A student account is sent to Learn here, as on every path; nothing renders and nothing is asked of the API. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
-    "at": "/my-bookings?booking={my_booking_a}",
+    "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": false,
     "nav": [],
     "buttons": [],
@@ -8080,11 +8064,11 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ sales_tl": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "An account holding no permission gets the No Access page here, as on every path.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ sales_tl": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "An account holding no permission gets the No Access page here, as on every path. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
-    "at": "/my-bookings?booking={my_booking_a}",
+    "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": true,
     "nav": [],
     "buttons": [
@@ -8100,9 +8084,9 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ su_mentor": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ su_mentor": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8149,9 +8133,9 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ superuser": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ superuser": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8198,11 +8182,11 @@
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ tutor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "The same list, and the booking at ?booking= read from the tutor API for the side sheet (a portal, outside what is recorded here); the sheet offers no action.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ tutor_a": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "The same list, and the booking at ?booking= read from the tutor API for the side sheet (a portal, outside what is recorded here); the sheet offers no action. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
-    "at": "/my-bookings?booking={my_booking_a}",
+    "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": false,
     "nav": [
      "/dashboard",
@@ -8246,15 +8230,15 @@
     "calls": [
      "GET /api/auth/me/",
      "GET /api/tutor/bookings/",
-     "GET /api/tutor/bookings/{my_booking_a}/"
+     "GET /api/tutor/bookings/demo/{my_booking_a}/"
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ tutor_b": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A booking not assigned to this tutor: the list is empty and the API answers the booking 404, which the side sheet shows as not found.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ tutor_b": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "A booking not assigned to this tutor: the list is empty and the API answers the booking 404, which the side sheet shows as not found. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
-    "at": "/my-bookings?booking={my_booking_a}",
+    "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": false,
     "nav": [
      "/dashboard",
@@ -8298,15 +8282,15 @@
     "calls": [
      "GET /api/auth/me/",
      "GET /api/tutor/bookings/",
-     "GET /api/tutor/bookings/{my_booking_a}/"
+     "GET /api/tutor/bookings/demo/{my_booking_a}/"
     ]
    }
   },
-  "/my-bookings?booking={my_booking_a} @ unknown": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "An account holding no permission gets the No Access page here, as on every path.",
+  "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ unknown": {
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "note": "An account holding no permission gets the No Access page here, as on every path. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
-    "at": "/my-bookings?booking={my_booking_a}",
+    "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": true,
     "nav": [],
     "buttons": [

@@ -71,7 +71,8 @@ function HubRoutes({ user, logout }) {
         {/* The API pins whoever holds only view_own_activity to their own entries. */}
         <Route path="/activity" element={page('/activity', <ActivityPage user={user} />)} />
         {/* Demo and Diagnostic bookings for administrators: every booking and
-            the tutor teaching it, one opened at ?booking=<id>. The API enforces
+            the tutor teaching it, a tab per type (?type=DIAGNOSTIC; Demo by
+            default), one opened at ?booking=<id>. The API enforces
             accounts.view_all_bookings, and accounts.assign_booking_tutor for
             changing a tutor. */}
         <Route path="/bookings" element={page('/bookings', <BookingsPage user={user} />)} />
@@ -80,7 +81,7 @@ function HubRoutes({ user, logout }) {
             and keeps every booking. */}
         <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
         {/* A tutor's own Demo and Diagnostic bookings, read-only, one opened
-            at ?booking=<id>. The API serves only the bookings assigned to the
+            at ?booking=<id>&booking_type=<type>. The API serves only the bookings assigned to the
             caller: any other is answered as one that does not exist. */}
         <Route path="/my-bookings" element={page('/my-bookings', <TutorBookingsPage />)} />
         {/* A BDE's booking links are shared from their dashboard now (the

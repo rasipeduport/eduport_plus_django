@@ -43,6 +43,7 @@ SEED_SLOTS = importlib.import_module('accounts.migrations.0011_booking_slots_per
 SEED_ENQUIRIES = importlib.import_module('accounts.migrations.0012_bde_enquiries_permissions')
 SEED_BOOKINGS = importlib.import_module('accounts.migrations.0013_booking_management_permissions')
 SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_assigned_bookings_permission')
+SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnostic_workflow_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -88,8 +89,9 @@ EXPECTED_ROLE_PERMISSIONS = {
 ADMIN_ONLY = names(
     'manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots',
     'view_all_bookings', 'assign_booking_tutor',
+    'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
 )
-TUTOR_ONLY = names('view_assigned_bookings')
+TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report')
 # What later migrations add, one module each: BDE its booking links (0010),
 # ADMIN the booking slots (0011), BDE its enquiries (0012), ADMIN booking
 # management (0013), TUTOR its own bookings (0014).
@@ -98,26 +100,49 @@ BOOKING_SLOT_PERMISSIONS = names('manage_booking_slots')
 ENQUIRY_PERMISSIONS = names('view_own_enquiries', 'add_enquiry')
 BOOKING_MANAGEMENT_PERMISSIONS = names('view_all_bookings', 'assign_booking_tutor')
 ASSIGNED_BOOKING_PERMISSIONS = names('view_assigned_bookings')
-# What the new roles' groups carry, each its own modules only: BDE its booking
-# links and enquiries, Sales TL nothing yet.
-NEW_ROLE_PERMISSIONS = {
+# The Demo/Diagnostic workflow (0015), written out on its own: which role
+# group carries what. Only the Admin reschedules (Q23); the Admin and the
+# owner BDE cancel (Q22); tutors do neither.
+WORKFLOW_PERMISSIONS = names(
+    'create_demo_booking', 'reschedule_booking', 'cancel_booking', 'submit_booking_report', 'view_own_lead_reports',
+    'share_booking_report', 'manage_own_conversion', 'manage_team_conversion', 'view_conversion_tracker',
+    'manage_conversions', 'assign_lead_owner',
+)
+WORKFLOW_GRANTS = {
+    'ADMIN': names('reschedule_booking', 'cancel_booking', 'share_booking_report', 'view_conversion_tracker',
+                   'manage_conversions', 'assign_lead_owner'),
+    'TUTOR': names('submit_booking_report'),
+    'BDE': names('create_demo_booking', 'cancel_booking', 'view_own_lead_reports', 'share_booking_report',
+                 'manage_own_conversion'),
+    'SALES_TL': names('manage_team_conversion', 'view_conversion_tracker'),
+}
+# What the new roles' groups carried up to 0014: BDE its booking links and
+# enquiries, Sales TL nothing.
+NEW_ROLE_PERMISSIONS_AT_0014 = {
     'BDE': BOOKING_LINK_PERMISSIONS | ENQUIRY_PERMISSIONS,
     'SALES_TL': set(),
 }
-# What every role group carries after 0010, after 0011, after 0012, after 0013, and today.
+# What they carry -- and, each its own modules only, may ever hold -- today.
+NEW_ROLE_PERMISSIONS = {
+    role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] for role in NEW_ROLE_PERMISSIONS_AT_0014
+}
+# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
     'ADMIN': GROUP_PERMISSIONS_AT_0010['ADMIN'] | BOOKING_SLOT_PERMISSIONS,
 }
-GROUP_PERMISSIONS_AT_0012 = {**GROUP_PERMISSIONS_AT_0011, **NEW_ROLE_PERMISSIONS}
+GROUP_PERMISSIONS_AT_0012 = {**GROUP_PERMISSIONS_AT_0011, **NEW_ROLE_PERMISSIONS_AT_0014}
 GROUP_PERMISSIONS_AT_0013 = {
     **GROUP_PERMISSIONS_AT_0012,
     'ADMIN': GROUP_PERMISSIONS_AT_0012['ADMIN'] | BOOKING_MANAGEMENT_PERMISSIONS,
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0014 = {
     **GROUP_PERMISSIONS_AT_0013,
     'TUTOR': GROUP_PERMISSIONS_AT_0013['TUTOR'] | ASSIGNED_BOOKING_PERMISSIONS,
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | WORKFLOW_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0014.items()
 }
 
 
@@ -155,8 +180,9 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_48(self):
-        self.assertEqual(len(CATALOGUE), 48)
+    def test_the_catalogue_is_the_approved_59(self):
+        self.assertEqual(len(CATALOGUE), 59)
+        self.assertLessEqual(WORKFLOW_PERMISSIONS, set(CATALOGUE))
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -189,15 +215,34 @@ class CatalogueTests(PermissionTestCase):
         self.assertEqual(allowed_for_role('STUDENT'), set())
         self.assertEqual(allowed_for_role('UNASSIGNED'), set())
 
+    def test_the_workflow_ceilings(self):
+        # A Sales TL may hold the Conversion Tracker and their team's
+        # conversions, and nothing else: no booking, report or enrolment right.
+        self.assertEqual(allowed_for_role('SALES_TL'), names('manage_team_conversion', 'view_conversion_tracker'))
+        # Only the Admin reschedules (Q23); the Admin and the owner BDE cancel (Q22). Never a tutor.
+        self.assertEqual(CATALOGUE['accounts.reschedule_booking']['roles'], ('ADMIN',))
+        self.assertEqual(CATALOGUE['accounts.cancel_booking']['roles'], ('BDE', 'ADMIN'))
+        self.assertFalse(allowed_for_role('TUTOR') & names('reschedule_booking', 'cancel_booking'))
+        self.assertEqual(CATALOGUE['accounts.share_booking_report']['roles'], ('BDE', 'ADMIN'))
+        self.assertEqual(CATALOGUE['accounts.view_conversion_tracker']['roles'], ('ADMIN', 'SALES_TL'))
+        # Students and mentors hold none of them.
+        for role in ('MENTOR', 'STUDENT'):
+            with self.subTest(role=role):
+                self.assertFalse(allowed_for_role(role) & WORKFLOW_PERMISSIONS)
+        for name in WORKFLOW_PERMISSIONS:
+            with self.subTest(permission=name):
+                self.assertFalse(CATALOGUE[name]['grantable'])
+
     def test_only_view_team_is_individually_grantable(self):
         self.assertEqual(grantable_permissions(), {VIEW_TEAM})
 
     def test_the_migrations_seed_what_the_catalogue_declares(self):
         self.assertEqual(
             SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
-            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS,
+            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS + SEED_WORKFLOW.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_WORKFLOW.GRANTS.items()}, WORKFLOW_GRANTS)
         seeded = {role: names(*codenames) for role, _name, codenames in SEED.ROLE_GROUPS}
         self.assertEqual(seeded, EXPECTED_ROLE_PERMISSIONS)
         for seed, role, expected in ((SEED_BDE, 'BDE', BOOKING_LINK_PERMISSIONS),
@@ -749,6 +794,26 @@ class SeedFunctionTests(PermissionTestCase):
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         self.assertEqual(before, after)
 
+    def test_running_the_workflow_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_WORKFLOW.grant_workflow_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_reschedules_and_who_cancels(self):
+        held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
+        self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
+        self.assertIn('accounts.cancel_booking', held['BDE'])
+        self.assertNotIn('accounts.reschedule_booking', held['BDE'])
+        self.assertFalse(held['TUTOR'] & names('reschedule_booking', 'cancel_booking'))
+        # A group set up wrongly still cannot hand a tutor either, nor a BDE rescheduling.
+        for role in ('TUTOR', 'BDE'):
+            role_group(role).permissions.add(permission('accounts.reschedule_booking'), permission('accounts.cancel_booking'))
+        self.assertFalse(effective_permissions(self.make('q2223_tutor_2', 'TUTOR')) & names('reschedule_booking', 'cancel_booking'))
+        self.assertNotIn('accounts.reschedule_booking', effective_permissions(self.make('q2223_bde_2', 'BDE')))
+        root = self.make('root_workflow', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(WORKFLOW_PERMISSIONS, effective_permissions(root))
+
     def test_running_the_tutor_bookings_seed_again_changes_nothing(self):
         before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         SEED_TUTOR_BOOKINGS.grant_tutor_permissions(django_apps, self.schema_editor)
@@ -761,15 +826,22 @@ class SeedFunctionTests(PermissionTestCase):
 class NewRoleTests(PermissionTestCase):
     """
     BDE and Sales TL: staff accounts with a role group, each reaching only its
-    own modules -- BDE its booking links and enquiries, Sales TL nothing until
-    its module exists.
+    own modules -- BDE its booking links, enquiries and its own leads' Demo
+    handoff, reports and conversion; Sales TL the Conversion Tracker and its
+    team's conversions (0015).
     """
 
     def test_their_ceiling_beats_their_group(self):
+        # However their group is configured, nothing outside their ceiling counts:
+        # no student data, no booking management, no cancelling or rescheduling
+        # (Q22 / Q23 open), no tutor reports, no conversion on every lead.
+        beyond = ('accounts.view_all_students', 'accounts.view_all_bookings', 'accounts.cancel_booking',
+                  'accounts.reschedule_booking', 'accounts.submit_booking_report', 'accounts.manage_conversions',
+                  'accounts.assign_lead_owner')
         for role in NEW_ROLES:
             with self.subTest(role=role):
                 self.assertEqual(allowed_for_role(role), NEW_ROLE_PERMISSIONS[role])
-                role_group(role).permissions.add(permission('accounts.view_all_students'))
+                role_group(role).permissions.add(*(permission(name) for name in beyond))
                 account = self.make(f'new_{role.lower()}', role)
                 self.assertEqual(effective_permissions(account), NEW_ROLE_PERMISSIONS[role])
 
@@ -803,7 +875,7 @@ class NewRoleTests(PermissionTestCase):
 
 
 class MigrationReversalTests(TransactionTestCase):
-    """0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
+    """0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
 
     def groups(self):
         return {
@@ -849,7 +921,19 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0014)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0015_demo_diagnostic_workflow_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0015 alone reverses: every group is back to 0014's and the workflow rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0014)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in WORKFLOW_PERMISSIONS],
+        ).exists())
 
         # 0014 alone reverses: TUTOR's group is back to 0008's and its permission row gone.
         executor = MigrationExecutor(connection)
@@ -888,5 +972,5 @@ class MigrationReversalTests(TransactionTestCase):
         self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
 
         executor = MigrationExecutor(connection)
-        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])  # back to the leaf
+        executor.migrate([('accounts', '0015_demo_diagnostic_workflow_permissions')])  # back to the leaf
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)

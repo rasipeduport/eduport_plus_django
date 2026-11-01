@@ -38,9 +38,9 @@ from .booking_service import (
     find_tutor_conflict,
     unassign_tutor,
 )
-from .models import Booking, BookingStatus, SlotTime
+from .models import BookingStatus, CancelReason, DemoBooking, SlotTime
 from .scheduling import BOOKING_TIMEZONE
-from .tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, book, schedule
+from .tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, book, booking_count, schedule
 
 BOOKED, CANCELLED = BookingStatus.BOOKED, BookingStatus.CANCELLED
 SCHEDULED, ATTENDED = SessionStatusChoices.SCHEDULED, SessionStatusChoices.ATTENDED
@@ -128,7 +128,7 @@ class AssignTests(AssignmentTestCase):
         self.assertFalse(self.logs().exists())
 
     def test_a_cancelled_booking_takes_no_tutor(self):
-        cancel_booking(self.booking, actor=self.admin, reason='Parent cancelled')
+        cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
         with self.assertRaises(BookingCancelled):
             self.assign()
         self.assertUnassigned(self.booking)
@@ -197,7 +197,7 @@ class ConflictTests(AssignmentTestCase):
             self.assign(booking=second)
         self.assertEqual((caught.exception.conflict.kind, caught.exception.conflict.id), (CONFLICT_BOOKING, self.booking.id))
         # The slot still has a free seat; the tutor is still taken.
-        self.assertEqual(Booking.objects.filter(slot=self.booking.slot, status=BOOKED).count(), 2)
+        self.assertEqual(DemoBooking.objects.filter(slot=self.booking.slot, status=BOOKED).count(), 2)
         self.assertUnassigned(second)
 
     def test_each_booking_in_a_slot_takes_its_own_tutor(self):
@@ -206,7 +206,7 @@ class ConflictTests(AssignmentTestCase):
         for booking, who in zip(bookings, tutors):
             self.assertTrue(self.assign(booking=booking, who=who)[1])
         self.assertEqual(
-            sorted(Booking.objects.filter(slot=self.booking.slot).values_list('assigned_tutor__username', flat=True)),
+            sorted(DemoBooking.objects.filter(slot=self.booking.slot).values_list('assigned_tutor__username', flat=True)),
             ['tutor_one', 'tutor_three', 'tutor_two'],
         )
 
@@ -214,7 +214,7 @@ class ConflictTests(AssignmentTestCase):
         self.assign(booking=self.another('Morning child', at=MORNING))
         cancelled = self.another('Cancelled child', booking_type=DIAGNOSTIC)
         self.assign(booking=cancelled)
-        cancel_booking(cancelled, actor=self.admin)
+        cancel_booking(cancelled, actor=self.admin, reason_code=CancelReason.OTHER)
         self.assertTrue(self.assign()[1])
 
 
@@ -262,7 +262,7 @@ class ChangeTests(AssignmentTestCase):
         self.assign()
         with self.assertRaises(SlotStarted):
             unassign_tutor(self.booking, actor=self.admin, now=self.booking.slot.starts_at)
-        cancel_booking(self.booking, actor=self.admin)
+        cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.OTHER)
         with self.assertRaises(BookingCancelled):
             unassign_tutor(self.booking, actor=self.admin, now=NOW)
         self.booking.refresh_from_db()
@@ -270,7 +270,7 @@ class ChangeTests(AssignmentTestCase):
 
     def test_cancelling_keeps_the_tutor_as_history(self):
         assigned, _ = self.assign()
-        cancel_booking(self.booking, actor=self.admin, reason='Parent cancelled')
+        cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, CANCELLED)
         self.assertEqual(
@@ -317,7 +317,7 @@ class LogTests(AssignmentTestCase):
 class ConstraintTests(AssignmentTestCase):
     def assertRefused(self, **fields):
         with self.assertRaises(IntegrityError), transaction.atomic():
-            Booking.objects.filter(pk=self.booking.pk).update(**fields)
+            DemoBooking.objects.filter(pk=self.booking.pk).update(**fields)
 
     def test_a_tutor_comes_with_the_moment_it_was_assigned(self):
         now = timezone.now()
@@ -327,7 +327,7 @@ class ConstraintTests(AssignmentTestCase):
         self.assertRefused(tutor_assigned_at=now, tutor_assigned_by=self.admin)
         self.assertRefused(assigned_tutor=self.tutor, tutor_assigned_by=self.admin)
         # Who assigned them may be unknown; the tutor and the moment may not.
-        Booking.objects.filter(pk=self.booking.pk).update(assigned_tutor=self.tutor, tutor_assigned_at=now)
+        DemoBooking.objects.filter(pk=self.booking.pk).update(assigned_tutor=self.tutor, tutor_assigned_at=now)
 
     def test_an_assigned_tutor_is_protected_and_the_assigner_is_not(self):
         self.assign()
@@ -342,9 +342,15 @@ class ConstraintTests(AssignmentTestCase):
 
 @skipUnless(connection.vendor == 'postgresql', 'reads the PostgreSQL catalogue')
 class MigrationReversalTests(TransactionTestCase):
-    """0004 reverses to 0003 with bookings in the table and applies again, leaving every booking unassigned."""
+    """
+    0004 reverses to 0003 with bookings in the table and applies again, leaving
+    every booking unassigned. The combined table only exists up to 0004 (0005
+    splits it), so the test steps back there, seeds it through the historical
+    models and returns to the latest migration whatever happens.
+    """
 
     ADDED_COLUMNS = {'assigned_tutor_id', 'tutor_assigned_at', 'tutor_assigned_by_id'}
+    BEFORE_SPLIT = '0004_booking_tutor_assignment'
 
     def catalogue(self, query):
         with connection.cursor() as cursor:
@@ -361,35 +367,58 @@ class MigrationReversalTests(TransactionTestCase):
     def migrate(self, target):
         MigrationExecutor(connection).migrate([('bookings', target)])
 
-    def test_reverse_and_reapply(self):
-        schedule()
-        unassigned, _ = book(student='Riya')
-        assigned, _ = book(student='Ali', phone='0509876543')
-        assign_tutor(assigned, tutor('tutor_one'), actor=account('admin_one', role='ADMIN'), now=NOW)
+    def seed(self):
+        """Two bookings in the combined table, one of them assigned a tutor, as 0004 left them."""
+        apps = MigrationExecutor(connection).loader.project_state(('bookings', self.BEFORE_SPLIT)).apps
+        Lead, Slot, Booking = (apps.get_model('bookings', name) for name in ('Lead', 'BookingSlot', 'Booking'))
+        starts_at = ist(EVENING)
+        slot = Slot.objects.create(
+            booking_type='DEMO', local_date=DAY, local_time=EVENING, starts_at=starts_at,
+            ends_at=starts_at + timedelta(hours=1),
+        )
+        bookings = []
+        for seat, (student, phone) in enumerate((('Riya', '501234567'), ('Ali', '509876543')), start=1):
+            lead = Lead.objects.create(
+                parent_name='Asha Nair', phone_dial_code='+971', phone_number=phone, phone_key=f'+971{phone}',
+                student_name=student, student_name_key=student.lower(), school_name='DPS', grade='Class 8',
+                syllabus='CBSE',
+            )
+            bookings.append(Booking.objects.create(
+                booking_type='DEMO', lead=lead, slot=slot, seat=seat, referral_status='NO_REF',
+            ))
+        Booking.objects.filter(pk=bookings[1].pk).update(
+            assigned_tutor_id=tutor('tutor_one').pk, tutor_assigned_at=timezone.now(),
+        )
+        return bookings
 
-        columns, constraints, indexes = self.schema()
-        self.assertLessEqual(self.ADDED_COLUMNS, columns)
-        self.assertIn('bookings_tutor_assignment_fields', constraints)
-        self.assertIn('bookings_tutor_slot_idx', indexes)
+    def test_reverse_and_reapply(self):
         try:
+            self.migrate(self.BEFORE_SPLIT)
+            unassigned, assigned = self.seed()
+            columns, constraints, indexes = self.schema()
+            self.assertLessEqual(self.ADDED_COLUMNS, columns)
+            self.assertIn('bookings_tutor_assignment_fields', constraints)
+            self.assertIn('bookings_tutor_slot_idx', indexes)
+
             self.migrate('0003_lead_source')
             columns, constraints, indexes = self.schema()
             self.assertFalse(self.ADDED_COLUMNS & columns)
             self.assertNotIn('bookings_tutor_assignment_fields', constraints)
             self.assertNotIn('bookings_tutor_slot_idx', indexes)
             self.assertEqual(self.catalogue('SELECT count(*) FROM bookings'), {2})
-        finally:
-            self.migrate('0004_booking_tutor_assignment')  # back to the leaf, whatever happened
 
-        columns, constraints, indexes = self.schema()
-        self.assertLessEqual(self.ADDED_COLUMNS, columns)
-        self.assertIn('bookings_tutor_assignment_fields', constraints)
-        self.assertIn('bookings_tutor_slot_idx', indexes)
-        # The bookings that were there before 0004 applied are unassigned.
-        self.assertEqual(
-            set(Booking.objects.values_list('id', 'assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by')),
-            {(unassigned.id, None, None, None), (assigned.id, None, None, None)},
-        )
+            self.migrate(self.BEFORE_SPLIT)
+            columns, constraints, indexes = self.schema()
+            self.assertLessEqual(self.ADDED_COLUMNS, columns)
+            self.assertIn('bookings_tutor_assignment_fields', constraints)
+            self.assertIn('bookings_tutor_slot_idx', indexes)
+            # The bookings that were there before 0004 applied are unassigned.
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT id, assigned_tutor_id, tutor_assigned_at, tutor_assigned_by_id FROM bookings')
+                rows = set(cursor.fetchall())
+            self.assertEqual(rows, {(unassigned.id, None, None, None), (assigned.id, None, None, None)})
+        finally:
+            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes('bookings'))
 
 
 @skipUnless(connection.vendor == 'postgresql', 'the locks need PostgreSQL')
@@ -448,7 +477,7 @@ class ConcurrentAssignmentTests(TransactionTestCase):
         with self.slowed_conflict_check():
             outcomes = self.race([self.assigner(self.booking), self.assigner(second)])
         self.assertEqual(sorted(outcomes), ['assigned', 'unavailable'], outcomes)
-        self.assertEqual(Booking.objects.filter(assigned_tutor=self.tutor).count(), 1)
+        self.assertEqual(booking_count(assigned_tutor=self.tutor), 1)
 
     def test_two_overlapping_slots_racing_for_one_tutor(self):
         # Separate slot rows (Demo and Diagnostic at 19:30): only the tutor's locks keep them apart.
@@ -457,7 +486,7 @@ class ConcurrentAssignmentTests(TransactionTestCase):
         with self.slowed_conflict_check():
             outcomes = self.race([self.assigner(self.booking), self.assigner(diagnostic)])
         self.assertEqual(sorted(outcomes), ['assigned', 'unavailable'], outcomes)
-        self.assertEqual(Booking.objects.filter(assigned_tutor=self.tutor).count(), 1)
+        self.assertEqual(booking_count(assigned_tutor=self.tutor), 1)
 
     def test_an_assignment_waits_for_a_class_being_scheduled(self):
         # A class for the tutor is being booked (sessions take lock_scheduling,
@@ -499,16 +528,16 @@ class ConcurrentAssignmentTests(TransactionTestCase):
         scheduler.join(timeout=15)
         assigner.join(timeout=15)
         self.assertEqual(outcome, [CONFLICT_SESSION])
-        self.assertFalse(Booking.objects.filter(assigned_tutor=self.tutor).exists())
+        self.assertFalse(booking_count(assigned_tutor=self.tutor))
 
     def test_an_assignment_racing_a_cancellation(self):
         def cancel():
-            cancel_booking(self.booking, actor=self.admin, reason='Parent cancelled')
+            cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
             return 'cancel'
 
         outcomes = self.race([self.assigner(self.booking), cancel])
         self.assertIn(outcomes, (['assigned', 'cancel'], ['cancelled', 'cancel']), outcomes)
-        booking = Booking.objects.get(pk=self.booking.pk)
+        booking = DemoBooking.objects.get(pk=self.booking.pk)
         # Cancelled either way; it keeps the tutor only if the assignment came first.
         self.assertEqual(booking.status, CANCELLED)
         if outcomes[0] == 'assigned':

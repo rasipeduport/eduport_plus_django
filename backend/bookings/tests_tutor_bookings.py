@@ -16,7 +16,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .booking_service import assign_tutor, cancel_booking, create_booking, unassign_tutor
-from .models import BookingType
+from .models import BookingType, CancelReason
 from .scheduling import indian_today
 from .tests_booking import EVENING, MORNING, account, link, request, schedule
 
@@ -28,8 +28,10 @@ SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 NOT_FOUND = {'error': 'NOT_FOUND', 'message': 'No such booking.'}
 
 
-def detail_url(booking):
-    return f'{LIST_URL}{getattr(booking, "id", booking)}/'
+def detail_url(booking, booking_type=None):
+    """A booking's detail path; a bare id is read as a Demo booking's unless ``booking_type`` says otherwise."""
+    booking_type = booking_type or getattr(booking, 'booking_type', DEMO)
+    return f'{LIST_URL}{booking_type.lower()}/{getattr(booking, "id", booking)}/'
 
 
 class TutorBookingsTestCase(APITestCase):
@@ -170,6 +172,12 @@ class DetailTests(TutorBookingsTestCase):
                 res = self.get(self.tutor_a, detail_url(other))
                 self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
                 self.assertEqual(res.data, NOT_FOUND)
+        # Their own booking is named by its type too: under the other type, or
+        # none, or an unknown one, it is not found.
+        self.assertEqual(self.get(self.tutor_a, detail_url(mine, DIAGNOSTIC)).data, NOT_FOUND)
+        for path in (f'{LIST_URL}{mine.id}/', f'{LIST_URL}tuition/{mine.id}/'):
+            with self.subTest(path=path):
+                self.assertEqual(self.get(self.tutor_a, path).status_code, status.HTTP_404_NOT_FOUND)
 
     def test_the_row_and_the_detail_show_the_same_booking(self):
         booking = self.book('Riya', booking_type=DIAGNOSTIC, syllabus='IGCSE', tutor=self.tutor_a)
@@ -196,7 +204,7 @@ class OwnershipTests(TutorBookingsTestCase):
 
     def test_a_cancelled_booking_keeps_its_tutor_and_shows_as_cancelled(self):
         booking = self.book('Riya', tutor=self.tutor_a)
-        cancel_booking(booking, actor=self.admin, reason='Parent asked to move it')
+        cancel_booking(booking, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
 
         listed = self.get(self.tutor_a, LIST_URL)
         self.assertEqual(self.ids(listed), [str(booking.id)])

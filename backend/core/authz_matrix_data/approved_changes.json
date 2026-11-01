@@ -698,13 +698,15 @@
   },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2).",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
+      "accounts.assign_lead_owner",
+      "accounts.cancel_booking",
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_invitation",
@@ -714,14 +716,17 @@
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.manage_booking_slots",
+      "accounts.manage_conversions",
       "accounts.manage_exam",
       "accounts.manage_session",
       "accounts.manage_team",
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.share_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
@@ -730,6 +735,7 @@
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
+      "accounts.view_conversion_tracker",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -875,7 +881,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
@@ -883,24 +889,33 @@
       "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
+      "accounts.assign_lead_owner",
+      "accounts.cancel_booking",
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
       "accounts.manage_booking_slots",
+      "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
+      "accounts.manage_team_conversion",
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.share_booking_report",
+      "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
@@ -910,6 +925,7 @@
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
+      "accounts.view_conversion_tracker",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -920,6 +936,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -957,7 +974,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
@@ -965,24 +982,33 @@
       "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
+      "accounts.assign_lead_owner",
+      "accounts.cancel_booking",
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
       "accounts.manage_booking_slots",
+      "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
+      "accounts.manage_team_conversion",
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.share_booking_report",
+      "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
@@ -992,6 +1018,7 @@
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
+      "accounts.view_conversion_tracker",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -1002,6 +1029,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1039,7 +1067,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 48.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
@@ -1047,24 +1075,33 @@
       "accounts.add_enquiry",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
+      "accounts.assign_lead_owner",
+      "accounts.cancel_booking",
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
       "accounts.manage_booking_slots",
+      "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
+      "accounts.manage_team_conversion",
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.share_booking_report",
+      "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
@@ -1074,6 +1111,7 @@
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
+      "accounts.view_conversion_tracker",
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
@@ -1084,6 +1122,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1121,7 +1160,7 @@
   },
   "auth.me @ tutor_a": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4).",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
@@ -1129,6 +1168,7 @@
       "accounts.add_student_note",
       "accounts.edit_session_notes",
       "accounts.score_homework",
+      "accounts.submit_booking_report",
       "accounts.view_assigned_bookings",
       "accounts.view_homework_submissions",
       "accounts.view_own_activity",
@@ -1167,7 +1207,7 @@
   },
   "auth.me @ tutor_b": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4).",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
      "groups": [],
@@ -1175,6 +1215,7 @@
       "accounts.add_student_note",
       "accounts.edit_session_notes",
       "accounts.score_homework",
+      "accounts.submit_booking_report",
       "accounts.view_assigned_bookings",
       "accounts.view_homework_submissions",
       "accounts.view_own_activity",
@@ -1353,6 +1394,144 @@
    "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
    "result": {
     "capture": [],
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ admin": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ anon": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ mentor_a": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ mentor_b": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ parent_a": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ su_mentor": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ su_tutor": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ superuser": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ tutor_a": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ tutor_b": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.cancel @ unknown": {
+   "decision": "BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31): a BDE cancels only the bookings of their own leads, enforced in the backend (the view looks the booking up among the caller's leads only; cancel_booking checks it again under the booking lock). The route needs accounts.view_own_enquiries and accounts.cancel_booking; an account that is not a BDE is answered NOT_A_BDE. Reasons are codes (Q9), never free text (M1).",
+   "note": "No staff role reaches the BDE route (403); superusers hold both permissions but are no BDE (NOT_A_BDE). In the new-role world the BDE is answered 404 'No such booking': booking_a's lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
      "detail"
@@ -1959,13 +2138,18 @@
   },
   "bookings.assign_tutor @ admin": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor).",
+   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -1983,6 +2167,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2066,13 +2256,18 @@
   },
   "bookings.assign_tutor @ su_mentor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -2090,6 +2285,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2125,13 +2326,18 @@
   },
   "bookings.assign_tutor @ su_tutor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -2149,6 +2355,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2184,13 +2396,18 @@
   },
   "bookings.assign_tutor @ superuser": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -2208,6 +2425,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2277,15 +2500,380 @@
     "status": 403
    }
   },
-  "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor.",
+  "bookings.cancel @ admin": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.full_name",
+     "cancelled_by.id",
+     "changed",
+     "grade",
+     "id",
+     "lead",
+     "lead.country",
+     "lead.id",
+     "lead.owner_bde",
+     "lead.phone_dial_code",
+     "lead.phone_number",
+     "lead.school_name",
+     "lead.source",
+     "lead.syllabus",
+     "parent_name",
+     "phone",
+     "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
+     "seat",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "status",
+     "student_name",
+     "timezone",
+     "tutor",
+     "tutor_assigned_at",
+     "tutor_assigned_by",
+     "tutor_change_refusal",
+     "tutor_change_refusal.code",
+     "tutor_change_refusal.message",
+     "tutor_changeable"
+    ],
+    "records": [
+     "admin",
+     "booking_a",
+     "lead_b",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.cancel @ anon": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ mentor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ mentor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ parent_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ su_mentor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
+     "bde",
+     "booked_at",
+     "booking_type",
+     "cancel_reason",
+     "cancel_reason_code",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.full_name",
+     "cancelled_by.id",
+     "changed",
+     "grade",
+     "id",
+     "lead",
+     "lead.country",
+     "lead.id",
+     "lead.owner_bde",
+     "lead.phone_dial_code",
+     "lead.phone_number",
+     "lead.school_name",
+     "lead.source",
+     "lead.syllabus",
+     "parent_name",
+     "phone",
+     "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
+     "seat",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "status",
+     "student_name",
+     "timezone",
+     "tutor",
+     "tutor_assigned_at",
+     "tutor_assigned_by",
+     "tutor_change_refusal",
+     "tutor_change_refusal.code",
+     "tutor_change_refusal.message",
+     "tutor_changeable"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "slot_a",
+     "su_mentor"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.cancel @ su_tutor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
+     "bde",
+     "booked_at",
+     "booking_type",
+     "cancel_reason",
+     "cancel_reason_code",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.full_name",
+     "cancelled_by.id",
+     "changed",
+     "grade",
+     "id",
+     "lead",
+     "lead.country",
+     "lead.id",
+     "lead.owner_bde",
+     "lead.phone_dial_code",
+     "lead.phone_number",
+     "lead.school_name",
+     "lead.source",
+     "lead.syllabus",
+     "parent_name",
+     "phone",
+     "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
+     "seat",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "status",
+     "student_name",
+     "timezone",
+     "tutor",
+     "tutor_assigned_at",
+     "tutor_assigned_by",
+     "tutor_change_refusal",
+     "tutor_change_refusal.code",
+     "tutor_change_refusal.message",
+     "tutor_changeable"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "slot_a",
+     "su_tutor"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.cancel @ superuser": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
+     "bde",
+     "booked_at",
+     "booking_type",
+     "cancel_reason",
+     "cancel_reason_code",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.full_name",
+     "cancelled_by.id",
+     "changed",
+     "grade",
+     "id",
+     "lead",
+     "lead.country",
+     "lead.id",
+     "lead.owner_bde",
+     "lead.phone_dial_code",
+     "lead.phone_number",
+     "lead.school_name",
+     "lead.source",
+     "lead.syllabus",
+     "parent_name",
+     "phone",
+     "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
+     "seat",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "status",
+     "student_name",
+     "timezone",
+     "tutor",
+     "tutor_assigned_at",
+     "tutor_assigned_by",
+     "tutor_change_refusal",
+     "tutor_change_refusal.code",
+     "tutor_change_refusal.message",
+     "tutor_changeable"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "slot_a",
+     "superuser"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.cancel @ tutor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ tutor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.cancel @ unknown": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.detail @ admin": {
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
+     "bde",
+     "booked_at",
+     "booking_type",
+     "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "grade",
@@ -2302,6 +2890,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2379,13 +2973,18 @@
   },
   "bookings.detail @ su_mentor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "grade",
@@ -2402,6 +3001,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2431,13 +3036,18 @@
   },
   "bookings.detail @ su_tutor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "grade",
@@ -2454,6 +3064,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2483,13 +3099,18 @@
   },
   "bookings.detail @ superuser": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "grade",
@@ -2506,6 +3127,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -2560,6 +3187,206 @@
   "bookings.detail @ unknown": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
    "note": "Booking management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ admin": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "chain",
+     "chain[].current",
+     "chain[].id",
+     "chain[].slot",
+     "chain[].slot.booking_type",
+     "chain[].slot.date",
+     "chain[].slot.ended",
+     "chain[].slot.ends_at",
+     "chain[].slot.id",
+     "chain[].slot.started",
+     "chain[].slot.starts_at",
+     "chain[].slot.time",
+     "chain[].status",
+     "events",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history @ anon": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ mentor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ mentor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ parent_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ su_mentor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "chain",
+     "chain[].current",
+     "chain[].id",
+     "chain[].slot",
+     "chain[].slot.booking_type",
+     "chain[].slot.date",
+     "chain[].slot.ended",
+     "chain[].slot.ends_at",
+     "chain[].slot.id",
+     "chain[].slot.started",
+     "chain[].slot.starts_at",
+     "chain[].slot.time",
+     "chain[].status",
+     "events",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history @ su_tutor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "chain",
+     "chain[].current",
+     "chain[].id",
+     "chain[].slot",
+     "chain[].slot.booking_type",
+     "chain[].slot.date",
+     "chain[].slot.ended",
+     "chain[].slot.ends_at",
+     "chain[].slot.id",
+     "chain[].slot.started",
+     "chain[].slot.starts_at",
+     "chain[].slot.time",
+     "chain[].status",
+     "events",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history @ superuser": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "chain",
+     "chain[].current",
+     "chain[].id",
+     "chain[].slot",
+     "chain[].slot.booking_type",
+     "chain[].slot.date",
+     "chain[].slot.ended",
+     "chain[].slot.ends_at",
+     "chain[].slot.id",
+     "chain[].slot.started",
+     "chain[].slot.starts_at",
+     "chain[].slot.time",
+     "chain[].status",
+     "events",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history @ tutor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ tutor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history @ unknown": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "The booking timeline across its reschedule chain, for holders of view_all_bookings only.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -2801,9 +3628,673 @@
     "status": 403
    }
   },
+  "bookings.reschedule @ admin": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "fields": [
+     "booking",
+     "booking.actions",
+     "booking.actions.cancel",
+     "booking.actions.no_show",
+     "booking.actions.reschedule",
+     "booking.bde",
+     "booking.booked_at",
+     "booking.booking_type",
+     "booking.cancel_reason",
+     "booking.cancel_reason_code",
+     "booking.cancelled_at",
+     "booking.cancelled_by",
+     "booking.grade",
+     "booking.id",
+     "booking.lead",
+     "booking.lead.country",
+     "booking.lead.id",
+     "booking.lead.owner_bde",
+     "booking.lead.phone_dial_code",
+     "booking.lead.phone_number",
+     "booking.lead.school_name",
+     "booking.lead.source",
+     "booking.lead.syllabus",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.referral_status",
+     "booking.reschedule_reason",
+     "booking.reschedule_reason_code",
+     "booking.rescheduled_at",
+     "booking.rescheduled_by",
+     "booking.rescheduled_from",
+     "booking.rescheduled_from.id",
+     "booking.rescheduled_from.slot",
+     "booking.rescheduled_from.slot.booking_type",
+     "booking.rescheduled_from.slot.date",
+     "booking.rescheduled_from.slot.ended",
+     "booking.rescheduled_from.slot.ends_at",
+     "booking.rescheduled_from.slot.id",
+     "booking.rescheduled_from.slot.started",
+     "booking.rescheduled_from.slot.starts_at",
+     "booking.rescheduled_from.slot.time",
+     "booking.rescheduled_from.status",
+     "booking.rescheduled_to",
+     "booking.seat",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.student_name",
+     "booking.timezone",
+     "booking.tutor",
+     "booking.tutor_assigned_at",
+     "booking.tutor_assigned_by",
+     "booking.tutor_change_refusal",
+     "booking.tutor_changeable",
+     "previous",
+     "previous.id",
+     "previous.status",
+     "tutor",
+     "tutor.carried_over",
+     "tutor.reason",
+     "tutor.tutor"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "new",
+     "slot_a"
+    ],
+    "status": 201
+   }
+  },
+  "bookings.reschedule @ anon": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ mentor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ mentor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ parent_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ su_mentor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "fields": [
+     "booking",
+     "booking.actions",
+     "booking.actions.cancel",
+     "booking.actions.no_show",
+     "booking.actions.reschedule",
+     "booking.bde",
+     "booking.booked_at",
+     "booking.booking_type",
+     "booking.cancel_reason",
+     "booking.cancel_reason_code",
+     "booking.cancelled_at",
+     "booking.cancelled_by",
+     "booking.grade",
+     "booking.id",
+     "booking.lead",
+     "booking.lead.country",
+     "booking.lead.id",
+     "booking.lead.owner_bde",
+     "booking.lead.phone_dial_code",
+     "booking.lead.phone_number",
+     "booking.lead.school_name",
+     "booking.lead.source",
+     "booking.lead.syllabus",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.referral_status",
+     "booking.reschedule_reason",
+     "booking.reschedule_reason_code",
+     "booking.rescheduled_at",
+     "booking.rescheduled_by",
+     "booking.rescheduled_from",
+     "booking.rescheduled_from.id",
+     "booking.rescheduled_from.slot",
+     "booking.rescheduled_from.slot.booking_type",
+     "booking.rescheduled_from.slot.date",
+     "booking.rescheduled_from.slot.ended",
+     "booking.rescheduled_from.slot.ends_at",
+     "booking.rescheduled_from.slot.id",
+     "booking.rescheduled_from.slot.started",
+     "booking.rescheduled_from.slot.starts_at",
+     "booking.rescheduled_from.slot.time",
+     "booking.rescheduled_from.status",
+     "booking.rescheduled_to",
+     "booking.seat",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.student_name",
+     "booking.timezone",
+     "booking.tutor",
+     "booking.tutor_assigned_at",
+     "booking.tutor_assigned_by",
+     "booking.tutor_change_refusal",
+     "booking.tutor_changeable",
+     "previous",
+     "previous.id",
+     "previous.status",
+     "tutor",
+     "tutor.carried_over",
+     "tutor.reason",
+     "tutor.tutor"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "new",
+     "slot_a"
+    ],
+    "status": 201
+   }
+  },
+  "bookings.reschedule @ su_tutor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "fields": [
+     "booking",
+     "booking.actions",
+     "booking.actions.cancel",
+     "booking.actions.no_show",
+     "booking.actions.reschedule",
+     "booking.bde",
+     "booking.booked_at",
+     "booking.booking_type",
+     "booking.cancel_reason",
+     "booking.cancel_reason_code",
+     "booking.cancelled_at",
+     "booking.cancelled_by",
+     "booking.grade",
+     "booking.id",
+     "booking.lead",
+     "booking.lead.country",
+     "booking.lead.id",
+     "booking.lead.owner_bde",
+     "booking.lead.phone_dial_code",
+     "booking.lead.phone_number",
+     "booking.lead.school_name",
+     "booking.lead.source",
+     "booking.lead.syllabus",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.referral_status",
+     "booking.reschedule_reason",
+     "booking.reschedule_reason_code",
+     "booking.rescheduled_at",
+     "booking.rescheduled_by",
+     "booking.rescheduled_from",
+     "booking.rescheduled_from.id",
+     "booking.rescheduled_from.slot",
+     "booking.rescheduled_from.slot.booking_type",
+     "booking.rescheduled_from.slot.date",
+     "booking.rescheduled_from.slot.ended",
+     "booking.rescheduled_from.slot.ends_at",
+     "booking.rescheduled_from.slot.id",
+     "booking.rescheduled_from.slot.started",
+     "booking.rescheduled_from.slot.starts_at",
+     "booking.rescheduled_from.slot.time",
+     "booking.rescheduled_from.status",
+     "booking.rescheduled_to",
+     "booking.seat",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.student_name",
+     "booking.timezone",
+     "booking.tutor",
+     "booking.tutor_assigned_at",
+     "booking.tutor_assigned_by",
+     "booking.tutor_change_refusal",
+     "booking.tutor_changeable",
+     "previous",
+     "previous.id",
+     "previous.status",
+     "tutor",
+     "tutor.carried_over",
+     "tutor.reason",
+     "tutor.tutor"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "new",
+     "slot_a"
+    ],
+    "status": 201
+   }
+  },
+  "bookings.reschedule @ superuser": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "fields": [
+     "booking",
+     "booking.actions",
+     "booking.actions.cancel",
+     "booking.actions.no_show",
+     "booking.actions.reschedule",
+     "booking.bde",
+     "booking.booked_at",
+     "booking.booking_type",
+     "booking.cancel_reason",
+     "booking.cancel_reason_code",
+     "booking.cancelled_at",
+     "booking.cancelled_by",
+     "booking.grade",
+     "booking.id",
+     "booking.lead",
+     "booking.lead.country",
+     "booking.lead.id",
+     "booking.lead.owner_bde",
+     "booking.lead.phone_dial_code",
+     "booking.lead.phone_number",
+     "booking.lead.school_name",
+     "booking.lead.source",
+     "booking.lead.syllabus",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.referral_status",
+     "booking.reschedule_reason",
+     "booking.reschedule_reason_code",
+     "booking.rescheduled_at",
+     "booking.rescheduled_by",
+     "booking.rescheduled_from",
+     "booking.rescheduled_from.id",
+     "booking.rescheduled_from.slot",
+     "booking.rescheduled_from.slot.booking_type",
+     "booking.rescheduled_from.slot.date",
+     "booking.rescheduled_from.slot.ended",
+     "booking.rescheduled_from.slot.ends_at",
+     "booking.rescheduled_from.slot.id",
+     "booking.rescheduled_from.slot.started",
+     "booking.rescheduled_from.slot.starts_at",
+     "booking.rescheduled_from.slot.time",
+     "booking.rescheduled_from.status",
+     "booking.rescheduled_to",
+     "booking.seat",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.student_name",
+     "booking.timezone",
+     "booking.tutor",
+     "booking.tutor_assigned_at",
+     "booking.tutor_assigned_by",
+     "booking.tutor_change_refusal",
+     "booking.tutor_changeable",
+     "previous",
+     "previous.id",
+     "previous.status",
+     "tutor",
+     "tutor.carried_over",
+     "tutor.reason",
+     "tutor.tutor"
+    ],
+    "records": [
+     "booking_a",
+     "lead_b",
+     "new",
+     "slot_a"
+    ],
+    "status": 201
+   }
+  },
+  "bookings.reschedule @ tutor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ tutor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule @ unknown": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ admin": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "booking_type",
+     "dates",
+     "dates[].date",
+     "dates[].slots",
+     "dates[].slots[].bookable",
+     "dates[].slots[].ends_at",
+     "dates[].slots[].lead_conflict",
+     "dates[].slots[].seats_left",
+     "dates[].slots[].starts_at",
+     "dates[].slots[].status",
+     "dates[].slots[].time",
+     "dates[].slots[].tutor_free",
+     "dates[].slots[].tutor_reason",
+     "dates[].slots[].unavailable_reason",
+     "refusal",
+     "reschedulable",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "timezone",
+     "tutor"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.reschedule_options @ anon": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ mentor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ mentor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ parent_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ su_mentor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "booking_type",
+     "dates",
+     "dates[].date",
+     "dates[].slots",
+     "dates[].slots[].bookable",
+     "dates[].slots[].ends_at",
+     "dates[].slots[].lead_conflict",
+     "dates[].slots[].seats_left",
+     "dates[].slots[].starts_at",
+     "dates[].slots[].status",
+     "dates[].slots[].time",
+     "dates[].slots[].tutor_free",
+     "dates[].slots[].tutor_reason",
+     "dates[].slots[].unavailable_reason",
+     "refusal",
+     "reschedulable",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "timezone",
+     "tutor"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.reschedule_options @ su_tutor": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "booking_type",
+     "dates",
+     "dates[].date",
+     "dates[].slots",
+     "dates[].slots[].bookable",
+     "dates[].slots[].ends_at",
+     "dates[].slots[].lead_conflict",
+     "dates[].slots[].seats_left",
+     "dates[].slots[].starts_at",
+     "dates[].slots[].status",
+     "dates[].slots[].time",
+     "dates[].slots[].tutor_free",
+     "dates[].slots[].tutor_reason",
+     "dates[].slots[].unavailable_reason",
+     "refusal",
+     "reschedulable",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "timezone",
+     "tutor"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.reschedule_options @ superuser": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "booking_type",
+     "dates",
+     "dates[].date",
+     "dates[].slots",
+     "dates[].slots[].bookable",
+     "dates[].slots[].ends_at",
+     "dates[].slots[].lead_conflict",
+     "dates[].slots[].seats_left",
+     "dates[].slots[].starts_at",
+     "dates[].slots[].status",
+     "dates[].slots[].time",
+     "dates[].slots[].tutor_free",
+     "dates[].slots[].tutor_reason",
+     "dates[].slots[].unavailable_reason",
+     "refusal",
+     "reschedulable",
+     "slot",
+     "slot.booking_type",
+     "slot.date",
+     "slot.ended",
+     "slot.ends_at",
+     "slot.id",
+     "slot.started",
+     "slot.starts_at",
+     "slot.time",
+     "timezone",
+     "tutor"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.reschedule_options @ tutor_a": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ tutor_b": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.reschedule_options @ unknown": {
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
+   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.slot_change @ admin": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "An administrator manages the slots: the date's slots, and closing or reopening them.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "An administrator manages the slots: the date's slots, and closing or reopening them. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -2815,6 +4306,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -2883,8 +4375,8 @@
    }
   },
   "bookings.slot_change @ su_mentor": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -2896,6 +4388,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -2916,8 +4409,8 @@
    }
   },
   "bookings.slot_change @ su_tutor": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -2929,6 +4422,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -2949,8 +4443,8 @@
    }
   },
   "bookings.slot_change @ superuser": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -2962,6 +4456,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -3018,8 +4513,8 @@
    }
   },
   "bookings.slot_day @ admin": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "An administrator manages the slots: the date's slots, and closing or reopening them.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "An administrator manages the slots: the date's slots, and closing or reopening them. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -3030,6 +4525,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -3098,8 +4594,8 @@
    }
   },
   "bookings.slot_day @ su_mentor": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -3110,6 +4606,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -3130,8 +4627,8 @@
    }
   },
   "bookings.slot_day @ su_tutor": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -3142,6 +4639,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -3162,8 +4660,8 @@
    }
   },
   "bookings.slot_day @ superuser": {
-   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
-   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role.",
+   "decision": "DEVT-5973 (booking slots): /api/booking-slots/ serves holders of accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Phase 5.2 P3 (B.6, seat links): each slot also lists the bookings holding its seats (slots[].bookings: id, type, seat, status, student name) so the page can link each to its booking detail -- only for a caller who also holds accounts.view_all_bookings; for anyone else it is null.",
+   "note": "A superuser holds accounts.manage_booking_slots under D1, whatever the role. The world's slots hold no booking, so the lists are empty here; bookings.tests_slot_admin.SeatHolderTests covers their content and the null case.",
    "result": {
     "fields": [
      "booking_type",
@@ -3174,6 +4672,7 @@
      "slot_minutes",
      "slots",
      "slots[].booked",
+     "slots[].bookings",
      "slots[].capacity",
      "slots[].close_reason",
      "slots[].closed",
@@ -3725,13 +5224,18 @@
   },
   "bookings.unassign_tutor @ admin": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes.",
+   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -3749,6 +5253,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -3826,13 +5336,18 @@
   },
   "bookings.unassign_tutor @ su_mentor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -3850,6 +5365,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -3879,13 +5400,18 @@
   },
   "bookings.unassign_tutor @ su_tutor": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -3903,6 +5429,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",
@@ -3932,13 +5464,18 @@
   },
   "bookings.unassign_tutor @ superuser": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
    "result": {
     "fields": [
+     "actions",
+     "actions.cancel",
+     "actions.no_show",
+     "actions.reschedule",
      "bde",
      "booked_at",
      "booking_type",
      "cancel_reason",
+     "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
      "changed",
@@ -3956,6 +5493,12 @@
      "parent_name",
      "phone",
      "referral_status",
+     "reschedule_reason",
+     "reschedule_reason_code",
+     "rescheduled_at",
+     "rescheduled_by",
+     "rescheduled_from",
+     "rescheduled_to",
      "seat",
      "slot",
      "slot.booking_type",

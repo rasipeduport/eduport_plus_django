@@ -9,11 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import {
   ASSIGNMENT_FILTERS,
   BOOKING_STATUSES,
   BOOKING_TYPES,
+  DEFAULT_TYPE,
   DEFAULT_WHEN,
   WHEN_FILTERS,
   tutorChangeable,
@@ -43,11 +43,13 @@ function rangeLabel(from, to) {
 }
 
 /**
- * Every Demo and Diagnostic booking, as administrators manage them: the type
- * tabs, search, status / tutor / date filters and paging the API applies
- * (lib/bookings), and per row a way to open the booking and, for holders of
- * accounts.assign_booking_tutor, to assign or change its tutor. The page keeps
- * the filters in the URL; `onChange` receives what changed.
+ * Every Demo and Diagnostic booking, as administrators manage them: a tab per
+ * type -- each its own list -- and the search, status / tutor / date filters
+ * and paging the API applies (lib/bookings), and per row a way to open the
+ * booking and, for holders of accounts.assign_booking_tutor, to assign or
+ * change its tutor. The page keeps the tab and the filters in the URL;
+ * `onChange` receives what changed. Changing tab keeps the filters, closes
+ * the open booking (it is of the other type) and starts again at page 1.
  */
 export function BookingList({ rows, total, page, pageSize, filters, pending, canAssign, onChange, onOpen, onAssign }) {
   const [q, setQ] = useState(filters.q);
@@ -67,6 +69,7 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
   const filtered = Boolean(
     filters.q || filters.status || filters.assigned || filters.from || filters.to || filters.when !== DEFAULT_WHEN
   );
+  const typeLabel = BOOKING_TYPES.find((type) => type.value === filters.type)?.label ?? '';
 
   const openRange = (open) => {
     setRangeOpen(open);
@@ -75,9 +78,11 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
 
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={filters.type || ALL} onValueChange={(value) => onChange({ type: value === ALL ? null : value })}>
+      <Tabs
+        value={filters.type}
+        onValueChange={(value) => onChange({ type: value === DEFAULT_TYPE ? null : value, booking: null, page: null })}
+      >
         <TabsList>
-          <TabsTrigger value={ALL}>All</TabsTrigger>
           {BOOKING_TYPES.map((type) => (
             <TabsTrigger key={type.value} value={type.value}>
               {type.label}
@@ -196,7 +201,6 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
           <TableHeader>
             <TableRow>
               <TableHead>When (IST)</TableHead>
-              <TableHead>Type</TableHead>
               <TableHead>Student</TableHead>
               <TableHead className="hidden md:table-cell">Parent</TableHead>
               <TableHead>Tutor</TableHead>
@@ -209,8 +213,8 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
           <TableBody className={pending ? 'opacity-60' : undefined}>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  {filtered || filters.type ? 'No bookings match these filters.' : 'No upcoming bookings.'}
+                <TableCell colSpan={6} className="h-24 text-center">
+                  {filtered ? 'No bookings match these filters.' : `No upcoming ${typeLabel.toLowerCase()} bookings.`}
                 </TableCell>
               </TableRow>
             ) : (
@@ -221,9 +225,6 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
                     <TableCell className="whitespace-nowrap">
                       <p className="font-medium">{when.day}</p>
                       <p className="text-muted-foreground text-xs">{when.time}</p>
-                    </TableCell>
-                    <TableCell>
-                      <BookingTypeBadge type={booking.booking_type} />
                     </TableCell>
                     <TableCell>
                       <p className="font-medium">{booking.student_name}</p>

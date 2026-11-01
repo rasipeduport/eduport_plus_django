@@ -4,13 +4,15 @@ import { CheckCircle2Icon, RefreshCwIcon, ShieldAlertIcon, XIcon } from 'lucide-
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
-import { BOOKINGS_URL, bookingError, listParams, readFilters } from '@/lib/bookings';
-import { bookingTypeLabel } from '@/lib/enquiries';
+import { bookingError, bookingsUrl, cancelReasonLabel, listParams, readFilters } from '@/lib/bookings';
+import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
 import { BookingDetailSheet } from '@/components/bookings/booking-detail-sheet';
 import { BookingList } from '@/components/bookings/booking-list';
+import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { RescheduleBookingDialog } from '@/components/bookings/reschedule-booking-dialog';
 
 const PAGE_SIZE = 25;
 
@@ -26,9 +28,13 @@ function AccessDenied({ failure }) {
 
 /**
  * Demo and Diagnostic bookings for the Admin / Coordinator: every booking
- * parents made (GET /api/bookings/), filtered and paged by the API, each
- * opened in a side sheet (?booking=<id>) and given its tutor in a dialog that
- * shows who is free for the slot. Opens for holders of
+ * parents made, one tab per type (?type=DIAGNOSTIC; Demo by default) -- each
+ * type is its own list (GET /api/bookings/<demo|diagnostic>/), filtered and
+ * paged by the API. A booking opens in a side sheet (?booking=<id>, of the
+ * tab's type), is given its tutor in a dialog that shows who is free for the
+ * slot, and may be moved to another slot or cancelled with a reason from the
+ * list -- each offered only when the booking's `actions` from the API say so
+ * (accounts.reschedule_booking, accounts.cancel_booking). Opens for holders of
  * accounts.view_all_bookings (lib/access); assigning needs
  * accounts.assign_booking_tutor. The API enforces both, and checks the tutor
  * again on every assignment.
@@ -41,6 +47,8 @@ export default function BookingsPage({ user }) {
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [assigning, setAssigning] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const [rescheduling, setRescheduling] = useState(null);
   const [notice, setNotice] = useState(null);
 
   const filters = readFilters(searchParams);
@@ -52,7 +60,7 @@ export default function BookingsPage({ user }) {
     let active = true;
     setPending(true);
     api
-      .get(BOOKINGS_URL, { params: listParams({ q, type, status, assigned, from, to, when }, page, PAGE_SIZE) })
+      .get(bookingsUrl(type), { params: listParams({ q, status, assigned, from, to, when }, page, PAGE_SIZE) })
       .then((response) => {
         if (!active) return;
         setData(response.data);
@@ -82,10 +90,21 @@ export default function BookingsPage({ user }) {
     setSearchParams(params);
   };
 
-  // After a tutor change: say what happened, and read the list (and the open booking) again.
+  // After a change: say what happened, and read the list (and the open booking) again.
   const changed = (message) => {
     setNotice(message);
     reload();
+  };
+
+  const typeOf = (booking) => bookingTypeLabel(booking.booking_type).toLowerCase();
+
+  // A move answers the replacement booking, which the sheet then shows (Q24: whether the tutor came too).
+  const moved = ({ booking, tutor }) => {
+    let tutorNote = '';
+    if (tutor?.carried_over) tutorNote = ` ${tutor.tutor.full_name} still teaches it.`;
+    else if (tutor?.tutor) tutorNote = ` ${tutor.tutor.full_name} isn't free then, so it needs a tutor.`;
+    changed(`Moved ${booking.student_name}'s ${typeOf(booking)} to ${slotLabel(booking.slot)}.${tutorNote}`);
+    update({ booking: booking.id });
   };
 
   let content;
@@ -158,6 +177,7 @@ export default function BookingsPage({ user }) {
       {content}
 
       <BookingDetailSheet
+        bookingType={type}
         bookingId={openId}
         open={Boolean(openId)}
         onOpenChange={(open) => {
@@ -167,6 +187,29 @@ export default function BookingsPage({ user }) {
         reloadKey={reloadKey}
         onAssign={setAssigning}
         onChanged={(booking) => changed(`Unassigned the tutor from ${booking.student_name}'s booking.`)}
+        onReschedule={setRescheduling}
+        onCancel={setCancelling}
+        onOpenBooking={(id) => update({ booking: id })}
+      />
+
+      <CancelBookingDialog
+        booking={cancelling}
+        open={Boolean(cancelling)}
+        onOpenChange={(open) => {
+          if (!open) setCancelling(null);
+        }}
+        onCancelled={(booking) =>
+          changed(`Cancelled ${booking.student_name}'s ${typeOf(booking)} (${cancelReasonLabel(booking.cancel_reason_code)}).`)
+        }
+      />
+
+      <RescheduleBookingDialog
+        booking={rescheduling}
+        open={Boolean(rescheduling)}
+        onOpenChange={(open) => {
+          if (!open) setRescheduling(null);
+        }}
+        onRescheduled={moved}
       />
 
       {canAssign ? (
@@ -176,11 +219,7 @@ export default function BookingsPage({ user }) {
           onOpenChange={(open) => {
             if (!open) setAssigning(null);
           }}
-          onAssigned={(booking) =>
-            changed(
-              `${booking.tutor?.full_name} now teaches ${booking.student_name}'s ${bookingTypeLabel(booking.booking_type).toLowerCase()}.`
-            )
-          }
+          onAssigned={(booking) => changed(`${booking.tutor?.full_name} now teaches ${booking.student_name}'s ${typeOf(booking)}.`)}
         />
       ) : null}
     </div>

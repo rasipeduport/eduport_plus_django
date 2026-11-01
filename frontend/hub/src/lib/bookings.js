@@ -1,21 +1,70 @@
-// Booking management for administrators: the /api/bookings/ contract (backend
-// bookings/management_views.py and bookings/coordination.py) as the Hub uses
-// it. The API enforces every rule -- who may read or change a booking, and
-// whether a tutor is free, checked again when assigning -- so this only builds
-// its requests and labels what it returns.
+// Booking management for administrators: the /api/bookings/<type>/ contract
+// (backend bookings/management_views.py and bookings/coordination.py) as the
+// Hub uses it. The API enforces every rule -- who may read or change a
+// booking, and whether a tutor is free, checked again when assigning -- so
+// this only builds its requests and labels what it returns.
 
-export const BOOKINGS_URL = '/api/bookings/';
-export const bookingUrl = (id) => `${BOOKINGS_URL}${id}/`;
-export const bookingTutorsUrl = (id) => `${BOOKINGS_URL}${id}/tutors/`;
-export const bookingTutorUrl = (id) => `${BOOKINGS_URL}${id}/tutor/`;
-
-// The list filters the API accepts (backend coordination.parse_filters).
 export const BOOKING_TYPES = [
   { value: 'DEMO', label: 'Demo' },
   { value: 'DIAGNOSTIC', label: 'Diagnostic' },
 ];
+// The Bookings page opens on the Demo bookings.
+export const DEFAULT_TYPE = 'DEMO';
+
+// Each type is a table and a list of its own (backend bookings.models.booking_model),
+// so a booking is named by its type and its id: /api/bookings/<demo|diagnostic>/<id>/.
+const TYPE_PATHS = { DEMO: 'demo', DIAGNOSTIC: 'diagnostic' };
+
+function typePath(type) {
+  const segment = TYPE_PATHS[type];
+  if (!segment) throw new Error(`Unknown booking type: ${type}`);
+  return segment;
+}
+
+export const BOOKINGS_URL = '/api/bookings/';
+export const bookingsUrl = (type) => `${BOOKINGS_URL}${typePath(type)}/`;
+export const bookingUrl = (type, id) => `${bookingsUrl(type)}${id}/`;
+export const bookingTutorsUrl = (type, id) => `${bookingUrl(type, id)}tutors/`;
+export const bookingTutorUrl = (type, id) => `${bookingUrl(type, id)}tutor/`;
+export const bookingHistoryUrl = (type, id) => `${bookingUrl(type, id)}history/`;
+export const bookingRescheduleOptionsUrl = (type, id) => `${bookingUrl(type, id)}reschedule-options/`;
+export const bookingRescheduleUrl = (type, id) => `${bookingUrl(type, id)}reschedule/`;
+export const bookingCancelUrl = (type, id) => `${bookingUrl(type, id)}cancel/`;
+// A BDE cancels a booking of their own lead here (Q22); the API checks the lead is theirs.
+export const bdeBookingCancelUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/cancel/`;
+
+/** The Bookings page with one booking open in its detail sheet (?type=<TYPE>&booking=<id>). */
+export function bookingPagePath(type, id) {
+  typePath(type); // DEMO or DIAGNOSTIC only, as for the API paths
+  return `/bookings?type=${type}&booking=${id}`;
+}
+
+// Why a booking was cancelled or moved: a code from a fixed list (backend
+// bookings.models.CancelReason / RescheduleReason), never free text. No-show
+// is offered only once the slot has started (the booking's actions.no_show).
+export const CANCEL_REASONS = [
+  { value: 'NO_SHOW', label: 'No-show' },
+  { value: 'PARENT_REQUEST', label: 'Parent asked to cancel' },
+  { value: 'DUPLICATE', label: 'Duplicate booking' },
+  { value: 'BOOKED_BY_MISTAKE', label: 'Booked by mistake' },
+  { value: 'OTHER', label: 'Other' },
+];
+export const RESCHEDULE_REASONS = [
+  { value: 'PARENT_REQUEST', label: 'Parent asked to move' },
+  { value: 'TUTOR_UNAVAILABLE', label: 'Tutor unavailable' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const labelOf = (options, code) => options.find((option) => option.value === code)?.label ?? '';
+export const cancelReasonLabel = (code) => labelOf(CANCEL_REASONS, code);
+export const rescheduleReasonLabel = (code) => labelOf(RESCHEDULE_REASONS, code);
+
+// The list filters the API accepts (backend coordination.parse_filters). The
+// type is the list's own URL, never a filter.
 export const BOOKING_STATUSES = [
   { value: 'BOOKED', label: 'Booked' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'RESCHEDULED', label: 'Rescheduled' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 export const ASSIGNMENT_FILTERS = [
@@ -38,17 +87,22 @@ const STATUS_VALUES = values(BOOKING_STATUSES);
 const ASSIGNMENT_VALUES = values(ASSIGNMENT_FILTERS);
 const WHEN_VALUES = values(WHEN_FILTERS);
 
+/** `value` if it is a booking type (DEMO or DIAGNOSTIC), else ''. */
+export function readBookingType(value) {
+  return TYPE_VALUES.has(value) ? value : '';
+}
+
 /**
- * The list's filters from the page URL. A value the API would refuse is
- * dropped here, so a hand-edited link shows the unfiltered list rather than
- * an error.
+ * The list's filters from the page URL, and the type tab it shows (Demo
+ * unless the URL says Diagnostic). A value the API would refuse is dropped
+ * here, so a hand-edited link shows the unfiltered list rather than an error.
  */
 export function readFilters(searchParams) {
   const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
   const date = (name) => (DATE_RE.test(searchParams.get(name) ?? '') ? searchParams.get(name) : '');
   return {
     q: (searchParams.get('q') ?? '').trim(),
-    type: pick('type', TYPE_VALUES),
+    type: pick('type', TYPE_VALUES) || DEFAULT_TYPE,
     status: pick('status', STATUS_VALUES),
     assigned: pick('assigned', ASSIGNMENT_VALUES),
     from: date('from'),
@@ -57,10 +111,10 @@ export function readFilters(searchParams) {
   };
 }
 
-/** The query the list endpoint takes for `filters` and `page`. */
+/** The query the list endpoint (bookingsUrl(filters.type)) takes for `filters` and `page`. */
 export function listParams(filters, page, pageSize) {
   const params = { page, page_size: pageSize };
-  for (const name of ['q', 'type', 'status', 'assigned', 'from', 'to']) {
+  for (const name of ['q', 'status', 'assigned', 'from', 'to']) {
     if (filters[name]) params[name] = filters[name];
   }
   if (filters.when !== 'all') params.when = filters.when;
@@ -70,9 +124,10 @@ export function listParams(filters, page, pageSize) {
 // My Bookings for tutors: the /api/tutor/bookings/ contract (backend
 // bookings/tutor_views.py and bookings/tutor_bookings.py). The API serves the
 // caller only the bookings assigned to them, each with the child and the slot
-// and nothing of the parent, the BDE or the assignment.
+// and nothing of the parent, the BDE or the assignment. The list holds both
+// types (filtered by `type`); one booking is named by its type and its id.
 export const TUTOR_BOOKINGS_URL = '/api/tutor/bookings/';
-export const tutorBookingUrl = (id) => `${TUTOR_BOOKINGS_URL}${id}/`;
+export const tutorBookingUrl = (type, id) => `${TUTOR_BOOKINGS_URL}${typePath(type)}/${id}/`;
 
 /** The tutor list's filters from the page URL; a value the API would refuse is dropped, as in readFilters. */
 export function readTutorFilters(searchParams) {
@@ -87,9 +142,14 @@ export function tutorListParams(filters, page, pageSize) {
   return params;
 }
 
-/** Where a booking stands: cancelled, or by its slot's clock -- upcoming, in progress, done. */
+/**
+ * Where a booking stands: cancelled, moved to another slot or completed by
+ * its status, else by its slot's clock -- upcoming, in progress, done.
+ */
 export function bookingState(booking) {
   if (booking.status === 'CANCELLED') return { label: 'Cancelled', variant: 'outline' };
+  if (booking.status === 'RESCHEDULED') return { label: 'Rescheduled', variant: 'outline' };
+  if (booking.status === 'COMPLETED') return { label: 'Completed', variant: 'secondary' };
   if (booking.slot?.ended) return { label: 'Done', variant: 'secondary' };
   if (booking.slot?.started) return { label: 'In progress', variant: 'info' };
   return { label: 'Upcoming', variant: 'success' };

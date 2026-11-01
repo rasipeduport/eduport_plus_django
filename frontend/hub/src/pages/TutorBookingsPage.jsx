@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { RefreshCwIcon, ShieldAlertIcon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { TUTOR_BOOKINGS_URL, bookingError, readTutorFilters, tutorListParams } from '@/lib/bookings';
+import { TUTOR_BOOKINGS_URL, bookingError, readBookingType, readTutorFilters, tutorListParams } from '@/lib/bookings';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { TutorBookingList } from '@/components/bookings/tutor-booking-list';
@@ -24,7 +24,8 @@ function AccessDenied({ failure }) {
 /**
  * My Bookings for tutors: the Demo and Diagnostic bookings the caller is
  * assigned to teach (GET /api/tutor/bookings/), filtered and paged by the
- * API, each opened read-only in a side sheet (?booking=<id>). Opens for the
+ * API, each opened read-only in a side sheet (?booking=<id>&booking_type=<type>:
+ * each type is its own table, so a booking is named by both). Opens for the
  * TUTOR role holding accounts.view_assigned_bookings (lib/access). The API
  * serves only the caller's own bookings, with the child and the slot and
  * nothing of the parent, the BDE or the assignment; tutors are assigned on
@@ -41,6 +42,7 @@ export default function TutorBookingsPage() {
   const { type, when } = filters;
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const openId = searchParams.get('booking');
+  const openType = readBookingType(searchParams.get('booking_type'));
 
   useEffect(() => {
     let active = true;
@@ -109,7 +111,7 @@ export default function TutorBookingsPage() {
           filters={filters}
           pending={pending}
           onChange={update}
-          onOpen={(id) => update({ booking: id })}
+          onOpen={(booking) => update({ booking: booking.id, booking_type: booking.booking_type })}
         />
       </>
     );
@@ -133,10 +135,11 @@ export default function TutorBookingsPage() {
       {content}
 
       <TutorBookingSheet
+        bookingType={openType}
         bookingId={openId}
         open={Boolean(openId)}
         onOpenChange={(open) => {
-          if (!open) update({ booking: null });
+          if (!open) update({ booking: null, booking_type: null });
         }}
         reloadKey={reloadKey}
       />
