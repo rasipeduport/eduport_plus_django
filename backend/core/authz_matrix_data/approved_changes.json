@@ -1540,6 +1540,144 @@
     "status": 403
    }
   },
+  "bde.bookings.report_pdf @ admin": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ anon": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ mentor_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ mentor_b": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ parent_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ su_mentor": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ su_tutor": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ superuser": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ tutor_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ tutor_b": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_pdf @ unknown": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.dashboard @ admin": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
@@ -2127,6 +2265,144 @@
   "bde.enquiries.list @ unknown": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ admin": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ anon": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ mentor_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ mentor_b": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ parent_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ su_mentor": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ su_tutor": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ superuser": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ tutor_a": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ tutor_b": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.reports @ unknown": {
+   "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
+   "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

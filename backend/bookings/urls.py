@@ -11,4 +11,5 @@ urlpatterns = [
     path('enquiries/<uuid:pk>/', BdeEnquiryDetailView.as_view(), name='bde-enquiry'),
     # Cancelling a booking of the caller's own lead (Q22); ownership checked in the view and the service.
     path('bookings/<str:booking_type>/<uuid:pk>/cancel/', BdeBookingCancelView.as_view(), name='bde-booking-cancel'),
+    # The reports on the caller's own leads, and their PDFs, are reports.bde_urls (P9).
 ]

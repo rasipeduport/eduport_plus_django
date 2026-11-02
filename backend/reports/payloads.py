@@ -5,6 +5,7 @@ tutor writes, the system fields as the report prints them, its version and
 when it was saved -- never the parent, the lead, the booking's submission or
 the BDE.
 """
+from bookings.enquiries import booking_brief
 
 
 def report_body(report):
@@ -53,6 +54,18 @@ def booking_completion(booking):
         'booking_type': booking.booking_type,
         'status': booking.status,
         'completed_at': _when(booking.completed_at),
+    }
+
+
+def lead_report_row(booking):
+    """
+    One report on a lead's list, as the lead's owner BDE reads it (P9): the
+    booking it was written on -- when it was, and that it is completed -- and
+    the report as last saved. Nothing about sending it: no send is recorded.
+    """
+    return {
+        'booking': {**booking_brief(booking), 'status': booking.status, 'completed_at': _when(booking.completed_at)},
+        'report': report_body(booking.report),
     }
 
 

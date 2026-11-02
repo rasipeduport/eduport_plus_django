@@ -1,7 +1,8 @@
 """
 A report's PDF as the report APIs hand it over (design F.3). The tutor's
-routes (reports.tutor_views) and the Admin's (reports.management_views) each
-find the booking the caller may see, then answer with report_pdf_response:
+routes (reports.tutor_views), the Admin's (reports.management_views) and the
+lead's owner BDE's (reports.bde_views, the current version only, P9) each find
+the booking the caller may see, then answer with report_pdf_response:
 
     GET .../report/pdf/                       the report as last saved
     GET .../report/revisions/<version>/pdf/   the report as saved at <version>

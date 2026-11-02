@@ -57,6 +57,8 @@ urlpatterns = [
     path('api/homework/', include('homework.urls', namespace='homework')),
     # The BDE workspace: a BDE's own permanent booking links, dashboard and enquiries.
     path('api/bde/', include('bookings.urls', namespace='bookings')),
+    # The reports on a BDE's own leads: each as it prints, and its PDF (P9).
+    path('api/bde/', include('reports.bde_urls', namespace='bde_reports')),
     # Booking slots for administrators: close or reopen one date's Demo/Diagnostic slots.
     path('api/booking-slots/', include('bookings.slot_urls', namespace='booking_slots')),
     # Booking management for administrators: every booking, and the tutor teaching it.

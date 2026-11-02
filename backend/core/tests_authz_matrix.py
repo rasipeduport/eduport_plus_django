@@ -84,6 +84,11 @@ BDE_WORKSPACE = {
     # booking_a's lead is not the BDE's own: answered as a booking that does not exist (Q22).
     'bde.bookings.cancel': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                             'fields': ['error', 'message']},
+    # Its own enquiry has no report yet (P9).
+    'bde.enquiries.reports': {'status': 200, 'records': [], 'fields': ['count', 'results', 'timezone']},
+    # booking_a's lead is not the BDE's own: its report is answered as a booking that does not exist (P9).
+    'bde.bookings.report_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                'fields': ['error', 'message']},
 }
 
 

@@ -587,6 +587,10 @@ SCENARIOS = [
     Scenario('bookings.report_revision_pdf', 'get', '/api/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
     # A BDE cancels only their own leads' bookings (Q22): booking_a's lead is nobody's.
     Scenario('bde.bookings.cancel', 'post', '/api/bde/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # ... and reads only their own leads' reports (P9): lead_a and booking_a's lead are nobody's here; the new-role
+    # world gives lead_a, which has no report, to its BDE.
+    Scenario('bde.enquiries.reports', 'get', '/api/bde/enquiries/{lead_a}/reports/'),
+    Scenario('bde.bookings.report_pdf', 'get', '/api/bde/bookings/demo/{booking_a}/report/pdf/'),
 
     # --- My Bookings (tutors: the bookings assigned to them) ----------------------
     # booking_a has no tutor, so a tutor lists none and is not shown it.
