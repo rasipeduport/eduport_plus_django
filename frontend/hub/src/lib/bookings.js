@@ -71,6 +71,15 @@ export const ASSIGNMENT_FILTERS = [
   { value: 'false', label: 'Needs a tutor' },
   { value: 'true', label: 'Tutor assigned' },
 ];
+// Whether the booking has its report (backend coordination.parse_filters
+// `report`, P8). Report due is a booked booking whose slot is over without
+// one -- the rows' own report_due -- so it is only ever found among past slots.
+export const REPORT_FILTERS = [
+  { value: 'submitted', label: 'Report submitted' },
+  { value: 'missing', label: 'No report yet' },
+  { value: 'due', label: 'Report due' },
+];
+export const REPORT_DUE = 'due';
 // Upcoming is the page's default; "all" is the page's own word for no date filter.
 export const WHEN_FILTERS = [
   { value: 'upcoming', label: 'Upcoming' },
@@ -85,6 +94,7 @@ const values = (options) => new Set(options.map((option) => option.value));
 const TYPE_VALUES = values(BOOKING_TYPES);
 const STATUS_VALUES = values(BOOKING_STATUSES);
 const ASSIGNMENT_VALUES = values(ASSIGNMENT_FILTERS);
+const REPORT_VALUES = values(REPORT_FILTERS);
 const WHEN_VALUES = values(WHEN_FILTERS);
 
 /** `value` if it is a booking type (DEMO or DIAGNOSTIC), else ''. */
@@ -96,25 +106,30 @@ export function readBookingType(value) {
  * The list's filters from the page URL, and the type tab it shows (Demo
  * unless the URL says Diagnostic). A value the API would refuse is dropped
  * here, so a hand-edited link shows the unfiltered list rather than an error.
+ * Reports are due only on slots that are over, so Report due reads Upcoming
+ * (the default) as Past: a link to the reports due never shows an empty list.
  */
 export function readFilters(searchParams) {
   const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
   const date = (name) => (DATE_RE.test(searchParams.get(name) ?? '') ? searchParams.get(name) : '');
+  const report = pick('report', REPORT_VALUES);
+  const when = pick('when', WHEN_VALUES) || DEFAULT_WHEN;
   return {
     q: (searchParams.get('q') ?? '').trim(),
     type: pick('type', TYPE_VALUES) || DEFAULT_TYPE,
     status: pick('status', STATUS_VALUES),
     assigned: pick('assigned', ASSIGNMENT_VALUES),
+    report,
     from: date('from'),
     to: date('to'),
-    when: pick('when', WHEN_VALUES) || DEFAULT_WHEN,
+    when: report === REPORT_DUE && when === 'upcoming' ? 'past' : when,
   };
 }
 
 /** The query the list endpoint (bookingsUrl(filters.type)) takes for `filters` and `page`. */
 export function listParams(filters, page, pageSize) {
   const params = { page, page_size: pageSize };
-  for (const name of ['q', 'status', 'assigned', 'from', 'to']) {
+  for (const name of ['q', 'status', 'assigned', 'report', 'from', 'to']) {
     if (filters[name]) params[name] = filters[name];
   }
   if (filters.when !== 'all') params.when = filters.when;

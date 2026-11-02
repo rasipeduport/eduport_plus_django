@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 
 import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
 import { sourceLabel } from './enquiries';
+import { reportFieldsText } from './reports';
 
 // Short, human label per action — used for badges and the action filter.
 export const ACTION_LABELS = {
@@ -63,6 +64,10 @@ export const ACTION_LABELS = {
   'booking.reschedule': 'Booking rescheduled',
   'booking.assign_tutor': 'Tutor assigned',
   'booking.unassign_tutor': 'Tutor unassigned',
+  'booking.complete': 'Booking completed',
+  // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
+  'report.submit': 'Report submitted',
+  'report.edit': 'Report edited',
   'booking_slot.close': 'Slot closed',
   'booking_slot.reopen': 'Slot reopened',
   'booking_schedule.update': 'Booking times changed',
@@ -288,6 +293,16 @@ export function describeActivity(row) {
         : `Assigned a tutor to ${bookingOfType(row)}`;
     case 'booking.unassign_tutor':
       return `Unassigned the tutor from ${bookingOfType(row)}`;
+    // The first report completes its booking (backend reports.services): two entries, one each.
+    case 'booking.complete':
+      return `Completed ${bookingOfType(row)} with its report`;
+    case 'report.submit':
+      return `Submitted the report on ${bookingOfType(row)}`;
+    case 'report.edit': {
+      const version = row.context?.version ? `, now version ${row.context.version}` : '';
+      const fields = reportFieldsText(row.context?.changed_fields);
+      return `Edited the report on ${bookingOfType(row)}${version}${fields ? ` — ${fields}` : ''}`;
+    }
     case 'booking_slot.close': {
       const reason = reasonOf(row);
       return reason ? `Closed the slot — ${reason}` : 'Closed the slot';

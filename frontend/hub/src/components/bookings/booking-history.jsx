@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { bookingError, bookingHistoryUrl } from '@/lib/bookings';
 import { slotLabel } from '@/lib/enquiries';
+import { reportFieldsText } from '@/lib/reports';
 
 /** One event of the timeline in words, from the names and labels the API reads back (never a child's or parent's). */
 function describeBookingEvent(event) {
@@ -26,6 +27,14 @@ function describeBookingEvent(event) {
       return `Moved from ${slotLabel(d.old_slot)} to ${slotLabel(d.new_slot)} — ${d.reason?.label ?? ''}`.replace(/ — $/, '');
     case 'CANCELLED':
       return d.reason?.label ? `Cancelled — ${d.reason.label}` : 'Cancelled';
+    // The tutor's first report completes the booking; each later save is an edit,
+    // named by its version and the fields it changed -- never by their text.
+    case 'COMPLETED':
+      return 'Completed — the report was submitted';
+    case 'REPORT_EDITED': {
+      const fields = reportFieldsText(d.changed_fields);
+      return `Report edited, now version ${d.version ?? '—'}${fields ? ` — ${fields}` : ''}`;
+    }
     default:
       return event.kind_label ?? event.kind;
   }

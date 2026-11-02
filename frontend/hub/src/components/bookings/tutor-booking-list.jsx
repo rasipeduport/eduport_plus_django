@@ -5,18 +5,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
+import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { BOOKING_TYPES, DEFAULT_WHEN, WHEN_FILTERS } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
-import { BookingStateBadge } from './booking-badges';
+import { ReportStateBadge } from './booking-badges';
 
 const ALL = '__all__';
 
 /**
  * The bookings a tutor is assigned to teach (GET /api/tutor/bookings/): the
  * type tabs, the Upcoming / Past / All filter and paging the API applies
- * (lib/bookings), and per row a way to open the booking. Read-only: a tutor
- * never assigns or changes a tutor. Each row shows the slot in Indian time and
- * the child it is for -- nothing of the parent, the BDE or the assignment is
+ * (lib/bookings), and per row a way to open the booking. A tutor never
+ * assigns or changes a tutor. Each row shows the slot in Indian time, the
+ * child it is for and where the booking stands with its report (lib/reports
+ * reportState), with Write report or Edit report when the report can be
+ * written or has been -- nothing of the parent, the BDE or the assignment is
  * read here. The page keeps the filters in the URL; `onChange` receives what
  * changed.
  */
@@ -74,9 +77,9 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
               <TableHead>When (IST)</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Student</TableHead>
-              <TableHead className="hidden md:table-cell">Syllabus</TableHead>
-              <TableHead className="hidden lg:table-cell">School</TableHead>
-              <TableHead className="hidden lg:table-cell">Country</TableHead>
+              <TableHead className="hidden xl:table-cell">Syllabus</TableHead>
+              <TableHead className="hidden xl:table-cell">School</TableHead>
+              <TableHead className="hidden xl:table-cell">Country</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-px">
                 <span className="sr-only">Actions</span>
@@ -102,18 +105,24 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
                     <TableCell>
                       <BookingTypeBadge type={booking.booking_type} />
                     </TableCell>
-                    <TableCell>
-                      <p className="font-medium">{booking.student_name}</p>
+                    <TableCell className="min-w-28 whitespace-normal">
+                      <p className="font-medium break-words">{booking.student_name}</p>
                       {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{booking.syllabus || '—'}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{booking.school_name || '—'}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{booking.country || '—'}</TableCell>
+                    <TableCell className="hidden whitespace-normal xl:table-cell">{booking.syllabus || '—'}</TableCell>
+                    <TableCell className="hidden whitespace-normal xl:table-cell">{booking.school_name || '—'}</TableCell>
+                    <TableCell className="hidden whitespace-normal xl:table-cell">{booking.country || '—'}</TableCell>
                     <TableCell>
-                      <BookingStateBadge booking={booking} />
+                      <div className="flex flex-col items-start gap-1">
+                        <ReportStateBadge booking={booking} />
+                        {booking.has_report ? (
+                          <span className="text-muted-foreground text-xs">Report v{booking.report_version}</span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <TutorReportLink booking={booking} />
                         <Button
                           variant="outline"
                           size="sm"

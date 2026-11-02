@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
+import { confirmLeave } from '@/hooks/use-leave-guard';
 import ThemeToggle from './theme-toggle';
 
 function RoleBadge({ role }) {
@@ -70,8 +71,9 @@ export function NavUser({ user, logout }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {/* A page with unsaved work (a report being written) asks before logging out discards it. */}
             <DropdownMenuItem asChild>
-              <button className="w-full" onClick={logout}>
+              <button className="w-full" onClick={() => confirmLeave(logout)}>
                 <LogOut />
                 Log out
               </button>

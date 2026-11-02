@@ -243,7 +243,7 @@ test('loading, then the Demo bookings with assigned and unassigned ones told apa
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => [clean(element.textContent),
     element.getAttribute('aria-selected')]), [['Demo', 'true'], ['Diagnostic', 'false']], 'a tab per type, Demo first');
   assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
-    ['When (IST)', 'Student', 'Parent', 'Tutor', 'Status', 'Actions'], 'one type per tab, so no type column');
+    ['When (IST)', 'Student', 'Parent', 'Tutor', 'Status', 'Report', 'Actions'], 'one type per tab, so no type column; a report column (P8)');
   const [riya, arun] = rows();
   assert.match(clean(riya.textContent), /Sat, 31 Oct.*7:30 PM.*Riya.*Class 8.*Asha Nair.*Unassigned.*Upcoming/);
   assert.match(clean(arun.textContent), /Arun.*Tutor B.*Upcoming/);
@@ -731,6 +731,40 @@ test('History: the timeline on request, across the reschedule chain, with who an
   assert.ok(!items.join(' ').includes('Asha Nair'), 'no parent in the timeline');
 });
 
+test('History: a completed booking shows its report submitted and each edit, by version and field, never their text', async () => {
+  const history = {
+    booking_id: RIYA.id, timezone: 'Asia/Kolkata',
+    chain: [{ id: RIYA.id, status: 'COMPLETED', slot: RIYA.slot, current: true }],
+    events: [
+      { id: 'c1', booking_id: RIYA.id, kind: 'CREATED', kind_label: 'Created', at: '2026-10-28T09:00:00+00:00', actor: null,
+        details: { slot: RIYA.slot, seat: 1, via: 'public_booking', referral_status: 'NO_REF' } },
+      { id: 'c2', booking_id: RIYA.id, kind: 'COMPLETED', kind_label: 'Completed', at: '2026-10-31T15:00:00+00:00',
+        actor: { id: 't-a', full_name: 'Tutor A' },
+        details: { from_status: 'BOOKED', to_status: 'COMPLETED', report_id: 'r-1', version: 1 } },
+      { id: 'c3', booking_id: RIYA.id, kind: 'REPORT_EDITED', kind_label: 'Report edited', at: '2026-11-01T06:00:00+00:00',
+        actor: { id: 't-a', full_name: 'Tutor A' },
+        details: { report_id: 'r-1', version: 2, changed_fields: ['score', 'teacher_remarks'] } },
+      { id: 'c4', booking_id: RIYA.id, kind: 'REPORT_EDITED', kind_label: 'Report edited', at: '2026-11-01T07:00:00+00:00',
+        actor: { id: 't-a', full_name: 'Tutor A' },
+        details: { report_id: 'r-1', version: 3, changed_fields: ['suggested_plan', 'student_name_snapshot'] } },
+    ],
+  };
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA, { status: 'COMPLETED', actions: { cancel: false, no_show: false, reschedule: false } }),
+    [`GET ${at(RIYA, 'history/')}`]: history,
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Show history', topDialog()));
+  const items = [...topDialog().querySelectorAll('[aria-label="History"] li')].map((li) => clean(li.textContent));
+  assert.equal(items.length, 4);
+  assert.match(items[1], /^Completed — the report was submitted.* · by Tutor A$/);
+  assert.match(items[2], /^Report edited, now version 2 — Score, Teacher's remarks.* · by Tutor A$/);
+  assert.match(items[3], /^Report edited, now version 3 — Suggested plan, Student name.* · by Tutor A$/);
+  // Field names only: no raw codes, no report id.
+  assert.ok(!items.join(' ').match(/teacher_remarks|snapshot|r-1/), items.join(' | '));
+});
+
 test('A moved booking says why and links to its replacement', async () => {
   serve({
     [`GET ${LIST}`]: list([RIYA]),
@@ -802,6 +836,179 @@ test('BDE: no Cancel unless the API offers it', async () => {
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, actions: { cancel: false, no_show: false } }, { ...BDE_BOOKED, id: 'b-3', actions: undefined }]) });
   await open('/enquiries/lead-1', BDE);
   assert.equal(document.querySelectorAll('tbody button').length, 0);
+});
+
+// ------------------------------------------------------------ reports (Admin, P8)
+// The report fields each row and detail carry (backend coordination.report_summary, report_brief).
+const reportFields = (extra = {}) => ({ has_report: false, report_version: null, report_due: false, report: null, ...extra });
+const OVER = { ...RIYA.slot, started: true, ended: true };
+const TUTOR_A = { id: 't-a', full_name: 'Tutor A' };
+const IRA = { ...RIYA, id: 'b-ira', student_name: 'Ira', status: 'COMPLETED', slot: OVER, tutor: TUTOR_A,
+  ...reportFields({ has_report: true, report_version: 2, report: { id: 'r-ira', version: 2,
+    submitted_at: '2026-10-31T15:10:00+00:00', submitted_by: TUTOR_A, updated_at: '2026-10-31T16:20:00+00:00' } }) };
+const DEV = { ...RIYA, id: 'b-dev', student_name: 'Dev', slot: OVER, tutor: TUTOR_A, ...reportFields({ report_due: true }) };
+const NOOR = { ...RIYA, id: 'b-noor', student_name: 'Noor', slot: OVER, tutor: null, ...reportFields({ report_due: true }) };
+const SAM = { ...RIYA, id: 'b-sam', student_name: 'Sam', slot: { ...RIYA.slot, started: true }, tutor: TUTOR_A, ...reportFields() };
+const SOON = { ...RIYA, ...reportFields() };
+const IRA_V1 = { assessment_review: 'Scored 9 out of 12.', class_observation_review: 'Attentive.', suggested_strategy: 'Timed practice.' };
+const IRA_V2 = { ...IRA_V1, suggested_strategy: 'Timed practice, twice a week.' };
+const iraReport = { id: 'r-ira', booking_id: IRA.id, booking_type: 'DEMO', version: 2, fields: IRA_V2, student_name: 'Ira',
+  grade: '8', tutor_name: 'Tutor A', submitted_at: '2026-10-31T15:10:00+00:00', updated_at: '2026-10-31T16:20:00+00:00' };
+const iraVersion = (version, fields, changed) => ({ version, changed_fields: changed, edited_at: `2026-10-31T1${4 + version}:00:00+00:00`,
+  edited_by: { id: 't-a', name: 'Tutor A' }, fields, student_name: 'Ira', grade: '8', tutor_name: 'Tutor A' });
+const reportCell = (row) => row.querySelectorAll('td')[5];
+
+/** Save what a download would, instead of a browser: [file name, ...]. Restores the browser's own afterwards. */
+async function catchingDownloads(run) {
+  const saved = [];
+  const { createObjectURL, revokeObjectURL } = URL;
+  const anchorClick = window.HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = () => 'blob:test/1';
+  URL.revokeObjectURL = () => {};
+  window.HTMLAnchorElement.prototype.click = function click() {
+    saved.push(this.download);
+  };
+  try {
+    await run(saved);
+  } finally {
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    window.HTMLAnchorElement.prototype.click = anchorClick;
+  }
+}
+const pdfAnswer = (name) => () => Promise.resolve({ status: 200, data: new Blob(['%PDF-1.7']),
+  headers: { 'content-disposition': `attachment; filename="${name}"` } });
+
+test('reports: the Report column shows the version submitted, Report due, or nothing yet', async () => {
+  serve({ [`GET ${LIST}`]: list([IRA, DEV, NOOR, SAM, SOON]) });
+  await open('/bookings', ADMIN);
+  const cells = rows().map(reportCell);
+  assert.deepEqual(cells.map((cell) => clean(cell.textContent)), ['Report v2', 'Report due', 'Report due', '—', '—']);
+  assert.deepEqual(cells.map((cell) => cell.querySelector('[data-slot="badge"]')?.dataset.variant ?? null),
+    ['success', 'warning', 'warning', null, null]);
+});
+
+test('reports: Filter by report reaches the API and the URL with search and every other filter; Report due looks at past slots', async () => {
+  serve({ [`GET ${LIST}`]: list([IRA]) });
+  const page = await open('/bookings', ADMIN);
+  const params = () => calls('GET', LIST).at(-1).params;
+  const query = () => Object.fromEntries(new URLSearchParams(page.location().search));
+
+  await choose('Filter by report', 'Report submitted');
+  assert.deepEqual(params(), { page: 1, page_size: 25, report: 'submitted', when: 'upcoming' });
+  await choose('Filter by report', 'No report yet');
+  assert.equal(params().report, 'missing');
+  await typeInto(document.querySelector('[aria-label="Search bookings"]'), 'Dev');
+  await submit(document.querySelector('[aria-label="Search bookings"]').closest('form'));
+  assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', report: 'missing', when: 'upcoming' });
+
+  // Report due: only past slots can be due, so Upcoming becomes Past -- in the request and the URL.
+  await choose('Filter by report', 'Report due');
+  assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', report: 'due', when: 'past' });
+  assert.deepEqual(query(), { q: 'Dev', report: 'due', when: 'past' });
+  await choose('Filter by status', 'Booked');
+  await choose('Filter by tutor assignment', 'Tutor assigned');
+  assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', report: 'due', when: 'past' });
+  await choose('Filter by when', 'All dates');
+  assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', report: 'due' });
+  // Back to Upcoming: no report is due there, so Report due goes rather than empty the list.
+  await choose('Filter by when', 'Upcoming');
+  assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', when: 'upcoming' });
+  assert.equal(query().report, undefined);
+
+  await choose('Filter by report', 'Report due');
+  await click(button('Clear'));
+  assert.deepEqual(params(), { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(query(), {});
+  await page.unmount();
+
+  // A link to the reports due shows them, whatever it says of Upcoming; an unknown value is dropped.
+  for (const [link, sent] of [
+    ['/bookings?report=due', { page: 1, page_size: 25, report: 'due', when: 'past' }],
+    ['/bookings?report=due&when=upcoming', { page: 1, page_size: 25, report: 'due', when: 'past' }],
+    ['/bookings?report=due&when=all', { page: 1, page_size: 25, report: 'due' }],
+    ['/bookings?report=overdue', { page: 1, page_size: 25, when: 'upcoming' }],
+  ]) {
+    globalThis.__bookingsApi.calls = [];
+    const opened = await open(link, ADMIN);
+    assert.deepEqual(params(), sent, link);
+    await opened.unmount();
+  }
+});
+
+test('reports: the sheet shows a submitted report read-only -- who and when, the report itself, its PDF and every version', async () => {
+  await catchingDownloads(async (saved) => {
+    serve({
+      [`GET ${LIST}`]: list([IRA]),
+      [`GET ${at(IRA)}`]: detail(IRA),
+      [`GET ${at(IRA, 'report/')}`]: iraReport,
+      [`GET ${at(IRA, 'report/revisions/')}`]: { results: [iraVersion(1, IRA_V1, ['assessment_review',
+        'class_observation_review', 'suggested_strategy']), iraVersion(2, IRA_V2, ['suggested_strategy'])], count: 2, version: 2 },
+      [`GET ${at(IRA, 'report/pdf/')}`]: pdfAnswer('Demo-Report-Ira-2026-10-31.pdf'),
+      [`GET ${at(IRA, 'report/revisions/1/pdf/')}`]: pdfAnswer('Demo-Report-Ira-2026-10-31-v1.pdf'),
+    });
+    await open(`/bookings?booking=${IRA.id}`, ADMIN);
+    const section = [...topDialog().querySelectorAll('section')].find((element) => element.querySelector('h3')?.textContent === 'Report');
+    assert.ok(section, 'a Report section');
+    const text = clean(section.textContent);
+    assert.match(text, /VersionVersion 2Submitted31 Oct 2026, .* by Tutor ALast saved31 Oct 2026, /);
+    assert.match(text, /Read-only\. Only the booking’s tutor writes or edits its report\./);
+    for (const value of Object.values(IRA_V2)) assert.ok(text.includes(value), `the report says "${value}"`);
+
+    await click(button('Download PDF', section));
+    assert.equal(calls('GET', at(IRA, 'report/pdf/')).length, 1, "the Admin's own PDF route");
+    assert.deepEqual(saved, ['Demo-Report-Ira-2026-10-31.pdf']);
+
+    await click(button('Show versions', section));
+    assert.equal(calls('GET', at(IRA, 'report/revisions/')).length, 1, 'versions are read on request');
+    assert.match(clean(section.textContent), /Version 2 · current.*Changed: Suggested strategy.*Version 1.*First version/);
+    await click(button('Show version 1', section));
+    assert.ok(clean(section.textContent).includes(IRA_V1.suggested_strategy), 'an earlier version as it was saved');
+    await click(button('PDF of version 1', section));
+    assert.deepEqual(saved, ['Demo-Report-Ira-2026-10-31.pdf', 'Demo-Report-Ira-2026-10-31-v1.pdf']);
+
+    // Read-only: nothing writes a report here, and the tutor's routes are never used.
+    for (const label of ['Edit report', 'Write report', 'Submit report', 'Save changes', 'Preview PDF']) {
+      assert.equal(button(label), undefined, `no ${label}`);
+    }
+    assert.equal([...topDialog().querySelectorAll('a')].filter((link) => (link.getAttribute('href') || '').includes('/report')).length, 0);
+    assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+    assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/tutor/')), "the tutor's API is never called");
+  });
+});
+
+test('reports: a booking without its report says why -- due (with or without a tutor), in progress, upcoming; none for a cancelled one', async () => {
+  for (const [booking, says] of [
+    [DEV, 'Report due. The class is over and the tutor has not written the report yet.'],
+    [NOOR, 'Report due. The class is over, and no tutor is assigned to write the report.'],
+    [SAM, 'The class has started. The tutor can write the report now.'],
+    [SOON, 'The tutor can write the report once the class starts.'],
+  ]) {
+    serve({ [`GET ${LIST}`]: list([booking]), [`GET ${at(booking)}`]: detail(booking) });
+    const page = await open(`/bookings?booking=${booking.id}`, ADMIN);
+    const section = [...topDialog().querySelectorAll('section')].find((element) => element.querySelector('h3')?.textContent === 'Report');
+    assert.equal(clean(section.querySelector('p').textContent), says);
+    assert.equal(button('Download PDF', section), undefined);
+    assert.equal(button('Show versions', section), undefined);
+    assert.equal(calls('GET', at(booking, 'report/')).length, 0, 'no report to read');
+    await page.unmount();
+  }
+  const cancelled = { ...DEV, status: 'CANCELLED', report_due: false };
+  serve({ [`GET ${LIST}`]: list([cancelled]), [`GET ${at(cancelled)}`]: detail(cancelled, { cancelled_at: '2026-10-31T16:00:00+00:00' }) });
+  await open(`/bookings?booking=${cancelled.id}`, ADMIN);
+  assert.ok(![...topDialog().querySelectorAll('h3')].some((heading) => heading.textContent === 'Report'));
+});
+
+test('reports: a report that cannot be read says so, and Try again reads it', async () => {
+  let attempts = 0;
+  serve({
+    [`GET ${LIST}`]: list([IRA]),
+    [`GET ${at(IRA)}`]: detail(IRA),
+    [`GET ${at(IRA, 'report/')}`]: () => (attempts++ === 0 ? fail(500, { message: 'The report could not be read.' }) : ok(iraReport)),
+  });
+  await open(`/bookings?booking=${IRA.id}`, ADMIN);
+  assert.match(clean(topDialog().textContent), /The report could not be read\./);
+  await click(button('Try again', topDialog()));
+  assert.ok(clean(topDialog().textContent).includes(IRA_V2.suggested_strategy));
 });
 
 // ------------------------------------------------------------ My Bookings (tutors)
@@ -1003,6 +1210,116 @@ test('My Bookings: nothing but the child and the slot is rendered, whatever else
   assert.ok(!document.querySelector('a[href^="tel:"], a[href*="wa.me"], a[href^="mailto:"]'), 'no contact links');
 });
 
+// Where each booking stands with its report (P8): the API's own has_report, report_version and report_due,
+// and the slot's started / ended, as the tutor's rows carry them (backend bookings.tutor_bookings).
+const reportOf = (row, slot, report) => ({ ...row, slot: { ...row.slot, ...slot }, has_report: false, report_version: null,
+  report_due: false, ...report });
+const MY_UPCOMING = reportOf(MY_RIYA, {}, {});
+const MY_RUNNING = reportOf({ ...MY_RIYA, id: 'b-sam', student_name: 'Sam' }, { started: true }, {});
+const MY_DUE = reportOf({ ...MY_RIYA, id: 'b-dev', booking_type: 'DIAGNOSTIC', student_name: 'Dev' }, { started: true, ended: true },
+  { report_due: true });
+const MY_DONE = reportOf({ ...MY_RIYA, id: 'b-ira', status: 'COMPLETED', student_name: 'Ira' }, { started: true, ended: true },
+  { has_report: true, report_version: 2 });
+const MY_CANCELLED = reportOf(MY_ALI, { started: true, ended: true }, {});
+
+/** The report links in ``root``: [label, where it goes]. */
+const reportLinks = (root) => [...root.querySelectorAll('a')].map((link) => [clean(link.textContent), link.getAttribute('href')]);
+
+test('My Bookings: each booking says where it stands with its report, and offers Write report or Edit report', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_UPCOMING, MY_RUNNING, MY_DUE, MY_DONE, MY_CANCELLED]) });
+  await open('/my-bookings', TUTOR);
+  const status = (row) => clean(row.querySelectorAll('td')[6].textContent);
+  const actions = (row) => row.querySelectorAll('td')[7];
+  const [upcoming, running, due, done, cancelled] = rows();
+
+  assert.deepEqual([upcoming, running, due, done, cancelled].map(status),
+    ['Upcoming', 'In progress', 'Report due', 'CompletedReport v2', 'Cancelled']);
+  assert.deepEqual([upcoming, running, due, done, cancelled].map((row) => reportLinks(actions(row))), [
+    [],
+    [['Write report', '/my-bookings/demo/b-sam/report']],
+    [['Write report', '/my-bookings/diagnostic/b-dev/report']],
+    [['Edit report', '/my-bookings/demo/b-ira/report']],
+    [],
+  ]);
+  assert.equal(actions(running).querySelector('a').getAttribute('aria-label'), 'Write report for Sam');
+  assert.equal(actions(done).querySelector('a').getAttribute('aria-label'), 'Edit report for Ira');
+  // Report due is the API's word: a booked booking whose slot is over without it stays In progress.
+  serve({ [`GET ${MINE}`]: mine([reportOf(MY_RIYA, { started: true, ended: true }, {})]) });
+  await click(button('Refresh'));
+  assert.equal(status(rows()[0]), 'In progress');
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+});
+
+test("My Bookings: the sheet's Report section -- what the report waits for, or its version, its PDF and Edit report", async () => {
+  const cases = [
+    [MY_UPCOMING, 'You can write the report once the class starts.', [], false],
+    [MY_RUNNING, 'The class has started. You can write the report now.', [['Write report', '/my-bookings/demo/b-sam/report']], false],
+    [MY_DUE, 'The class is over. The report is due.', [['Write report', '/my-bookings/diagnostic/b-dev/report']], false],
+    [MY_DONE, 'Submitted — version 2', [['Edit report', '/my-bookings/demo/b-ira/report']], true],
+  ];
+  for (const [booking, says, links, pdf] of cases) {
+    serve({ [`GET ${MINE}`]: mine([booking]), [`GET ${myAt(booking)}`]: myDetail(booking) });
+    const page = await open(`/my-bookings?${opened(booking)}`, TUTOR);
+    const section = [...topDialog().querySelectorAll('section')].find((element) => element.querySelector('h3')?.textContent === 'Report');
+    assert.ok(section, `a Report section for ${booking.student_name}`);
+    assert.equal(clean(section.querySelector('dd').textContent), says);
+    assert.deepEqual(reportLinks(section), links);
+    assert.equal(Boolean(button('Download PDF', section)), pdf, `PDF for ${booking.student_name}`);
+    await page.unmount();
+  }
+  // A cancelled booking has no report to write.
+  serve({ [`GET ${MINE}`]: mine([MY_CANCELLED]), [`GET ${myAt(MY_CANCELLED)}`]: myDetail(MY_CANCELLED) });
+  await open(`/my-bookings?${opened(MY_CANCELLED)}`, TUTOR);
+  assert.ok(![...topDialog().querySelectorAll('h3')].some((heading) => heading.textContent === 'Report'));
+  assert.deepEqual(reportLinks(topDialog()), []);
+});
+
+test("My Bookings: the sheet downloads the report's PDF from the tutor's own route, or says why it could not", async () => {
+  const pdfUrl = '/api/tutor/bookings/demo/b-ira/report/pdf/';
+  const saved = [];
+  const { createObjectURL, revokeObjectURL } = URL;
+  const anchorClick = window.HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = () => 'blob:test/1';
+  URL.revokeObjectURL = () => {};
+  window.HTMLAnchorElement.prototype.click = function click() {
+    saved.push(this.download);
+  };
+  try {
+    let answer = () => ok({ size: 1 });
+    serve({
+      [`GET ${MINE}`]: mine([MY_DONE]),
+      [`GET ${myAt(MY_DONE)}`]: myDetail(MY_DONE),
+      [`GET ${pdfUrl}`]: (entry) => answer(entry),
+    });
+    await open(`/my-bookings?${opened(MY_DONE)}`, TUTOR);
+    answer = () => Promise.resolve({ status: 200, data: new Blob(['%PDF-1.7']),
+      headers: { 'content-disposition': 'attachment; filename="Demo-Report-Ira-2026-10-31.pdf"' } });
+    await click(button('Download PDF', topDialog()));
+    assert.equal(calls('GET', pdfUrl).length, 1);
+    assert.deepEqual(saved, ['Demo-Report-Ira-2026-10-31.pdf']);
+
+    answer = () => fail(429, new Blob([JSON.stringify({ detail: 'Request was throttled. Expected available in 20 seconds.' })]));
+    await click(button('Download PDF', topDialog()));
+    assert.match(clean(topDialog().querySelector('[role="alert"]').textContent), /Try again in 20 seconds\./);
+    assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')),
+      "the administrators' API is never called");
+  } finally {
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    window.HTMLAnchorElement.prototype.click = anchorClick;
+  }
+});
+
+test('My Bookings: a report-aware booking still shows nothing of the parent, whatever else the API sends', async () => {
+  const leaky = { ...MY_DONE, ...PRIVATE };
+  serve({ [`GET ${MINE}`]: mine([leaky]), [`GET ${myAt(MY_DONE)}`]: myDetail(leaky) });
+  await open(`/my-bookings?${opened(MY_DONE)}`, TUTOR);
+  const text = bodyText();
+  assert.ok(text.includes('Submitted — version 2') && text.includes('Edit report'), 'the report is shown');
+  for (const value of PRIVATE_TEXT) {
+    assert.ok(!text.includes(value), `${value} is not rendered`);
+  }
+});
+
 test('My Bookings opens only for the Tutor role holding accounts.view_assigned_bookings', async () => {
   const account = (role, permissions, extra = {}) => ({ role, permissions, is_superuser: false, ...extra });
   assert.ok(canOpenPage(account('TUTOR', [VIEW_ASSIGNED]), '/my-bookings'), 'a tutor holding it');
@@ -1053,8 +1370,20 @@ test('Activity feed: tutor changes on bookings are labelled and described, namin
     tutor_carried_over: true })), 'Rescheduled a demo booking — Parent asked to move; the tutor carried over');
   assert.equal(describeActivity(entry('booking.reschedule', { booking_type: 'DIAGNOSTIC', reason_code: 'OTHER', tutor_id: 't-1',
     tutor_carried_over: false })), 'Rescheduled a diagnostic booking — Other; the tutor was not free, so it needs one');
+  // Reports (P6): ids, the version and field names only, never a report's text.
+  assert.equal(actionLabel('booking.complete'), 'Booking completed');
+  assert.equal(actionLabel('report.submit'), 'Report submitted');
+  assert.equal(actionLabel('report.edit'), 'Report edited');
+  assert.equal(describeActivity(entry('booking.complete', { booking_type: 'DEMO', report_id: 'r-1' })),
+    'Completed a demo booking with its report');
+  assert.equal(describeActivity(entry('report.submit', { booking_type: 'DIAGNOSTIC', version: 1 })),
+    'Submitted the report on a diagnostic booking');
+  assert.equal(describeActivity(entry('report.edit', { booking_type: 'DIAGNOSTIC', version: 3,
+    changed_fields: ['score', 'teacher_remarks', 'grade_snapshot'] })),
+    "Edited the report on a diagnostic booking, now version 3 — Score, Teacher's remarks, Grade");
+  assert.equal(describeActivity(entry('report.edit', {})), 'Edited the report on a booking');
   // The action filter offers every label: only actions something logs today.
-  for (const later of ['booking.complete', 'report.submit', 'conversion.stage', 'conversion.enrol', 'lead.assign_owner']) {
+  for (const later of ['conversion.stage', 'conversion.enrol', 'lead.assign_owner']) {
     assert.ok(!(later in ACTION_LABELS), `${later} is labelled once something logs it`);
   }
 });

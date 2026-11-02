@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
+import { AdminReportSection } from '@/components/reports/admin-report-section';
 import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeable } from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { BookingHistory } from './booking-history';
@@ -209,6 +210,11 @@ export function BookingDetailSheet({
           <Detail label="Came in">{referralLabel(shown.referral_status)}</Detail>
           <Detail label="Credited BDE">{shown.bde?.full_name}</Detail>
         </Section>
+
+        {/* Its report, read-only (P8): only a booked or completed booking has one to write or read. */}
+        {shown.status === 'BOOKED' || shown.status === 'COMPLETED' ? (
+          <AdminReportSection booking={shown} reloadKey={reloadKey} />
+        ) : null}
 
         <Section title="Student">
           <Detail label="Name">{shown.student_name}</Detail>

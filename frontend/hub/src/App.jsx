@@ -17,6 +17,7 @@ import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
+import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
 import EnquiryPage from './pages/EnquiryPage';
@@ -84,6 +85,13 @@ function HubRoutes({ user, logout }) {
             at ?booking=<id>&booking_type=<type>. The API serves only the bookings assigned to the
             caller: any other is answered as one that does not exist. */}
         <Route path="/my-bookings" element={page('/my-bookings', <TutorBookingsPage />)} />
+        {/* The report on one of those bookings: written once its class has
+            started, edited after (each save a new version), previewed as its
+            PDF. The API serves it only to the booking's assigned tutor. */}
+        <Route
+          path="/my-bookings/:bookingType/:bookingId/report"
+          element={page('/my-bookings', <TutorReportPage user={user} />)}
+        />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}

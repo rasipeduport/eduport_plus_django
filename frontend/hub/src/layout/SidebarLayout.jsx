@@ -40,14 +40,16 @@ export default function SidebarLayout({ user, logout, children }) {
     permissions: user?.permissions ?? [],
   };
 
-  // The student profile (/students/<id>), a staff member's page (/team/<id>)
-  // and an enquiry (/enquiries/<id>) are built on the design tokens like the
-  // lists they open from, so they take the raw layout too.
+  // The student profile (/students/<id>), a staff member's page (/team/<id>),
+  // an enquiry (/enquiries/<id>) and a tutor's report (/my-bookings/<type>/<id>/report)
+  // are built on the design tokens like the lists they open from, so they take
+  // the raw layout too.
   const isPorted =
     PORTED_PATHS.has(pathname) ||
     pathname.startsWith('/students/') ||
     pathname.startsWith('/team/') ||
-    pathname.startsWith('/enquiries/');
+    pathname.startsWith('/enquiries/') ||
+    pathname.startsWith('/my-bookings/');
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen()}>

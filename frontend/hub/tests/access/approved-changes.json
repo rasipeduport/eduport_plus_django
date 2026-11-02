@@ -6159,8 +6159,8 @@
    }
   },
   "/bookings @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6177,6 +6177,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6195,6 +6196,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6205,6 +6207,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -6339,8 +6342,8 @@
    }
   },
   "/bookings @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6357,6 +6360,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6375,6 +6379,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6385,6 +6390,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -6397,8 +6403,8 @@
    }
   },
   "/bookings @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6415,6 +6421,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6433,6 +6440,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6443,6 +6451,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -6555,8 +6564,8 @@
    }
   },
   "/bookings?booking={booking_a} @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6573,6 +6582,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6591,6 +6601,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6601,6 +6612,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -6736,8 +6748,8 @@
    }
   },
   "/bookings?booking={booking_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6754,6 +6766,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6772,6 +6785,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6782,6 +6796,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -6795,8 +6810,8 @@
    }
   },
   "/bookings?booking={booking_a} @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6813,6 +6828,7 @@
      "/booking-slots"
     ],
     "buttons": [
+     "All reports",
      "All statuses",
      "All tutors",
      "Any date",
@@ -6831,6 +6847,7 @@
     "headers": [
      "Actions",
      "Parent",
+     "Report",
      "Status",
      "Student",
      "Tutor",
@@ -6841,6 +6858,7 @@
      "Diagnostic"
     ],
     "filters": [
+     "Filter by report",
      "Filter by status",
      "Filter by tutor assignment",
      "Filter by when"
@@ -9449,6 +9467,358 @@
      "GET /api/homework/",
      "GET /api/sessions/",
      "GET /api/students/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ admin": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ bde": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries"
+    ],
+    "buttons": [
+     "Add enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries?status=BOOKED"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ mentor_a": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ parent_a": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/my-bookings/demo/{my_booking_a}/report",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ sales_tl": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/my-bookings/demo/{my_booking_a}/report",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ su_mentor": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ superuser": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ tutor_a": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "my_booking_a is tutor_a's own and has not started, so the page shows its printed details and why there is no form yet (the report can be written once the class starts): a Back button, no form, no parent or BDE. P8 Step 6A.1: the report itself is asked for only when the booking says it has one (has_report) -- a missing report is answered 404, which the browser logs as an error -- so this booking, with none yet, makes no report call.",
+   "result": {
+    "at": "/my-bookings/demo/{my_booking_a}/report",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/activity",
+     "/my-bookings"
+    ],
+    "buttons": [
+     "My Bookings",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/my-bookings"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/tutor/bookings/demo/{my_booking_a}/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ tutor_b": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "my_booking_a is not tutor_b's: both tutor APIs answer 404 NOT_FOUND, so the page shows Booking not found with Back to My Bookings. P8 Step 6A.1: the report is read only after the booking, and only when the booking has one, so only the booking API is called (and answers 404).",
+   "result": {
+    "at": "/my-bookings/demo/{my_booking_a}/report",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/team",
+     "/activity",
+     "/my-bookings"
+    ],
+    "buttons": [
+     "Back to My Bookings",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/my-bookings"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/tutor/bookings/demo/{my_booking_a}/"
+    ]
+   }
+  },
+  "/my-bookings/demo/{my_booking_a}/report @ unknown": {
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "result": {
+    "at": "/my-bookings/demo/{my_booking_a}/report",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
     ]
    }
   }

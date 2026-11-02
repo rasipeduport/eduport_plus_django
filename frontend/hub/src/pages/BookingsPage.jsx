@@ -52,7 +52,7 @@ export default function BookingsPage({ user }) {
   const [notice, setNotice] = useState(null);
 
   const filters = readFilters(searchParams);
-  const { q, type, status, assigned, from, to, when } = filters;
+  const { q, type, status, assigned, report, from, to, when } = filters;
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const openId = searchParams.get('booking');
 
@@ -60,7 +60,7 @@ export default function BookingsPage({ user }) {
     let active = true;
     setPending(true);
     api
-      .get(bookingsUrl(type), { params: listParams({ q, status, assigned, from, to, when }, page, PAGE_SIZE) })
+      .get(bookingsUrl(type), { params: listParams({ q, status, assigned, report, from, to, when }, page, PAGE_SIZE) })
       .then((response) => {
         if (!active) return;
         setData(response.data);
@@ -75,7 +75,7 @@ export default function BookingsPage({ user }) {
     return () => {
       active = false;
     };
-  }, [q, type, status, assigned, from, to, when, page, reloadKey]);
+  }, [q, type, status, assigned, report, from, to, when, page, reloadKey]);
 
   const reload = () => setReloadKey((key) => key + 1);
 
