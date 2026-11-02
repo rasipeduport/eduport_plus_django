@@ -1744,8 +1744,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ bde": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard. Since BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31) the owner BDE may cancel a booking of their own enquiry that is still booked: a Cancel button per booking, offered when the API's actions say so; the API checks the lead is theirs on every request.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). P9 (BDE report sharing, scope approved 2026-11-02, design F.4): accounts.view_own_lead_reports, which only the BDE role may hold; the enquiry page shows its Reports section only to holders of it.",
+   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard. Since BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31) the owner BDE may cancel a booking of their own enquiry that is still booked: a Cancel button per booking, offered when the API's actions say so; the API checks the lead is theirs on every request. Since P9 the page also has a Reports section (GET /api/bde/enquiries/<id>/reports/, answered for the lead's owner BDE only): each submitted report at its current version, with View report (an in-Hub dialog, read from the list), Download PDF (GET /api/bde/bookings/<type>/<id>/report/pdf/, fetched on click) and Send via WhatsApp (wa.me with the parent's registered number and the approved message; the BDE attaches the PDF by hand). Share PDF shows only where the browser can share files, which jsdom cannot. Nothing records a send.",
    "result": {
     "at": "/enquiries/{enquiry_a}",
     "noAccess": false,
@@ -1755,11 +1755,14 @@
     ],
     "buttons": [
      "Cancel",
-     "Toggle Sidebar"
+     "Download PDF",
+     "Toggle Sidebar",
+     "View report"
     ],
     "links": [
      "/enquiries",
      "https://wa.me/971501234567",
+     "https://wa.me/971501234567?text=Hello%20Asha%20Nair%2C%20please%20find%20Riya's%20Demo%20Class%20report%20from%20Eduport%20Plus%20attached.",
      "tel:+971501234567"
     ],
     "headers": [
@@ -1774,7 +1777,8 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/bde/enquiries/{enquiry_a}/"
+     "GET /api/bde/enquiries/{enquiry_a}/",
+     "GET /api/bde/enquiries/{enquiry_a}/reports/"
     ]
    }
   },

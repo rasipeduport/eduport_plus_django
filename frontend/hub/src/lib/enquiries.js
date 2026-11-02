@@ -90,6 +90,16 @@ export function phoneLinks(dialCode, number) {
 }
 
 /**
+ * The wa.me link that opens a chat with this number with ``text`` filled in,
+ * or null without a number. WhatsApp sends nothing until its user does, and a
+ * link can carry no file.
+ */
+export function whatsAppUrl(dialCode, number, text) {
+  const links = phoneLinks(dialCode, number);
+  return links ? `${links.whatsapp}?text=${encodeURIComponent(text)}` : null;
+}
+
+/**
  * `{ status, code, message, fields, enquiryId }` from an axios error. The
  * workspace answers `{ error: CODE, message, fields? }`; a duplicate of the
  * BDE's own enquiry also carries `enquiry_id`.

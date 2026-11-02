@@ -99,7 +99,7 @@ function HubRoutes({ user, logout }) {
         {/* A BDE's own enquiries. The API serves each BDE only theirs: another
             BDE's enquiry is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
-        <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage />)} />
+        <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage user={user} />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

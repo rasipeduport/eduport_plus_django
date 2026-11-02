@@ -18,7 +18,7 @@ export async function mount(path, user) {
     [
       { path: '/bookings', element: <BookingsPage user={user} /> },
       { path: '/my-bookings', element: <TutorBookingsPage /> },
-      { path: '/enquiries/:enquiryId', element: <EnquiryPage /> },
+      { path: '/enquiries/:enquiryId', element: <EnquiryPage user={user} /> },
       { path: '/booking-slots', element: <BookingSlotsPage /> },
     ],
     { initialEntries: [path] }

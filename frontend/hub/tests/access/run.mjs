@@ -158,6 +158,16 @@ const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+97
   timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null,
     // What the API offers the owner BDE (P3, Q22): cancel it; No-show once its slot starts.
     actions: { cancel: true, no_show: false } }] } };
+// The reports on it (P9, design F.4): one submitted Demo report, at its second version, as the owner BDE's list answers it.
+const REPORTED_DEMO_ID = 'e3c1a7b9-2d4f-4b6a-8c5e-9f0a1b2c3d4e';
+const BDE_REPORTS = { status: 200, body: { timezone: 'Asia/Kolkata', count: 1, results: [{
+  booking: { id: REPORTED_DEMO_ID, booking_type: 'DEMO', date: '2026-10-26', time: '19:30', starts_at: '2026-10-26T14:00:00+00:00',
+    status: 'COMPLETED', completed_at: '2026-10-26T15:10:00+00:00' },
+  report: { id: 'f4d2b8c0-3e5a-4c7b-9d6f-0a1b2c3d4e5f', booking_id: REPORTED_DEMO_ID, booking_type: 'DEMO', version: 2,
+    fields: { assessment_review: 'Quick with mental arithmetic.', class_observation_review: 'Asked good questions.',
+      suggested_strategy: 'Start with the algebra track.' },
+    student_name: 'Riya', grade: 'Class 8', tutor_name: 'Tutor A', submitted_at: '2026-10-26T15:10:00+00:00',
+    updated_at: '2026-10-27T09:00:00+05:30' } }] } };
 const NOT_A_BDE = { status: 403, body: { error: 'NOT_A_BDE', message: 'Enquiries belong to BDE accounts, and this account is not one.' } };
 function asSuperuserAfterEnquiries(answers) {
   const me = answers['/api/auth/me/'];
@@ -261,7 +271,7 @@ const CALLERS = {
   unknown: { answers: fixtures.callers.unknown },
   bde: {
     answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS, [BDE_DASHBOARD_PATH]: BDE_DASHBOARD,
-      [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY },
+      [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY, [`${ENQUIRY_PATH}reports/`]: BDE_REPORTS },
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
     me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', 'accounts.create_demo_booking', 'accounts.manage_own_conversion',
       'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, 'accounts.view_own_lead_reports']),

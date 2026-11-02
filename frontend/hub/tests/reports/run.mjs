@@ -340,6 +340,10 @@ test('the report and PDF URLs, for the tutor and the Admin', () => {
   assert.equal(reports.tutorReportUrl('DIAGNOSTIC', 'b-1'), '/api/tutor/bookings/diagnostic/b-1/report/');
   assert.equal(reports.tutorReportPreviewUrl('DEMO', 'b-2'), '/api/tutor/bookings/demo/b-2/report/preview/');
   assert.equal(reports.bookingReportUrl('DEMO', 'b-2'), '/api/bookings/demo/b-2/report/');
+  // The lead's owner BDE (P9): the reports on one of their enquiries, and each one's current PDF.
+  assert.equal(reports.bdeReportsUrl('lead-1'), '/api/bde/enquiries/lead-1/reports/');
+  assert.equal(reports.bdeReportPdfUrl('DIAGNOSTIC', 'b-1'), '/api/bde/bookings/diagnostic/b-1/report/pdf/');
+  assert.throws(() => reports.bdeReportPdfUrl('WEBINAR', 'b-1'), /Unknown booking type/);
   const tutorReport = reports.tutorReportUrl('DIAGNOSTIC', 'b-1');
   assert.equal(reports.reportPdfUrl(tutorReport), '/api/tutor/bookings/diagnostic/b-1/report/pdf/');
   assert.equal(reports.reportPdfUrl(tutorReport, 2), '/api/tutor/bookings/diagnostic/b-1/report/revisions/2/pdf/');
@@ -351,6 +355,16 @@ test('the report and PDF URLs, for the tutor and the Admin', () => {
   assert.throws(() => reports.tutorReportPagePath('WEBINAR', 'b-1'), /Unknown booking type/);
   assert.equal(reports.reportPdfFallbackName('DIAGNOSTIC'), 'Diagnostic-Report.pdf');
   assert.equal(reports.reportPdfFallbackName('DEMO', 3), 'Demo-Report-v3.pdf');
+});
+
+test("the message Send via WhatsApp fills in, as approved (A11): the BDE attaches the PDF", () => {
+  assert.equal(reports.reportWhatsAppMessage('DIAGNOSTIC', 'Asha Nair', 'Riya'),
+    "Hello Asha Nair, please find Riya's Diagnostic Test report from Eduport Plus attached.");
+  assert.equal(reports.reportWhatsAppMessage('DEMO', 'Asha Nair', 'Riya'),
+    "Hello Asha Nair, please find Riya's Demo Class report from Eduport Plus attached.");
+  assert.equal(reports.reportWhatsAppMessage('DEMO', '', 'Riya'), "Hello, please find Riya's Demo Class report from Eduport Plus attached.");
+  // Without the Web Share API (as in jsdom) no file can be shared, so Share PDF is not offered.
+  assert.equal(reports.canSharePdf(), false);
 });
 
 test('the file name a Content-Disposition header gives', () => {

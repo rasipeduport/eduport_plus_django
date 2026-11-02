@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import api from '@/lib/api';
+import { can, PERMISSIONS } from '@/lib/access';
 import { bdeBookingCancelUrl } from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
@@ -25,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
 
 function Field({ label, children }) {
   return (
@@ -135,11 +137,13 @@ function Unavailable({ failure }) {
 }
 
 /**
- * One of the BDE's enquiries in full: the parent, the child and every booking
- * made for them. Read-only for now -- follow-ups come with their own module.
- * The API answers another BDE's enquiry exactly as one that does not exist.
+ * One of the BDE's enquiries in full: the parent, the child, every booking
+ * made for them and the reports on those bookings, to send to the parent
+ * (P9, for holders of accounts.view_own_lead_reports). Follow-ups come with
+ * their own module. The API answers another BDE's enquiry exactly as one that
+ * does not exist.
  */
-export default function EnquiryPage() {
+export default function EnquiryPage({ user }) {
   const { enquiryId } = useParams();
   const [enquiry, setEnquiry] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -251,6 +255,8 @@ export default function EnquiryPage() {
             setCancelling({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
           }
         />
+
+        {can(user, PERMISSIONS.viewOwnLeadReports) ? <LeadReportsPanel enquiry={enquiry} /> : null}
       </div>
     );
   }

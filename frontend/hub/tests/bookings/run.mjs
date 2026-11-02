@@ -1011,6 +1011,161 @@ test('reports: a report that cannot be read says so, and Try again reads it', as
   assert.ok(clean(topDialog().textContent).includes(IRA_V2.suggested_strategy));
 });
 
+// ------------------------------------------------------ BDE report sharing (P9)
+// The owner BDE's Reports section on the enquiry page (design F.4). The BDE
+// sends a report outside the Hub; nothing here records a send.
+const BDE_REPORTS = { ...BDE, permissions: [...BDE.permissions, 'accounts.view_own_lead_reports'] };
+const REPORTS_URL = '/api/bde/enquiries/lead-1/reports/';
+const DONE = { status: 'COMPLETED', ended: true, cancelled_at: null, actions: { cancel: false, no_show: false } };
+const DONE_DEMO = { ...BDE_BOOKED, ...DONE, id: 'b-7' };
+const DONE_DIAGNOSTIC = { ...BDE_CANCELLED, ...DONE, id: 'b-8' };
+const DONE_DEMO_PDF = `/api/bde/bookings/demo/${DONE_DEMO.id}/report/pdf/`;
+// One report on the lead's list, as the API answers it (backend reports.payloads.lead_report_row).
+const leadReport = (booking, version, fields) => ({
+  booking: { id: booking.id, booking_type: booking.booking_type, date: booking.date, time: booking.time,
+    starts_at: booking.starts_at, status: 'COMPLETED', completed_at: '2026-10-31T10:10:00+00:00' },
+  report: { id: `r-${booking.id}`, booking_id: booking.id, booking_type: booking.booking_type, version, fields,
+    student_name: 'Riya', grade: '8', tutor_name: 'Tutor A', submitted_at: '2026-10-31T10:10:00+00:00',
+    updated_at: '2026-10-31T10:20:00+00:00' },
+});
+const DEMO_REPORT = leadReport(DONE_DEMO, 2, IRA_V2);
+const DIAGNOSTIC_REPORT = leadReport(DONE_DIAGNOSTIC, 1, { score: 18, max_score: 25, performance_level: 'GOOD',
+  strength_areas: ['Fractions'], skills_to_strengthen: ['Word problems'], teacher_remarks: 'Works carefully.',
+  suggested_plan: 'Two sessions a week.' });
+const reportsOf = (...results) => ({ results, count: results.length, timezone: 'Asia/Kolkata' });
+const leadWithReports = (...results) => ({
+  [`GET ${ENQUIRY_URL}`]: enquiry([DONE_DEMO, DONE_DIAGNOSTIC]),
+  [`GET ${REPORTS_URL}`]: reportsOf(...results),
+});
+const reportItems = () => [...(document.querySelector('ul[aria-label="Reports"]')?.children ?? [])];
+const message = (kind) => `Hello Asha Nair, please find Riya's ${kind} report from Eduport Plus attached.`;
+const onlyReads = () => globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET');
+
+/** A browser that shares files: navigator.canShare and navigator.share, each share recorded. Removed afterwards. */
+async function sharingFiles(answer, run) {
+  const shared = [];
+  Object.defineProperty(navigator, 'canShare', { value: (data) => Array.isArray(data?.files), configurable: true });
+  Object.defineProperty(navigator, 'share', { value: (data) => { shared.push(data); return answer(data); }, configurable: true });
+  try {
+    await run(shared);
+  } finally {
+    delete navigator.canShare;
+    delete navigator.share;
+  }
+}
+
+test('BDE reports: each submitted report shows its class, version and actions, the WhatsApp message ready', async () => {
+  serve(leadWithReports(DEMO_REPORT, DIAGNOSTIC_REPORT));
+  await open('/enquiries/lead-1', BDE_REPORTS);
+  // Newest class first, as the API lists them, each at its current version.
+  const [demo, diagnostic] = reportItems();
+  for (const [item, shown] of [[demo, ['Demo class', 'Sat, 31 Oct · 7:30 PM IST', 'Version 2', 'Last saved 31 Oct 2026']],
+    [diagnostic, ['Diagnostic test', 'Thu, 29 Oct · 10:00 AM IST', 'Version 1', 'Last saved 31 Oct 2026']]]) {
+    const text = clean(item.textContent);
+    for (const part of shown) assert.ok(text.includes(part), `${part} in: ${text}`);
+    assert.deepEqual([...item.querySelectorAll('button')].map((element) => clean(element.textContent)), ['View report', 'Download PDF']);
+  }
+  assert.equal(reportItems().length, 2);
+  // Send via WhatsApp: the parent's registered number with the message filled in (A11), in a new tab or the app.
+  const links = [...document.querySelectorAll('ul[aria-label="Reports"] a')];
+  assert.deepEqual(links.map((link) => [clean(link.textContent), link.getAttribute('href'), link.getAttribute('target')]), [
+    ['Send via WhatsApp', `https://wa.me/971501234567?text=${encodeURIComponent(message('Demo Class'))}`, '_blank'],
+    ['Send via WhatsApp', `https://wa.me/971501234567?text=${encodeURIComponent(message('Diagnostic Test'))}`, '_blank'],
+  ]);
+  assert.match(bodyText(), /Send via WhatsApp opens the parent’s chat with the message ready, but it can’t attach the PDF\. Download the PDF, attach it in the chat, then send\./);
+  // No Share PDF where the browser cannot share files (as here), and nothing about sending is tracked or claimed.
+  assert.ok(!button('Share PDF') && !/Share PDF/.test(bodyText()));
+  assert.ok(!/Mark as sent|\bSent\b|Not sent/.test(bodyText()));
+  assert.deepEqual(globalThis.__bookingsApi.calls.map((entry) => `${entry.method} ${entry.url}`), [`GET ${ENQUIRY_URL}`, `GET ${REPORTS_URL}`]);
+});
+
+test('BDE reports: View report shows the report as it prints, in a dialog, with its PDF', async () => {
+  serve(leadWithReports(DEMO_REPORT));
+  await open('/enquiries/lead-1', BDE_REPORTS);
+  await click(button('View the demo class report'));
+  const dialog = topDialog();
+  assert.equal(clean(dialog.querySelector('h2').textContent), 'Demo class report');
+  assert.ok(clean(dialog.textContent).includes('Sat, 31 Oct · 7:30 PM IST · Version 2 · As it prints'));
+  // The report as it prints (ReportFieldsView): who it is for and by, then what the tutor wrote.
+  const details = [...dialog.querySelectorAll('dt')].map((dt) => [clean(dt.textContent), clean(dt.nextElementSibling?.textContent)]);
+  assert.ok(details.some(([label, value]) => label === 'Student Name' && value === 'Riya'), JSON.stringify(details));
+  assert.ok(details.some(([label, value]) => label === 'Tutor Name' && value === 'Tutor A'), JSON.stringify(details));
+  assert.ok(clean(dialog.textContent).includes(IRA_V2.suggested_strategy));
+  assert.ok(button('Download PDF', dialog));
+  await click(button('Close', topDialog()));
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+  assert.equal(globalThis.__bookingsApi.calls.length, 2, 'the list already holds each report');
+});
+
+test("BDE reports: Download PDF saves the current version from the BDE's own route under the server's name, or says why not", async () => {
+  let answer = pdfAnswer('Demo-Report-Riya-2026-10-31.pdf');
+  serve({ ...leadWithReports(DEMO_REPORT), [`GET ${DONE_DEMO_PDF}`]: (entry) => answer(entry) });
+  await open('/enquiries/lead-1', BDE_REPORTS);
+  await catchingDownloads(async (saved) => {
+    await click(button('Download the demo class report as a PDF'));
+    assert.deepEqual(saved, ['Demo-Report-Riya-2026-10-31.pdf']);
+    // The lead is no longer theirs: the API answers as for a booking that does not exist.
+    answer = () => fail(404, new Blob([JSON.stringify({ error: 'NOT_FOUND', message: 'No such booking.' })]));
+    await click(button('Download the demo class report as a PDF'));
+    assert.match(clean(reportItems()[0].textContent), /This booking is not available to you any more\./);
+    assert.equal(saved.length, 1);
+  });
+  assert.equal(calls('GET', DONE_DEMO_PDF).length, 2);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => /^\/api\/(bookings|tutor)\//.test(entry.url)), "only the BDE's own routes");
+  assert.ok(onlyReads());
+});
+
+test('BDE reports: none yet says so; a list that cannot be read says why, and Try again reads it again', async () => {
+  let answer = () => fail(404, { error: 'NOT_FOUND', message: 'No such enquiry.' });
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([BDE_BOOKED]), [`GET ${REPORTS_URL}`]: (entry) => answer(entry) });
+  await open('/enquiries/lead-1', BDE_REPORTS);
+  assert.match(bodyText(), /No such enquiry\./);
+  answer = () => ok(reportsOf());
+  await click(button('Try again'));
+  assert.equal(calls('GET', REPORTS_URL).length, 2);
+  assert.ok(bodyText().includes('No reports yet'));
+  assert.ok(bodyText().includes('A Diagnostic or Demo report appears here once its tutor submits it after the class.'));
+  assert.ok(!/No such enquiry/.test(bodyText()));
+  assert.ok(!button('View report') && !document.querySelector('a[href*="?text="]'));
+});
+
+test('BDE reports: no Reports section, and no request for one, without accounts.view_own_lead_reports', async () => {
+  serve(leadWithReports(DEMO_REPORT));
+  await open('/enquiries/lead-1', BDE);
+  assert.equal(calls('GET', REPORTS_URL).length, 0);
+  assert.ok(!reportItems().length && !/Submitted reports as they print/.test(bodyText()));
+});
+
+test('BDE reports: Share PDF, where the browser shares files, hands the PDF to the share sheet; a dropped tap asks for another', async () => {
+  let outcome = 'refused';
+  const answer = () => {
+    if (outcome === 'refused') return Promise.reject(Object.assign(new Error('Not allowed'), { name: 'NotAllowedError' }));
+    if (outcome === 'closed') return Promise.reject(Object.assign(new Error('Cancelled'), { name: 'AbortError' }));
+    return Promise.resolve();
+  };
+  await sharingFiles(answer, async (shared) => {
+    serve({ ...leadWithReports(DEMO_REPORT), [`GET ${DONE_DEMO_PDF}`]: pdfAnswer('Demo-Report-Riya-2026-10-31.pdf') });
+    await open('/enquiries/lead-1', BDE_REPORTS);
+    assert.match(bodyText(), /Share PDF hands the PDF to WhatsApp or another app on this device\. Pick the parent’s chat there\./);
+    // The PDF arrived after the browser stopped counting the tap: kept, and the next tap shares it at once.
+    await click(button('Share the demo class report PDF'));
+    assert.match(clean(reportItems()[0].textContent), /The PDF is ready\. Tap Share PDF again to share it\./);
+    outcome = 'shared';
+    await click(button('Share the demo class report PDF'));
+    assert.equal(calls('GET', DONE_DEMO_PDF).length, 1, 'fetched once');
+    const { files, title } = shared.at(-1);
+    assert.deepEqual([files.length, files[0].name, files[0].type, title],
+      [1, 'Demo-Report-Riya-2026-10-31.pdf', 'application/pdf', 'Demo class report: Riya']);
+    assert.ok(!/Tap Share PDF again/.test(bodyText()));
+    // Closing the share sheet without sharing is no error.
+    outcome = 'closed';
+    await click(button('Share the demo class report PDF'));
+    assert.equal(shared.length, 3);
+    assert.equal(reportItems()[0].querySelectorAll('[role="alert"], [role="status"]').length, 0);
+  });
+  assert.ok(onlyReads(), 'nothing about a share is recorded');
+});
+
 // ------------------------------------------------------------ My Bookings (tutors)
 const MINE = '/api/tutor/bookings/';
 const VIEW_ASSIGNED = 'accounts.view_assigned_bookings';

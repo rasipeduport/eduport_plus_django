@@ -30,8 +30,10 @@ export const bookingHistoryUrl = (type, id) => `${bookingUrl(type, id)}history/`
 export const bookingRescheduleOptionsUrl = (type, id) => `${bookingUrl(type, id)}reschedule-options/`;
 export const bookingRescheduleUrl = (type, id) => `${bookingUrl(type, id)}reschedule/`;
 export const bookingCancelUrl = (type, id) => `${bookingUrl(type, id)}cancel/`;
-// A BDE cancels a booking of their own lead here (Q22); the API checks the lead is theirs.
-export const bdeBookingCancelUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/cancel/`;
+// A BDE's routes on a booking of their own lead; the API checks the lead is theirs on every request.
+export const bdeBookingUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/`;
+// Cancelling it (Q22).
+export const bdeBookingCancelUrl = (type, id) => `${bdeBookingUrl(type, id)}cancel/`;
 
 /** The Bookings page with one booking open in its detail sheet (?type=<TYPE>&booking=<id>). */
 export function bookingPagePath(type, id) {

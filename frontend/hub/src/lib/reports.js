@@ -1,10 +1,12 @@
 // Demo and Diagnostic assessment reports (backend reports app): the tutor's
 // /api/tutor/bookings/<type>/<id>/report/ contract, the Admin's read-only
-// /api/bookings/<type>/<id>/report/, and the report PDFs (P7). The API enforces
-// every rule -- who may write a report, when, how often, and what each field
-// may hold -- so this only mirrors those rules for the form, builds requests
-// and labels what comes back. The API's answer always wins.
-import { bookingState, bookingUrl, tutorBookingUrl } from '@/lib/bookings';
+// /api/bookings/<type>/<id>/report/, the owner BDE's reports on their own
+// leads (P9), and the report PDFs (P7). The API enforces every rule -- who may
+// write or read a report, when, how often, and what each field may hold -- so
+// this only mirrors those rules for the form, builds requests and labels what
+// comes back. The API's answer always wins.
+import { bdeBookingUrl, bookingState, bookingUrl, tutorBookingUrl } from '@/lib/bookings';
+import { enquiryUrl } from '@/lib/enquiries';
 
 // Each report field by the name the report prints it under: the fields the
 // tutor writes (reports.models TUTOR_FIELDS) and the system fields printed
@@ -285,6 +287,11 @@ export function reportPdfUrl(reportUrl, version = null) {
   return version === null || version === undefined ? `${reportUrl}pdf/` : `${reportUrl}revisions/${version}/pdf/`;
 }
 
+// The lead's owner BDE (P9): the reports on one of their enquiries as they
+// print, and each one's PDF as last saved -- the current version only.
+export const bdeReportsUrl = (enquiryId) => `${enquiryUrl(enquiryId)}reports/`;
+export const bdeReportPdfUrl = (type, id) => `${bdeBookingUrl(type, id)}report/pdf/`;
+
 const PAGE_SEGMENTS = { DEMO: 'demo', DIAGNOSTIC: 'diagnostic' };
 
 /** The tutor's page for writing or editing a booking's report: /my-bookings/<demo|diagnostic>/<id>/report. */
@@ -373,4 +380,38 @@ async function jsonBody(data) {
     }
   }
   return data && typeof data === 'object' ? data : {};
+}
+
+// ------------------------------------------------- sending it, by the BDE (P9)
+
+const MESSAGE_KINDS = { DIAGNOSTIC: DIAGNOSTIC_ASSESSMENT_TYPE, DEMO: 'Demo Class' };
+
+/**
+ * The message Send via WhatsApp fills in (design A11): "Hello Asha Nair,
+ * please find Riya's Diagnostic Test report from Eduport Plus attached." It
+ * says the PDF is attached because the BDE attaches it, by hand, before
+ * sending: a WhatsApp link carries no file.
+ */
+export function reportWhatsAppMessage(type, parentName, studentName) {
+  const greeting = parentName ? `Hello ${parentName}` : 'Hello';
+  return `${greeting}, please find ${studentName}'s ${MESSAGE_KINDS[type] ?? 'assessment'} report from Eduport Plus attached.`;
+}
+
+/**
+ * Whether this browser can hand a PDF file to the device's share sheet (the
+ * Web Share API with files): most phones can, some desktop browsers too, and
+ * only on a secure page (HTTPS, or localhost). Where it cannot, Share PDF is
+ * not offered.
+ */
+export function canSharePdf() {
+  try {
+    return (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [new File(['%PDF-'], 'report.pdf', { type: 'application/pdf' })] })
+    );
+  } catch {
+    return false;
+  }
 }
