@@ -4,6 +4,9 @@ My Bookings for tutors (bookings.tutor_bookings):
     GET /api/tutor/bookings/               the bookings assigned to the caller, paged and filtered
     GET /api/tutor/bookings/<type>/<id>/   one of them (``<type>`` is demo or diagnostic)
 
+Each one's report -- read, submit, edit, history -- is under ``…/report/``
+(reports.tutor_views).
+
 Guarded by accounts.view_assigned_bookings, which only the TUTOR role may hold;
 a superuser holds it as well (decision D1). Nothing in a request chooses whose
 bookings are read: always the ones assigned to the caller now, so a superuser

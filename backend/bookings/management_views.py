@@ -12,6 +12,8 @@ Booking management for the Admin / Coordinator (bookings.coordination):
     POST   /api/bookings/<type>/<id>/reschedule/ {date, time, reason}  move it
     POST   /api/bookings/<type>/<id>/cancel/ {reason}   cancel it, or mark it No-show
 
+Its report, read-only, is under ``…/report/`` (reports.management_views).
+
 ``<type>`` is ``demo`` or ``diagnostic``: each type is a table of its own, so
 a booking is named by its type and its id; any other type answers 404.
 
@@ -81,7 +83,7 @@ def _bookings(booking_type):
 
 class BookingListView(APIView):
     """
-    GET /api/bookings/<type>/?status=&assigned=&tutor=&slot=&from=&to=&when=&q=&page=&page_size=
+    GET /api/bookings/<type>/?status=&assigned=&tutor=&slot=&from=&to=&when=&report=&q=&page=&page_size=
     Every booking of the type, soonest slot first (``when=past``: most recent first),
     always paged: {"results", "count", "page", "page_size", "timezone"}. The
     filters are coordination.parse_filters'; an unknown value answers 400

@@ -16,7 +16,7 @@ The views guard these with accounts.view_assigned_bookings, which only the
 TUTOR role may hold. Which bookings are read is the caller's alone: always
 ``assigned_to(request.user)``, whatever a request says.
 """
-from .coordination import PAST, UPCOMING, filtered, slot_brief
+from .coordination import PAST, UPCOMING, filtered, report_summary, slot_brief
 from .models import BOOKING_MODELS, BookingType, booking_model
 from .scheduling import BOOKING_TIMEZONE_NAME
 
@@ -60,9 +60,9 @@ def assigned_to(tutor, model):
     The bookings of ``model``'s type (a booking table) ``tutor`` is assigned
     now, whatever their status (a cancelled, rescheduled or completed booking
     keeps its tutor), and no others: one reassigned or unassigned is no longer
-    theirs.
+    theirs. Each comes with its report, if it has one (reports app).
     """
-    return model.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead')
+    return model.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead', 'report')
 
 
 def listed(tutor, now, booking_type=None, when=UPCOMING):
@@ -85,6 +85,7 @@ def booking_row(booking, now):
         'status': booking.status,
         'slot': {field: slot[field] for field in SLOT_FIELDS},
         **{field: getattr(booking.lead, field) for field in STUDENT_FIELDS},
+        **report_summary(booking, now),
     }
 
 

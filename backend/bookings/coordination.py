@@ -44,6 +44,8 @@ RESCHEDULE_BOOKING = 'accounts.reschedule_booking'
 AVAILABLE, UNAVAILABLE = 'AVAILABLE', 'UNAVAILABLE'
 UPCOMING, PAST = 'upcoming', 'past'
 BOOLEANS = {'true': True, 'false': False}
+REPORT_FILTERS = {'submitted': True, 'missing': False}
+REPORT_DUE = 'due'
 MAX_SEARCH_LENGTH = 100
 
 
@@ -62,6 +64,8 @@ def parse_filters(params):
         slot      <slot id>
         from, to  YYYY-MM-DD               (the slot's Indian date, inclusive)
         when      upcoming | past          (the slot has not ended / has ended)
+        report    submitted | missing      (whether the booking has its report)
+                  | due                    (booked, the slot over, no report: report_summary's report_due)
         q         parent or child name, or phone digits
     """
     filters, invalid = {}, []
@@ -113,6 +117,15 @@ def parse_filters(params):
         else:
             invalid.append('when')
 
+    report = text('report').lower()
+    if report:
+        if report in REPORT_FILTERS:
+            filters['has_report'] = REPORT_FILTERS[report]
+        elif report == REPORT_DUE:
+            filters['report_due'] = True
+        else:
+            invalid.append('report')
+
     q = text('q')
     if q:
         if len(q) > MAX_SEARCH_LENGTH:
@@ -126,12 +139,12 @@ def listed(model):
     """Every booking of ``model``'s type (a booking table), with what its rows show."""
     return model.objects.select_related(
         'slot', 'lead', 'lead__owner_bde', 'assigned_tutor', 'attributed_bde', 'tutor_assigned_by', 'cancelled_by',
-        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot',
+        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot', 'report',
     )
 
 
 def filtered(bookings, now, status=None, assigned=None, tutor_id=None, slot_id=None,
-             date_from=None, date_to=None, when=None, q=None):
+             date_from=None, date_to=None, when=None, has_report=None, report_due=None, q=None):
     """
     ``bookings`` narrowed by ``parse_filters``' filters, soonest slot first --
     except ``when=past``, most recent first.
@@ -152,6 +165,11 @@ def filtered(bookings, now, status=None, assigned=None, tutor_id=None, slot_id=N
         bookings = bookings.filter(slot__ends_at__gt=now)
     elif when == PAST:
         bookings = bookings.filter(slot__ends_at__lte=now)
+    if has_report is not None:
+        bookings = bookings.filter(report__isnull=not has_report)
+    if report_due:
+        # The rows' report_due (report_summary): still booked, its slot over, and no report.
+        bookings = bookings.filter(status=BookingStatus.BOOKED, slot__ends_at__lte=now, report__isnull=True)
     if q:
         # The enquiry search, on the bookings' leads: parent or child name, or phone digits.
         bookings = bookings.filter(lead__in=enquiries.search(Lead.objects.all(), q))
@@ -212,6 +230,36 @@ def booking_row(booking, now):
         # The BDE whose link brought this booking, if one did.
         'bde': _person(booking.attributed_bde),
         'booked_at': booking.created_at.isoformat(),
+        **report_summary(booking, now),
+    }
+
+
+def report_summary(booking, now):
+    """
+    Whether the booking has its report and at which version, and whether one is
+    due: a booked booking whose slot has ended without a report stays booked,
+    shown as Report due, until its tutor submits one (design B.1). The Admin's
+    rows and the tutor's alike (bookings.tutor_bookings).
+    """
+    report = getattr(booking, 'report', None)
+    return {
+        'has_report': report is not None,
+        'report_version': report.version if report is not None else None,
+        'report_due': report is None and booking.status == BookingStatus.BOOKED and booking.slot.ends_at <= now,
+    }
+
+
+def report_brief(booking):
+    """The booking's report, as its detail names it -- which version, saved when, by whom -- or None. Its text is …/report/."""
+    report = getattr(booking, 'report', None)
+    if report is None:
+        return None
+    return {
+        'id': str(report.id),
+        'version': report.version,
+        'submitted_at': _when(report.submitted_at),
+        'submitted_by': _person(report.submitted_by),
+        'updated_at': _when(report.updated_at),
     }
 
 
@@ -253,6 +301,7 @@ def booking_detail(booking, now, user=None, request=None):
         'reschedule_reason_code': booking.reschedule_reason_code,
         'rescheduled_from': _chain_link(booking.rescheduled_from, now),
         'rescheduled_to': _chain_link(successor(booking), now),
+        'report': report_brief(booking),
         'actions': booking_actions(booking, now, user, request),
     }
 

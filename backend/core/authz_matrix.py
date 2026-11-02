@@ -315,6 +315,14 @@ class Scenario:
         self.callers, self.capture = callers, capture
 
 
+# A complete Demo report, as a tutor's submit or edit sends it.
+DEMO_REPORT = {
+    'assessment_review': 'Quick with mental arithmetic.',
+    'class_observation_review': 'Asked good questions.',
+    'suggested_strategy': 'Start with the algebra track.',
+}
+
+
 def pdf(name='matrix.pdf'):
     return SimpleUploadedFile(name, PDF, content_type='application/pdf')
 
@@ -571,6 +579,12 @@ SCENARIOS = [
         'date': (indian_today(w.now) + timedelta(days=3)).isoformat(), 'time': '19:30', 'reason': 'PARENT_REQUEST',
     }),
     Scenario('bookings.cancel', 'post', '/api/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # Its report, read-only (P6): booking_a has none.
+    Scenario('bookings.report', 'get', '/api/bookings/demo/{booking_a}/report/'),
+    Scenario('bookings.report_revisions', 'get', '/api/bookings/demo/{booking_a}/report/revisions/'),
+    # ... and as a PDF (P7), as last saved or at one version.
+    Scenario('bookings.report_pdf', 'get', '/api/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('bookings.report_revision_pdf', 'get', '/api/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
     # A BDE cancels only their own leads' bookings (Q22): booking_a's lead is nobody's.
     Scenario('bde.bookings.cancel', 'post', '/api/bde/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
 
@@ -578,6 +592,14 @@ SCENARIOS = [
     # booking_a has no tutor, so a tutor lists none and is not shown it.
     Scenario('tutor_bookings.list', 'get', '/api/tutor/bookings/'),
     Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/demo/{booking_a}/'),
+    # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
+    Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
+    Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),
+    Scenario('tutor_reports.edit', 'put', '/api/tutor/bookings/demo/{booking_a}/report/', {'version': 1, **DEMO_REPORT}),
+    Scenario('tutor_reports.revisions', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/'),
+    Scenario('tutor_reports.pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('tutor_reports.revision_pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
+    Scenario('tutor_reports.preview', 'post', '/api/tutor/bookings/demo/{booking_a}/report/preview/', DEMO_REPORT),
 ]
 
 

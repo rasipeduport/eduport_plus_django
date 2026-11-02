@@ -23,6 +23,8 @@ DATA_KEYS = frozenset({
     'reason_code',  # CANCELLED / RESCHEDULED: a CancelReason or RescheduleReason, never text
     'old_slot_id', 'new_slot_id', 'replacement_id',  # RESCHEDULED: where it moved, and the booking replacing it
     'rescheduled_from_id',  # CREATED by a reschedule: the booking it replaces
+    'report_id', 'version',  # COMPLETED / REPORT_EDITED: the report and the version saved (reports.services)
+    'changed_fields',  # REPORT_EDITED: the names of the fields the edit changed, never what they say
 })
 
 

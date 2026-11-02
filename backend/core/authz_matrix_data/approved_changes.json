@@ -2137,8 +2137,8 @@
    }
   },
   "bookings.assign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2154,6 +2154,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2167,6 +2168,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2255,8 +2259,8 @@
    }
   },
   "bookings.assign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2272,6 +2276,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2285,6 +2290,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2325,8 +2333,8 @@
    }
   },
   "bookings.assign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2342,6 +2350,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2355,6 +2364,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2395,8 +2407,8 @@
    }
   },
   "bookings.assign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2412,6 +2424,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2425,6 +2438,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2501,8 +2517,8 @@
    }
   },
   "bookings.cancel @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2520,6 +2536,7 @@
      "cancelled_by.id",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2533,6 +2550,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2618,8 +2638,8 @@
    }
   },
   "bookings.cancel @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2637,6 +2657,7 @@
      "cancelled_by.id",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2650,6 +2671,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2687,8 +2711,8 @@
    }
   },
   "bookings.cancel @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2706,6 +2730,7 @@
      "cancelled_by.id",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2719,6 +2744,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2756,8 +2784,8 @@
    }
   },
   "bookings.cancel @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2775,6 +2803,7 @@
      "cancelled_by.id",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2788,6 +2817,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2861,8 +2893,8 @@
    }
   },
   "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2877,6 +2909,7 @@
      "cancelled_at",
      "cancelled_by",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -2890,6 +2923,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -2972,8 +3008,8 @@
    }
   },
   "bookings.detail @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2988,6 +3024,7 @@
      "cancelled_at",
      "cancelled_by",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -3001,6 +3038,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -3035,8 +3075,8 @@
    }
   },
   "bookings.detail @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3051,6 +3091,7 @@
      "cancelled_at",
      "cancelled_by",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -3064,6 +3105,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -3098,8 +3142,8 @@
    }
   },
   "bookings.detail @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3114,6 +3158,7 @@
      "cancelled_at",
      "cancelled_by",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -3127,6 +3172,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -3397,8 +3445,8 @@
    }
   },
   "bookings.list @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator (Admin / Coordinator) lists every booking, whichever lead it belongs to.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "An administrator (Admin / Coordinator) lists every booking, whichever lead it belongs to. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -3409,9 +3457,12 @@
      "results[].booked_at",
      "results[].booking_type",
      "results[].grade",
+     "results[].has_report",
      "results[].id",
      "results[].parent_name",
      "results[].phone",
+     "results[].report_due",
+     "results[].report_version",
      "results[].slot",
      "results[].slot.booking_type",
      "results[].slot.date",
@@ -3482,8 +3533,8 @@
    }
   },
   "bookings.list @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -3494,9 +3545,12 @@
      "results[].booked_at",
      "results[].booking_type",
      "results[].grade",
+     "results[].has_report",
      "results[].id",
      "results[].parent_name",
      "results[].phone",
+     "results[].report_due",
+     "results[].report_version",
      "results[].slot",
      "results[].slot.booking_type",
      "results[].slot.date",
@@ -3519,8 +3573,8 @@
    }
   },
   "bookings.list @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -3531,9 +3585,12 @@
      "results[].booked_at",
      "results[].booking_type",
      "results[].grade",
+     "results[].has_report",
      "results[].id",
      "results[].parent_name",
      "results[].phone",
+     "results[].report_due",
+     "results[].report_version",
      "results[].slot",
      "results[].slot.booking_type",
      "results[].slot.date",
@@ -3556,8 +3613,8 @@
    }
   },
   "bookings.list @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -3568,9 +3625,12 @@
      "results[].booked_at",
      "results[].booking_type",
      "results[].grade",
+     "results[].has_report",
      "results[].id",
      "results[].parent_name",
      "results[].phone",
+     "results[].report_due",
+     "results[].report_version",
      "results[].slot",
      "results[].slot.booking_type",
      "results[].slot.date",
@@ -3628,9 +3688,569 @@
     "status": 403
    }
   },
+  "bookings.report @ admin": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report @ anon": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ mentor_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ mentor_b": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ parent_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ su_mentor": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report @ su_tutor": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report @ superuser": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report @ tutor_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ tutor_b": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report @ unknown": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ admin": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_pdf @ anon": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ mentor_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ mentor_b": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ parent_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ su_mentor": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_pdf @ su_tutor": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_pdf @ superuser": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_pdf @ tutor_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ tutor_b": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_pdf @ unknown": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ admin": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revision_pdf @ anon": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ mentor_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ mentor_b": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ parent_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ su_mentor": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revision_pdf @ su_tutor": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revision_pdf @ superuser": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revision_pdf @ tutor_a": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ tutor_b": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revision_pdf @ unknown": {
+   "decision": "Admin report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer a booking's report, as last saved or as saved at that version, as a PDF download to accounts.view_all_bookings (the Admin; superusers hold every permission) -- the same guard and lookup as P6's report reading. Rendered per request from the revision row, never stored; attachment, private, no-store.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT, exactly as on bookings.report; every other caller is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ admin": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revisions @ anon": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ mentor_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ mentor_b": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ parent_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ su_mentor": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revisions @ su_tutor": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revisions @ superuser": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "error": "NO_REPORT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking has no report yet.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.report_revisions @ tutor_a": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ tutor_b": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.report_revisions @ unknown": {
+   "decision": "Admin report reading (Phase 5.2 P6, design E.1, D17): GET \u2026/report/ and \u2026/report/revisions/ answer a booking's report and its versions to accounts.view_all_bookings (the Admin; superusers hold every permission). Read-only: only the assigned tutor writes a report (tutor routes), and sharing waits for P9.",
+   "note": "booking_a has no report, so the Admin and superusers are answered 404 NO_REPORT; every role without view_all_bookings, tutors included, is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.reschedule @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -3646,6 +4266,7 @@
      "booking.cancelled_at",
      "booking.cancelled_by",
      "booking.grade",
+     "booking.has_report",
      "booking.id",
      "booking.lead",
      "booking.lead.country",
@@ -3659,6 +4280,9 @@
      "booking.parent_name",
      "booking.phone",
      "booking.referral_status",
+     "booking.report",
+     "booking.report_due",
+     "booking.report_version",
      "booking.reschedule_reason",
      "booking.reschedule_reason_code",
      "booking.rescheduled_at",
@@ -3760,8 +4384,8 @@
    }
   },
   "bookings.reschedule @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -3777,6 +4401,7 @@
      "booking.cancelled_at",
      "booking.cancelled_by",
      "booking.grade",
+     "booking.has_report",
      "booking.id",
      "booking.lead",
      "booking.lead.country",
@@ -3790,6 +4415,9 @@
      "booking.parent_name",
      "booking.phone",
      "booking.referral_status",
+     "booking.report",
+     "booking.report_due",
+     "booking.report_version",
      "booking.reschedule_reason",
      "booking.reschedule_reason_code",
      "booking.rescheduled_at",
@@ -3843,8 +4471,8 @@
    }
   },
   "bookings.reschedule @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -3860,6 +4488,7 @@
      "booking.cancelled_at",
      "booking.cancelled_by",
      "booking.grade",
+     "booking.has_report",
      "booking.id",
      "booking.lead",
      "booking.lead.country",
@@ -3873,6 +4502,9 @@
      "booking.parent_name",
      "booking.phone",
      "booking.referral_status",
+     "booking.report",
+     "booking.report_due",
+     "booking.report_version",
      "booking.reschedule_reason",
      "booking.reschedule_reason_code",
      "booking.rescheduled_at",
@@ -3926,8 +4558,8 @@
    }
   },
   "bookings.reschedule @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -3943,6 +4575,7 @@
      "booking.cancelled_at",
      "booking.cancelled_by",
      "booking.grade",
+     "booking.has_report",
      "booking.id",
      "booking.lead",
      "booking.lead.country",
@@ -3956,6 +4589,9 @@
      "booking.parent_name",
      "booking.phone",
      "booking.referral_status",
+     "booking.report",
+     "booking.report_due",
+     "booking.report_version",
      "booking.reschedule_reason",
      "booking.reschedule_reason_code",
      "booking.rescheduled_at",
@@ -5223,8 +5859,8 @@
    }
   },
   "bookings.unassign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -5240,6 +5876,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -5253,6 +5890,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -5335,8 +5975,8 @@
    }
   },
   "bookings.unassign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -5352,6 +5992,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -5365,6 +6006,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -5399,8 +6043,8 @@
    }
   },
   "bookings.unassign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -5416,6 +6060,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -5429,6 +6074,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -5463,8 +6111,8 @@
    }
   },
   "bookings.unassign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -5480,6 +6128,7 @@
      "cancelled_by",
      "changed",
      "grade",
+     "has_report",
      "id",
      "lead",
      "lead.country",
@@ -5493,6 +6142,9 @@
      "parent_name",
      "phone",
      "referral_status",
+     "report",
+     "report_due",
+     "report_version",
      "reschedule_reason",
      "reschedule_reason_code",
      "rescheduled_at",
@@ -11250,6 +11902,1000 @@
   "tutor_bookings.list @ unknown": {
    "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
    "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ admin": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ anon": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ mentor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ mentor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ parent_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.edit @ su_mentor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.edit @ su_tutor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.edit @ superuser": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.edit @ tutor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.edit @ tutor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.edit @ unknown": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ admin": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ anon": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ mentor_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ mentor_b": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ parent_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.pdf @ su_mentor": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.pdf @ su_tutor": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.pdf @ superuser": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.pdf @ tutor_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.pdf @ tutor_b": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.pdf @ unknown": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ admin": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ anon": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ mentor_a": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ mentor_b": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ parent_a": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.preview @ su_mentor": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.preview @ su_tutor": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.preview @ superuser": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.preview @ tutor_a": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.preview @ tutor_b": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.preview @ unknown": {
+   "decision": "Tutor report preview (Phase 5.2 P8, design D.2, F.3): POST .../report/preview/ answers the PDF a submit or edit of the body would make -- drawn by P7's renderer exactly as the saved version, saving nothing (no report, revision, history or activity). It needs accounts.view_assigned_bookings and accounts.submit_booking_report (the TUTOR role's), and only the booking's assigned tutor reaches it: any other booking answers 404 NOT_FOUND, as one that does not exist does. Counted against the report_pdf rate.",
+   "note": "booking_a has no tutor, so no one reaches its preview: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.submit; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ admin": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ anon": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ mentor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ mentor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ parent_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.read @ su_mentor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.read @ su_tutor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.read @ superuser": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.read @ tutor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.read @ tutor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.read @ unknown": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ admin": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ anon": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ mentor_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ mentor_b": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ parent_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revision_pdf @ su_mentor": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revision_pdf @ su_tutor": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revision_pdf @ superuser": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revision_pdf @ tutor_a": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revision_pdf @ tutor_b": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revision_pdf @ unknown": {
+   "decision": "Tutor report PDFs (Phase 5.2 P7, design F.3): GET .../report/pdf/ and .../report/revisions/<version>/pdf/ answer the booking's report, as last saved or at that version, as a PDF download to its assigned tutor, with accounts.view_assigned_bookings (the TUTOR role's) -- the same guard and lookup as P6's report reading. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; a version is looked up only inside that booking's report.",
+   "note": "booking_a has no tutor, so no one reaches its report: tutors and superusers are answered 404 NOT_FOUND, exactly as on tutor_reports.read; every other caller, the Admin included, is refused 403 (anonymous: not signed in).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ admin": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ anon": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ mentor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ mentor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ parent_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.revisions @ su_mentor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revisions @ su_tutor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revisions @ superuser": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revisions @ tutor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revisions @ tutor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.revisions @ unknown": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ admin": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ anon": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ mentor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ mentor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ parent_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_reports.submit @ su_mentor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.submit @ su_tutor": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.submit @ superuser": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.submit @ tutor_a": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.submit @ tutor_b": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_reports.submit @ unknown": {
+   "decision": "Tutor report APIs (Phase 5.2 P6, design E.1, D17): the booking's assigned tutor reads, submits (completing the booking) and edits its report, and reads its revisions. Reading needs accounts.view_assigned_bookings, writing accounts.submit_booking_report as well -- both the TUTOR role's. Any booking not assigned to the caller answers 404 NOT_FOUND, as one that does not exist does; reports.services checks the assignment again under the booking lock.",
+   "note": "booking_a has no tutor, so no caller reaches its report: tutors, and superusers (who hold every permission but teach nothing), are answered 404 NOT_FOUND; every other role lacks the permissions and is answered 403.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

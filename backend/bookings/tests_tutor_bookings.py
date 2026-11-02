@@ -23,7 +23,11 @@ from .tests_booking import EVENING, MORNING, account, link, request, schedule
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 LIST_URL = '/api/tutor/bookings/'
 # Everything a tutor is shown of a booking, and of its slot.
-ROW_FIELDS = {'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country'}
+# The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due).
+ROW_FIELDS = {
+    'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country',
+    'has_report', 'report_version', 'report_due',
+}
 SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 NOT_FOUND = {'error': 'NOT_FOUND', 'message': 'No such booking.'}
 
@@ -92,6 +96,9 @@ class ListTests(TutorBookingsTestCase):
             'syllabus': 'CBSE',
             'school_name': 'Delhi Private School',
             'country': 'United Arab Emirates',
+            'has_report': False,
+            'report_version': None,
+            'report_due': False,
         })
         self.assertEqual(self.ids(self.get(self.tutor_b, LIST_URL)), [str(theirs.id)])
 

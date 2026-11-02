@@ -65,7 +65,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    # ArrayField (the report item lists) needs it registered.
+    'django.contrib.postgres',
+
     # Third-party Apps
     'rest_framework',
     'corsheaders',
@@ -79,6 +81,7 @@ INSTALLED_APPS = [
     'exams',
     'homework',
     'bookings',
+    'reports',
 ]
 
 MIDDLEWARE = [
@@ -248,6 +251,8 @@ REST_FRAMEWORK = {
         # The pages poll the calendar every 8 seconds while a parent picks a time.
         'public_booking': env('PUBLIC_BOOKING_THROTTLE_RATE', default='10/hour'),
         'public_booking_calendar': env('PUBLIC_BOOKING_CALENDAR_THROTTLE_RATE', default='120/min'),
+        # Report PDF downloads, per signed-in account (reports.downloads): each is rendered afresh.
+        'report_pdf': env('REPORT_PDF_THROTTLE_RATE', default='30/min'),
     },
     # The browsable API renders interactive write forms for every endpoint --
     # a development tool. Production serves JSON only.
@@ -287,6 +292,10 @@ CSRF_FAILURE_VIEW = 'core.csrf.csrf_failure'
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+# The Hub fetches report PDFs from another origin and saves each under the name
+# the server gives it (reports.downloads), so its script must be able to read
+# that one header. Only allowed origins get it, with every other CORS header.
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
 
 # Development-only opt-out. A local stack served over plain http:// cannot use
 # Secure cookies; the guard below refuses to boot with DEBUG=False and
@@ -396,6 +405,13 @@ LOGGING = {
         },
         # Query logging is deafening; keep it off even at LOG_LEVEL=DEBUG.
         'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # WeasyPrint logs seven INFO steps for every report PDF (reports.pdf).
+        # Its warnings, on the `weasyprint` logger, still reach the console.
+        'weasyprint.progress': {
             'handlers': ['console'],
             'level': 'WARNING',
             'propagate': False,
