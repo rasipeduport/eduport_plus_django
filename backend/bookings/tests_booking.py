@@ -277,7 +277,8 @@ class LeadTests(BookingTestCase):
         riya, _ = book(student='Riya')
         ali, _ = book(student='Ali')
         self.assertNotEqual(riya.lead_id, ali.lead_id)
-        again, _ = book(student='riya', phone='501234567', at=MORNING, school='New School')
+        # A Diagnostic: one live Demo per child (Q26).
+        again, _ = book(student='riya', phone='501234567', booking_type=DIAGNOSTIC, at=MORNING, school='New School')
         self.assertEqual(again.lead_id, riya.lead_id)
         self.assertEqual(Lead.objects.get(pk=riya.lead_id).school_name, 'New School')
         self.assertEqual(Lead.objects.count(), 2)
@@ -291,7 +292,9 @@ class LeadTests(BookingTestCase):
         self.assertEqual((lead.syllabus, lead.school_name, demo.details['syllabus']), ('IGCSE', 'New School', 'CBSE'))
         # A lead without one (an enquiry added by hand) takes the first a booking sends.
         Lead.objects.filter(pk=lead.pk).update(syllabus='')
-        book(booking_type=DIAGNOSTIC, at=MORNING, syllabus='IB')
+        # One live Diagnostic per child (Q26): the first is cancelled before the next.
+        cancel_booking(diagnostic, reason_code=CancelReason.OTHER)
+        book(booking_type=DIAGNOSTIC, day=DAY + timedelta(days=1), syllabus='IB')
         self.assertEqual(Lead.objects.get(pk=lead.pk).syllabus, 'IB')
 
 
@@ -391,7 +394,10 @@ class BookingServiceTests(BookingTestCase):
         other_demo = link(other)
         unowned, _ = book(at=MORNING)
         self.assertIsNone(Lead.objects.get(pk=unowned.lead_id).owner_bde)
+        # One live Demo per child (Q26): each is cancelled before the next.
+        cancel_booking(unowned, reason_code=CancelReason.OTHER)
         second, _ = book(ref=self.demo.token)
+        cancel_booking(second, reason_code=CancelReason.OTHER)
         third, _ = book(day=DAY + timedelta(days=1), ref=other_demo.token)
         lead = Lead.objects.get(pk=unowned.lead_id)
         self.assertEqual((lead.owner_bde, lead.owner_link), (self.bde, self.demo))
@@ -549,7 +555,12 @@ class ConcurrentBookingTests(TransactionTestCase):
 
     def test_two_bdes_racing_for_a_new_lead(self):
         first, second = account('bde_one'), account('bde_two')
-        outcomes = self.race([request(at=EVENING, ref=link(first).token), request(at=MORNING, ref=link(second).token)])
+        # A Demo and a Diagnostic at other times: one child may hold both (Q26).
+        SlotTime.objects.create(booking_type=DIAGNOSTIC, start_time=MORNING)
+        outcomes = self.race([
+            request(at=EVENING, ref=link(first).token),
+            request(booking_type=DIAGNOSTIC, at=MORNING, ref=link(second, DIAGNOSTIC).token),
+        ])
         self.assertEqual(self.kinds(outcomes), ['created', 'created'], outcomes)
         lead = Lead.objects.get()
         self.assertIn(lead.owner_bde, (first, second))

@@ -11,9 +11,21 @@ create_booking runs in one transaction:
 2. The slot row is locked (SELECT ... FOR UPDATE), the project's pattern for
    check-then-write. Every booking, cancellation and closure of the slot
    queues behind this lock, so the count read under it is exact.
-3. Under the lock the lead is matched; a booking the lead already holds in
-   this slot is returned as it is (a repeated submission); a closed or full
-   slot is refused; otherwise the lowest free seat (1-3) is taken.
+3. Under the lock the lead is matched and its row locked too (FOR NO KEY
+   UPDATE, the lead-level lock of design B.7); a booking the lead already
+   holds in this slot is returned as it is (a repeated submission); a lead
+   that already holds a live booking of this type (LeadAlreadyBooked), or
+   one of the other type at an overlapping time (LeadTimeConflict), is
+   refused (Q26); a closed or full slot is refused; otherwise the lowest
+   free seat (1-3) is taken.
+
+The lead lock is what keeps Q26 true under concurrency: two requests for one
+child in different slots, or of different types, lock different slot rows
+and would both pass a check made under those alone. Both queue on the lead
+row instead, and the second checks only once the first has committed, so it
+sees that booking in either table. No index can stand behind the rules: a
+live booking is one whose slot has not ended yet, which changes with the
+clock, and the overlap rule spans both tables and the slots.
 
 Diagnostic and Demo bookings live in tables of their own
 (bookings.models.booking_model); every write below picks the table of the
@@ -177,6 +189,20 @@ class LeadTimeConflict(BookingError):
         self.booking = booking
 
 
+class LeadAlreadyBooked(BookingError):
+    """The lead already holds a live booking of this type: one at a time, per type (Q26)."""
+    code = 'LEAD_ALREADY_BOOKED'
+    http_status = 409
+
+    def __init__(self, booking):
+        self.message = (
+            f'This child already has a {booking.get_booking_type_display()} booked. '
+            'Only one can be booked at a time.'
+        )
+        super().__init__(self.message)
+        self.booking = booking
+
+
 class TutorNotAssignable(BookingError):
     code = 'INVALID_TUTOR'
     message = 'Selected tutor is not an active tutor.'
@@ -231,6 +257,12 @@ def create_booking(request, now=None):
     Book ``request``; returns (booking, created). ``created`` is False for a
     repeated submission, which gets the booking it already made. Raises a
     BookingError subclass, or leads.InvalidLeadDetails.
+
+    One live booking per child and type, and none overlapping another of the
+    child's (Q26). Live is what an enquiry calls booked: BOOKED, its slot not
+    yet ended (bookings.enquiries). A cancelled, rescheduled or completed
+    booking holds nothing, nor does a booked one whose slot has ended -- the
+    child may book that type again.
     """
     now = now or timezone.now()
     model = booking_model(request.booking_type)
@@ -245,11 +277,17 @@ def create_booking(request, now=None):
         with transaction.atomic():
             _set_lock_timeout()
             slot = _locked_slot(request.booking_type, request.date, request.time)
-            lead = match_lead(_lead_details(request))
+            lead = _locked_lead(match_lead(_lead_details(request)).pk)
 
             existing = model.objects.filter(slot=slot, lead=lead, status__in=HOLDS_SEAT).first()
             if existing is not None:
                 return existing, False
+            live = model.objects.filter(lead=lead, status=BookingStatus.BOOKED, slot__ends_at__gt=now).first()
+            if live is not None:
+                raise LeadAlreadyBooked(live)
+            clash = lead_conflict(lead, slot.starts_at, slot.ends_at)
+            if clash is not None:
+                raise LeadTimeConflict(clash)
             if slot.closed_at is not None:
                 raise SlotFull()
             taken = set(model.objects.filter(slot=slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))
@@ -421,7 +459,7 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
             else:
                 new_slot = _locked_slot(booking_type, local_date, local_time)
                 BookingSlot.objects.select_for_update().get(pk=current.slot_id)
-            lead = Lead.objects.select_for_update(no_key=True).get(pk=current.lead_id)
+            lead = _locked_lead(current.lead_id)
             old = model.objects.select_for_update().select_related('slot').get(pk=booking.pk)
             if old.status == BookingStatus.COMPLETED:
                 raise BookingCompleted()
@@ -872,6 +910,16 @@ def _locked_slot(booking_type, local_date, local_time):
         defaults={'starts_at': starts_at, 'ends_at': ends_at},
     )
     return BookingSlot.objects.select_for_update().get(pk=slot.pk)
+
+
+def _locked_lead(lead_id):
+    """
+    Lead ``lead_id`` read under its row lock, FOR NO KEY UPDATE: the lead-level
+    lock every booking of the child queues on (Q26, design B.7), taken after
+    the slot locks and before the booking's. NO KEY leaves rows that only
+    reference the lead (a new booking, an event) unblocked.
+    """
+    return Lead.objects.select_for_update(no_key=True).get(pk=lead_id)
 
 
 def _locked_booking(booking):

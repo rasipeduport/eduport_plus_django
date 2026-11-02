@@ -72,7 +72,8 @@ class HistoryTests(BookingTestCase):
 
     def test_each_type_keeps_its_own_history(self):
         demo, _ = book()
-        diagnostic, _ = book(booking_type=DIAGNOSTIC)
+        # At another time: one child's Demo and Diagnostic never overlap (Q26).
+        diagnostic, _ = book(booking_type=DIAGNOSTIC, at=MORNING)
         self.assertEqual((demo.events.all().get().demo_booking, demo.events.all().get().diagnostic_booking), (demo, None))
         self.assertEqual(diagnostic.events.all().get().diagnostic_booking, diagnostic)
         self.assertEqual(diagnostic.events.all().get().booking, diagnostic)
@@ -152,7 +153,7 @@ class AppendOnlyTests(BookingTestCase):
                 BookingEvent.objects.create(**{'kind': BookingEventKind.CREATED, **fields})
 
     def diagnostic(self):
-        booking, _ = book(booking_type=DIAGNOSTIC)
+        booking, _ = book(booking_type=DIAGNOSTIC, at=MORNING)
         return booking
 
     def test_a_booking_with_history_is_never_deleted(self):

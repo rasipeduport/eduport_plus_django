@@ -104,11 +104,12 @@ class OwnLeadTests(BdeCancellationTestCase):
         self.assertEqual(booking.cancel_reason_code, 'PARENT_REQUEST')
 
     def test_the_enquiry_offers_cancel_only_for_live_bookings(self):
-        upcoming = self.book(self.bde_a, 'Riya')
+        # Booked a week ago for the next day: its slot has ended, so the child
+        # may book another Demo (one live booking per type, Q26).
         then = timezone.now() - timedelta(days=7)
-        started = create_booking(request(student='Riya', phone=upcoming.lead.phone_number,
-                                         day=indian_today(then) + timedelta(days=1), at=MORNING), now=then)[0]
-        cancelled = create_booking(request(student='Riya', phone=upcoming.lead.phone_number, booking_type=DIAGNOSTIC,
+        started = self.book(self.bde_a, 'Riya', day=indian_today(then) + timedelta(days=1), at=MORNING, now=then)
+        upcoming = create_booking(request(student='Riya', phone=started.lead.phone_number, day=self.day, at=EVENING))[0]
+        cancelled = create_booking(request(student='Riya', phone=started.lead.phone_number, booking_type=DIAGNOSTIC,
                                            day=self.day, at=MORNING))[0]
         cancel_booking(cancelled, reason_code=CancelReason.OTHER, actor=self.admin)
         rows = {row['id']: row['actions'] for row in self.client.get(f'/api/bde/enquiries/{upcoming.lead_id}/').data['bookings']}
