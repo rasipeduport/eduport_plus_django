@@ -18,6 +18,10 @@ DIAL_CODE_RE = re.compile(r'^\+[1-9][0-9]{0,3}$')
 # E.164: at most 15 digits, country code included.
 MAX_PHONE_DIGITS = 15
 MIN_NATIONAL_DIGITS = 6
+# What a lead keeps once it has it: a student's syllabus is never silently
+# replaced by a later booking's (the Demo page offers CBSE only). An enquiry
+# added without one takes the first syllabus a booking submits.
+KEPT_ON_RESUBMISSION = frozenset({'syllabus'})
 
 
 class InvalidLeadDetails(ValueError):
@@ -66,8 +70,10 @@ def student_name_key(name):
 def match_lead(details):
     """
     The lead for these details, created if new, with its contact details
-    updated to the latest submission. Call inside the booking transaction: a
-    concurrent request creating the same lead waits on the unique index, and
+    updated to the latest submission -- all but a syllabus it already has,
+    which a later submission never overwrites (the booking keeps what was
+    submitted, in its ``details``). Call inside the booking transaction: a concurrent
+    request creating the same lead waits on the unique index, and
     get_or_create then reads the committed row.
     """
     dial, national, phone_key = normalize_phone(details['phone_dial_code'], details['phone_number'])
@@ -84,7 +90,10 @@ def match_lead(details):
     }
     lead, created = Lead.objects.get_or_create(phone_key=phone_key, student_name_key=student_key, defaults=latest)
     if not created:
-        changed = [field for field, value in latest.items() if getattr(lead, field) != value]
+        changed = [
+            field for field, value in latest.items()
+            if getattr(lead, field) != value and not (field in KEPT_ON_RESUBMISSION and getattr(lead, field))
+        ]
         if changed:
             for field in changed:
                 setattr(lead, field, latest[field])

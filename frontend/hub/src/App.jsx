@@ -17,6 +17,7 @@ import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
+import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
 import EnquiryPage from './pages/EnquiryPage';
@@ -71,7 +72,8 @@ function HubRoutes({ user, logout }) {
         {/* The API pins whoever holds only view_own_activity to their own entries. */}
         <Route path="/activity" element={page('/activity', <ActivityPage user={user} />)} />
         {/* Demo and Diagnostic bookings for administrators: every booking and
-            the tutor teaching it, one opened at ?booking=<id>. The API enforces
+            the tutor teaching it, a tab per type (?type=DIAGNOSTIC; Demo by
+            default), one opened at ?booking=<id>. The API enforces
             accounts.view_all_bookings, and accounts.assign_booking_tutor for
             changing a tutor. */}
         <Route path="/bookings" element={page('/bookings', <BookingsPage user={user} />)} />
@@ -80,9 +82,16 @@ function HubRoutes({ user, logout }) {
             and keeps every booking. */}
         <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
         {/* A tutor's own Demo and Diagnostic bookings, read-only, one opened
-            at ?booking=<id>. The API serves only the bookings assigned to the
+            at ?booking=<id>&booking_type=<type>. The API serves only the bookings assigned to the
             caller: any other is answered as one that does not exist. */}
         <Route path="/my-bookings" element={page('/my-bookings', <TutorBookingsPage />)} />
+        {/* The report on one of those bookings: written once its class has
+            started, edited after (each save a new version), previewed as its
+            PDF. The API serves it only to the booking's assigned tutor. */}
+        <Route
+          path="/my-bookings/:bookingType/:bookingId/report"
+          element={page('/my-bookings', <TutorReportPage user={user} />)}
+        />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}
@@ -90,7 +99,7 @@ function HubRoutes({ user, logout }) {
         {/* A BDE's own enquiries. The API serves each BDE only theirs: another
             BDE's enquiry is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
-        <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage />)} />
+        <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage user={user} />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

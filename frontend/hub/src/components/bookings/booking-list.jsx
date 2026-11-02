@@ -9,16 +9,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
+import { Badge } from '@/components/ui/badge';
 import {
   ASSIGNMENT_FILTERS,
   BOOKING_STATUSES,
   BOOKING_TYPES,
+  DEFAULT_TYPE,
   DEFAULT_WHEN,
+  REPORT_DUE,
+  REPORT_FILTERS,
   WHEN_FILTERS,
   tutorChangeable,
 } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
+import { reportBadge } from '@/lib/reports';
 import { BookingStateBadge, TutorName } from './booking-badges';
 
 const ALL = '__all__';
@@ -43,11 +47,16 @@ function rangeLabel(from, to) {
 }
 
 /**
- * Every Demo and Diagnostic booking, as administrators manage them: the type
- * tabs, search, status / tutor / date filters and paging the API applies
- * (lib/bookings), and per row a way to open the booking and, for holders of
- * accounts.assign_booking_tutor, to assign or change its tutor. The page keeps
- * the filters in the URL; `onChange` receives what changed.
+ * Every Demo and Diagnostic booking, as administrators manage them: a tab per
+ * type -- each its own list -- and the search, status / tutor / report / date
+ * filters and paging the API applies (lib/bookings), and per row its report
+ * (the version submitted, or Report due), a way to open the booking and, for
+ * holders of accounts.assign_booking_tutor, to assign or change its tutor.
+ * The page keeps the tab and the filters in the URL; `onChange` receives what
+ * changed. Changing tab keeps the filters, closes the open booking (it is of
+ * the other type) and starts again at page 1. Reports are due only on slots
+ * that are over: choosing Report due turns Upcoming into Past, and choosing
+ * Upcoming drops Report due, so the two never empty the list together.
  */
 export function BookingList({ rows, total, page, pageSize, filters, pending, canAssign, onChange, onOpen, onAssign }) {
   const [q, setQ] = useState(filters.q);
@@ -65,8 +74,15 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
   const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endRow = Math.min(page * pageSize, total);
   const filtered = Boolean(
-    filters.q || filters.status || filters.assigned || filters.from || filters.to || filters.when !== DEFAULT_WHEN
+    filters.q ||
+      filters.status ||
+      filters.assigned ||
+      filters.report ||
+      filters.from ||
+      filters.to ||
+      filters.when !== DEFAULT_WHEN
   );
+  const typeLabel = BOOKING_TYPES.find((type) => type.value === filters.type)?.label ?? '';
 
   const openRange = (open) => {
     setRangeOpen(open);
@@ -75,9 +91,11 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
 
   return (
     <div className="flex flex-col gap-3">
-      <Tabs value={filters.type || ALL} onValueChange={(value) => onChange({ type: value === ALL ? null : value })}>
+      <Tabs
+        value={filters.type}
+        onValueChange={(value) => onChange({ type: value === DEFAULT_TYPE ? null : value, booking: null, page: null })}
+      >
         <TabsList>
-          <TabsTrigger value={ALL}>All</TabsTrigger>
           {BOOKING_TYPES.map((type) => (
             <TabsTrigger key={type.value} value={type.value}>
               {type.label}
@@ -116,9 +134,25 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
           onChange={(value) => onChange({ assigned: value === ALL ? null : value })}
           options={ASSIGNMENT_FILTERS}
         />
+        <FilterSelect
+          label="Filter by report"
+          placeholder="All reports"
+          value={filters.report || ALL}
+          onChange={(value) => {
+            const report = value === ALL ? null : value;
+            onChange(report === REPORT_DUE && filters.when === DEFAULT_WHEN ? { report, when: 'past' } : { report });
+          }}
+          options={REPORT_FILTERS}
+        />
         <Select
           value={filters.when}
-          onValueChange={(value) => onChange({ when: value === DEFAULT_WHEN ? null : value })}
+          onValueChange={(value) =>
+            onChange(
+              value === DEFAULT_WHEN && filters.report === REPORT_DUE
+                ? { when: null, report: null }
+                : { when: value === DEFAULT_WHEN ? null : value }
+            )
+          }
         >
           <SelectTrigger
             size="sm"
@@ -183,7 +217,9 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
             variant="ghost"
             size="sm"
             className="text-muted-foreground"
-            onClick={() => onChange({ q: null, status: null, assigned: null, from: null, to: null, when: null })}
+            onClick={() =>
+              onChange({ q: null, status: null, assigned: null, report: null, from: null, to: null, when: null })
+            }
           >
             <XIcon className="size-4" />
             Clear
@@ -196,11 +232,11 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
           <TableHeader>
             <TableRow>
               <TableHead>When (IST)</TableHead>
-              <TableHead>Type</TableHead>
               <TableHead>Student</TableHead>
-              <TableHead className="hidden md:table-cell">Parent</TableHead>
+              <TableHead className="hidden xl:table-cell">Parent</TableHead>
               <TableHead>Tutor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Report</TableHead>
               <TableHead className="w-px">
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -210,37 +246,42 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  {filtered || filters.type ? 'No bookings match these filters.' : 'No upcoming bookings.'}
+                  {filtered ? 'No bookings match these filters.' : `No upcoming ${typeLabel.toLowerCase()} bookings.`}
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((booking) => {
                 const when = slotParts(booking.slot.date, booking.slot.time);
+                const report = reportBadge(booking);
                 return (
                   <TableRow key={booking.id}>
                     <TableCell className="whitespace-nowrap">
                       <p className="font-medium">{when.day}</p>
                       <p className="text-muted-foreground text-xs">{when.time}</p>
                     </TableCell>
-                    <TableCell>
-                      <BookingTypeBadge type={booking.booking_type} />
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium">{booking.student_name}</p>
+                    <TableCell className="min-w-28 whitespace-normal">
+                      <p className="font-medium break-words">{booking.student_name}</p>
                       {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <p>{booking.parent_name}</p>
-                      <p className="text-muted-foreground text-xs tabular-nums">{booking.phone}</p>
+                    <TableCell className="hidden min-w-32 whitespace-normal xl:table-cell">
+                      <p className="break-words">{booking.parent_name}</p>
+                      <p className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">{booking.phone}</p>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <TutorName booking={booking} />
                     </TableCell>
                     <TableCell>
                       <BookingStateBadge booking={booking} />
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      {report ? (
+                        <Badge variant={report.variant}>{report.label}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap justify-end gap-1">
                         <Button
                           variant="outline"
                           size="sm"

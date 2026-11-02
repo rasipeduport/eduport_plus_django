@@ -33,7 +33,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from activity.models import ActivityLog
-from bookings.models import Booking, BookingSlot, BookingType, Lead, ReferralStatus, SlotTime
+from bookings.models import BookingSlot, BookingType, DemoBooking, Lead, ReferralStatus, SlotTime
 from bookings.scheduling import indian_today, slot_instants
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
@@ -282,8 +282,9 @@ def build_world():
     ))
 
     # A Demo booking of another lead, nobody's either, with no tutor yet: the
-    # booking-management scenarios list it, show it, offer it the tutors and
-    # assign one; no tutor's My Bookings shows it. Its slot, 19:30 IST two
+    # booking-management scenarios list it, show it, offer it the tutors,
+    # assign one, show its history, move it a day later and cancel it; no
+    # tutor's My Bookings shows it. Its slot, 19:30 IST two
     # days ahead, clears every fixture class (09:30 IST) and still has seats
     # for the public booking scenario.
     w.add('lead_b', Lead.objects.create(
@@ -297,8 +298,8 @@ def build_world():
         id=fixed_id('slot_a'), booking_type=BookingType.DEMO, local_date=slot_day, local_time=time(19, 30),
         starts_at=starts_at, ends_at=ends_at,
     ))
-    w.add('booking_a', Booking.objects.create(
-        id=fixed_id('booking_a'), booking_type=BookingType.DEMO, lead=w['lead_b'], slot=w['slot_a'], seat=1,
+    w.add('booking_a', DemoBooking.objects.create(
+        id=fixed_id('booking_a'), lead=w['lead_b'], slot=w['slot_a'], seat=1,
         referral_status=ReferralStatus.NO_REF,
     ))
     return w
@@ -312,6 +313,14 @@ class Scenario:
     def __init__(self, sid, method, path, body=None, fmt='json', callers=CALLERS, capture=None):
         self.sid, self.method, self.path, self.body, self.fmt = sid, method, path, body, fmt
         self.callers, self.capture = callers, capture
+
+
+# A complete Demo report, as a tutor's submit or edit sends it.
+DEMO_REPORT = {
+    'assessment_review': 'Quick with mental arithmetic.',
+    'class_observation_review': 'Asked good questions.',
+    'suggested_strategy': 'Start with the algebra track.',
+}
 
 
 def pdf(name='matrix.pdf'):
@@ -557,17 +566,44 @@ SCENARIOS = [
              {'action': 'close', 'times': ['19:30'], 'reason': 'Matrix'}),
 
     # --- booking management (administrators) -------------------------------------
-    Scenario('bookings.list', 'get', '/api/bookings/'),
-    Scenario('bookings.detail', 'get', '/api/bookings/{booking_a}/'),
-    Scenario('bookings.tutors', 'get', '/api/bookings/{booking_a}/tutors/', capture=_tutor_statuses),
+    Scenario('bookings.list', 'get', '/api/bookings/demo/'),
+    Scenario('bookings.detail', 'get', '/api/bookings/demo/{booking_a}/'),
+    Scenario('bookings.tutors', 'get', '/api/bookings/demo/{booking_a}/tutors/', capture=_tutor_statuses),
     Scenario('bookings.slot_tutors', 'get', '/api/bookings/slots/{slot_a}/tutors/', capture=_tutor_statuses),
-    Scenario('bookings.assign_tutor', 'put', '/api/bookings/{booking_a}/tutor/', lambda w: {'tutor_id': w.id('tutor_a')}),
-    Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/{booking_a}/tutor/'),
+    Scenario('bookings.assign_tutor', 'put', '/api/bookings/demo/{booking_a}/tutor/', lambda w: {'tutor_id': w.id('tutor_a')}),
+    Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/demo/{booking_a}/tutor/'),
+    # Booking operations (P3): the timeline, moving it a day later, cancelling it.
+    Scenario('bookings.history', 'get', '/api/bookings/demo/{booking_a}/history/'),
+    Scenario('bookings.reschedule_options', 'get', '/api/bookings/demo/{booking_a}/reschedule-options/'),
+    Scenario('bookings.reschedule', 'post', '/api/bookings/demo/{booking_a}/reschedule/', lambda w: {
+        'date': (indian_today(w.now) + timedelta(days=3)).isoformat(), 'time': '19:30', 'reason': 'PARENT_REQUEST',
+    }),
+    Scenario('bookings.cancel', 'post', '/api/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # Its report, read-only (P6): booking_a has none.
+    Scenario('bookings.report', 'get', '/api/bookings/demo/{booking_a}/report/'),
+    Scenario('bookings.report_revisions', 'get', '/api/bookings/demo/{booking_a}/report/revisions/'),
+    # ... and as a PDF (P7), as last saved or at one version.
+    Scenario('bookings.report_pdf', 'get', '/api/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('bookings.report_revision_pdf', 'get', '/api/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
+    # A BDE cancels only their own leads' bookings (Q22): booking_a's lead is nobody's.
+    Scenario('bde.bookings.cancel', 'post', '/api/bde/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # ... and reads only their own leads' reports (P9): lead_a and booking_a's lead are nobody's here; the new-role
+    # world gives lead_a, which has no report, to its BDE.
+    Scenario('bde.enquiries.reports', 'get', '/api/bde/enquiries/{lead_a}/reports/'),
+    Scenario('bde.bookings.report_pdf', 'get', '/api/bde/bookings/demo/{booking_a}/report/pdf/'),
 
     # --- My Bookings (tutors: the bookings assigned to them) ----------------------
     # booking_a has no tutor, so a tutor lists none and is not shown it.
     Scenario('tutor_bookings.list', 'get', '/api/tutor/bookings/'),
-    Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/{booking_a}/'),
+    Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/demo/{booking_a}/'),
+    # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
+    Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
+    Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),
+    Scenario('tutor_reports.edit', 'put', '/api/tutor/bookings/demo/{booking_a}/report/', {'version': 1, **DEMO_REPORT}),
+    Scenario('tutor_reports.revisions', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/'),
+    Scenario('tutor_reports.pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('tutor_reports.revision_pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
+    Scenario('tutor_reports.preview', 'post', '/api/tutor/bookings/demo/{booking_a}/report/preview/', DEMO_REPORT),
 ]
 
 

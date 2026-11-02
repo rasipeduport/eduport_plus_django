@@ -16,13 +16,20 @@ rest are carried by role groups only.
 accounts.view_team predates the catalogue and lives on the User model; every
 other entry lives on the table-less accounts.HubPermission model. A permission
 is added here only together with the code that enforces it, and with a new
-migration creating its row.
+migration creating its row -- with one planned exception: the Demo/Diagnostic
+workflow's permissions (Phase 5.2, migration 0015) are seeded ahead of the
+phases whose code checks them, as its design laid out. Each says which phase
+that is; none is individually grantable, and none opens anything until its
+phase's code asks for it.
 """
 
 STAFF = ('ADMIN', 'MENTOR', 'TUTOR')
 ADMIN_ONLY = ('ADMIN',)
 TUTOR_ONLY = ('TUTOR',)
 BDE_ONLY = ('BDE',)
+SALES_TL_ONLY = ('SALES_TL',)
+BDE_AND_ADMIN = ('BDE', 'ADMIN')
+ADMIN_AND_SALES_TL = ('ADMIN', 'SALES_TL')
 
 VIEW_TEAM = 'accounts.view_team'
 
@@ -107,6 +114,26 @@ CATALOGUE = {
     # My Bookings (the tutor's own: the Demo and Diagnostic bookings assigned
     # to them, with the child and the slot only; bookings app)
     'accounts.view_assigned_bookings': _entry('View the bookings assigned to them', 'Bookings', TUTOR_ONLY),
+    # The Demo/Diagnostic workflow (Phase 5.2), seeded by 0015 ahead of its
+    # code; the phase that enforces each is noted.
+    # Bookings: the Demo handoff (P10); cancel and reschedule (P3). Only the
+    # Admin reschedules (Q23). The Admin and the owner BDE cancel (Q22): a BDE
+    # only the bookings of their own leads, which the cancel code checks --
+    # holding the permission is not enough.
+    'accounts.create_demo_booking': _entry('Start a Demo booking for their own lead', 'Bookings', BDE_ONLY),
+    'accounts.reschedule_booking': _entry('Reschedule a booking', 'Bookings', ADMIN_ONLY),
+    'accounts.cancel_booking': _entry('Cancel a booking with a reason', 'Bookings', BDE_AND_ADMIN),
+    # Assessment reports (P6-P9).
+    'accounts.submit_booking_report': _entry('Submit and edit reports on their bookings', 'Reports', TUTOR_ONLY),
+    'accounts.view_own_lead_reports': _entry('View the reports on their own leads', 'Reports', BDE_ONLY),
+    'accounts.share_booking_report': _entry('Record a report sent to a parent', 'Reports', BDE_AND_ADMIN),
+    # The Conversion Tracker (P11); the Sales TL's team scope is Q13.
+    'accounts.manage_own_conversion': _entry('Manage conversion on their own leads', 'Conversions', BDE_ONLY),
+    'accounts.manage_team_conversion': _entry("Manage conversion on their team's leads", 'Conversions', SALES_TL_ONLY),
+    'accounts.view_conversion_tracker': _entry('View the complete Conversion Tracker', 'Conversions', ADMIN_AND_SALES_TL),
+    'accounts.manage_conversions': _entry('Manage conversion on any lead', 'Conversions', ADMIN_ONLY),
+    # Enquiries: an owner for an unowned lead (D14, P11).
+    'accounts.assign_lead_owner': _entry('Assign an owner BDE to an unowned lead', 'Enquiries', ADMIN_ONLY),
 }
 
 

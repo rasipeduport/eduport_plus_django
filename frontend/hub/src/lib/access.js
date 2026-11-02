@@ -53,6 +53,7 @@ export const PERMISSIONS = {
   viewOwnBookingLinks: 'accounts.view_own_booking_links',
   viewOwnEnquiries: 'accounts.view_own_enquiries',
   addEnquiry: 'accounts.add_enquiry',
+  viewOwnLeadReports: 'accounts.view_own_lead_reports',
 
   manageBookingSlots: 'accounts.manage_booking_slots',
   viewAllBookings: 'accounts.view_all_bookings',

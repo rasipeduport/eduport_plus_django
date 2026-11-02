@@ -6,5 +6,5 @@ app_name = 'tutor_bookings'
 
 urlpatterns = [
     path('', TutorBookingListView.as_view(), name='list'),
-    path('<uuid:pk>/', TutorBookingDetailView.as_view(), name='detail'),
+    path('<str:booking_type>/<uuid:pk>/', TutorBookingDetailView.as_view(), name='detail'),
 ]

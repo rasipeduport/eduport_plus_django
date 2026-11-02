@@ -41,6 +41,7 @@ const ENTITY_NOUN = {
   profile: 'User',
   booking_link: 'Booking link',
   booking: 'Booking',
+  report: 'Report',
   booking_slot: 'Slot',
   booking_schedule: 'Schedule',
   lead: 'Enquiry',

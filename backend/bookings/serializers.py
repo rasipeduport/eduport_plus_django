@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .leads import InvalidLeadDetails, normalize_phone
-from .models import MANUAL_LEAD_SOURCES, BookingLink, BookingType
+from .models import MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
 from .public_serializers import CLASSES, SYLLABI
 from .services import link_url
 
@@ -25,6 +25,18 @@ class SlotChangeSerializer(serializers.Serializer):
     # Start times in Indian time; one date holds at most 24 hourly slots.
     times = serializers.ListField(child=serializers.TimeField(input_formats=['%H:%M']), allow_empty=False, max_length=24)
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
+
+
+class CancelSerializer(serializers.Serializer):
+    """POST /api/bookings/<type>/<id>/cancel/: why, as a code from the list (Q9), never free text (M1)."""
+    reason = serializers.ChoiceField(choices=CancelReason.choices)
+
+
+class RescheduleSerializer(serializers.Serializer):
+    """POST /api/bookings/<type>/<id>/reschedule/: the new slot's Indian date and time, and why (a code)."""
+    date = serializers.DateField(input_formats=['%Y-%m-%d'])
+    time = serializers.TimeField(input_formats=['%H:%M'])
+    reason = serializers.ChoiceField(choices=RescheduleReason.choices)
 
 
 class TutorAssignmentSerializer(serializers.Serializer):

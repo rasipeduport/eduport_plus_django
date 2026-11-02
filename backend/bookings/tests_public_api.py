@@ -7,12 +7,13 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .booking_service import BookingBusy
-from .models import Booking, BookingType, Lead, ReferralStatus
+from .models import BookingStatus, BookingType, DemoBooking, Lead, ReferralStatus
 from .scheduling import booking_window
-from .tests_booking import account, link, schedule
+from .tests_booking import account, booking_count, get_booking, link, schedule
 from .throttles import BookingCreateThrottle
 
 KEY = 'k' * 40
@@ -65,6 +66,26 @@ class CalendarTests(PublicApiTestCase):
         })
         self.assertEqual(self.client.get(CALENDAR.format('diagnostic')).json()['dates'][0]['status'], 'Available')
 
+    def test_completed_bookings_keep_their_seat_and_moved_ones_free_it(self):
+        ids = [self.post(student_name=name).json()['booking_id'] for name in ('A', 'B', 'C')]
+
+        def first_day():
+            return self.client.get(CALENDAR.format('demo')).json()['dates'][0]['slots'][1]['status']
+
+        self.assertEqual(first_day(), 'Fully Booked')
+        now = timezone.now()
+        DemoBooking.objects.filter(pk=ids[0]).update(
+            status=BookingStatus.COMPLETED, completed_at=now, assigned_tutor=account('tutor_one', role='TUTOR'),
+            tutor_assigned_at=now,
+        )
+        self.assertEqual(first_day(), 'Fully Booked')
+        DemoBooking.objects.filter(pk=ids[1]).update(status=BookingStatus.RESCHEDULED, rescheduled_at=now, reschedule_reason_code='OTHER')
+        self.assertEqual(first_day(), 'Only a Few Left')
+        DemoBooking.objects.filter(pk=ids[2]).update(status=BookingStatus.CANCELLED, cancelled_at=now, cancel_reason_code='OTHER')
+        self.assertEqual(first_day(), 'Filling Fast')
+        # A Demo booking is never counted in the Diagnostic calendar.
+        self.assertEqual(self.client.get(CALENDAR.format('diagnostic')).json()['dates'][0]['status'], 'Available')
+
     def test_an_unknown_booking_type_is_not_found(self):
         self.assertEqual(self.client.get(CALENDAR.format('webinar')).status_code, 404)
         self.assertEqual(self.post('webinar').status_code, 404)
@@ -77,7 +98,7 @@ class BookingTests(PublicApiTestCase):
         self.assertEqual(set(first.json()), {'booking_id', 'created'})
         again = self.post(phone={'dial_code': '+971', 'number': '501234567'})
         self.assertEqual((again.status_code, again.json()), (200, {'booking_id': first.json()['booking_id'], 'created': False}))
-        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(booking_count(), 1)
 
     def test_only_the_ref_token_attributes_and_forged_fields_are_ignored(self):
         bde, other = account('bde_one'), account('bde_two')
@@ -85,9 +106,9 @@ class BookingTests(PublicApiTestCase):
                   'referral_status': 'ATTRIBUTED'}
         res = self.post(ref=link(bde).token, **forged)
         self.assertEqual(res.status_code, 201)
-        self.assertEqual((Booking.objects.get().attributed_bde, Lead.objects.get().owner_bde), (bde, bde))
+        self.assertEqual((get_booking().attributed_bde, Lead.objects.get().owner_bde), (bde, bde))
         res = self.post(student_name='Ali', **forged)
-        booking = Booking.objects.get(pk=res.json()['booking_id'])
+        booking = get_booking(pk=res.json()['booking_id'])
         self.assertEqual((booking.referral_status, booking.attributed_bde), (ReferralStatus.NO_REF, None))
 
     def test_a_ref_of_any_shape_never_blocks_the_booking(self):
@@ -95,7 +116,7 @@ class BookingTests(PublicApiTestCase):
             with self.subTest(ref=str(ref)[:12]):
                 res = self.post(student_name=f'Child {offset}', date=self.window[offset].isoformat(), ref=ref)
                 self.assertEqual(res.status_code, 201, res.content)
-                booking = Booking.objects.get(pk=res.json()['booking_id'])
+                booking = get_booking(pk=res.json()['booking_id'])
                 self.assertEqual(booking.referral_status, ReferralStatus.INVALID_REF)
 
     def test_invalid_details_are_refused_with_their_fields(self):
@@ -120,7 +141,7 @@ class BookingTests(PublicApiTestCase):
         self.assertIn('school', self.client.post(BOOK.format('demo'), body, format='json').json()['fields'])
         # The Diagnostic page offers more syllabi than the Demo page.
         self.assertEqual(self.post('diagnostic', syllabus='IB').status_code, 201)
-        self.assertEqual(Booking.objects.count(), 1)
+        self.assertEqual(booking_count(), 1)
 
     def test_the_error_codes(self):
         today = self.post(date=(self.window[0] - timedelta(days=1)).isoformat())
@@ -162,7 +183,7 @@ class ServiceAuthTests(PublicApiTestCase):
                 for res in (self.client.get(CALENDAR.format('demo')), self.post()):
                     self.assertEqual(res.status_code, 401)
                     self.assertIn('Bearer', res['WWW-Authenticate'])
-        self.assertFalse(Booking.objects.exists())
+        self.assertEqual(booking_count(), 0)
 
     def test_signed_in_accounts_are_refused(self):
         self.client.credentials()
@@ -171,7 +192,7 @@ class ServiceAuthTests(PublicApiTestCase):
                 self.client.force_authenticate(account(f'signed_{role.lower()}', role=role, is_superuser=role == 'ADMIN'))
                 self.assertEqual(self.client.get(CALENDAR.format('demo')).status_code, 403)
                 self.assertEqual(self.post().status_code, 403)
-        self.assertFalse(Booking.objects.exists())
+        self.assertEqual(booking_count(), 0)
 
     def test_keys_rotate_and_no_usable_key_refuses_everyone(self):
         with override_settings(BOOKING_SERVICE_API_KEYS=[OTHER_KEY, KEY]):

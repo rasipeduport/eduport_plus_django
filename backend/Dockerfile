@@ -9,8 +9,12 @@ WORKDIR /app
 
 # psycopg[binary] ships wheels, so no libpq build deps are needed.
 # curl is here only for the compose healthcheck.
+# Pango and HarfBuzz's subsetter are what WeasyPrint needs to lay out and embed
+# text in the report PDFs. Their fonts are bundled in reports/pdf_assets; DejaVu
+# is only the fallback for a character those fonts lack.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first so the pip layer caches across code changes

@@ -7,8 +7,9 @@ lib/google-sheets.ts and lib/constants.ts), computed on every read:
   never bookable. Nothing has to "roll" it forward; it moves with the clock.
 * Every active SlotTime of the booking type is offered on every date.
 * A slot's status follows its booked count against capacity 3: 0 Available,
-  1 Filling Fast, 2 Only a Few Left, 3 Fully Booked. A closed slot is
-  Fully Booked.
+  1 Filling Fast, 2 Only a Few Left, 3 Fully Booked. A booking counts while
+  it holds its seat (booked or completed, bookings.models.HOLDS_SEAT). A
+  closed slot is Fully Booked.
 * A date is Fully Booked only when every slot is; otherwise it takes the most
   urgent bookable status of its slots.
 """
@@ -20,7 +21,7 @@ from django.utils import timezone
 
 from core.timezones import zoned_wall_time_to_utc
 
-from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingSlot, BookingStatus, BookingType, SlotTime
+from .models import HOLDS_SEAT, SLOT_CAPACITY, SLOT_MINUTES, BookingSlot, BookingType, SlotTime, booking_model
 
 # Every slot time and every date in the calendar is Indian time. Fixed here
 # rather than read from settings.TIME_ZONE, which governs everything else.
@@ -83,10 +84,46 @@ def active_times(booking_type):
     )
 
 
+def _seats_taken(booking_type):
+    """How many of a slot's seats its bookings hold, as an annotation of ``booking_type``'s slots."""
+    related = booking_model(booking_type).RELATED_NAME
+    return Count(related, filter=Q(**{f'{related}__status__in': HOLDS_SEAT}))
+
+
 def slot_instants(local_date, local_time):
     """The UTC start of an Indian date and time, and its end an hour later."""
     starts_at = zoned_wall_time_to_utc(local_date.isoformat(), local_time.strftime('%H:%M'), BOOKING_TIMEZONE_NAME)
     return starts_at, starts_at + timedelta(minutes=SLOT_MINUTES)
+
+
+def bookable_window(booking_type, now=None):
+    """
+    Every slot the public pages offer for ``booking_type``, by date then time:
+    ``[(date, [{"time", "slot", "booked", "capacity", "closed", "status"}])]``,
+    ``slot`` being the BookingSlot row or None for one nobody has touched.
+    The calendar and the Admin's reschedule options both read it.
+    """
+    window = booking_window(booking_type, now)
+    times = active_times(booking_type)
+    slots = {
+        (slot.local_date, slot.local_time): slot
+        for slot in BookingSlot.objects.filter(booking_type=booking_type, local_date__in=window).annotate(
+            booked=_seats_taken(booking_type)
+        )
+    }
+    days = []
+    for day in window:
+        entries = []
+        for start in times:
+            slot = slots.get((day, start))
+            booked = slot.booked if slot else 0
+            capacity = min(slot.capacity, SLOT_CAPACITY) if slot else SLOT_CAPACITY
+            closed = slot is not None and slot.closed_at is not None
+            status = FULLY_BOOKED if closed else status_for_count(booked, capacity)
+            entries.append({'time': start, 'slot': slot, 'booked': booked, 'capacity': capacity, 'closed': closed,
+                            'status': status})
+        days.append((day, entries))
+    return days
 
 
 def calendar(booking_type, now=None):
@@ -94,27 +131,10 @@ def calendar(booking_type, now=None):
     The bookable window as the booking API returns it:
     ``[{"date": "2026-10-28", "status": ..., "slots": [{"time": "19:30", "status": ...}]}]``.
     """
-    window = booking_window(booking_type, now)
-    times = active_times(booking_type)
-    slots = {
-        (slot.local_date, slot.local_time): slot
-        for slot in BookingSlot.objects.filter(booking_type=booking_type, local_date__in=window).annotate(
-            booked=Count('bookings', filter=Q(bookings__status=BookingStatus.BOOKED))
-        )
-    }
     dates = []
-    for day in window:
-        entries = []
-        for start in times:
-            slot = slots.get((day, start))
-            if slot is None:
-                status = status_for_count(0)
-            elif slot.closed_at is not None:
-                status = FULLY_BOOKED
-            else:
-                status = status_for_count(slot.booked, slot.capacity)
-            entries.append({'time': start.strftime('%H:%M'), 'status': status})
-        dates.append({'date': day.isoformat(), 'status': day_status([e['status'] for e in entries]), 'slots': entries})
+    for day, entries in bookable_window(booking_type, now):
+        slots = [{'time': entry['time'].strftime('%H:%M'), 'status': entry['status']} for entry in entries]
+        dates.append({'date': day.isoformat(), 'status': day_status([e['status'] for e in slots]), 'slots': slots})
     return dates
 
 
@@ -140,7 +160,7 @@ def day_slots(booking_type, local_date):
         slot.local_time: slot
         for slot in BookingSlot.objects.filter(booking_type=booking_type, local_date=local_date)
         .select_related('closed_by')
-        .annotate(booked=Count('bookings', filter=Q(bookings__status=BookingStatus.BOOKED)))
+        .annotate(booked=_seats_taken(booking_type))
     }
     scheduled = set(active_times(booking_type))
     kept = {start for start, slot in rows.items() if slot.booked or slot.closed_at is not None}
@@ -165,3 +185,27 @@ def day_slots(booking_type, local_date):
             'close_reason': slot.close_reason if closed else '',
         })
     return entries
+
+
+def seat_holders(booking_type, local_date):
+    """
+    Who holds the seats of one date's slots, by slot time (HH:MM): the
+    bookings ``day_slots`` counts as booked (HOLDS_SEAT), in seat order, each
+    with what the Booking Slots page needs to name it and link to its detail.
+    """
+    holders = {}
+    bookings = (
+        booking_model(booking_type).objects
+        .filter(slot__local_date=local_date, status__in=HOLDS_SEAT)
+        .select_related('slot', 'lead')
+        .order_by('slot__local_time', 'seat')
+    )
+    for booking in bookings:
+        holders.setdefault(booking.slot.local_time.strftime('%H:%M'), []).append({
+            'id': str(booking.id),
+            'booking_type': booking_type,
+            'seat': booking.seat,
+            'status': booking.status,
+            'student_name': booking.lead.student_name,
+        })
+    return holders

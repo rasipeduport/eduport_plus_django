@@ -1,7 +1,7 @@
 """
-Booking management for the Admin / Coordinator (/api/bookings/, bookings.coordination
-and bookings.management_views): the paged and filtered list, one booking in
-full, every active tutor with whether they are free for a slot, and assigning,
+Booking management for the Admin / Coordinator (/api/bookings/<type>/,
+bookings.coordination and bookings.management_views): each type's paged and
+filtered list, one booking in full, every active tutor with whether they are free for a slot, and assigning,
 reassigning and unassigning a booking's tutor through booking_service -- for
 holders of accounts.view_all_bookings / accounts.assign_booking_tutor only.
 """
@@ -20,32 +20,33 @@ from sessions.models import Session, SessionStatusChoices
 from students.models import Student
 
 from .booking_service import assign_tutor, cancel_booking, create_booking
-from .models import Booking, BookingStatus, BookingType
+from .models import BookingStatus, BookingType, CancelReason
 from .scheduling import BOOKING_TIMEZONE, indian_today
 from .tests_booking import EVENING, MORNING, account, link, request, schedule
 
 User = get_user_model()
 
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
-LIST_URL = '/api/bookings/'
+BOOKINGS = '/api/bookings/'
+DEMO_URL, DIAGNOSTIC_URL = f'{BOOKINGS}demo/', f'{BOOKINGS}diagnostic/'
 # Names, phone and school the requests fill in (tests_booking.request); none may reach a log.
 PRIVATE = ('Asha Nair', 'Delhi Private School', '501234567')
 
 
 def detail_url(booking):
-    return f'{LIST_URL}{booking.id}/'
+    return f'{BOOKINGS}{booking.booking_type.lower()}/{booking.id}/'
 
 
 def tutors_url(booking):
-    return f'{LIST_URL}{booking.id}/tutors/'
+    return f'{detail_url(booking)}tutors/'
 
 
 def slot_tutors_url(slot_id):
-    return f'{LIST_URL}slots/{slot_id}/tutors/'
+    return f'{BOOKINGS}slots/{slot_id}/tutors/'
 
 
 def tutor_url(booking):
-    return f'{LIST_URL}{booking.id}/tutor/'
+    return f'{detail_url(booking)}tutor/'
 
 
 class BookingAdminTestCase(APITestCase):
@@ -86,11 +87,12 @@ class BookingAdminTestCase(APITestCase):
 
 
 class ListTests(BookingAdminTestCase):
-    def test_every_booking_soonest_first_and_paged(self):
+    def test_each_type_its_own_list_soonest_first_and_paged(self):
+        morning = self.book('Meera', at=MORNING)
         evening = self.book('Riya')
-        morning = self.book('Ali', booking_type=DIAGNOSTIC, at=MORNING)
         next_day = self.book('Sara', day=self.day + timedelta(days=1))
-        res = self.client.get(LIST_URL)
+        diagnostic = self.book('Ali', booking_type=DIAGNOSTIC, at=MORNING)
+        res = self.client.get(DEMO_URL)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual((res.data['count'], res.data['page'], res.data['page_size'], res.data['timezone']), (3, 1, 25, 'Asia/Kolkata'))
         self.assertEqual(self.ids(res), [str(morning.id), str(evening.id), str(next_day.id)])
@@ -98,67 +100,84 @@ class ListTests(BookingAdminTestCase):
         self.assertEqual((row['student_name'], row['parent_name'], row['grade'], row['status'], row['tutor']),
                          ('Riya', 'Asha Nair', 'Class 8', 'BOOKED', None))
         self.assertEqual((row['slot']['date'], row['slot']['time'], row['slot']['started']), (self.day.isoformat(), '19:30', False))
+        res = self.client.get(DIAGNOSTIC_URL)
+        self.assertEqual((res.data['count'], self.ids(res)), (1, [str(diagnostic.id)]))
 
-        page_two = self.client.get(LIST_URL, {'page': 2, 'page_size': 2})
+        page_two = self.client.get(DEMO_URL, {'page': 2, 'page_size': 2})
         self.assertEqual((page_two.data['count'], self.ids(page_two)), (3, [str(next_day.id)]))
         # Unusable paging falls back to the defaults and the 200-row cap, as everywhere in the API.
-        self.assertEqual(self.client.get(LIST_URL, {'page': 'x', 'page_size': '0'}).data['page_size'], 1)
-        self.assertEqual(self.client.get(LIST_URL, {'page': 'x'}).data['page'], 1)
-        self.assertEqual(self.client.get(LIST_URL, {'page_size': 5000}).data['page_size'], 200)
-        self.assertEqual(self.client.get(LIST_URL, {'page': 9}).data['results'], [])
+        self.assertEqual(self.client.get(DEMO_URL, {'page': 'x', 'page_size': '0'}).data['page_size'], 1)
+        self.assertEqual(self.client.get(DEMO_URL, {'page': 'x'}).data['page'], 1)
+        self.assertEqual(self.client.get(DEMO_URL, {'page_size': 5000}).data['page_size'], 200)
+        self.assertEqual(self.client.get(DEMO_URL, {'page': 9}).data['results'], [])
 
     def test_the_bde_a_booking_is_credited_to(self):
         credited = self.book('Riya', ref=link(self.bde).token)
-        row = self.client.get(LIST_URL).data['results'][0]
+        row = self.client.get(DEMO_URL).data['results'][0]
         self.assertEqual((row['id'], row['bde']), (str(credited.id), {'id': str(self.bde.id), 'full_name': 'Bde One'}))
 
     def test_filters(self):
         evening = self.book('Riya')
         diagnostic = self.book('Ali', booking_type=DIAGNOSTIC, at=MORNING)
         cancelled = self.book('Sara', day=self.day + timedelta(days=1))
-        cancel_booking(cancelled, actor=self.admin)
+        cancel_booking(cancelled, actor=self.admin, reason_code=CancelReason.OTHER)
         assign_tutor(evening, self.tutor_a, actor=self.admin)
         last_week = timezone.now() - timedelta(days=7)
         past = self.book('Old Kid', day=indian_today(last_week) + timedelta(days=1), now=last_week)
 
-        def listed(**params):
-            res = self.client.get(LIST_URL, params)
+        def listed(url=DEMO_URL, **params):
+            res = self.client.get(url, params)
             self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
             return sorted(self.ids(res))
 
         def ids(*bookings):
             return sorted(str(booking.id) for booking in bookings)
 
-        self.assertEqual(listed(type='diagnostic'), ids(diagnostic))
+        self.assertEqual(listed(DIAGNOSTIC_URL), ids(diagnostic))
         self.assertEqual(listed(status='CANCELLED'), ids(cancelled))
+        self.assertEqual(listed(status='completed'), [])
+        self.assertEqual(listed(status='RESCHEDULED'), [])
         self.assertEqual(listed(assigned='true'), ids(evening))
-        self.assertEqual(listed(assigned='false'), ids(diagnostic, cancelled, past))
+        self.assertEqual(listed(assigned='false'), ids(cancelled, past))
+        self.assertEqual(listed(DIAGNOSTIC_URL, assigned='false'), ids(diagnostic))
         self.assertEqual(listed(tutor=str(self.tutor_a.id)), ids(evening))
         self.assertEqual(listed(slot=str(evening.slot_id)), ids(evening))
-        self.assertEqual(listed(**{'from': self.day.isoformat(), 'to': self.day.isoformat()}), ids(evening, diagnostic))
+        self.assertEqual(listed(**{'from': self.day.isoformat(), 'to': self.day.isoformat()}), ids(evening))
+        self.assertEqual(listed(DIAGNOSTIC_URL, **{'from': self.day.isoformat(), 'to': self.day.isoformat()}), ids(diagnostic))
         self.assertEqual(listed(when='past'), ids(past))
-        self.assertEqual(listed(when='upcoming'), ids(evening, diagnostic, cancelled))
+        self.assertEqual(listed(when='upcoming'), ids(evening, cancelled))
         self.assertEqual(listed(q='riya'), ids(evening))
-        self.assertEqual(listed(q='Asha'), ids(evening, diagnostic, cancelled, past))
+        self.assertEqual(listed(q='Asha'), ids(evening, cancelled, past))
+        self.assertEqual(listed(DIAGNOSTIC_URL, q='Asha'), ids(diagnostic))
         # Phone digits, the domestic leading 0 included or not.
         self.assertEqual(listed(q=evening.lead.phone_number), ids(evening))
         self.assertEqual(listed(q='0' + evening.lead.phone_number), ids(evening))
-        self.assertEqual(listed(type='DEMO', status='BOOKED', when='upcoming'), ids(evening))
+        self.assertEqual(listed(status='BOOKED', when='upcoming'), ids(evening))
 
     def test_unknown_filter_values_are_refused_never_guessed(self):
         self.book('Riya')
-        res = self.client.get(LIST_URL, {
-            'type': 'TRIAL', 'status': 'done', 'assigned': 'maybe', 'tutor': 'not-an-id', 'slot': '42',
+        res = self.client.get(DEMO_URL, {
+            'status': 'done', 'assigned': 'maybe', 'tutor': 'not-an-id', 'slot': '42',
             'from': '2026-13-01', 'to': '31-10-2026', 'when': 'tomorrow', 'q': 'x' * 101,
         })
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(res.data['error'], 'INVALID_INPUT')
-        self.assertEqual(sorted(res.data['fields']), sorted(['type', 'status', 'assigned', 'tutor', 'slot', 'from', 'to', 'when', 'q']))
+        self.assertEqual(sorted(res.data['fields']), sorted(['status', 'assigned', 'tutor', 'slot', 'from', 'to', 'when', 'q']))
         self.assertNotIn('results', res.data)
-        res = self.client.get(LIST_URL, {'from': '2026-11-02', 'to': '2026-11-01'})
+        res = self.client.get(DEMO_URL, {'from': '2026-11-02', 'to': '2026-11-01'})
         self.assertEqual((res.status_code, res.data['fields']), (status.HTTP_400_BAD_REQUEST, ['to']))
         # A well-formed id that matches nothing is simply an empty list.
-        self.assertEqual(self.client.get(LIST_URL, {'tutor': str(uuid.uuid4())}).data['count'], 0)
+        self.assertEqual(self.client.get(DEMO_URL, {'tutor': str(uuid.uuid4())}).data['count'], 0)
+
+    def test_the_type_is_the_path_never_a_filter(self):
+        demo = self.book('Riya')
+        self.book('Ali', booking_type=DIAGNOSTIC, at=MORNING)
+        # The old combined list, and any type but the two, is no list at all.
+        for path in (BOOKINGS, f'{BOOKINGS}tuition/', f'{BOOKINGS}DEMO/', f'{BOOKINGS}slots/'):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, status.HTTP_404_NOT_FOUND)
+        # A ``type`` parameter neither widens nor switches the list.
+        self.assertEqual(self.ids(self.client.get(DEMO_URL, {'type': 'DIAGNOSTIC'})), [str(demo.id)])
 
 
 class DetailTests(BookingAdminTestCase):
@@ -177,19 +196,31 @@ class DetailTests(BookingAdminTestCase):
         self.assertIsNotNone(data['tutor_assigned_at'])
         self.assertEqual((data['tutor_changeable'], data['tutor_change_refusal']), (True, None))
 
-        cancel_booking(booking, actor=self.admin, reason='Parent asked')
+        cancel_booking(booking, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
         data = self.client.get(detail_url(booking)).data
-        self.assertEqual((data['status'], data['cancel_reason'], data['cancelled_by']['id']), ('CANCELLED', 'Parent asked', str(self.admin.id)))
+        self.assertEqual((data['status'], data['cancel_reason'], data['cancel_reason_code'], data['cancelled_by']['id']),
+                         ('CANCELLED', 'Parent asked to cancel', 'PARENT_REQUEST', str(self.admin.id)))
         # Cancelled, it keeps its tutor as history, and the tutor can no longer change.
         self.assertEqual(data['tutor']['id'], str(self.tutor_a.id))
         self.assertEqual((data['tutor_changeable'], data['tutor_change_refusal']['code']), (False, 'BOOKING_CANCELLED'))
 
     def test_unknown_and_malformed_ids(self):
-        res = self.client.get(f'{LIST_URL}{uuid.uuid4()}/')
+        res = self.client.get(f'{DEMO_URL}{uuid.uuid4()}/')
         self.assertEqual((res.status_code, res.data['error']), (status.HTTP_404_NOT_FOUND, 'NOT_FOUND'))
-        for path in (f'{LIST_URL}not-a-booking/', f'{LIST_URL}123/tutors/', f'{LIST_URL}slots/xyz/tutors/'):
+        for path in (f'{DEMO_URL}not-a-booking/', f'{DEMO_URL}123/tutors/', f'{BOOKINGS}slots/xyz/tutors/'):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_a_booking_is_named_by_its_type_and_id(self):
+        demo = self.book('Riya')
+        for path in (f'{DIAGNOSTIC_URL}{demo.id}/', f'{DIAGNOSTIC_URL}{demo.id}/tutors/', f'{BOOKINGS}{demo.id}/',
+                     f'{BOOKINGS}{demo.id}/tutors/', f'{BOOKINGS}tuition/{demo.id}/'):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, status.HTTP_404_NOT_FOUND)
+        res = self.client.put(f'{DIAGNOSTIC_URL}{demo.id}/tutor/', {'tutor_id': str(self.tutor_a.id)}, format='json')
+        self.assertEqual((res.status_code, res.data['error']), (status.HTTP_404_NOT_FOUND, 'NOT_FOUND'))
+        demo.refresh_from_db()
+        self.assertIsNone(demo.assigned_tutor)
 
 
 class AvailabilityTests(BookingAdminTestCase):
@@ -216,13 +247,28 @@ class AvailabilityTests(BookingAdminTestCase):
         })
         reasons = {row['full_name']: row['reason'] for row in res.data['tutors']}
         self.assertEqual(reasons['Tutor Anu']['session_id'], str(self.anus_class.id))
-        self.assertEqual(reasons['Tutor Binu']['booking_id'], str(self.other.id))
+        self.assertEqual((reasons['Tutor Binu']['booking_type'], reasons['Tutor Binu']['booking_id']), ('DEMO', str(self.other.id)))
         self.assertIn('Teaching a class from 7:00 PM to 8:00 PM IST on', reasons['Tutor Anu']['message'])
         self.assertEqual(datetime.fromisoformat(reasons['Tutor Anu']['starts_at']), self.anus_class.start_time)
         # Neither the class's student nor the other booking's child is named.
         for private in ('Kid EDP71', 'Ali', 'Riya', 'Asha'):
             self.assertNotIn(private, json.dumps(res.data['tutors']))
         self.assertEqual((res.data['tutor_changeable'], res.data['slot']['id']), (True, str(self.booking.slot_id)))
+
+    def test_a_booking_of_the_other_type_names_its_type(self):
+        diagnostic = self.book('Sara', booking_type=DIAGNOSTIC)  # 19:30-20:30 IST too
+        assign_tutor(diagnostic, self.tutor_c, actor=self.admin)
+        reasons = {row['full_name']: row['reason'] for row in self.client.get(tutors_url(self.booking)).data['tutors']}
+        self.assertEqual((reasons['Tutor Chitra']['code'], reasons['Tutor Chitra']['booking_type'], reasons['Tutor Chitra']['booking_id']),
+                         ('BOOKING_CONFLICT', 'DIAGNOSTIC', str(diagnostic.id)))
+        # The refusal at assignment time names it the same way, so its typed URL can be built.
+        res = self.client.put(tutor_url(self.booking), {'tutor_id': str(self.tutor_c.id)}, format='json')
+        self.assertEqual((res.status_code, res.data['conflict']['booking_type'], res.data['conflict']['booking_id']),
+                         (status.HTTP_409_CONFLICT, 'DIAGNOSTIC', str(diagnostic.id)))
+        self.assertEqual(self.client.get(f"{BOOKINGS}{res.data['conflict']['booking_type'].lower()}/{diagnostic.id}/").status_code,
+                         status.HTTP_200_OK)
+        # A class conflict names no booking.
+        self.assertNotIn('booking_type', reasons['Tutor Anu'])
 
     def test_the_current_tutor_is_marked_and_not_blocked_by_its_own_booking(self):
         assign_tutor(self.booking, self.tutor_c, actor=self.admin)
@@ -253,7 +299,7 @@ class AvailabilityTests(BookingAdminTestCase):
                 self.client.delete(tutor_url(self.booking))
 
     def test_a_booking_whose_tutor_cannot_change(self):
-        cancel_booking(self.booking, actor=self.admin)
+        cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.OTHER)
         res = self.client.get(tutors_url(self.booking))
         self.assertEqual((res.data['tutor_changeable'], res.data['tutor_change_refusal']['code']), (False, 'BOOKING_CANCELLED'))
         last_week = timezone.now() - timedelta(days=7)
@@ -292,8 +338,8 @@ class AssignmentTests(BookingAdminTestCase):
         other = self.book('Ali')
         self.assertEqual(self.put(self.tutor_b.id, booking=other).status_code, status.HTTP_200_OK)
         res = self.put(self.tutor_b.id)
-        self.assertEqual((res.data['error'], res.data['conflict']['code'], res.data['conflict']['booking_id']),
-                         ('TUTOR_UNAVAILABLE', 'BOOKING_CONFLICT', str(other.id)))
+        self.assertEqual((res.data['error'], res.data['conflict']['code'], res.data['conflict']['booking_type'], res.data['conflict']['booking_id']),
+                         ('TUTOR_UNAVAILABLE', 'BOOKING_CONFLICT', 'DEMO', str(other.id)))
         self.booking.refresh_from_db()
         self.assertIsNone(self.booking.assigned_tutor)
 
@@ -311,9 +357,9 @@ class AssignmentTests(BookingAdminTestCase):
         self.assertIsNone(self.booking.assigned_tutor)
 
     def test_a_booking_whose_tutor_cannot_change(self):
-        res = self.client.put(f'{LIST_URL}{uuid.uuid4()}/tutor/', {'tutor_id': str(self.tutor_a.id)}, format='json')
+        res = self.client.put(f'{DEMO_URL}{uuid.uuid4()}/tutor/', {'tutor_id': str(self.tutor_a.id)}, format='json')
         self.assertEqual((res.status_code, res.data['error']), (status.HTTP_404_NOT_FOUND, 'NOT_FOUND'))
-        cancel_booking(self.booking, actor=self.admin)
+        cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.OTHER)
         res = self.put(self.tutor_a.id)
         self.assertEqual((res.status_code, res.data['error']), (status.HTTP_409_CONFLICT, 'BOOKING_CANCELLED'))
         res = self.client.delete(tutor_url(self.booking))
@@ -353,7 +399,8 @@ class PermissionTests(BookingAdminTestCase):
     def calls(self):
         body = {'tutor_id': str(self.tutor_a.id)}
         return [
-            ('get', LIST_URL, None), ('get', detail_url(self.booking), None), ('get', tutors_url(self.booking), None),
+            ('get', DEMO_URL, None), ('get', DIAGNOSTIC_URL, None),
+            ('get', detail_url(self.booking), None), ('get', tutors_url(self.booking), None),
             ('get', slot_tutors_url(self.booking.slot_id), None),
             ('put', tutor_url(self.booking), body), ('delete', tutor_url(self.booking), None),
         ]
@@ -380,7 +427,7 @@ class PermissionTests(BookingAdminTestCase):
             self.mentor.user_permissions.add(Permission.objects.get(codename=codename))
         client = APIClient()
         client.force_authenticate(user=User.objects.get(pk=self.mentor.pk))
-        self.assertEqual(client.get(LIST_URL).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(client.get(DEMO_URL).status_code, status.HTTP_403_FORBIDDEN)
         # GET is not a way to change the tutor, even for an administrator.
         self.assertEqual(self.client.get(tutor_url(self.booking)).status_code, status.HTTP_403_FORBIDDEN)
 

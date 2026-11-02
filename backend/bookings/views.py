@@ -7,20 +7,23 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.authz import has_app_permission
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
 from . import enquiries
-from .booking_service import BookingBusy, set_slots_closed
+from .booking_service import BookingBusy, BookingError, cancel_booking, set_slots_closed
 from .leads import InvalidLeadDetails
-from .models import SLOT_CAPACITY, SLOT_MINUTES, SlotTime
+from .models import SLOT_CAPACITY, SLOT_MINUTES, SlotTime, booking_model
 from .public_views import PATH_TYPES
-from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state
-from .serializers import BookingLinkSerializer, EnquiryCreateSerializer, SlotChangeSerializer
+from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
+from .serializers import BookingLinkSerializer, CancelSerializer, EnquiryCreateSerializer, SlotChangeSerializer
 from .services import links_for, owns_booking_links
 
 VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
+CANCEL_BOOKING = 'accounts.cancel_booking'
+VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
 
 
 class BdeBookingLinksView(APIView):
@@ -163,7 +166,7 @@ class BdeEnquiriesView(BdeWorkspaceView):
             )
         now = timezone.now()
         lead = enquiries.listed(enquiries.own_leads(request.user), now).get(pk=lead.pk)
-        return Response(enquiries.enquiry_detail(lead, now), status=status.HTTP_201_CREATED)
+        return Response(enquiries.enquiry_detail(lead, now, can_cancel=_can_cancel(request)), status=status.HTTP_201_CREATED)
 
 
 class BdeEnquiryDetailView(BdeWorkspaceView):
@@ -182,7 +185,59 @@ class BdeEnquiryDetailView(BdeWorkspaceView):
         lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=pk), now).first()
         if lead is None:
             return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
-        return Response(enquiries.enquiry_detail(lead, now), status=status.HTTP_200_OK)
+        return Response(enquiries.enquiry_detail(lead, now, can_cancel=_can_cancel(request)), status=status.HTTP_200_OK)
+
+
+def _can_cancel(request):
+    return has_app_permission(request.user, CANCEL_BOOKING, request)
+
+
+class BdeBookingCancelView(BdeWorkspaceView):
+    """
+    POST /api/bde/bookings/<type>/<id>/cancel/ {"reason": <code>}
+    Cancel a booking of one of the caller's own leads (Q22), for a reason from
+    the list (Q9) -- the same rules, reasons and history as the Admin's
+    (booking_service.cancel_booking): No-show only once the slot has started,
+    a completed or moved booking never. Answers the enquiry in full with
+    ``changed``.
+
+    Ownership is enforced here, never left to the Hub: the booking is looked
+    up among the bookings of the caller's own leads only, before anything else
+    is read, and cancel_booking checks it again under the booking's lock.
+    Another BDE's booking, one of a lead nobody owns, one of the other type
+    and one that does not exist are all answered alike: 404 "No such booking".
+    Needs accounts.view_own_enquiries and accounts.cancel_booking; a tutor
+    holds neither, and an account that is not a BDE is answered NOT_A_BDE.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CANCEL_BOOKING)]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        try:
+            model = booking_model(PATH_TYPES[booking_type])
+        except KeyError:
+            return _no_booking()
+        booking = model.objects.filter(pk=pk, lead__in=enquiries.own_leads(request.user)).first()
+        if booking is None:
+            return _no_booking()
+        serializer = CancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _bde_error('VALIDATION_ERROR', 'Choose a reason.', status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
+        try:
+            booking, changed = cancel_booking(
+                booking, reason_code=serializer.validated_data['reason'], actor=request.user, owner_bde=request.user,
+            )
+        except BookingError as exc:
+            return _bde_error(exc.code, exc.message, exc.http_status)
+        now = timezone.now()
+        lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
+        return Response({**enquiries.enquiry_detail(lead, now, can_cancel=True), 'changed': changed}, status=status.HTTP_200_OK)
+
+
+def _no_booking():
+    return _bde_error('NOT_FOUND', 'No such booking.', status.HTTP_404_NOT_FOUND)
 
 
 def _refuse(message, code, http_status=status.HTTP_400_BAD_REQUEST, **extra):
@@ -207,6 +262,11 @@ class BookingSlotsView(APIView):
     while seats remain (bookings.booking_service). Nothing here deletes or
     changes a booking. Past dates are history: shown, never changed.
 
+    Each slot lists the bookings holding its seats (``bookings``: id, type,
+    seat, status, student) so the page can link each to its detail -- only
+    for a caller who may see every booking (accounts.view_all_bookings);
+    for anyone else it is null and the slot shows its count alone.
+
     Guarded by accounts.manage_booking_slots, which only the ADMIN role may
     hold (a superuser holds it as well, decision D1).
     """
@@ -216,7 +276,7 @@ class BookingSlotsView(APIView):
         booking_type, local_date, refusal = _slot_day(booking_type, date)
         if refusal:
             return refusal
-        return Response(_day(booking_type, local_date), status=status.HTTP_200_OK)
+        return Response(_day(booking_type, local_date, request), status=status.HTTP_200_OK)
 
     def post(self, request, booking_type, date):
         booking_type, local_date, refusal = _slot_day(booking_type, date)
@@ -244,7 +304,7 @@ class BookingSlotsView(APIView):
             return _refuse('Could not update the slots right now. Please try again.', 'SLOTS_BUSY',
                            http_status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(
-            {**_day(booking_type, local_date), 'changed': [start.strftime('%H:%M') for start in changed]},
+            {**_day(booking_type, local_date, request), 'changed': [start.strftime('%H:%M') for start in changed]},
             status=status.HTTP_200_OK,
         )
 
@@ -263,9 +323,11 @@ def _slot_day(booking_type, value):
         return booking_type, None, _refuse('Dates are YYYY-MM-DD.', 'INVALID_DATE')
 
 
-def _day(booking_type, local_date):
+def _day(booking_type, local_date, request):
     window = booking_window(booking_type)
     state = parent_state(booking_type, local_date)
+    holders = (seat_holders(booking_type, local_date)
+               if has_app_permission(request.user, VIEW_ALL_BOOKINGS, request) else None)
     return {
         'booking_type': booking_type,
         'date': local_date.isoformat(),
@@ -281,6 +343,7 @@ def _day(booking_type, local_date):
                 **slot,
                 'closed_at': slot['closed_at'].isoformat() if slot['closed_at'] else None,
                 'closed_by': _name(slot['closed_by']),
+                'bookings': holders.get(slot['time'], []) if holders is not None else None,
             }
             for slot in day_slots(booking_type, local_date)
         ],

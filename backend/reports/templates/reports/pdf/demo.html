@@ -1,0 +1,21 @@
+{% extends "reports/pdf/base.html" %}
+{% comment %}
+The Demo report, after the one-page Demo Report sample. There is no score
+field: the tutor writes the assessment's score in the Assessment Review.
+{% endcomment %}
+{% block document_title %}Demo Report: {{ student_name }}{% endblock %}
+{% block title %}<span>Demo</span> <span>Report</span>{% endblock %}
+{% block content %}
+<section>
+<h2>Assessment Review</h2>
+<p class="text">{{ assessment_review }}</p>
+</section>
+<section>
+<h2>Class Observation Review</h2>
+<p class="text">{{ class_observation_review }}</p>
+</section>
+<section>
+<h2>Suggested Strategy</h2>
+<p class="text">{{ suggested_strategy }}</p>
+</section>
+{% endblock %}

@@ -29,3 +29,7 @@ redis==5.2.1
 # Serving
 gunicorn==23.0.0
 whitenoise==6.6.0
+
+# Report PDFs (reports app, design F.2): HTML and CSS to PDF. It lays text out
+# with Pango, which the Dockerfile installs.
+weasyprint==70.0

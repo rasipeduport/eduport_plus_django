@@ -28,6 +28,10 @@ const breadcrumbPatterns = [
   { pattern: /^\/students\/[^/]+$/, trail: [{ label: 'Students', href: '/students' }, { label: 'Profile' }] },
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
   { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
+  {
+    pattern: /^\/my-bookings\/(demo|diagnostic)\/[^/]+\/report$/,
+    trail: [{ label: 'My Bookings', href: '/my-bookings' }, { label: 'Report' }],
+  },
 ];
 
 export function getBreadcrumbs(pathname) {

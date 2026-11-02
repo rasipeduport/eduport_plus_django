@@ -22,11 +22,12 @@ function TutorSkeleton() {
 
 /**
  * Choosing who teaches a booking. Every active tutor for its slot comes from
- * the API (GET /api/bookings/<id>/tutors/), Available or Unavailable with the
- * reason it gives -- a class or another booking at that time, never another
- * child's name -- and the current tutor marked. Only an available tutor can be
- * picked; the API checks again when assigning (PUT /api/bookings/<id>/tutor/)
- * and a refusal is shown as it comes, with the list read again.
+ * the API (GET /api/bookings/<type>/<id>/tutors/), Available or Unavailable
+ * with the reason it gives -- a class or another booking at that time, never
+ * another child's name -- and the current tutor marked. Only an available
+ * tutor can be picked; the API checks again when assigning
+ * (PUT /api/bookings/<type>/<id>/tutor/) and a refusal is shown as it comes,
+ * with the list read again.
  */
 export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
   const [data, setData] = useState(null);
@@ -36,6 +37,7 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const bookingId = booking?.id;
+  const bookingType = booking?.booking_type;
 
   // A fresh dialog on every open.
   const [prevOpen, setPrevOpen] = useState(open);
@@ -50,11 +52,11 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
   }
 
   useEffect(() => {
-    if (!open || !bookingId) return undefined;
+    if (!open || !bookingId || !bookingType) return undefined;
     let active = true;
     setFailure(null);
     api
-      .get(bookingTutorsUrl(bookingId))
+      .get(bookingTutorsUrl(bookingType, bookingId))
       .then((response) => {
         if (active) setData(response.data);
       })
@@ -64,7 +66,7 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
     return () => {
       active = false;
     };
-  }, [open, bookingId, reloadKey]);
+  }, [open, bookingType, bookingId, reloadKey]);
 
   const tutors = data?.tutors ?? [];
   const current = tutors.find((tutor) => tutor.current);
@@ -77,7 +79,7 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
     setPending(true);
     setError(null);
     try {
-      const response = await api.put(bookingTutorUrl(bookingId), { tutor_id: selected });
+      const response = await api.put(bookingTutorUrl(bookingType, bookingId), { tutor_id: selected });
       onAssigned?.(response.data);
       onOpenChange(false);
     } catch (err) {

@@ -4,7 +4,7 @@ Scoping is deny-by-default.
 Access follows permissions (accounts.authz): the Admin role's group sees
 everything, Mentor and Tutor their allocated students' rows, superusers
 everything whatever their role (decision D1), BDE only its own booking links
-and enquiries, and every other role -- Sales TL, whose group is empty, a future one, or a bad
+and enquiries, and every other role -- Sales TL, whose permissions open no route yet, a future one, or a bad
 value in the column -- nothing. These tests pin both halves: the scope helpers
 give each existing role exactly what it had, and a role without permissions is
 refused by every API route (a BDE by every one but its own workspace). Every
@@ -53,7 +53,20 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
     ('api/bde/dashboard/', 'get'),
     ('api/bde/enquiries/', 'get'),
 }
-BDE_PERMISSIONS = ['accounts.add_enquiry', 'accounts.view_own_booking_links', 'accounts.view_own_enquiries']
+# What /me lists: BDE its workspace's permissions and its own leads' Demo
+# handoff, reports and conversion; Sales TL the Conversion Tracker's (0015).
+# Those seeded by 0015 open no route until their phase's code asks for them.
+BDE_PERMISSIONS = [
+    'accounts.add_enquiry',
+    'accounts.cancel_booking',
+    'accounts.create_demo_booking',
+    'accounts.manage_own_conversion',
+    'accounts.share_booking_report',
+    'accounts.view_own_booking_links',
+    'accounts.view_own_enquiries',
+    'accounts.view_own_lead_reports',
+]
+SALES_TL_PERMISSIONS = ['accounts.manage_team_conversion', 'accounts.view_conversion_tracker']
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
 _ROUTE_PARAM = re.compile(r'<(?:(\w+):)?\w+>')
 
@@ -264,7 +277,10 @@ class ApiSweepTests(RoleScopingFixture):
         self.assertEqual([link['booking_type'] for link in res.data['links']], ['DEMO', 'DIAGNOSTIC'])
 
     def test_the_account_basics_answer_only_about_the_caller(self):
-        accounts = [(account, []) for account in self.unknown_accounts] + [(self.accounts['bde'], BDE_PERMISSIONS)]
+        accounts = [
+            (self.accounts['sales_tl'], SALES_TL_PERMISSIONS), (self.accounts['unknown'], []), (self.accounts['blank'], []),
+            (self.accounts['bde'], BDE_PERMISSIONS),
+        ]
         for account, permissions in accounts:
             with self.subTest(role=account.role):
                 self.client.force_authenticate(user=account)

@@ -1,9 +1,19 @@
 import { Badge } from '@/components/ui/badge';
 import { bookingState } from '@/lib/bookings';
+import { reportState } from '@/lib/reports';
 
 /** Upcoming, In progress, Done or Cancelled (lib/bookings bookingState). */
 export function BookingStateBadge({ booking }) {
   const state = bookingState(booking);
+  return <Badge variant={state.variant}>{state.label}</Badge>;
+}
+
+/**
+ * Where a tutor's booking stands with its report: Upcoming, In progress,
+ * Report due, Completed, Cancelled or Rescheduled (lib/reports reportState).
+ */
+export function ReportStateBadge({ booking }) {
+  const state = reportState(booking);
   return <Badge variant={state.variant}>{state.label}</Badge>;
 }
 

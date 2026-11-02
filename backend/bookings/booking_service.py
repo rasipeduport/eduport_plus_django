@@ -1,6 +1,6 @@
 """
-Creating and cancelling bookings, assigning their tutors, closing slots and
-setting the schedule: the one place booking rows are written.
+Creating, cancelling and rescheduling bookings, assigning their tutors,
+closing slots and setting the schedule: the one place booking rows are written.
 
 create_booking runs in one transaction:
 
@@ -11,9 +11,27 @@ create_booking runs in one transaction:
 2. The slot row is locked (SELECT ... FOR UPDATE), the project's pattern for
    check-then-write. Every booking, cancellation and closure of the slot
    queues behind this lock, so the count read under it is exact.
-3. Under the lock the lead is matched; a booking the lead already holds in
-   this slot is returned as it is (a repeated submission); a closed or full
-   slot is refused; otherwise the lowest free seat (1-3) is taken.
+3. Under the lock the lead is matched and its row locked too (FOR NO KEY
+   UPDATE, the lead-level lock of design B.7); a booking the lead already
+   holds in this slot is returned as it is (a repeated submission); a lead
+   that already holds a live booking of this type (LeadAlreadyBooked), or
+   one of the other type at an overlapping time (LeadTimeConflict), is
+   refused (Q26); a closed or full slot is refused; otherwise the lowest
+   free seat (1-3) is taken.
+
+The lead lock is what keeps Q26 true under concurrency: two requests for one
+child in different slots, or of different types, lock different slot rows
+and would both pass a check made under those alone. Both queue on the lead
+row instead, and the second checks only once the first has committed, so it
+sees that booking in either table. No index can stand behind the rules: a
+live booking is one whose slot has not ended yet, which changes with the
+clock, and the overlap rule spans both tables and the slots.
+
+Diagnostic and Demo bookings live in tables of their own
+(bookings.models.booking_model); every write below picks the table of the
+booking's type, and every check that spans both types (a tutor's commitments,
+a phone number's bookings today) reads both. Each write also records the
+change in the booking's history (bookings.history), in the same transaction.
 
 The seats' partial unique index makes a fourth booked row for one slot
 impossible even for code that skipped the lock; the lock is what keeps the
@@ -27,6 +45,11 @@ that tutor -- and the tutor's account row, so a class being scheduled, the
 account being deactivated or another assignment for the same tutor all wait
 for it (or it for them) and the availability it checks is still true when it
 commits.
+
+reschedule_booking takes the most locks, always in this order (design B.7):
+both slots in time order, then the lead (FOR NO KEY UPDATE: the lead-level
+conflict check), then the booking, then the tutor's scheduling lock and row
+when a tutor would carry over. Every other writer takes a prefix of it.
 """
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, time as time_type, timedelta
@@ -40,9 +63,23 @@ from activity.utils import log_activity
 from sessions.models import Session, SessionStatusChoices
 from sessions.services import lock_tutor_schedule
 
+from . import history
 from .attribution import resolve_referral
 from .leads import match_lead, normalize_phone
-from .models import SLOT_CAPACITY, Booking, BookingSlot, BookingStatus, Lead, ReferralStatus, SlotTime
+from .models import (
+    BOOKING_MODELS,
+    HOLDS_SEAT,
+    SLOT_CAPACITY,
+    BookingEventKind,
+    BookingSlot,
+    BookingStatus,
+    CancelReason,
+    Lead,
+    ReferralStatus,
+    RescheduleReason,
+    SlotTime,
+    booking_model,
+)
 from .scheduling import booking_window, slot_instants
 
 LOCK_TIMEOUT = '3s'
@@ -91,10 +128,79 @@ class BookingCancelled(BookingError):
     message = 'This booking is cancelled, so its tutor cannot be changed.'
 
 
+class BookingCompleted(BookingError):
+    code = 'BOOKING_COMPLETED'
+    http_status = 409
+    message = 'This booking is completed, so it can no longer be changed.'
+
+
+class BookingRescheduled(BookingError):
+    code = 'BOOKING_RESCHEDULED'
+    http_status = 409
+    message = 'This booking was moved to another slot, so it can no longer be changed.'
+
+
 class SlotStarted(BookingError):
     code = 'SLOT_STARTED'
     http_status = 409
     message = 'This booking has already started, so its tutor cannot be changed.'
+
+
+class InvalidReason(BookingError):
+    code = 'INVALID_REASON'
+    message = 'Choose a reason from the list.'
+
+
+class NoShowBeforeStart(BookingError):
+    code = 'NO_SHOW_BEFORE_START'
+    http_status = 409
+    message = 'A booking can be marked No-show only once its slot has started.'
+
+
+class BookingNotOwned(BookingError):
+    """A BDE cancelling a booking whose lead they do not own: answered as one that does not exist."""
+    code = 'NOT_FOUND'
+    http_status = 404
+    message = 'No such booking.'
+
+
+class SameSlot(BookingError):
+    code = 'SAME_SLOT'
+    http_status = 409
+    message = 'The booking is already in that slot. Choose another time.'
+
+
+class CancelledNotMovable(BookingCancelled):
+    message = 'This booking is cancelled, so it can no longer be moved.'
+
+
+class StartedNotMovable(SlotStarted):
+    message = 'This booking has already started, so it can no longer be moved.'
+
+
+class LeadTimeConflict(BookingError):
+    """The lead already holds another live booking, of either type, at the new time (Q26)."""
+    code = 'LEAD_TIME_CONFLICT'
+    http_status = 409
+    message = 'This child already has another booking at that time. Choose another time.'
+
+    def __init__(self, booking):
+        super().__init__(self.message)
+        self.booking = booking
+
+
+class LeadAlreadyBooked(BookingError):
+    """The lead already holds a live booking of this type: one at a time, per type (Q26)."""
+    code = 'LEAD_ALREADY_BOOKED'
+    http_status = 409
+
+    def __init__(self, booking):
+        self.message = (
+            f'This child already has a {booking.get_booking_type_display()} booked. '
+            'Only one can be booked at a time.'
+        )
+        super().__init__(self.message)
+        self.booking = booking
 
 
 class TutorNotAssignable(BookingError):
@@ -124,6 +230,8 @@ class TutorConflict:
     id: object
     starts_at: datetime
     ends_at: datetime
+    # A booking's type (BookingType): a booking is named by its type and its id.
+    booking_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -149,8 +257,15 @@ def create_booking(request, now=None):
     Book ``request``; returns (booking, created). ``created`` is False for a
     repeated submission, which gets the booking it already made. Raises a
     BookingError subclass, or leads.InvalidLeadDetails.
+
+    One live booking per child and type, and none overlapping another of the
+    child's (Q26). Live is what an enquiry calls booked: BOOKED, its slot not
+    yet ended (bookings.enquiries). A cancelled, rescheduled or completed
+    booking holds nothing, nor does a booked one whose slot has ended -- the
+    child may book that type again.
     """
     now = now or timezone.now()
+    model = booking_model(request.booking_type)
     if request.date not in booking_window(request.booking_type, now):
         raise DateOutOfWindow()
     if not SlotTime.objects.filter(booking_type=request.booking_type, start_time=request.time, is_active=True).exists():
@@ -162,19 +277,25 @@ def create_booking(request, now=None):
         with transaction.atomic():
             _set_lock_timeout()
             slot = _locked_slot(request.booking_type, request.date, request.time)
-            lead = match_lead(_lead_details(request))
+            lead = _locked_lead(match_lead(_lead_details(request)).pk)
 
-            existing = slot.bookings.filter(lead=lead, status=BookingStatus.BOOKED).first()
+            existing = model.objects.filter(slot=slot, lead=lead, status__in=HOLDS_SEAT).first()
             if existing is not None:
                 return existing, False
+            live = model.objects.filter(lead=lead, status=BookingStatus.BOOKED, slot__ends_at__gt=now).first()
+            if live is not None:
+                raise LeadAlreadyBooked(live)
+            clash = lead_conflict(lead, slot.starts_at, slot.ends_at)
+            if clash is not None:
+                raise LeadTimeConflict(clash)
             if slot.closed_at is not None:
                 raise SlotFull()
-            taken = set(slot.bookings.filter(status=BookingStatus.BOOKED).values_list('seat', flat=True))
+            taken = set(model.objects.filter(slot=slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))
             free = [seat for seat in range(1, min(slot.capacity, SLOT_CAPACITY) + 1) if seat not in taken]
             if not free:
                 raise SlotFull()
             since = timezone.now() - timedelta(days=1)
-            if Booking.objects.filter(lead__phone_key=phone_key, created_at__gte=since).count() >= settings.BOOKING_PHONE_DAILY_LIMIT:
+            if _bookings_since(phone_key, since) >= settings.BOOKING_PHONE_DAILY_LIMIT:
                 raise TooManyBookings()
 
             if referral.status == ReferralStatus.ATTRIBUTED:
@@ -183,8 +304,7 @@ def create_booking(request, now=None):
                 Lead.objects.filter(pk=lead.pk, owner_bde__isnull=True).update(
                     owner_bde=referral.bde, owner_link=referral.link, owner_assigned_at=timezone.now(),
                 )
-            booking = Booking.objects.create(
-                booking_type=request.booking_type,
+            booking = model.objects.create(
                 lead=lead,
                 slot=slot,
                 seat=free[0],
@@ -192,6 +312,10 @@ def create_booking(request, now=None):
                 referral_link=referral.link,
                 attributed_bde=referral.bde,
                 details=_submitted(request),
+            )
+            history.record(
+                booking, BookingEventKind.CREATED,
+                slot_id=slot.id, seat=booking.seat, referral_status=booking.referral_status, via='public_booking',
             )
             owner_id = Lead.objects.filter(pk=lead.pk).values_list('owner_bde_id', flat=True).get()
     except OperationalError as exc:
@@ -218,29 +342,249 @@ def create_booking(request, now=None):
     return booking, True
 
 
-def cancel_booking(booking, actor=None, reason=''):
-    """Cancel ``booking`` (kept as a record; its seat is freed). Returns (booking, changed)."""
-    with transaction.atomic():
-        _set_lock_timeout()
-        # The slot lock first, the same order create_booking takes them in.
-        BookingSlot.objects.select_for_update().filter(pk=booking.slot_id).first()
-        booking = Booking.objects.select_for_update().select_related('slot').get(pk=booking.pk)
-        if booking.status == BookingStatus.CANCELLED:
-            return booking, False
-        booking.status = BookingStatus.CANCELLED
-        booking.cancelled_at = timezone.now()
-        booking.cancelled_by = actor
-        booking.cancel_reason = reason or ''
-        booking.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'updated_at'])
+def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None):
+    """
+    Cancel ``booking`` (kept as a record; its seat is freed) for ``reason_code``
+    (a CancelReason, else InvalidReason). Returns (booking, changed); one
+    already cancelled is left as it is. A completed booking (BookingCompleted)
+    or a rescheduled one (BookingRescheduled) can no longer be cancelled, and
+    No-show only once the slot has started (NoShowBeforeStart, D12).
+
+    The reason is a code, never free text (M1): the booking, its history and
+    the activity log keep the code only. The Admin may cancel any booking; a
+    BDE only the bookings of their own leads (Q22): with ``owner_bde`` given,
+    the booking's lead must be theirs, checked under the booking's lock
+    (BookingNotOwned, answered as a booking that does not exist).
+    """
+    if reason_code not in CancelReason.values:
+        raise InvalidReason()
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            # The slot lock first, the same order create_booking takes them in.
+            booking = _locked_booking(booking)
+            if owner_bde is not None and booking.lead.owner_bde_id != owner_bde.pk:
+                raise BookingNotOwned()
+            if booking.status == BookingStatus.CANCELLED:
+                return booking, False
+            if booking.status == BookingStatus.COMPLETED:
+                raise BookingCompleted()
+            if booking.status == BookingStatus.RESCHEDULED:
+                raise BookingRescheduled()
+            if reason_code == CancelReason.NO_SHOW and booking.slot.starts_at > now:
+                raise NoShowBeforeStart()
+            previous_status = booking.status
+            booking.status = BookingStatus.CANCELLED
+            booking.cancelled_at = timezone.now()
+            booking.cancelled_by = actor
+            booking.cancel_reason_code = reason_code
+            booking.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancel_reason_code', 'updated_at'])
+            history.record(
+                booking, BookingEventKind.CANCELLED, actor=actor,
+                from_status=previous_status, to_status=booking.status, reason_code=reason_code,
+            )
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
     log_activity(
         action='booking.cancel',
         entity_type='booking',
         entity_id=booking.id,
         entity_label=slot_label(booking.slot),
-        context={'booking_type': booking.booking_type, 'reason': booking.cancel_reason},
+        # The code only, never a free-text reason (M1).
+        context={'booking_type': booking.booking_type, 'reason_code': reason_code, 'lead_id': str(booking.lead_id)},
         actor=actor,
     )
     return booking, True
+
+
+@dataclass(frozen=True)
+class RescheduleResult:
+    """
+    What reschedule_booking did: ``booking`` is the replacement (BOOKED in the
+    new slot), ``previous`` the booking it replaced (now RESCHEDULED).
+    ``tutor_carried_over`` says whether the tutor moved with it (Q24); when one
+    was assigned but did not, ``tutor_conflict`` (a TutorConflict) or
+    ``tutor_not_assignable`` says why.
+    """
+    booking: object
+    previous: object
+    tutor_carried_over: bool
+    tutor: object = None
+    tutor_conflict: object = None
+    tutor_not_assignable: bool = False
+
+
+def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=None, now=None):
+    """
+    Move ``booking`` to the slot of its type at ``local_date`` / ``local_time``
+    for ``reason_code`` (a RescheduleReason, else InvalidReason). The booking
+    is kept as RESCHEDULED and a new BOOKED booking in the new slot replaces it
+    (its ``rescheduled_from``), so repeated moves form one chain (no limit,
+    Q23). Returns a RescheduleResult.
+
+    Only a booked booking (BookingCompleted, BookingRescheduled,
+    CancelledNotMovable) whose slot has not started (StartedNotMovable), and
+    only into a slot the public pages would offer: a date in the window
+    (DateOutOfWindow), an active time (SlotUnavailable), open with a free seat
+    (SlotFull), not its own (SameSlot). The lead may hold no other live
+    booking, of either type, at the new time (LeadTimeConflict, Q26). The
+    tutor carries over when they are an active tutor free for the new slot;
+    otherwise the replacement starts unassigned and the result says why (Q24).
+    The old booking keeps its tutor as history. Who may reschedule -- the Admin
+    only (Q23) -- is the caller's check.
+    """
+    if reason_code not in RescheduleReason.values:
+        raise InvalidReason()
+    now = now or timezone.now()
+    model = type(booking)
+    booking_type = model.BOOKING_TYPE
+    if local_date not in booking_window(booking_type, now):
+        raise DateOutOfWindow()
+    if not SlotTime.objects.filter(booking_type=booking_type, start_time=local_time, is_active=True).exists():
+        raise SlotUnavailable()
+    new_starts_at, new_ends_at = slot_instants(local_date, local_time)
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            current = model.objects.select_related('slot').get(pk=booking.pk)
+            if (current.slot.local_date, current.slot.local_time) == (local_date, local_time):
+                raise SameSlot()
+            # Both slots in time order, then the lead, then the booking (B.7).
+            if current.slot.starts_at <= new_starts_at:
+                BookingSlot.objects.select_for_update().get(pk=current.slot_id)
+                new_slot = _locked_slot(booking_type, local_date, local_time)
+            else:
+                new_slot = _locked_slot(booking_type, local_date, local_time)
+                BookingSlot.objects.select_for_update().get(pk=current.slot_id)
+            lead = _locked_lead(current.lead_id)
+            old = model.objects.select_for_update().select_related('slot').get(pk=booking.pk)
+            if old.status == BookingStatus.COMPLETED:
+                raise BookingCompleted()
+            if old.status == BookingStatus.RESCHEDULED:
+                raise BookingRescheduled()
+            if old.status != BookingStatus.BOOKED:
+                raise CancelledNotMovable()
+            if old.slot.starts_at <= now:
+                raise StartedNotMovable()
+            if new_slot.closed_at is not None:
+                raise SlotFull()
+            taken = set(model.objects.filter(slot=new_slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))
+            free = [seat for seat in range(1, min(new_slot.capacity, SLOT_CAPACITY) + 1) if seat not in taken]
+            if not free:
+                raise SlotFull()
+            clash = lead_conflict(lead, new_starts_at, new_ends_at, exclude_booking=old)
+            if clash is not None:
+                raise LeadTimeConflict(clash)
+
+            tutor, tutor_conflict, not_assignable = None, None, False
+            if old.assigned_tutor_id:
+                tutor = _locked_tutor(old.assigned_tutor_id)
+                if not is_assignable_tutor(tutor):
+                    not_assignable = True
+                else:
+                    tutor_conflict = find_tutor_conflict(tutor, new_starts_at, new_ends_at, exclude_booking=old)
+            carried = tutor is not None and not not_assignable and tutor_conflict is None
+
+            moved_at = timezone.now()
+            old.status = BookingStatus.RESCHEDULED
+            old.rescheduled_at = moved_at
+            old.rescheduled_by = actor
+            old.reschedule_reason_code = reason_code
+            old.save(update_fields=['status', 'rescheduled_at', 'rescheduled_by', 'reschedule_reason_code', 'updated_at'])
+            new = model.objects.create(
+                lead=lead,
+                slot=new_slot,
+                seat=free[0],
+                channel=old.channel,
+                created_by=old.created_by,
+                referral_status=old.referral_status,
+                referral_link=old.referral_link,
+                attributed_bde=old.attributed_bde,
+                details=old.details,
+                rescheduled_from=old,
+                assigned_tutor=tutor if carried else None,
+                tutor_assigned_at=moved_at if carried else None,
+                tutor_assigned_by=actor if carried else None,
+            )
+            history.record(
+                old, BookingEventKind.RESCHEDULED, actor=actor,
+                from_status=BookingStatus.BOOKED, to_status=BookingStatus.RESCHEDULED, reason_code=reason_code,
+                old_slot_id=old.slot_id, new_slot_id=new_slot.id, replacement_id=new.id,
+            )
+            history.record(
+                new, BookingEventKind.CREATED, actor=actor,
+                slot_id=new_slot.id, seat=new.seat, referral_status=new.referral_status, via='reschedule',
+                rescheduled_from_id=old.id,
+            )
+            if carried:
+                history.record(
+                    new, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
+                    old_tutor_id=None, new_tutor_id=tutor.pk, via='reschedule',
+                )
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    log_activity(
+        action='booking.reschedule',
+        entity_type='booking',
+        entity_id=new.id,
+        entity_label=slot_label(new_slot),
+        # Ids, instants and codes only: no names, no free text.
+        context={
+            'booking_type': booking_type,
+            'rescheduled_from_id': str(old.id),
+            'old_slot_starts_at': old.slot.starts_at.isoformat(),
+            'new_slot_starts_at': new_slot.starts_at.isoformat(),
+            'reason_code': reason_code,
+            'lead_id': str(lead.id),
+            'tutor_id': _str_or_none(old.assigned_tutor_id),
+            'tutor_carried_over': carried,
+        },
+        actor=actor,
+    )
+    return RescheduleResult(
+        booking=new, previous=old, tutor_carried_over=carried, tutor=tutor,
+        tutor_conflict=tutor_conflict, tutor_not_assignable=not_assignable,
+    )
+
+
+def lead_commitments(lead, starts_at, ends_at, exclude_booking=None):
+    """
+    The lead's other live (BOOKED) bookings, of either type, whose slots overlap
+    ``[starts_at, ends_at)``, soonest first (Q26). Touching windows do not
+    overlap; a rescheduled or cancelled booking holds no time.
+    """
+    found = []
+    for model in BOOKING_MODELS:
+        bookings = model.objects.filter(
+            lead=lead, status=BookingStatus.BOOKED, slot__starts_at__lt=ends_at, slot__ends_at__gt=starts_at,
+        )
+        if isinstance(exclude_booking, model):
+            bookings = bookings.exclude(pk=exclude_booking.pk)
+        found.extend(bookings.select_related('slot'))
+    return sorted(found, key=lambda booking: (booking.slot.starts_at, booking.created_at))
+
+
+def lead_conflict(lead, starts_at, ends_at, exclude_booking=None):
+    """The first of lead_commitments, or None."""
+    commitments = lead_commitments(lead, starts_at, ends_at, exclude_booking)
+    return commitments[0] if commitments else None
+
+
+def tutor_commitments(tutor, starts_at, ends_at, exclude_booking=None):
+    """
+    Everything of ``tutor``'s overlapping ``[starts_at, ends_at)`` -- SCHEDULED
+    classes and live bookings, as TutorConflicts -- soonest first: what
+    find_tutor_conflict checks one window against, read once for a longer one.
+    """
+    found = [_class_conflict(session) for session in _overlapping_classes(starts_at, ends_at).filter(tutor=tutor)]
+    found += [_booking_conflict(booking) for booking in
+              _overlapping_bookings(starts_at, ends_at, exclude_booking, assigned_tutor=tutor)]
+    return sorted(found, key=lambda conflict: conflict.starts_at)
 
 
 def is_assignable_tutor(user):
@@ -267,9 +611,10 @@ def find_tutor_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     as a TutorConflict, or None. Tuition is one-to-one, so a tutor teaches one
     student at a time: a SCHEDULED class of theirs blocks the window (the rule
     of sessions.services.find_conflict -- attended and cancelled classes do
-    not, and touching windows do not overlap), and so does any other BOOKED
-    booking assigned to them whose slot overlaps it -- another booking in the
-    same slot included, whatever seats remain, and either booking type.
+    not, and touching windows do not overlap), and so does any other booked
+    or completed booking assigned to them whose slot overlaps it -- another
+    booking in the same slot included, whatever seats remain, and either
+    booking type.
     ``exclude_booking`` is the booking being assigned. A cancelled booking
     keeps its tutor but blocks nothing.
 
@@ -297,18 +642,18 @@ def tutor_conflicts(tutors, starts_at, ends_at, exclude_booking=None):
     classes = _overlapping_classes(starts_at, ends_at).filter(tutor__in=tutors).order_by('start_time')
     for session in classes:
         found.setdefault(session.tutor_id, _class_conflict(session))
-    bookings = _overlapping_bookings(starts_at, ends_at, exclude_booking).filter(assigned_tutor__in=tutors)
-    for booking in bookings.select_related('slot').order_by('slot__starts_at'):
+    for booking in _overlapping_bookings(starts_at, ends_at, exclude_booking, assigned_tutor__in=tutors):
         found.setdefault(booking.assigned_tutor_id, _booking_conflict(booking))
     return found
 
 
 def find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     """
-    The first BOOKED booking assigned to ``tutor`` whose slot overlaps
-    ``[starts_at, ends_at)`` (half-open, so touching windows do not overlap),
-    with its slot, or None. Cancelled bookings keep their tutor but block
-    nothing, and an unassigned booking holds no tutor at all.
+    The first booked or completed booking, of either type, assigned to
+    ``tutor`` whose slot overlaps ``[starts_at, ends_at)`` (half-open, so
+    touching windows do not overlap), with its slot, or None. Cancelled and
+    rescheduled bookings keep their tutor but block nothing, and an unassigned
+    booking holds no tutor at all.
 
     The one definition of a tutor's booking commitments: find_tutor_conflict
     asks it before a booking is assigned, and the sessions views before a
@@ -316,8 +661,8 @@ def find_booking_conflict(tutor, starts_at, ends_at, exclude_booking=None):
     tutor's scheduling lock (sessions.services.lock_scheduling /
     lock_tutor_schedule), so neither write can slip past the other.
     """
-    bookings = _overlapping_bookings(starts_at, ends_at, exclude_booking).filter(assigned_tutor=tutor)
-    return bookings.select_related('slot').order_by('slot__starts_at').first()
+    bookings = _overlapping_bookings(starts_at, ends_at, exclude_booking, assigned_tutor=tutor)
+    return bookings[0] if bookings else None
 
 
 def _overlapping_classes(starts_at, ends_at):
@@ -329,16 +674,24 @@ def _overlapping_classes(starts_at, ends_at):
     )
 
 
-def _overlapping_bookings(starts_at, ends_at, exclude_booking=None):
-    """BOOKED bookings whose slot overlaps ``[starts_at, ends_at)``, ``exclude_booking`` left out."""
-    bookings = Booking.objects.filter(
-        status=BookingStatus.BOOKED,
-        slot__starts_at__lt=ends_at,
-        slot__ends_at__gt=starts_at,
-    )
-    if exclude_booking is not None:
-        bookings = bookings.exclude(pk=exclude_booking.pk)
-    return bookings
+def _overlapping_bookings(starts_at, ends_at, exclude_booking=None, **filters):
+    """
+    The booked and completed bookings of both types whose slot overlaps
+    ``[starts_at, ends_at)`` and that match ``filters``, ``exclude_booking``
+    left out, with their slots, soonest first.
+    """
+    found = []
+    for model in BOOKING_MODELS:
+        bookings = model.objects.filter(
+            status__in=HOLDS_SEAT,
+            slot__starts_at__lt=ends_at,
+            slot__ends_at__gt=starts_at,
+            **filters,
+        )
+        if isinstance(exclude_booking, model):
+            bookings = bookings.exclude(pk=exclude_booking.pk)
+        found.extend(bookings.select_related('slot'))
+    return sorted(found, key=lambda booking: (booking.slot.starts_at, booking.created_at))
 
 
 def _class_conflict(session):
@@ -346,21 +699,30 @@ def _class_conflict(session):
 
 
 def _booking_conflict(booking):
-    return TutorConflict(CONFLICT_BOOKING, booking.id, booking.slot.starts_at, booking.slot.ends_at)
+    return TutorConflict(
+        CONFLICT_BOOKING, booking.id, booking.slot.starts_at, booking.slot.ends_at, booking_type=booking.booking_type,
+    )
 
 
 def upcoming_assignments(tutor, now=None):
     """
-    The BOOKED bookings assigned to ``tutor`` whose slot has not ended. An
-    account holding any may not stop being an active tutor (Team deactivation
-    or role change, the Django admin): there is no rule yet for handing a
-    booking to another tutor, so they are reassigned or unassigned first
-    (assign_tutor / unassign_tutor), never left on an account that cannot
-    teach them. The caller holds the account's row lock, which assign_tutor
-    also takes, so no assignment can land after the count.
+    The booked bookings, of either type, assigned to ``tutor`` whose slot has
+    not ended, soonest first. An account holding any may not stop being an
+    active tutor (Team deactivation or role change, the Django admin): there
+    is no rule yet for handing a booking to another tutor, so they are
+    reassigned or unassigned first (assign_tutor / unassign_tutor), never left
+    on an account that cannot teach them. The caller holds the account's row
+    lock, which assign_tutor also takes, so no assignment can land after the
+    count.
     """
     now = now or timezone.now()
-    return Booking.objects.filter(assigned_tutor=tutor, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+    found = []
+    for model in BOOKING_MODELS:
+        found.extend(
+            model.objects.filter(assigned_tutor=tutor, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+            .select_related('slot')
+        )
+    return sorted(found, key=lambda booking: (booking.slot.starts_at, booking.created_at))
 
 
 def assign_tutor(booking, tutor, actor=None, now=None):
@@ -368,7 +730,8 @@ def assign_tutor(booking, tutor, actor=None, now=None):
     Make ``tutor`` the one who teaches ``booking``; returns (booking, changed).
 
     Only an active TUTOR (else TutorNotAssignable), only while the booking is
-    booked (BookingCancelled) and its slot has not started (SlotStarted), and
+    booked (BookingCancelled, BookingCompleted, BookingRescheduled) and its
+    slot has not started (SlotStarted), and
     only when the tutor is free for the whole slot (TutorUnavailable, see
     find_tutor_conflict). Every check is made again under the locks, whatever
     the caller saw before. The same tutor again changes nothing and is not
@@ -394,6 +757,10 @@ def assign_tutor(booking, tutor, actor=None, now=None):
             booking.tutor_assigned_at = timezone.now()
             booking.tutor_assigned_by = actor
             booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+            history.record(
+                booking, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
+                old_tutor_id=previous_tutor_id, new_tutor_id=tutor.pk,
+            )
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -422,6 +789,7 @@ def unassign_tutor(booking, actor=None, now=None):
             booking.tutor_assigned_at = None
             booking.tutor_assigned_by = None
             booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+            history.record(booking, BookingEventKind.TUTOR_UNASSIGNED, actor=actor, old_tutor_id=previous_tutor_id)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -544,13 +912,27 @@ def _locked_slot(booking_type, local_date, local_time):
     return BookingSlot.objects.select_for_update().get(pk=slot.pk)
 
 
+def _locked_lead(lead_id):
+    """
+    Lead ``lead_id`` read under its row lock, FOR NO KEY UPDATE: the lead-level
+    lock every booking of the child queues on (Q26, design B.7), taken after
+    the slot locks and before the booking's. NO KEY leaves rows that only
+    reference the lead (a new booking, an event) unblocked.
+    """
+    return Lead.objects.select_for_update(no_key=True).get(pk=lead_id)
+
+
 def _locked_booking(booking):
     """``booking`` read again under its slot's lock and then its own: the order every booking write takes them in."""
     BookingSlot.objects.select_for_update().filter(pk=booking.slot_id).first()
-    return Booking.objects.select_for_update().select_related('slot').get(pk=booking.pk)
+    return type(booking).objects.select_for_update(of=('self',)).select_related('slot', 'lead').get(pk=booking.pk)
 
 
 def _check_tutor_changeable(booking, now):
+    if booking.status == BookingStatus.COMPLETED:
+        raise BookingCompleted()
+    if booking.status == BookingStatus.RESCHEDULED:
+        raise BookingRescheduled()
     if booking.status != BookingStatus.BOOKED:
         raise BookingCancelled()
     if booking.slot.starts_at <= now:
@@ -587,6 +969,13 @@ def _log_tutor_change(booking, action, actor, old_tutor_id, new_tutor_id):
             'new_tutor_id': _str_or_none(new_tutor_id),
         },
         actor=actor,
+    )
+
+
+def _bookings_since(phone_key, since):
+    """How many bookings, of either type, the phone number ``phone_key`` has made since ``since``."""
+    return sum(
+        model.objects.filter(lead__phone_key=phone_key, created_at__gte=since).count() for model in BOOKING_MODELS
     )
 
 

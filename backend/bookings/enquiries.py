@@ -12,10 +12,20 @@ always what the booking pages last did:
 
     NEW        no booking yet
     BOOKED     a booking whose slot has not ended
-    DONE       booked, and every booked slot has ended
-    CANCELLED  every booking was cancelled
+    DONE       booked (or completed), and every booked slot has ended
+    CANCELLED  no booking holds a seat, and one at least was cancelled
+
+A rescheduled booking never decides the status: the booking it moved to
+does. (A lead left with rescheduled bookings only -- which a reschedule never
+leaves, since it books the replacement in the same step -- holds no booking,
+so it reads NEW.)
+
+A lead's bookings are its Diagnostic and its Demo bookings together, read from
+both booking tables.
 """
+import operator
 from datetime import timedelta
+from functools import reduce
 
 from django.db import IntegrityError, transaction
 from django.db.models import Case, CharField, Count, Exists, OuterRef, Q, TextChoices, Value, When
@@ -24,7 +34,7 @@ from django.utils import timezone
 from activity.utils import log_activity
 
 from .leads import InvalidLeadDetails, normalize_phone, student_name_key
-from .models import MANUAL_LEAD_SOURCES, Booking, BookingStatus, BookingType, Lead, LeadSource
+from .models import BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, BookingStatus, BookingType, Lead, LeadSource
 from .scheduling import BOOKING_TIMEZONE_NAME
 
 # Rows on the dashboard's upcoming bookings table and recent enquiries list.
@@ -66,13 +76,17 @@ def own_leads(bde):
     return Lead.objects.filter(owner_bde=bde)
 
 
+def _has_booking(**filters):
+    """Whether the lead has a booking of either type matching ``filters``, as an expression on leads."""
+    return reduce(operator.or_, (Exists(model.objects.filter(lead=OuterRef('pk'), **filters)) for model in BOOKING_MODELS))
+
+
 def with_status(leads, now):
     """``leads`` annotated with ``enquiry_status`` (EnquiryStatus) as of ``now``."""
-    booked = Booking.objects.filter(lead=OuterRef('pk'), status=BookingStatus.BOOKED)
     return leads.annotate(enquiry_status=Case(
-        When(Exists(booked.filter(slot__ends_at__gt=now)), then=Value(EnquiryStatus.BOOKED)),
-        When(Exists(booked), then=Value(EnquiryStatus.DONE)),
-        When(Exists(Booking.objects.filter(lead=OuterRef('pk'))), then=Value(EnquiryStatus.CANCELLED)),
+        When(_has_booking(status=BookingStatus.BOOKED, slot__ends_at__gt=now), then=Value(EnquiryStatus.BOOKED)),
+        When(_has_booking(status__in=HOLDS_SEAT), then=Value(EnquiryStatus.DONE)),
+        When(_has_booking(status=BookingStatus.CANCELLED), then=Value(EnquiryStatus.CANCELLED)),
         default=Value(EnquiryStatus.NEW),
         output_field=CharField(),
     ))
@@ -105,16 +119,21 @@ def listed(leads, now):
 
 
 def next_bookings(lead_ids, now):
-    """The earliest booking still to come of each of ``lead_ids`` that has one."""
-    upcoming = (
-        Booking.objects.filter(lead_id__in=lead_ids, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
-        .select_related('slot')
-        .order_by('slot__starts_at', 'created_at')
-    )
+    """The earliest booking still to come, of either type, of each of ``lead_ids`` that has one."""
+    upcoming = []
+    for model in BOOKING_MODELS:
+        upcoming.extend(
+            model.objects.filter(lead_id__in=lead_ids, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+            .select_related('slot')
+        )
     first = {}
-    for booking in upcoming:
+    for booking in sorted(upcoming, key=_soonest):
         first.setdefault(booking.lead_id, booking)
     return first
+
+
+def _soonest(booking):
+    return booking.slot.starts_at, booking.created_at
 
 
 def source_of(lead):
@@ -166,9 +185,18 @@ def _row(lead, next_booking):
     }
 
 
-def enquiry_detail(lead, now):
-    """One enquiry in full (``lead`` from ``listed``), with every booking it has made."""
-    bookings = list(lead.bookings.select_related('slot').order_by('-slot__starts_at', '-created_at'))
+def enquiry_detail(lead, now, can_cancel=False):
+    """
+    One enquiry in full (``lead`` from ``listed``), with every booking it has
+    made -- each with what its owner BDE may do with it now (``actions``):
+    cancel it while it is booked when ``can_cancel`` (accounts.cancel_booking,
+    Q22), No-show only once its slot has started (D12).
+    """
+    bookings = sorted(
+        [*lead.diagnostic_bookings.select_related('slot'), *lead.demo_bookings.select_related('slot')],
+        key=_soonest,
+        reverse=True,
+    )
     upcoming = [b for b in bookings if b.status == BookingStatus.BOOKED and b.slot.ends_at > now]
     next_booking = min(upcoming, key=lambda b: (b.slot.starts_at, b.created_at)) if upcoming else None
     return {
@@ -189,25 +217,34 @@ def enquiry_detail(lead, now):
                 'ended': booking.slot.ends_at <= now,
                 'booked_at': booking.created_at.isoformat(),
                 'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+                'actions': _booking_actions(booking, now, can_cancel),
             }
             for booking in bookings
         ],
     }
 
 
+def _booking_actions(booking, now, can_cancel):
+    cancel = can_cancel and booking.status == BookingStatus.BOOKED
+    return {'cancel': cancel, 'no_show': cancel and booking.slot.starts_at <= now}
+
+
 def dashboard(bde, now=None):
     """The BDE dashboard: their enquiries and their enquiries' bookings, counted and listed."""
     now = now or timezone.now()
     leads = own_leads(bde)
-    booked = Booking.objects.filter(lead__owner_bde=bde, status=BookingStatus.BOOKED)
-    ahead = Q(slot__ends_at__gt=now)
-    counts = booked.aggregate(
-        demo=Count('pk', filter=Q(booking_type=BookingType.DEMO)),
-        demo_upcoming=Count('pk', filter=Q(booking_type=BookingType.DEMO) & ahead),
-        diagnostic=Count('pk', filter=Q(booking_type=BookingType.DIAGNOSTIC)),
-        diagnostic_upcoming=Count('pk', filter=Q(booking_type=BookingType.DIAGNOSTIC) & ahead),
-    )
-    upcoming = booked.filter(ahead).select_related('slot', 'lead').order_by('slot__starts_at', 'created_at')
+    upcoming_now = Q(status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+    counts, upcoming = {}, []
+    for model in BOOKING_MODELS:
+        bookings = model.objects.filter(lead__owner_bde=bde)
+        counts[model.BOOKING_TYPE] = bookings.aggregate(
+            total=Count('pk', filter=Q(status__in=HOLDS_SEAT)),
+            upcoming=Count('pk', filter=upcoming_now),
+        )
+        upcoming.extend(
+            bookings.filter(upcoming_now).select_related('slot', 'lead').order_by('slot__starts_at', 'created_at')[:UPCOMING_ROWS]
+        )
+    upcoming.sort(key=_soonest)
     return {
         'timezone': BOOKING_TIMEZONE_NAME,
         'enquiries': {
@@ -215,11 +252,11 @@ def dashboard(bde, now=None):
             'last_7_days': leads.filter(owner_assigned_at__gte=now - timedelta(days=7)).count(),
         },
         'bookings': {
-            BookingType.DEMO: {'total': counts['demo'], 'upcoming': counts['demo_upcoming']},
-            BookingType.DIAGNOSTIC: {'total': counts['diagnostic'], 'upcoming': counts['diagnostic_upcoming']},
+            BookingType.DEMO: counts[BookingType.DEMO],
+            BookingType.DIAGNOSTIC: counts[BookingType.DIAGNOSTIC],
         },
         'upcoming': {
-            'total': counts['demo_upcoming'] + counts['diagnostic_upcoming'],
+            'total': counts[BookingType.DEMO]['upcoming'] + counts[BookingType.DIAGNOSTIC]['upcoming'],
             'rows': [
                 {
                     **booking_brief(booking),
