@@ -10,8 +10,22 @@ from activity.models import ActivityLog
 
 User = get_user_model()
 
+
+def stub_enrolment_sheet(test):
+    """
+    Stands in for the enrolment sheet for the whole of ``test``: no test reads
+    the real Google Sheet (D18). It has no rows, so a looked-up student comes
+    from the test's own lookup_student_by_code mock and a new student's class
+    quota starts at 0.
+    """
+    sheet = patch('invitations.views.GoogleSheetsService.fetch_enrollment_rows', return_value=[])
+    sheet.start()
+    test.addCleanup(sheet.stop)
+
+
 class InvitationFlowTests(APITestCase):
     def setUp(self):
+        stub_enrolment_sheet(self)
         # Create users of different roles
         self.admin_user = User.objects.create_user(
             email="admin@eduport.com",
@@ -469,6 +483,7 @@ class InvitationStaffAssignmentValidationTests(APITestCase):
     """
 
     def setUp(self):
+        stub_enrolment_sheet(self)
         from django.utils import timezone
         self.admin_user = User.objects.create_user(
             email="assign_admin@eduport.com", password="password",
