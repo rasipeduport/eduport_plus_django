@@ -12,6 +12,7 @@ import { bookingError, tutorBookingUrl } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { reportActions, reportPdfFallbackName, reportPdfUrl, reportState, tutorReportUrl } from '@/lib/reports';
 import { ReportStateBadge } from './booking-badges';
+import { MeetLink } from './meet-link';
 
 function Section({ title, footer, children }) {
   return (
@@ -59,6 +60,9 @@ function ReportSection({ booking }) {
   );
 }
 
+// A booked or completed booking is one the tutor teaches (or taught); a cancelled or moved one has no class.
+const teaches = (booking) => booking.status === 'BOOKED' || booking.status === 'COMPLETED';
+
 function Detail({ label, children }) {
   return (
     <div className="grid grid-cols-[8rem_1fr] gap-3 py-2 text-sm">
@@ -70,7 +74,8 @@ function Detail({ label, children }) {
 
 /**
  * One booking the tutor is assigned to teach (GET /api/tutor/bookings/<type>/<id>/):
- * the slot in Indian time, the child it is for and its report. Only the
+ * the slot in Indian time, its Google Meet link (the booking's copy of the
+ * tutor's own), the child it is for and its report. Only the
  * fields below are read -- nothing of the parent, the BDE or the assignment.
  * A booking no longer assigned to the caller is answered 404, as one that does
  * not exist; a link without a known `bookingType` names no booking, so it is
@@ -144,9 +149,17 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
           <Detail label="Status">
             <ReportStateBadge booking={shown} />
           </Detail>
+          {teaches(shown) ? (
+            <Detail label="Meet link">
+              <MeetLink link={shown.tutor_meet_link} />
+              {shown.tutor_meet_link ? null : (
+                <span className="text-muted-foreground block text-xs font-normal">Ask an administrator to add your link.</span>
+              )}
+            </Detail>
+          ) : null}
         </Section>
 
-        {shown.status === 'BOOKED' || shown.status === 'COMPLETED' ? <ReportSection booking={shown} /> : null}
+        {teaches(shown) ? <ReportSection booking={shown} /> : null}
 
         <Section title="Student">
           <Detail label="Name">{shown.student_name}</Detail>

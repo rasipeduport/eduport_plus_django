@@ -41,6 +41,8 @@ function AccessDenied({ failure }) {
  */
 export default function BookingsPage({ user }) {
   const canAssign = can(user, PERMISSIONS.assignBookingTutor);
+  // A tutor's permanent Meet link belongs to their account: team managers set it (backend accounts.team).
+  const canEditMeetLink = can(user, PERMISSIONS.manageTeam);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -184,6 +186,7 @@ export default function BookingsPage({ user }) {
           if (!open) update({ booking: null });
         }}
         canAssign={canAssign}
+        canEditMeetLink={canEditMeetLink}
         reloadKey={reloadKey}
         onAssign={setAssigning}
         onChanged={(booking) => changed(`Unassigned the tutor from ${booking.student_name}'s booking.`)}

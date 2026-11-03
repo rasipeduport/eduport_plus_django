@@ -73,7 +73,8 @@ const quiet = console.error;
 console.error = () => {};
 process.on('unhandledRejection', () => {});
 
-const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeActivity } = await import(pathToFileURL(bundle).href);
+const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeActivity, meetLinkProblem, planMemberSave } =
+  await import(pathToFileURL(bundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -1212,11 +1213,12 @@ test('My Bookings: loading, then the tutor\'s bookings -- the slot in IST, the c
   await settle();
   assert.ok(!document.querySelector('[data-slot="skeleton"]'), 'the skeleton is gone');
   assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
-    ['When (IST)', 'Type', 'Student', 'Syllabus', 'School', 'Country', 'Status', 'Actions']);
+    ['When (IST)', 'Type', 'Student', 'Meet link', 'Syllabus', 'School', 'Country', 'Status', 'Actions']);
   const [riya, ali] = rows();
+  // Riya's tutor (the caller) has no Meet link configured; a cancelled booking has no class to join.
   assert.match(clean(riya.textContent),
-    /^Sat, 31 Oct7:30 PMDemo classRiyaClass 8CBSEDelhi Private SchoolUnited Arab EmiratesUpcomingView$/);
-  assert.match(clean(ali.textContent), /^Sun, 1 Nov10:00 AMDiagnostic testAliClass 9IGCSEAl Noor SchoolIndiaCancelledView$/);
+    /^Sat, 31 Oct7:30 PMDemo classRiyaClass 8Not configuredCBSEDelhi Private SchoolUnited Arab EmiratesUpcomingView$/);
+  assert.match(clean(ali.textContent), /^Sun, 1 Nov10:00 AMDiagnostic testAliClass 9—IGCSEAl Noor SchoolIndiaCancelledView$/);
   assert.match(bodyText(), /My Bookings.*Times are Indian time \(IST\)\..*Showing 1–2 of 2/);
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')),
     "the administrators' API is never called");
@@ -1383,8 +1385,9 @@ const reportLinks = (root) => [...root.querySelectorAll('a')].map((link) => [cle
 test('My Bookings: each booking says where it stands with its report, and offers Write report or Edit report', async () => {
   serve({ [`GET ${MINE}`]: mine([MY_UPCOMING, MY_RUNNING, MY_DUE, MY_DONE, MY_CANCELLED]) });
   await open('/my-bookings', TUTOR);
-  const status = (row) => clean(row.querySelectorAll('td')[6].textContent);
-  const actions = (row) => row.querySelectorAll('td')[7];
+  // Status and the actions, after the Meet link column (Phase 1).
+  const status = (row) => clean(row.querySelectorAll('td')[7].textContent);
+  const actions = (row) => row.querySelectorAll('td')[8];
   const [upcoming, running, due, done, cancelled] = rows();
 
   assert.deepEqual([upcoming, running, due, done, cancelled].map(status),
@@ -1502,6 +1505,223 @@ test('My Bookings opens only for the Tutor role holding accounts.view_assigned_b
   assert.equal(homePage(account('TUTOR', [VIEW_ASSIGNED])), '/my-bookings');
   // And the administrators' page stays theirs.
   assert.ok(!canOpenPage(TUTOR, '/bookings'));
+});
+
+// ------------------------------------------- a tutor's permanent Meet link (Phase 1)
+const MEET = 'https://meet.google.com/abc-defg-hij';
+const MEET_PROBLEM = 'Enter a Google Meet link such as https://meet.google.com/abc-defg-hij.';
+const MANAGE_TEAM = 'accounts.manage_team';
+const MANAGER = { ...ADMIN, permissions: [...ADMIN.permissions, MANAGE_TEAM, 'accounts.view_team'] };
+const MEMBER_URL = '/api/team/t-a/';
+const MEET_LINK_URL = '/api/team/t-a/meet-link/';
+// A tutor's account as a team manager reads it (backend accounts.team.member_payload, full).
+const member = (extra = {}) => ({ id: 't-a', username: 'tutor.a', email: 'a@hub.test', full_name: 'Tutor A', mobile_number: '',
+  role: 'TUTOR', is_active: true, deactivated_at: null, created_at: '2026-10-01T09:00:00+00:00', is_superuser: false,
+  deactivation_reason: null, must_change_password: false, has_password: true, locked_until: null, last_login: null,
+  invited_by: null, permissions: [], tutor_meet_link: null, ...extra });
+const meetInput = () => document.getElementById('team-member-meet-link');
+const anchors = (root = document.body) => [...root.querySelectorAll('a[href]')].map((a) => [a.getAttribute('href'),
+  a.getAttribute('target'), a.getAttribute('rel')]);
+
+test("Meet link: the Hub's check mirrors the API's, and a role change never carries a Meet link", async () => {
+  for (const good of [MEET, 'meet.google.com/ABC-defg-hij', `${MEET}?authuser=0`, `${MEET}/`, '', '   ']) {
+    assert.equal(meetLinkProblem(good), null, good);
+  }
+  for (const bad of ['http://meet.google.com/abc-defg-hij', 'https://meet.google.com/new', 'https://zoom.us/j/1',
+    'https://meet.google.com.example.test/abc-defg-hij', `${MEET}/extra`]) {
+    assert.equal(meetLinkProblem(bad), MEET_PROBLEM, bad);
+  }
+  const tutor = member({ tutor_meet_link: MEET });
+  const values = { username: 'tutor.a', full_name: 'Tutor A', email: 'a@hub.test', mobile_number: '', permissions: [],
+    password: '', meet_link: '' };
+  assert.deepEqual(planMemberSave(tutor, { ...values, role: 'TUTOR' }).meetLink, { tutor_meet_link: null }, 'blank removes it');
+  assert.equal(planMemberSave(tutor, { ...values, role: 'MENTOR' }).meetLink, null, 'the role change drops it on its own');
+  assert.equal(planMemberSave(member({ role: 'MENTOR' }), { ...values, role: 'MENTOR', meet_link: MEET }).meetLink, null);
+});
+
+test("Team: a team manager sets a tutor's permanent Meet link with its own PUT, checked first; a refusal shows at the field", async () => {
+  let refuse = false;
+  serve({
+    [`GET ${MEMBER_URL}`]: member(),
+    'GET /api/team/permissions/': [],
+    [`PUT ${MEET_LINK_URL}`]: (entry) => (refuse
+      ? fail(400, { error: 'INVALID_MEET_LINK', message: 'The API refused this link.', fields: ['tutor_meet_link'] })
+      : ok(member({ tutor_meet_link: entry.data.tutor_meet_link ? MEET : null }))),
+  });
+  await open('/team/t-a', MANAGER);
+  assert.ok(meetInput(), 'a tutor has the field');
+  assert.equal(meetInput().value, '');
+  assert.match(bodyText(), /permanent room for their Demo and Diagnostic bookings/);
+  const form = meetInput().closest('form');
+
+  await typeInto(meetInput(), 'https://zoom.us/j/1');
+  await submit(form);
+  assert.ok(bodyText().includes(MEET_PROBLEM), 'the field says what is expected');
+  assert.equal(calls('PUT', MEET_LINK_URL).length, 0, 'an unrelated link is not sent');
+
+  await typeInto(meetInput(), 'meet.google.com/abc-defg-hij');
+  await submit(form);
+  assert.deepEqual(calls('PUT', MEET_LINK_URL).map((entry) => entry.data), [{ tutor_meet_link: 'meet.google.com/abc-defg-hij' }]);
+  assert.equal(globalThis.__bookingsApi.calls.filter((entry) => entry.method === 'PATCH').length, 0, 'never through the details PATCH');
+  assert.equal(meetInput().value, MEET, 'the link as the API stored it');
+  assert.match(bodyText(), /Changes saved\./);
+
+  await typeInto(meetInput(), '');
+  await submit(form);
+  assert.deepEqual(calls('PUT', MEET_LINK_URL).at(-1).data, { tutor_meet_link: null }, 'blank removes it');
+
+  refuse = true;
+  await typeInto(meetInput(), MEET);
+  await submit(form);
+  assert.ok(meetInput().getAttribute('aria-invalid'), 'the field is marked');
+  assert.match(bodyText(), /The API refused this link\./);
+});
+
+test('Team: no Meet link field for another role, or for a directory reader', async () => {
+  serve({ [`GET ${MEMBER_URL}`]: member({ role: 'MENTOR' }), 'GET /api/team/permissions/': [] });
+  const page = await open('/team/t-a', MANAGER);
+  assert.ok(!meetInput(), 'a mentor has none');
+  await page.unmount();
+  // A directory reader (accounts.view_team) is sent no Meet link at all, so is offered none.
+  const { tutor_meet_link: _hidden, permissions: _p, ...readable } = member({ tutor_meet_link: MEET });
+  serve({ [`GET ${MEMBER_URL}`]: readable });
+  await open('/team/t-a', { id: 'reader', role: 'MENTOR', permissions: ['accounts.view_team'] });
+  assert.match(bodyText(), /Tutor A/);
+  assert.ok(!meetInput());
+  assert.ok(!bodyText().includes('meet.google.com'));
+});
+
+test("Bookings sheet: the booking's Meet link, or that none is configured; a team manager sets it and the sheet reads it again", async () => {
+  let saved = false;
+  serve({
+    [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]),
+    [`GET ${at(ALI)}`]: () => ok(detail(ALI, { tutor_meet_link: saved ? MEET : null })),
+    [`PUT ${MEET_LINK_URL}`]: () => {
+      saved = true;
+      return ok(member({ tutor_meet_link: MEET }));
+    },
+  });
+  await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}`, MANAGER);
+  assert.match(clean(topDialog().textContent), /Meet linkMeet link not configured/);
+  await click(button('Set Meet link', topDialog()));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /^Set Meet link.*Tutor A's permanent Google Meet link\..*Past bookings keep the link they had\./);
+  const input = dialog.querySelector('#booking-meet-link');
+  const form = document.getElementById('booking-meet-link-form');
+
+  await submit(form);
+  assert.match(clean(topDialog().textContent), /Enter the tutor's Google Meet link\./, 'a link is required here');
+  await typeInto(input, 'https://zoom.us/j/1');
+  await submit(form);
+  assert.ok(clean(topDialog().textContent).includes(MEET_PROBLEM));
+  assert.equal(calls('PUT', MEET_LINK_URL).length, 0, 'nothing is sent until it is a Google Meet link');
+
+  await typeInto(input, MEET);
+  await submit(form);
+  assert.deepEqual(calls('PUT', MEET_LINK_URL).map((entry) => entry.data), [{ tutor_meet_link: MEET }]);
+  assert.equal(calls('GET', at(ALI)).length, 2, 'the booking is read again');
+  const sheet = topDialog();
+  assert.match(clean(sheet.textContent), /Meet linkmeet\.google\.com\/abc-defg-hij/);
+  assert.deepEqual(anchors(sheet), [[MEET, '_blank', 'noopener noreferrer']]);
+  assert.ok(button('Change Meet link', sheet));
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bde/')), "never a BDE's route");
+});
+
+test("Bookings sheet: the API's refusal is shown in the dialog; nobody but a team manager is offered the change", async () => {
+  serve({
+    [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]),
+    [`GET ${at(ALI)}`]: detail(ALI, { tutor_meet_link: MEET }),
+    [`PUT ${MEET_LINK_URL}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }),
+  });
+  let page = await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}`, MANAGER);
+  await click(button('Change Meet link', topDialog()));
+  assert.equal(topDialog().querySelector('#booking-meet-link').value, MEET, 'the current link to edit');
+  await submit(document.getElementById('booking-meet-link-form'));
+  assert.match(clean(topDialog().textContent), /You do not have permission to perform this action\./);
+  await page.unmount();
+
+  // Without accounts.manage_team the link is shown, never offered for change.
+  page = await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}`, ADMIN);
+  assert.deepEqual(anchors(topDialog()), [[MEET, '_blank', 'noopener noreferrer']]);
+  assert.ok(!button('Change Meet link') && !button('Set Meet link'));
+  await page.unmount();
+
+  // A booking whose slot has ended keeps its link: shown, not changed from here.
+  const ended = { ...ALI, slot: { ...ALI.slot, started: true, ended: true } };
+  serve({ [`GET ${DIAGNOSTIC_LIST}`]: list([ended]), [`GET ${at(ALI)}`]: detail(ended, { tutor_meet_link: MEET }) });
+  page = await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}&when=past`, MANAGER);
+  assert.match(clean(topDialog().textContent), /meet\.google\.com\/abc-defg-hij/);
+  assert.ok(!button('Change Meet link'));
+  await page.unmount();
+
+  // A booking with no tutor has no Meet link to show.
+  serve({ [`GET ${LIST}`]: list([RIYA]), [`GET ${at(RIYA)}`]: detail(RIYA) });
+  await open(`/bookings?booking=${RIYA.id}`, MANAGER);
+  assert.ok(!clean(topDialog().textContent).includes('Meet link'));
+  assert.equal(calls('PUT', MEET_LINK_URL).length, 1, 'only the refused attempt');
+});
+
+test("BDE: each booking shows who teaches it and its Meet link to read, or that none is set; nothing changes either", async () => {
+  const withLink = { ...BDE_BOOKED, tutor: { full_name: 'Tutor A' }, tutor_meet_link: MEET };
+  const noLink = { ...BDE_BOOKED, id: 'b-3', date: '2026-11-02', tutor: { full_name: 'Tutor B' }, tutor_meet_link: null };
+  const noTutor = { ...BDE_BOOKED, id: 'b-4', date: '2026-11-03', tutor: null, tutor_meet_link: null };
+  const cancelled = { ...BDE_CANCELLED, tutor: null, tutor_meet_link: null };
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([withLink, noLink, noTutor, cancelled]) });
+  await open('/enquiries/lead-1', BDE);
+  assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
+    ['When (IST)', 'Type', 'Status', 'Tutor', 'Booked on', 'Actions']);
+  const [first, second, third, fourth] = bookingRows();
+  assert.match(first, /Tutor Ameet\.google\.com\/abc-defg-hij/);
+  assert.match(second, /Tutor BMeet link not configured/);
+  assert.match(third, /Not assigned yet/);
+  assert.match(fourth, /Cancelled—/);
+  assert.deepEqual(anchors(document.querySelector('tbody')), [[MEET, '_blank', 'noopener noreferrer']]);
+  assert.ok(![...document.querySelectorAll('button')].some((element) => /meet/i.test(clean(element.textContent))),
+    'no way to change a Meet link');
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET' && entry.url.startsWith('/api/bde/')),
+    "only the BDE's own reads");
+});
+
+test('My Bookings: the Meet link to open, in the list and the sheet; none configured says whom to ask', async () => {
+  const withLink = { ...MY_RIYA, tutor_meet_link: MEET };
+  const noLink = { ...MY_RIYA, id: 'b-sam', student_name: 'Sam', tutor_meet_link: null };
+  serve({
+    [`GET ${MINE}`]: mine([withLink, noLink, { ...MY_ALI, tutor_meet_link: MEET }]),
+    [`GET ${myAt(withLink)}`]: myDetail(withLink),
+    [`GET ${myAt(noLink)}`]: myDetail(noLink),
+    [`GET ${myAt(MY_ALI)}`]: myDetail({ ...MY_ALI, tutor_meet_link: MEET }),
+  });
+  let page = await open(`/my-bookings?${opened(withLink)}`, TUTOR);
+  const [riya, sam, ali] = rows();
+  assert.deepEqual(anchors(riya), [[MEET, '_blank', 'noopener noreferrer']]);
+  assert.equal(riya.querySelector('a[href]').getAttribute('aria-label'), "Open the Meet link for Riya's booking");
+  assert.match(clean(sam.textContent), /Not configured/);
+  assert.equal(ali.querySelectorAll('a[href]').length, 0, 'a cancelled booking has no class to join');
+  assert.match(clean(topDialog().textContent), /Meet linkmeet\.google\.com\/abc-defg-hij/);
+  assert.deepEqual(anchors(topDialog()), [[MEET, '_blank', 'noopener noreferrer']]);
+  await page.unmount();
+
+  page = await open(`/my-bookings?${opened(noLink)}`, TUTOR);
+  assert.match(clean(topDialog().textContent), /Meet link not configured.*Ask an administrator to add your link\./);
+  await page.unmount();
+  await open(`/my-bookings?${opened(MY_ALI)}`, TUTOR);
+  assert.ok(!clean(topDialog().textContent).includes('Meet link'), 'nothing to join on a cancelled booking');
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+});
+
+test('Activity feed: a Meet link change says how it changed and how many bookings took it, never the link', async () => {
+  const entry = (action, context, changes = {}) => ({ action, context, changes });
+  assert.equal(actionLabel('user.meet_link_update'), 'Meet link updated');
+  assert.equal(describeActivity(entry('user.meet_link_update', { change: 'added', live_bookings_updated: 0 })),
+    "Set the tutor's Google Meet link");
+  assert.equal(describeActivity(entry('user.meet_link_update', { change: 'changed', live_bookings_updated: 2 })),
+    "Changed the tutor's Google Meet link; 2 bookings not yet ended now use it");
+  assert.equal(describeActivity(entry('user.meet_link_update', { change: 'added', live_bookings_updated: 1 })),
+    "Set the tutor's Google Meet link; 1 booking not yet ended now uses it");
+  assert.equal(describeActivity(entry('user.meet_link_update', { change: 'removed', live_bookings_updated: 3 })),
+    "Removed the tutor's Google Meet link");
+  assert.equal(describeActivity(entry('user.role_change', { meet_link_removed: true }, { role: { old: 'TUTOR', new: 'MENTOR' } })),
+    'Changed role from Tutor to Mentor; their Meet link was removed');
 });
 
 // ------------------------------------------------------------ activity feed

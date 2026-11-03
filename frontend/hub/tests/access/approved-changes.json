@@ -1744,8 +1744,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ bde": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). P9 (BDE report sharing, scope approved 2026-11-02, design F.4): accounts.view_own_lead_reports, which only the BDE role may hold; the enquiry page shows its Reports section only to holders of it.",
-   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard. Since BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31) the owner BDE may cancel a booking of their own enquiry that is still booked: a Cancel button per booking, offered when the API's actions say so; the API checks the lead is theirs on every request. Since P9 the page also has a Reports section (GET /api/bde/enquiries/<id>/reports/, answered for the lead's owner BDE only): each submitted report at its current version, with View report (an in-Hub dialog, read from the list), Download PDF (GET /api/bde/bookings/<type>/<id>/report/pdf/, fetched on click) and Send via WhatsApp (wa.me with the parent's registered number and the approved message; the BDE attaches the PDF by hand). Share PDF shows only where the browser can share files, which jsdom cannot. Nothing records a send.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). P9 (BDE report sharing, scope approved 2026-11-02, design F.4): accounts.view_own_lead_reports, which only the BDE role may hold; the enquiry page shows its Reports section only to holders of it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): each booking shows the Meet room it is taught in -- its own copy of the tutor's permanent link (tutor_meet_link) -- to read: the owner BDE on the enquiry page, with the tutor's name; the tutor in My Bookings. Only team managers (accounts.manage_team) set or change a link, on the Team page or from the Admin booking sheet.",
+   "note": "One of the BDE's own enquiries with its bookings and call / WhatsApp links (GET /api/bde/enquiries/<id>/). With the dashboard's quick link sharing the sidebar no longer offers Booking links: the BDE dashboard's action row carries Demo Link and Diagnostic Link buttons beside My Enquiries and Add enquiry (each copies its link, with Copy Link, Share on WhatsApp and Preview Link in its menu, from GET /api/bde/booking-links/), and /booking-links lands on the dashboard. Since BDE cancellation (Phase 5.2 P3, Q22 answered 2026-10-31) the owner BDE may cancel a booking of their own enquiry that is still booked: a Cancel button per booking, offered when the API's actions say so; the API checks the lead is theirs on every request. Since P9 the page also has a Reports section (GET /api/bde/enquiries/<id>/reports/, answered for the lead's owner BDE only): each submitted report at its current version, with View report (an in-Hub dialog, read from the list), Download PDF (GET /api/bde/bookings/<type>/<id>/report/pdf/, fetched on click) and Send via WhatsApp (wa.me with the parent's registered number and the approved message; the BDE attaches the PDF by hand). Share PDF shows only where the browser can share files, which jsdom cannot. Nothing records a send. With Phase 1 the Bookings table has a Tutor column: the tutor's name and the booking's Google Meet link (opens in a new tab), \"Meet link not configured\" when the tutor has none, \"Not assigned yet\" before a tutor is assigned. Read-only: no control changes either, and no new request is made.",
    "result": {
     "at": "/enquiries/{enquiry_a}",
     "noAccess": false,
@@ -1761,6 +1761,7 @@
     ],
     "links": [
      "/enquiries",
+     "https://meet.google.com/abc-defg-hij",
      "https://wa.me/971501234567",
      "https://wa.me/971501234567?text=Hello%20Asha%20Nair%2C%20please%20find%20Riya's%20Demo%20Class%20report%20from%20Eduport%20Plus%20attached.",
      "tel:+971501234567"
@@ -1769,6 +1770,7 @@
      "Actions",
      "Booked on",
      "Status",
+     "Tutor",
      "Type",
      "When (IST)"
     ],
@@ -7814,8 +7816,8 @@
    }
   },
   "/my-bookings @ tutor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A tutor holding accounts.view_assigned_bookings: the page lists the bookings assigned to them (type tabs, the when filter, paging), one upcoming and one cancelled, each with View only -- no assignment action, and no parent, BDE or assignment column.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): each booking shows the Meet room it is taught in -- its own copy of the tutor's permanent link (tutor_meet_link) -- to read: the owner BDE on the enquiry page, with the tutor's name; the tutor in My Bookings. Only team managers (accounts.manage_team) set or change a link, on the Team page or from the Admin booking sheet.",
+   "note": "A tutor holding accounts.view_assigned_bookings: the page lists the bookings assigned to them (type tabs, the when filter, paging), one upcoming and one cancelled, each with View only -- no assignment action, and no parent, BDE or assignment column. With Phase 1 My Bookings has a Meet link column (from lg; \"Open Meet\", or \"Not configured\") and the booking's sheet a Meet link row for a booked or completed booking, opening the booking's own copy of the tutor's link in a new tab. Read-only: no new request is made.",
    "result": {
     "at": "/my-bookings",
     "noAccess": false,
@@ -7838,10 +7840,13 @@
      "Upcoming",
      "View"
     ],
-    "links": [],
+    "links": [
+     "https://meet.google.com/abc-defg-hij"
+    ],
     "headers": [
      "Actions",
      "Country",
+     "Meet link",
      "School",
      "Status",
      "Student",
@@ -7865,8 +7870,8 @@
    }
   },
   "/my-bookings @ tutor_b": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
-   "note": "A tutor holding accounts.view_assigned_bookings who is assigned no booking: the page lists none.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): each booking shows the Meet room it is taught in -- its own copy of the tutor's permanent link (tutor_meet_link) -- to read: the owner BDE on the enquiry page, with the tutor's name; the tutor in My Bookings. Only team managers (accounts.manage_team) set or change a link, on the Team page or from the Admin booking sheet.",
+   "note": "A tutor holding accounts.view_assigned_bookings who is assigned no booking: the page lists none. With Phase 1 My Bookings has a Meet link column (from lg; \"Open Meet\", or \"Not configured\") and the booking's sheet a Meet link row for a booked or completed booking, opening the booking's own copy of the tutor's link in a new tab. Read-only: no new request is made.",
    "result": {
     "at": "/my-bookings",
     "noAccess": false,
@@ -7893,6 +7898,7 @@
     "headers": [
      "Actions",
      "Country",
+     "Meet link",
      "School",
      "Status",
      "Student",
@@ -8205,8 +8211,8 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ tutor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "The same list, and the booking at ?booking= read from the tutor API for the side sheet (a portal, outside what is recorded here); the sheet offers no action. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): each booking shows the Meet room it is taught in -- its own copy of the tutor's permanent link (tutor_meet_link) -- to read: the owner BDE on the enquiry page, with the tutor's name; the tutor in My Bookings. Only team managers (accounts.manage_team) set or change a link, on the Team page or from the Admin booking sheet.",
+   "note": "The same list, and the booking at ?booking= read from the tutor API for the side sheet (a portal, outside what is recorded here); the sheet offers no action. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. With Phase 1 My Bookings has a Meet link column (from lg; \"Open Meet\", or \"Not configured\") and the booking's sheet a Meet link row for a booked or completed booking, opening the booking's own copy of the tutor's link in a new tab. Read-only: no new request is made.",
    "result": {
     "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": false,
@@ -8229,10 +8235,13 @@
      "Upcoming",
      "View"
     ],
-    "links": [],
+    "links": [
+     "https://meet.google.com/abc-defg-hij"
+    ],
     "headers": [
      "Actions",
      "Country",
+     "Meet link",
      "School",
      "Status",
      "Student",
@@ -8257,8 +8266,8 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ tutor_b": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
-   "note": "A booking not assigned to this tutor: the list is empty and the API answers the booking 404, which the side sheet shows as not found. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): each booking shows the Meet room it is taught in -- its own copy of the tutor's permanent link (tutor_meet_link) -- to read: the owner BDE on the enquiry page, with the tutor's name; the tutor in My Bookings. Only team managers (accounts.manage_team) set or change a link, on the Team page or from the Admin booking sheet.",
+   "note": "A booking not assigned to this tutor: the list is empty and the API answers the booking 404, which the side sheet shows as not found. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. With Phase 1 My Bookings has a Meet link column (from lg; \"Open Meet\", or \"Not configured\") and the booking's sheet a Meet link row for a booked or completed booking, opening the booking's own copy of the tutor's link in a new tab. Read-only: no new request is made.",
    "result": {
     "at": "/my-bookings?booking={my_booking_a}&booking_type=DEMO",
     "noAccess": false,
@@ -8285,6 +8294,7 @@
     "headers": [
      "Actions",
      "Country",
+     "Meet link",
      "School",
      "Status",
      "Student",
