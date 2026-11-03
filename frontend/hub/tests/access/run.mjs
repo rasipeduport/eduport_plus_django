@@ -156,6 +156,8 @@ const BDE_ENQUIRIES = { status: 200, body: { results: [ENQUIRY_ROW], count: 1, p
 const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+971', phone_number: '501234567',
   school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', created_at: '2026-10-27T09:00:00+05:30',
   timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null,
+    // Who teaches it and its Google Meet link, to read (Phase 1: the tutor's name and the booking's copy of their link).
+    tutor: { full_name: 'Tutor A' }, tutor_meet_link: 'https://meet.google.com/abc-defg-hij',
     // What the API offers the owner BDE (P3, Q22): cancel it; No-show once its slot starts.
     actions: { cancel: true, no_show: false } }] } };
 // The reports on it (P9, design F.4): one submitted Demo report, at its second version, as the owner BDE's list answers it.
@@ -209,7 +211,8 @@ const BOOKINGS_LIST = { status: 200, body: { results: [UNASSIGNED_BOOKING, ASSIG
 const BOOKING_DETAIL = { status: 200, body: { ...UNASSIGNED_BOOKING, timezone: 'Asia/Kolkata', seat: 1,
   lead: { id: '4d5e6f7a-8b9c-4d0e-9f1a-2b3c4d5e6f7a', phone_dial_code: '+971', phone_number: '501234567',
     school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', source: 'BOOKING_PAGE', owner_bde: null },
-  referral_status: 'NO_REF', tutor_assigned_at: null, tutor_assigned_by: null, tutor_changeable: true, tutor_change_refusal: null,
+  referral_status: 'NO_REF', tutor_assigned_at: null, tutor_assigned_by: null, tutor_meet_link: null, tutor_changeable: true,
+  tutor_change_refusal: null,
   cancelled_at: null, cancelled_by: null, cancel_reason: '', cancel_reason_code: '', rescheduled_at: null, rescheduled_by: null,
   reschedule_reason: '', reschedule_reason_code: '', rescheduled_from: null, rescheduled_to: null,
   // What the API offers an administrator for this booking (P3): cancel and move it; No-show once its slot starts.
@@ -238,12 +241,14 @@ const MY_BOOKING_ID = '6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c2d';
 const MY_BOOKINGS_PATH = '/api/tutor/bookings/';
 const MY_BOOKING_PATH = `${MY_BOOKINGS_PATH}demo/${MY_BOOKING_ID}/`;
 const mySlot = (date, time, starts_at, ends_at) => ({ date, time, starts_at, ends_at, started: false, ended: false });
+// Each with the Google Meet room it is taught in (Phase 1): the booking's copy of the tutor's link, or null.
 const MY_BOOKING = { id: MY_BOOKING_ID, booking_type: 'DEMO', status: 'BOOKED',
   slot: mySlot('2026-10-31', '19:30', '2026-10-31T14:00:00+00:00', '2026-10-31T15:00:00+00:00'),
-  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates' };
+  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates',
+  tutor_meet_link: 'https://meet.google.com/abc-defg-hij' };
 const MY_CANCELLED_BOOKING = { id: '8d7c6b5a-4e3f-4a2b-9c1d-0e9f8a7b6c5d', booking_type: 'DIAGNOSTIC', status: 'CANCELLED',
   slot: mySlot('2026-11-01', '10:00', '2026-11-01T04:30:00+00:00', '2026-11-01T05:30:00+00:00'),
-  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India' };
+  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India', tutor_meet_link: null };
 const myBookings = (results) => ({ status: 200, body: { results, count: results.length, page: 1, page_size: 25,
   timezone: 'Asia/Kolkata' } });
 const NO_SUCH_BOOKING = { status: 404, body: { error: 'NOT_FOUND', message: 'No such booking.' } };

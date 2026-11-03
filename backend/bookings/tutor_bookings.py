@@ -1,8 +1,8 @@
 """
 Bookings as the tutor teaching them sees them (/api/tutor/bookings/): the Demo
 and Diagnostic bookings assigned to the tutor now, each with its slot in
-Indian time and the child it is for -- name, class, syllabus, school and
-country -- and nothing more. Read-only: the tutor is assigned, changed and
+Indian time, the child it is for -- name, class, syllabus, school and
+country -- and the Google Meet room it is taught in, and nothing more. Read-only: the tutor is assigned, changed and
 unassigned only by the Admin / Coordinator (bookings.booking_service).
 
 What a tutor is shown is written out field by field below, never taken from a
@@ -85,6 +85,8 @@ def booking_row(booking, now):
         'status': booking.status,
         'slot': {field: slot[field] for field in SLOT_FIELDS},
         **{field: getattr(booking.lead, field) for field in STUDENT_FIELDS},
+        # The Meet room the tutor teaches it in -- their own link, as the booking keeps it -- or null.
+        'tutor_meet_link': booking.tutor_meet_link,
         **report_summary(booking, now),
     }
 

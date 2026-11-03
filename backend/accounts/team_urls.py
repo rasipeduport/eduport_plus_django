@@ -2,6 +2,7 @@ from django.urls import path
 
 from .team import (
     TeamListView,
+    TeamMemberMeetLinkView,
     TeamMemberPermissionsView,
     TeamMemberStatusView,
     TeamMemberView,
@@ -19,4 +20,5 @@ urlpatterns = [
     path('<uuid:pk>/reactivate/', TeamMemberStatusView.as_view(activate=True), name='reactivate'),
     path('<uuid:pk>/reset-password/', TeamPasswordResetView.as_view(), name='reset-password'),
     path('<uuid:pk>/permissions/', TeamMemberPermissionsView.as_view(), name='permissions'),
+    path('<uuid:pk>/meet-link/', TeamMemberMeetLinkView.as_view(), name='meet-link'),
 ]

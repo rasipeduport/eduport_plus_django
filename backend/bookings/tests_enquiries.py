@@ -114,9 +114,10 @@ class ScopeTests(EnquiryTestCase):
         self.assertEqual(data['phone'], '+971 501234567')
         self.assertEqual([b['status'] for b in data['bookings']], ['CANCELLED', 'BOOKED'])
         for row in data['bookings']:
-            # What the owner BDE may do with it (Q22), but never who cancelled it or why.
+            # What the owner BDE may do with it (Q22), and who teaches it where
+            # (Phase 1: tutor, tutor_meet_link), but never who cancelled it or why.
             self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'ended',
-                                        'booked_at', 'cancelled_at', 'actions'})
+                                        'booked_at', 'cancelled_at', 'tutor', 'tutor_meet_link', 'actions'})
         self.assertNotIn('Parent asked', response.content.decode())
         self.assertNotIn('owner_bde', data)
 

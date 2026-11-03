@@ -188,12 +188,16 @@ def _row(lead, next_booking):
 def enquiry_detail(lead, now, can_cancel=False):
     """
     One enquiry in full (``lead`` from ``listed``), with every booking it has
-    made -- each with what its owner BDE may do with it now (``actions``):
-    cancel it while it is booked when ``can_cancel`` (accounts.cancel_booking,
-    Q22), No-show only once its slot has started (D12).
+    made -- each with its tutor and Meet link (_teaching) and what its owner
+    BDE may do with it now (``actions``): cancel it while it is booked when
+    ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its slot
+    has started (D12).
     """
     bookings = sorted(
-        [*lead.diagnostic_bookings.select_related('slot'), *lead.demo_bookings.select_related('slot')],
+        [
+            *lead.diagnostic_bookings.select_related('slot', 'assigned_tutor'),
+            *lead.demo_bookings.select_related('slot', 'assigned_tutor'),
+        ],
         key=_soonest,
         reverse=True,
     )
@@ -217,11 +221,25 @@ def enquiry_detail(lead, now, can_cancel=False):
                 'ended': booking.slot.ends_at <= now,
                 'booked_at': booking.created_at.isoformat(),
                 'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+                **_teaching(booking),
                 'actions': _booking_actions(booking, now, can_cancel),
             }
             for booking in bookings
         ],
     }
+
+
+def _teaching(booking):
+    """
+    Who teaches a booking that holds its seat (booked or completed), and the
+    Meet room it is taught in -- the tutor's name only, and the booking's own
+    copy of their link, or null when they have none -- to read, never to
+    change. A cancelled or moved booking shows neither.
+    """
+    if booking.status not in HOLDS_SEAT or booking.assigned_tutor is None:
+        return {'tutor': None, 'tutor_meet_link': None}
+    tutor = booking.assigned_tutor
+    return {'tutor': {'full_name': tutor.full_name or tutor.username}, 'tutor_meet_link': booking.tutor_meet_link}
 
 
 def _booking_actions(booking, now, can_cancel):

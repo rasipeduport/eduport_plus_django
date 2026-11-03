@@ -1,7 +1,8 @@
 // Mounts the real Bookings page (/bookings), the tutor's My Bookings page
-// (/my-bookings), a BDE's enquiry (/enquiries/:enquiryId) or the Booking
-// Slots page (/booking-slots) at a URL, for a given signed-in account, the way
-// App.jsx routes them -- only the API is a stand-in (api-stub.js).
+// (/my-bookings), a BDE's enquiry (/enquiries/:enquiryId), the Booking Slots
+// page (/booking-slots) or a Team member's page (/team/:memberId, for a
+// tutor's permanent Meet link) at a URL, for a given signed-in account, the
+// way App.jsx routes them -- only the API is a stand-in (api-stub.js).
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -9,6 +10,7 @@ import BookingSlotsPage from '@/pages/BookingSlotsPage';
 import BookingsPage from '@/pages/BookingsPage';
 import TutorBookingsPage from '@/pages/TutorBookingsPage';
 import EnquiryPage from '@/pages/EnquiryPage';
+import TeamMemberPage from '@/pages/TeamMemberPage';
 
 export async function mount(path, user) {
   const container = document.createElement('div');
@@ -20,6 +22,7 @@ export async function mount(path, user) {
       { path: '/my-bookings', element: <TutorBookingsPage /> },
       { path: '/enquiries/:enquiryId', element: <EnquiryPage user={user} /> },
       { path: '/booking-slots', element: <BookingSlotsPage /> },
+      { path: '/team/:memberId', element: <TeamMemberPage user={user} /> },
     ],
     { initialEntries: [path] }
   );
@@ -43,3 +46,4 @@ export async function mount(path, user) {
 export { act };
 export { canOpenPage, homePage } from '@/lib/access';
 export { ACTION_LABELS, actionLabel, describeActivity } from '@/lib/activity-format';
+export { meetLinkProblem, planMemberSave } from '@/lib/team';

@@ -51,6 +51,8 @@ export const ACTION_LABELS = {
   'user.password_reset': 'Password reset',
   'user.password_change': 'Password changed',
   'user.permissions_update': 'Permissions updated',
+  // A tutor's permanent Google Meet link: the log keeps how it changed, never the link.
+  'user.meet_link_update': 'Meet link updated',
   'user.sign_in_failed': 'Sign-in refused',
   'user.unlock': 'Account unlocked',
   'user.lockout_update': 'Lockout changed',
@@ -232,7 +234,14 @@ export function describeActivity(row) {
     }
     case 'user.role_change': {
       const r = c.role;
-      return r ? `Changed role from ${formatRole(r.old)} to ${formatRole(r.new)}` : 'Changed the role';
+      const sentence = r ? `Changed role from ${formatRole(r.old)} to ${formatRole(r.new)}` : 'Changed the role';
+      return row.context?.meet_link_removed ? `${sentence}; their Meet link was removed` : sentence;
+    }
+    case 'user.meet_link_update': {
+      const verb = { added: 'Set', changed: 'Changed', removed: 'Removed' }[row.context?.change] ?? 'Updated';
+      const count = row.context?.live_bookings_updated ?? 0;
+      const bookings = count ? `; ${count} booking${count === 1 ? '' : 's'} not yet ended now use${count === 1 ? 's' : ''} it` : '';
+      return `${verb} the tutor's Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
     }
     case 'user.update_details':
       return 'Updated the account details';

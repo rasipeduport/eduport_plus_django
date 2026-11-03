@@ -35,6 +35,9 @@ function describeBookingEvent(event) {
       const fields = reportFieldsText(d.changed_fields);
       return `Report edited, now version ${d.version ?? '—'}${fields ? ` — ${fields}` : ''}`;
     }
+    // The tutor's permanent link changed while the booking was live; the history keeps whether there is one, never the link.
+    case 'MEET_LINK_UPDATED':
+      return d.has_meet_link ? "Meet link updated to the tutor's new link" : "Meet link removed with the tutor's";
     default:
       return event.kind_label ?? event.kind;
   }

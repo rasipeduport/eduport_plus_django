@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { MeetLink } from '@/components/bookings/meet-link';
 import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
 
 function Field({ label, children }) {
@@ -49,6 +50,27 @@ function bookingState(booking) {
  * (Q22) -- the API says which in each booking's `actions` and checks again,
  * that the lead is theirs, on every request.
  */
+/**
+ * Who teaches a booking and its Google Meet link, to read and pass on -- the
+ * API shows them for a booked or completed booking only, and the BDE changes
+ * neither: an administrator sets the tutor and the tutor's link.
+ */
+function Teaching({ booking }) {
+  if (!booking.tutor) {
+    return booking.status === 'BOOKED' && !booking.ended ? (
+      <span className="text-muted-foreground">Not assigned yet</span>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+  }
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span className="font-medium">{booking.tutor.full_name}</span>
+      <MeetLink link={booking.tutor_meet_link} />
+    </span>
+  );
+}
+
 function BookingsPanel({ bookings, onCancel }) {
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
@@ -66,6 +88,7 @@ function BookingsPanel({ bookings, onCancel }) {
                 <TableHead>When (IST)</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Tutor</TableHead>
                 <TableHead>Booked on</TableHead>
                 <TableHead className="w-px">
                   <span className="sr-only">Actions</span>
@@ -83,6 +106,9 @@ function BookingsPanel({ bookings, onCancel }) {
                     </TableCell>
                     <TableCell>
                       <Badge variant={state.variant}>{state.label}</Badge>
+                    </TableCell>
+                    <TableCell className="min-w-40 whitespace-normal">
+                      <Teaching booking={booking} />
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">{formatDay(booking.booked_at)}</TableCell>
                     <TableCell>

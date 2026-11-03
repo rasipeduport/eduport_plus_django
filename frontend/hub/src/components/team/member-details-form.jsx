@@ -12,11 +12,14 @@ import { formatDate } from '@/lib/utils';
 import { PASSWORD_RULE } from '@/lib/password-policy';
 import {
   HANDOVER_ROLES,
+  MEET_LINK_EXAMPLE,
   TEAM_ROLES,
   assignableRoles,
+  editsMeetLink,
   isActiveMember,
   isLocked,
   memberFormValues,
+  memberMeetLinkUrl,
   memberUrl,
   planMemberSave,
   roleLabel,
@@ -37,7 +40,7 @@ const FIELD_FOR_CODE = {
   LAST_ADMIN: 'role',
 };
 
-const STEP_LABELS = { details: 'details', permissions: 'permissions', password: 'temporary password' };
+const STEP_LABELS = { details: 'details', meetLink: 'Meet link', permissions: 'permissions', password: 'temporary password' };
 
 // Checked in the permission selector but never assigned: saving would drop them unnoticed.
 const unassignedMessage = (count) =>
@@ -108,8 +111,8 @@ function AccountSummary({ member }) {
 
 /**
  * The Details & Permissions tab of /team/:memberId. Saving sends only what
- * changed, in order: details (PATCH), permissions (PUT), then the optional
- * password reset. Each call is checked by the API; if one is refused, the ones
+ * changed, in order: details (PATCH), a tutor's permanent Meet link (PUT, its
+ * own endpoint), permissions (PUT), then the optional password reset. Each call is checked by the API; if one is refused, the ones
  * before it stay saved, the form keeps the rest of the edits, and the refusal
  * is shown at the field it concerns. `restriction` (the viewer's own account,
  * or an account beyond their reach) makes the whole form read-only.
@@ -131,7 +134,7 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
   const [picked, setPicked] = useState([]);
 
   const plan = planMemberSave(baseline, values);
-  const dirty = Boolean(plan.details || plan.permissions || plan.password || picked.length);
+  const dirty = Boolean(plan.details || plan.meetLink || plan.permissions || plan.password || picked.length);
   const roleOptions = readOnly ? TEAM_ROLES : assignableRoles(viewer);
   const name = member.full_name || member.username;
 
@@ -205,6 +208,8 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
       } else {
         setFormError(failure.message);
       }
+    } else if (step === 'meetLink') {
+      setErrors({ meet_link: failure.message });
     } else if (step === 'permissions') {
       setErrors({ permissions: failure });
     } else {
@@ -229,6 +234,11 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
       if (saving.details) {
         step = 'details';
         fresh = (await api.patch(memberUrl(member.id), saving.details)).data;
+        saved.push(step);
+      }
+      if (saving.meetLink) {
+        step = 'meetLink';
+        fresh = (await api.put(memberMeetLinkUrl(member.id), saving.meetLink)).data;
         saved.push(step);
       }
       if (saving.permissions) {
@@ -321,6 +331,30 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
             aria-invalid={errors.mobile_number ? true : undefined}
           />
         </Field>
+        {editsMeetLink(baseline, values) ? (
+          <Field
+            id="team-member-meet-link"
+            label="Google Meet link"
+            hint={
+              readOnly
+                ? null
+                : "The tutor's permanent room for their Demo and Diagnostic bookings. Bookings that have not ended " +
+                  'use a new link; past bookings keep the one they had. Leave blank if not set up yet.'
+            }
+            error={errors.meet_link}
+          >
+            <Input
+              id="team-member-meet-link"
+              value={values.meet_link}
+              onChange={setField('meet_link')}
+              placeholder={MEET_LINK_EXAMPLE}
+              inputMode="url"
+              autoComplete="off"
+              disabled={controlsDisabled}
+              aria-invalid={errors.meet_link ? true : undefined}
+            />
+          </Field>
+        ) : null}
         <Field
           id="team-member-role"
           label="Role"

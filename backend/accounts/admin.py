@@ -46,7 +46,8 @@ class RoleChangeRuleMixin:
     A role changed here follows the Team API's rules (accounts.team): a mentor's
     or tutor's active students are handed over first, and the last active admin
     keeps the role. A tutor assigned upcoming Demo/Diagnostic bookings keeps
-    both the role and the account active until those are reassigned.
+    both the role and the account active until those are reassigned, and a
+    tutor who changes role loses their permanent Meet link.
     """
 
     def clean(self):
@@ -72,6 +73,11 @@ class RoleChangeRuleMixin:
                 refusal = upcoming_booking_refusal(account, 'changing their role')
                 if refusal:
                     self.add_error('role', refusal)
+                elif account.tutor_meet_link:
+                    # Only a tutor has a Meet link (the form does not show it):
+                    # it goes with the role, as Team's role change drops it.
+                    # Past bookings keep their own copies.
+                    account.tutor_meet_link = None
         if deactivating:
             refusal = upcoming_booking_refusal(account, 'deactivating')
             if refusal:

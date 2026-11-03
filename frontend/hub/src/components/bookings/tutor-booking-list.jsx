@@ -9,6 +9,7 @@ import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { BOOKING_TYPES, DEFAULT_WHEN, WHEN_FILTERS } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
 import { ReportStateBadge } from './booking-badges';
+import { MeetLink } from './meet-link';
 
 const ALL = '__all__';
 
@@ -17,7 +18,8 @@ const ALL = '__all__';
  * type tabs, the Upcoming / Past / All filter and paging the API applies
  * (lib/bookings), and per row a way to open the booking. A tutor never
  * assigns or changes a tutor. Each row shows the slot in Indian time, the
- * child it is for and where the booking stands with its report (lib/reports
+ * child it is for, its Google Meet link (from lg) and where the booking
+ * stands with its report (lib/reports
  * reportState), with Write report or Edit report when the report can be
  * written or has been -- nothing of the parent, the BDE or the assignment is
  * read here. The page keeps the filters in the URL; `onChange` receives what
@@ -77,6 +79,7 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
               <TableHead>When (IST)</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Student</TableHead>
+              <TableHead className="hidden lg:table-cell">Meet link</TableHead>
               <TableHead className="hidden xl:table-cell">Syllabus</TableHead>
               <TableHead className="hidden xl:table-cell">School</TableHead>
               <TableHead className="hidden xl:table-cell">Country</TableHead>
@@ -89,7 +92,7 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
           <TableBody className={pending ? 'opacity-60' : undefined}>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   {filtered ? 'No bookings match these filters.' : 'No upcoming bookings assigned to you.'}
                 </TableCell>
               </TableRow>
@@ -108,6 +111,17 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
                     <TableCell className="min-w-28 whitespace-normal">
                       <p className="font-medium break-words">{booking.student_name}</p>
                       {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
+                    </TableCell>
+                    <TableCell className="hidden whitespace-nowrap lg:table-cell">
+                      {booking.status === 'BOOKED' || booking.status === 'COMPLETED' ? (
+                        <MeetLink
+                          link={booking.tutor_meet_link}
+                          compact
+                          label={`Open the Meet link for ${booking.student_name}'s booking`}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="hidden whitespace-normal xl:table-cell">{booking.syllabus || '—'}</TableCell>
                     <TableCell className="hidden whitespace-normal xl:table-cell">{booking.school_name || '—'}</TableCell>

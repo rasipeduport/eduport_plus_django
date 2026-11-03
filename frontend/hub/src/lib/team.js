@@ -33,6 +33,27 @@ export const reassignUrl = (id) => `/api/users/${id}/reassign/`;
 
 export const memberUrl = (id, action = '') => `${TEAM_URL}${id}/${action}`;
 
+// A tutor's permanent Google Meet link (backend accounts.meet_links): set by
+// team managers only, for tutors only, through PUT /api/team/<id>/meet-link/
+// {tutor_meet_link} -- from the Team page and from a booking's sheet alike.
+// The API stores it as https://meet.google.com/<code> and decides what it
+// accepts; the check here only spares a round trip.
+export const MEET_LINK_EXAMPLE = 'https://meet.google.com/abc-defg-hij';
+export const memberMeetLinkUrl = (id) => memberUrl(id, 'meet-link/');
+const MEET_LINK_RE = /^(?:https:\/\/)?meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}\/?(?:[?#]\S*)?$/i;
+
+/** Why `text` is not a Google Meet link the API accepts, or null. Blank is no link, which it accepts. */
+export function meetLinkProblem(text) {
+  const value = (text ?? '').trim();
+  if (!value || MEET_LINK_RE.test(value)) return null;
+  return `Enter a Google Meet link such as ${MEET_LINK_EXAMPLE}.`;
+}
+
+/** Whether the details form offers `member`'s Meet link: a tutor staying a tutor, as a team manager sees them. */
+export function editsMeetLink(member, values) {
+  return member?.tutor_meet_link !== undefined && member?.role === 'TUTOR' && values?.role === 'TUTOR';
+}
+
 export function roleLabel(role) {
   return TEAM_ROLES.find((option) => option.value === role)?.label ?? role;
 }
@@ -76,6 +97,7 @@ export function memberFormValues(member) {
     email: member?.email ?? '',
     mobile_number: member?.mobile_number ?? '',
     role: member?.role ?? '',
+    meet_link: member?.tutor_meet_link ?? '',
     permissions: [...(member?.permissions ?? [])].sort(),
     password: '',
   };
@@ -90,6 +112,7 @@ export function validateMemberForm(values) {
   else if (!EMAIL_RE.test(values.email.trim())) errors.email = 'Enter a valid email address.';
   if (values.mobile_number.trim().length > 20) errors.mobile_number = 'At most 20 characters.';
   if (!TEAM_ROLE_VALUES.has(values.role)) errors.role = 'Choose a role.';
+  if (values.role === 'TUTOR' && meetLinkProblem(values.meet_link)) errors.meet_link = meetLinkProblem(values.meet_link);
   // The reset password is optional; one that was typed must meet the rule.
   if (values.password && passwordPolicyError(values.password)) errors.password = passwordPolicyError(values.password);
   return Object.keys(errors).length ? errors : null;
@@ -97,9 +120,11 @@ export function validateMemberForm(values) {
 
 /**
  * What saving the form would send, relative to `baseline` (the member as the
- * API last returned it): `details` for PATCH (changed fields only), the full
- * `permissions` set for PUT when it changed, and the reset `password` when one
- * was typed. Each part is null when there is nothing to send.
+ * API last returned it): `details` for PATCH (changed fields only), a tutor's
+ * `meetLink` body for its own PUT when it changed (null removes it; never
+ * alongside a role change, which drops it), the full `permissions` set for PUT
+ * when it changed, and the reset `password` when one was typed. Each part is
+ * null when there is nothing to send.
  */
 export function planMemberSave(baseline, values) {
   const before = memberFormValues(baseline);
@@ -114,8 +139,11 @@ export function planMemberSave(baseline, values) {
   const permissions = [...values.permissions].sort();
   const permissionsChanged =
     permissions.length !== before.permissions.length || permissions.some((name, i) => name !== before.permissions[i]);
+  const meetLink = (values.meet_link ?? '').trim();
+  const meetLinkChanged = editsMeetLink(baseline, values) && meetLink !== before.meet_link;
   return {
     details: Object.keys(details).length ? details : null,
+    meetLink: meetLinkChanged ? { tutor_meet_link: meetLink || null } : null,
     permissions: permissionsChanged ? permissions : null,
     password: values.password ? values.password : null,
   };

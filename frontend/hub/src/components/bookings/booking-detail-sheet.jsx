@@ -13,6 +13,8 @@ import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeab
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { BookingHistory } from './booking-history';
 import { BookingStateBadge, TutorName } from './booking-badges';
+import { MeetLink } from './meet-link';
+import { MeetLinkDialog } from './meet-link-dialog';
 
 function Section({ title, action, children }) {
   return (
@@ -63,7 +65,9 @@ function DetailSkeleton() {
  * bookings before and after it when it was moved (`onOpenBooking`), and its
  * history on request. Its tutor first -- with
  * Assign / Change and Unassign for holders of accounts.assign_booking_tutor
- * while the booking is booked and its slot has not started -- then the slot,
+ * while the booking is booked and its slot has not started, and the booking's
+ * Meet link, which team managers (`canEditMeetLink`, accounts.manage_team) set
+ * or change on the tutor's account until the slot ends -- then the slot,
  * the child, the parent and any cancellation. Only what the API returns is
  * shown. Assigning opens the page's tutor dialog (`onAssign`); unassigning
  * happens here, confirmed first (DELETE /api/bookings/<type>/<id>/tutor/).
@@ -74,6 +78,7 @@ export function BookingDetailSheet({
   open,
   onOpenChange,
   canAssign,
+  canEditMeetLink,
   reloadKey,
   onAssign,
   onChanged,
@@ -87,6 +92,7 @@ export function BookingDetailSheet({
   const [unassignOpen, setUnassignOpen] = useState(false);
   const [unassignError, setUnassignError] = useState(null);
   const [unassigning, setUnassigning] = useState(false);
+  const [meetLinkOpen, setMeetLinkOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !bookingId || !bookingType) return undefined;
@@ -145,6 +151,8 @@ export function BookingDetailSheet({
     body = <DetailSkeleton />;
   } else {
     const changeable = canAssign && tutorChangeable(shown);
+    // The tutor's permanent link, for team managers, while the booking can still use it (booked, not ended).
+    const meetLinkEditable = canEditMeetLink && Boolean(shown.tutor) && shown.status === 'BOOKED' && !shown.slot?.ended;
     const lead = shown.lead ?? {};
     body = (
       <div className="flex flex-col gap-4">
@@ -170,6 +178,16 @@ export function BookingDetailSheet({
           </Detail>
           {shown.tutor ? (
             <>
+              <Detail label="Meet link">
+                <span className="flex flex-col items-start gap-1">
+                  <MeetLink link={shown.tutor_meet_link} />
+                  {meetLinkEditable ? (
+                    <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setMeetLinkOpen(true)}>
+                      {shown.tutor_meet_link ? 'Change Meet link' : 'Set Meet link'}
+                    </Button>
+                  ) : null}
+                </span>
+              </Detail>
               <Detail label="Assigned by">{shown.tutor_assigned_by?.full_name}</Detail>
               <Detail label="Assigned on">{formatDay(shown.tutor_assigned_at)}</Detail>
             </>
@@ -299,6 +317,17 @@ export function BookingDetailSheet({
         confirmVariant="destructive"
         pending={unassigning}
       />
+
+      {canEditMeetLink && shown?.tutor ? (
+        <MeetLinkDialog
+          tutor={shown.tutor}
+          link={shown.tutor_meet_link}
+          open={meetLinkOpen}
+          onOpenChange={setMeetLinkOpen}
+          // The booking took the tutor's new link (backend set_tutor_meet_link): read it again.
+          onSaved={() => setRetryKey((key) => key + 1)}
+        />
+      ) : null}
     </>
   );
 }

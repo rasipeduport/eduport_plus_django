@@ -288,6 +288,9 @@ def booking_detail(booking, now, user=None, request=None):
         'referral_status': booking.referral_status,
         'tutor_assigned_at': _when(booking.tutor_assigned_at),
         'tutor_assigned_by': _person(booking.tutor_assigned_by),
+        # The Meet room this booking is taught in (its own copy of the tutor's
+        # link), or null: no tutor, or one with no link configured.
+        'tutor_meet_link': booking.tutor_meet_link,
         'tutor_changeable': refusal is None,
         'tutor_change_refusal': refusal,
         'cancelled_at': _when(booking.cancelled_at),

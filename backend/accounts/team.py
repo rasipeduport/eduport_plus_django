@@ -26,6 +26,9 @@ The rules, enforced here whatever the client sends:
   must replace the password before using the app (accounts.middleware).
 * Team writes run one at a time (lock_team_changes), so the uniqueness and
   last-admin checks cannot race each other.
+* A tutor's permanent Google Meet link has an endpoint of its own
+  (TeamMemberMeetLinkView), never PATCH, since its change reaches the tutor's
+  live bookings; team managers only, tutors only. A role change drops it.
 """
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -43,12 +46,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from activity.utils import log_activity
-from bookings.booking_service import upcoming_assignments
+from bookings.booking_service import BookingBusy, NotATutor, set_tutor_meet_link, upcoming_assignments
 from core.pagination import paginate_queryset
 from invitations.models import Invitation, InvitationRoleChoices
 from students.models import Student
 
 from .authz import clear_individual_permissions, has_app_permission, log_permissions_cleared
+from .meet_links import InvalidMeetLink, canonical_meet_link
 from .models import HUB_ROLES, USERNAME_MAX_LENGTH, RoleChoices, normalize_username
 from .permission_catalogue import CATALOGUE, VIEW_TEAM, allowed_for_role, grantable_permissions
 
@@ -255,6 +259,8 @@ def member_payload(account, full=True):
                 "email": account.invited_by.email,
             } if account.invited_by_id else None,
             "permissions": granted_permissions(account),
+            # A tutor's permanent Google Meet link, or null (always null for other roles).
+            "tutor_meet_link": account.tutor_meet_link,
         })
     return data
 
@@ -352,6 +358,14 @@ def clean_mobile_number(value):
     if len(value.strip()) > 20:
         raise TeamError('INVALID_INPUT', 'mobile_number must be 20 characters or fewer.')
     return value.strip() or None
+
+
+def clean_tutor_meet_link(value):
+    """A tutor's permanent Meet link in its stored form, or None (null or "" removes it)."""
+    try:
+        return canonical_meet_link(value)
+    except InvalidMeetLink as exc:
+        raise TeamError('INVALID_MEET_LINK', exc.message, fields=['tutor_meet_link'])
 
 
 def clean_role(value):
@@ -504,6 +518,7 @@ class TeamMemberView(TeamView):
             check_may_change(request.user, account)
             before = {field: getattr(account, field) for field in self.update_fields}
             cleared = []
+            meet_link_removed = False
 
             if 'username' in data:
                 account.username = clean_username(data['username'], account=account)
@@ -534,11 +549,16 @@ class TeamMemberView(TeamView):
                     # Grants made for the old role do not ride along. Rolled
                     # back with everything else if the save below fails.
                     cleared = clear_individual_permissions(account)
+                    # Only a tutor has a Meet link. No live booking holds it
+                    # (refused above); past bookings keep their own copies.
+                    if account.tutor_meet_link:
+                        account.tutor_meet_link = None
+                        meet_link_removed = True
 
             changed = [field for field in self.update_fields if getattr(account, field) != before[field]]
             if changed:
                 try:
-                    account.save(update_fields=changed + ['updated_at'])
+                    account.save(update_fields=changed + (['tutor_meet_link'] if meet_link_removed else []) + ['updated_at'])
                 except IntegrityError:
                     raise TeamError('CONFLICT', 'That username or email was just taken.', status.HTTP_409_CONFLICT)
 
@@ -562,10 +582,65 @@ class TeamMemberView(TeamView):
                 entity_id=str(account.id),
                 entity_label=account.full_name or account.username,
                 changes={"role": {"old": before['role'], "new": account.role}},
+                # That the tutor's Meet link went with the role, never the link.
+                context={"meet_link_removed": True} if meet_link_removed else None,
                 request=request,
             )
         if cleared:
             log_permissions_cleared(account, cleared, via='team', request=request)
+        return Response(member_payload(account), status=status.HTTP_200_OK)
+
+
+class TeamMemberMeetLinkView(TeamView):
+    """
+    PUT /api/team/<id>/meet-link/ {"tutor_meet_link": "<Google Meet link>" | null}
+
+    A tutor's permanent Google Meet link: set or changed, or removed with null
+    or "". Only a Google Meet meeting link is accepted (accounts.meet_links,
+    INVALID_MEET_LINK) and only for a TUTOR account (NOT_A_TUTOR). Team
+    managers only -- the Admin role, and superusers -- under the same
+    check_may_change as every Team write; the Hub's booking sheet uses this
+    endpoint too. The tutor's live bookings take the new link and every other
+    booking keeps the one it had (bookings.booking_service.set_tutor_meet_link).
+    The activity log records that the link changed, never the link.
+    """
+    permission_classes = [IsAuthenticated, IsTeamManager]
+
+    def put(self, request, pk, *args, **kwargs):
+        data = request_fields(request, ('tutor_meet_link',))
+        if 'tutor_meet_link' not in data:
+            raise TeamError('INVALID_INPUT', 'tutor_meet_link is required (null removes the link).',
+                            fields=['tutor_meet_link'])
+        link = clean_tutor_meet_link(data['tutor_meet_link'])
+
+        with transaction.atomic():
+            lock_team_changes()
+            account = staff_accounts().filter(pk=pk).first()
+            if account is None:
+                raise TeamError('NOT_FOUND', 'Staff account not found.', status.HTTP_404_NOT_FOUND)
+            check_may_change(request.user, account)
+            before = account.tutor_meet_link
+            try:
+                account, changed, bookings = set_tutor_meet_link(account, link, actor=request.user)
+            except NotATutor as exc:
+                raise TeamError(exc.code, exc.message)
+            except BookingBusy:
+                raise TeamError('MEET_LINK_BUSY', 'Could not update the Meet link right now. Please try again.',
+                                status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        if changed:
+            log_activity(
+                action='user.meet_link_update',
+                entity_type='profile',
+                entity_id=str(account.id),
+                entity_label=account.full_name or account.username,
+                # How it changed and how many live bookings took it -- never the link itself.
+                context={
+                    "change": 'added' if before is None else 'removed' if link is None else 'changed',
+                    "live_bookings_updated": len(bookings),
+                },
+                request=request,
+            )
         return Response(member_payload(account), status=status.HTTP_200_OK)
 
 
