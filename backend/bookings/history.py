@@ -5,8 +5,8 @@ change, so the change and its event commit or roll back together -- unlike
 the activity log, which is written after commit and best-effort.
 
 ``data`` carries ids, statuses and codes only -- never free text: no
-student's or parent's name, no phone number, and no reason typed by staff,
-which stays on the booking itself (its cancel_reason). The history can never
+student's or parent's name, no phone number, no Meet link, and no reason
+typed by staff, which stays on the booking itself (its cancel_reason). The history can never
 be edited, so record() refuses any key it does not know rather than let
 free text in by accident. A booking's events read oldest first
 (``booking.events.all()``, BookingEvent.Meta.ordering).
@@ -25,6 +25,7 @@ DATA_KEYS = frozenset({
     'rescheduled_from_id',  # CREATED by a reschedule: the booking it replaces
     'report_id', 'version',  # COMPLETED / REPORT_EDITED: the report and the version saved (reports.services)
     'changed_fields',  # REPORT_EDITED: the names of the fields the edit changed, never what they say
+    'has_meet_link',  # MEET_LINK_UPDATED: whether the booking now has a Meet link -- never the link itself
 })
 
 

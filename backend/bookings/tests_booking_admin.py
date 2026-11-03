@@ -447,6 +447,11 @@ class PermissionTests(BookingAdminTestCase):
         client.force_authenticate(user=self.bde)
         enquiry = client.get(f'/api/bde/enquiries/{credited.lead_id}/')
         self.assertEqual(enquiry.status_code, status.HTTP_200_OK)
-        # The BDE sees its enquiry's booking, not who teaches it.
-        self.assertNotIn('tutor', json.dumps(enquiry.data))
+        # The BDE sees its enquiry's booking and, since Phase 1 (tutor Meet link), who teaches it -- the
+        # tutor's name and the booking's Meet link, to read -- but nothing else of the tutor or the assignment.
+        [row] = enquiry.data['bookings']
+        self.assertEqual((row['tutor'], row['tutor_meet_link']), ({'full_name': 'Tutor Binu'}, None))
+        shown = json.dumps(enquiry.data)
+        for hidden in (str(self.tutor_b.pk), self.tutor_b.email, str(self.admin.pk), 'tutor_assigned', 'assigned_tutor'):
+            self.assertNotIn(hidden, shown)
         self.assertEqual(client.get('/api/bde/dashboard/').status_code, status.HTTP_200_OK)

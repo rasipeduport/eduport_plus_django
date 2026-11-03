@@ -23,10 +23,11 @@ from .tests_booking import EVENING, MORNING, account, link, request, schedule
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 LIST_URL = '/api/tutor/bookings/'
 # Everything a tutor is shown of a booking, and of its slot.
-# The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due).
+# The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due),
+# and the Meet room it is taught in (Phase 1: tutor_meet_link).
 ROW_FIELDS = {
     'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country',
-    'has_report', 'report_version', 'report_due',
+    'tutor_meet_link', 'has_report', 'report_version', 'report_due',
 }
 SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 NOT_FOUND = {'error': 'NOT_FOUND', 'message': 'No such booking.'}
@@ -96,6 +97,8 @@ class ListTests(TutorBookingsTestCase):
             'syllabus': 'CBSE',
             'school_name': 'Delhi Private School',
             'country': 'United Arab Emirates',
+            # Phase 1: the booking's copy of its tutor's Meet link; tutor_a has none configured.
+            'tutor_meet_link': None,
             'has_report': False,
             'report_version': None,
             'report_due': False,

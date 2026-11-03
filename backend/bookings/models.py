@@ -31,6 +31,8 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from accounts.meet_links import MEET_LINK_DB_PATTERN, MEET_LINK_MAX_LENGTH
+
 # 16 random bytes: 128 bits, 22 URL-safe characters.
 TOKEN_BYTES = 16
 
@@ -454,6 +456,13 @@ class BookingBase(models.Model):
         blank=True,
         related_name='tutor_assigned_%(class)ss'
     )
+    # The Google Meet room this booking is taught in: its tutor's permanent
+    # link (accounts.User.tutor_meet_link), copied when the tutor is assigned
+    # and kept in step while the booking is live (booking_service.
+    # set_tutor_meet_link). Once its slot has ended, or it is completed,
+    # cancelled or moved, it keeps the link it had, whatever the tutor's
+    # becomes. NULL = no tutor, or a tutor with no link configured.
+    tutor_meet_link = models.CharField(max_length=MEET_LINK_MAX_LENGTH, null=True, blank=True)
 
     class Meta:
         abstract = True
@@ -550,6 +559,15 @@ class BookingBase(models.Model):
                 ),
                 name='%(class)s_tutor_assignment_fields',
             ),
+            # The Meet link is the tutor's: none without one, and only a Google Meet link.
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(assigned_tutor__isnull=False),
+                name='%(class)s_meet_link_needs_tutor',
+            ),
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
+                name='%(class)s_meet_link_google_meet',
+            ),
         ]
         indexes = [
             models.Index(fields=['attributed_bde', 'created_at'], name='%(class)s_bde_idx'),
@@ -640,6 +658,7 @@ class BookingEventKind(models.TextChoices):
     CANCELLED = 'CANCELLED', 'Cancelled'
     COMPLETED = 'COMPLETED', 'Completed'
     REPORT_EDITED = 'REPORT_EDITED', 'Report edited'
+    MEET_LINK_UPDATED = 'MEET_LINK_UPDATED', 'Meet link updated'
 
 
 class BookingEvent(models.Model):

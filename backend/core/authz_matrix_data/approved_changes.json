@@ -2413,8 +2413,8 @@
    }
   },
   "bookings.assign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2474,7 +2474,8 @@
      "tutor_assigned_by.full_name",
      "tutor_assigned_by.id",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "admin",
@@ -2535,8 +2536,8 @@
    }
   },
   "bookings.assign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2596,7 +2597,8 @@
      "tutor_assigned_by.full_name",
      "tutor_assigned_by.id",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -2609,8 +2611,8 @@
    }
   },
   "bookings.assign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2670,7 +2672,8 @@
      "tutor_assigned_by.full_name",
      "tutor_assigned_by.id",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -2683,8 +2686,8 @@
    }
   },
   "bookings.assign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2744,7 +2747,8 @@
      "tutor_assigned_by.full_name",
      "tutor_assigned_by.id",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -2793,8 +2797,8 @@
    }
   },
   "bookings.cancel @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2854,7 +2858,8 @@
      "tutor_change_refusal",
      "tutor_change_refusal.code",
      "tutor_change_refusal.message",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "admin",
@@ -2914,8 +2919,8 @@
    }
   },
   "bookings.cancel @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -2975,7 +2980,8 @@
      "tutor_change_refusal",
      "tutor_change_refusal.code",
      "tutor_change_refusal.message",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -2987,8 +2993,8 @@
    }
   },
   "bookings.cancel @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3048,7 +3054,8 @@
      "tutor_change_refusal",
      "tutor_change_refusal.code",
      "tutor_change_refusal.message",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -3060,8 +3067,8 @@
    }
   },
   "bookings.cancel @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3121,7 +3128,8 @@
      "tutor_change_refusal",
      "tutor_change_refusal.code",
      "tutor_change_refusal.message",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -3169,8 +3177,8 @@
    }
   },
   "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3225,7 +3233,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -3284,8 +3293,8 @@
    }
   },
   "bookings.detail @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3340,7 +3349,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -3351,8 +3361,8 @@
    }
   },
   "bookings.detail @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3407,7 +3417,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -3418,8 +3429,8 @@
    }
   },
   "bookings.detail @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -3474,7 +3485,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -4525,8 +4537,8 @@
    }
   },
   "bookings.reschedule @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -4594,6 +4606,7 @@
      "booking.tutor_assigned_by",
      "booking.tutor_change_refusal",
      "booking.tutor_changeable",
+     "booking.tutor_meet_link",
      "previous",
      "previous.id",
      "previous.status",
@@ -4660,8 +4673,8 @@
    }
   },
   "bookings.reschedule @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -4729,6 +4742,7 @@
      "booking.tutor_assigned_by",
      "booking.tutor_change_refusal",
      "booking.tutor_changeable",
+     "booking.tutor_meet_link",
      "previous",
      "previous.id",
      "previous.status",
@@ -4747,8 +4761,8 @@
    }
   },
   "bookings.reschedule @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -4816,6 +4830,7 @@
      "booking.tutor_assigned_by",
      "booking.tutor_change_refusal",
      "booking.tutor_changeable",
+     "booking.tutor_meet_link",
      "previous",
      "previous.id",
      "previous.status",
@@ -4834,8 +4849,8 @@
    }
   },
   "bookings.reschedule @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "booking",
@@ -4903,6 +4918,7 @@
      "booking.tutor_assigned_by",
      "booking.tutor_change_refusal",
      "booking.tutor_changeable",
+     "booking.tutor_meet_link",
      "previous",
      "previous.id",
      "previous.status",
@@ -6135,8 +6151,8 @@
    }
   },
   "bookings.unassign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -6192,7 +6208,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -6251,8 +6268,8 @@
    }
   },
   "bookings.unassign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -6308,7 +6325,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -6319,8 +6337,8 @@
    }
   },
   "bookings.unassign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -6376,7 +6394,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -6387,8 +6406,8 @@
    }
   },
   "bookings.unassign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "actions",
@@ -6444,7 +6463,8 @@
      "tutor_assigned_at",
      "tutor_assigned_by",
      "tutor_change_refusal",
-     "tutor_changeable"
+     "tutor_changeable",
+     "tutor_meet_link"
     ],
     "records": [
      "booking_a",
@@ -11766,9 +11786,1493 @@
     "status": 400
    }
   },
+  "team.create.admin @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "su_mentor"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.admin @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "su_tutor"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.admin @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "superuser"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.mentor @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "admin",
+     "new"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.mentor @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "su_mentor"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.mentor @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "su_tutor"
+    ],
+    "status": 201
+   }
+  },
+  "team.create.mentor @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "invited_by.email",
+     "invited_by.full_name",
+     "invited_by.id",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "new",
+     "superuser"
+    ],
+    "status": 201
+   }
+  },
+  "team.deactivate @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.deactivate @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.deactivate @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.deactivate @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.detail @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.detail @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.detail @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.detail @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.list @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "[].created_at",
+     "[].deactivated_at",
+     "[].deactivation_reason",
+     "[].email",
+     "[].full_name",
+     "[].has_password",
+     "[].id",
+     "[].invited_by",
+     "[].is_active",
+     "[].is_superuser",
+     "[].last_login",
+     "[].locked_until",
+     "[].mobile_number",
+     "[].must_change_password",
+     "[].permissions",
+     "[].role",
+     "[].tutor_meet_link",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "mentor_a",
+     "mentor_b",
+     "mentor_c",
+     "su_mentor",
+     "su_tutor",
+     "superuser",
+     "tutor_a",
+     "tutor_b",
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.list @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "[].created_at",
+     "[].deactivated_at",
+     "[].deactivation_reason",
+     "[].email",
+     "[].full_name",
+     "[].has_password",
+     "[].id",
+     "[].invited_by",
+     "[].is_active",
+     "[].is_superuser",
+     "[].last_login",
+     "[].locked_until",
+     "[].mobile_number",
+     "[].must_change_password",
+     "[].permissions",
+     "[].role",
+     "[].tutor_meet_link",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "mentor_a",
+     "mentor_b",
+     "mentor_c",
+     "su_mentor",
+     "su_tutor",
+     "superuser",
+     "tutor_a",
+     "tutor_b",
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.list @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "[].created_at",
+     "[].deactivated_at",
+     "[].deactivation_reason",
+     "[].email",
+     "[].full_name",
+     "[].has_password",
+     "[].id",
+     "[].invited_by",
+     "[].is_active",
+     "[].is_superuser",
+     "[].last_login",
+     "[].locked_until",
+     "[].mobile_number",
+     "[].must_change_password",
+     "[].permissions",
+     "[].role",
+     "[].tutor_meet_link",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "mentor_a",
+     "mentor_b",
+     "mentor_c",
+     "su_mentor",
+     "su_tutor",
+     "superuser",
+     "tutor_a",
+     "tutor_b",
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.list @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "[].created_at",
+     "[].deactivated_at",
+     "[].deactivation_reason",
+     "[].email",
+     "[].full_name",
+     "[].has_password",
+     "[].id",
+     "[].invited_by",
+     "[].is_active",
+     "[].is_superuser",
+     "[].last_login",
+     "[].locked_until",
+     "[].mobile_number",
+     "[].must_change_password",
+     "[].permissions",
+     "[].role",
+     "[].tutor_meet_link",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "mentor_a",
+     "mentor_b",
+     "mentor_c",
+     "su_mentor",
+     "su_tutor",
+     "superuser",
+     "tutor_a",
+     "tutor_b",
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.meet_link @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.meet_link @ anon": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ mentor_a": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ mentor_b": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ parent_a": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.meet_link @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.meet_link @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.meet_link @ tutor_a": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ tutor_b": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.meet_link @ unknown": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Refused: only holders of accounts.manage_team (the Admin role; superusers under D1) set a tutor's Meet link -- never a tutor, mentor, student or unknown role, nor an anonymous caller.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "team.permissions.grant @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "TUTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.permissions.grant @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "TUTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.permissions.grant @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "TUTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.permissions.grant @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "TUTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_a"
+    ],
+    "status": 200
+   }
+  },
+  "team.reactivate @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.reactivate @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.reactivate @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.reactivate @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
+  "team.reset_password @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.reset_password @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.reset_password @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.reset_password @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.admin_target @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "admin2"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.admin_target @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "admin2"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.admin_target @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "admin2"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.name @ admin": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.name @ su_mentor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.name @ su_tutor": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
+  "team.update.name @ superuser": {
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
+   "result": {
+    "capture": {
+     "permissions": [
+      "accounts.view_team"
+     ],
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "deactivation_reason",
+     "email",
+     "full_name",
+     "has_password",
+     "id",
+     "invited_by",
+     "is_active",
+     "is_superuser",
+     "last_login",
+     "locked_until",
+     "mobile_number",
+     "must_change_password",
+     "permissions",
+     "role",
+     "tutor_meet_link",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
   "team.update.role @ admin": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it.",
-   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change).",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
      "permissions": [],
@@ -11791,6 +13295,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_meet_link",
      "username"
     ],
     "records": [
@@ -11800,8 +13305,8 @@
    }
   },
   "team.update.role @ su_mentor": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it.",
-   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change).",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
      "permissions": [],
@@ -11824,6 +13329,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_meet_link",
      "username"
     ],
     "records": [
@@ -11833,8 +13339,8 @@
    }
   },
   "team.update.role @ su_tutor": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it.",
-   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change).",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
      "permissions": [],
@@ -11857,6 +13363,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_meet_link",
      "username"
     ],
     "records": [
@@ -11866,8 +13373,8 @@
    }
   },
   "team.update.role @ superuser": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it.",
-   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change).",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
      "permissions": [],
@@ -11890,6 +13397,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_meet_link",
      "username"
     ],
     "records": [

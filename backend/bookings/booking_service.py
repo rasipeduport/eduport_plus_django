@@ -49,7 +49,14 @@ commits.
 reschedule_booking takes the most locks, always in this order (design B.7):
 both slots in time order, then the lead (FOR NO KEY UPDATE: the lead-level
 conflict check), then the booking, then the tutor's scheduling lock and row
-when a tutor would carry over. Every other writer takes a prefix of it.
+when a tutor would carry over. Every other writer takes a prefix of it;
+set_tutor_meet_link keeps the same order without the slots and the lead: the
+tutor's live bookings, then the tutor's row.
+
+A booking copies its tutor's permanent Google Meet link when the tutor is
+assigned (or carried over by a reschedule) and drops it when unassigned.
+set_tutor_meet_link keeps live bookings in step with a changed link; every
+other booking keeps the link it had.
 """
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, time as time_type, timedelta
@@ -206,6 +213,11 @@ class LeadAlreadyBooked(BookingError):
 class TutorNotAssignable(BookingError):
     code = 'INVALID_TUTOR'
     message = 'Selected tutor is not an active tutor.'
+
+
+class NotATutor(BookingError):
+    code = 'NOT_A_TUTOR'
+    message = 'Only a tutor account has a permanent Meet link.'
 
 
 class TutorUnavailable(BookingError):
@@ -508,6 +520,9 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
                 assigned_tutor=tutor if carried else None,
                 tutor_assigned_at=moved_at if carried else None,
                 tutor_assigned_by=actor if carried else None,
+                # A new assignment: the tutor's link as it is now. The old
+                # booking keeps the one it had.
+                tutor_meet_link=tutor.tutor_meet_link if carried else None,
             )
             history.record(
                 old, BookingEventKind.RESCHEDULED, actor=actor,
@@ -756,7 +771,11 @@ def assign_tutor(booking, tutor, actor=None, now=None):
             booking.assigned_tutor = tutor
             booking.tutor_assigned_at = timezone.now()
             booking.tutor_assigned_by = actor
-            booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+            # The new tutor's permanent link as it is now, read under their row lock.
+            booking.tutor_meet_link = tutor.tutor_meet_link
+            booking.save(update_fields=[
+                'assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'tutor_meet_link', 'updated_at',
+            ])
             history.record(
                 booking, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
                 old_tutor_id=previous_tutor_id, new_tutor_id=tutor.pk,
@@ -788,7 +807,10 @@ def unassign_tutor(booking, actor=None, now=None):
             booking.assigned_tutor = None
             booking.tutor_assigned_at = None
             booking.tutor_assigned_by = None
-            booking.save(update_fields=['assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'updated_at'])
+            booking.tutor_meet_link = None
+            booking.save(update_fields=[
+                'assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'tutor_meet_link', 'updated_at',
+            ])
             history.record(booking, BookingEventKind.TUTOR_UNASSIGNED, actor=actor, old_tutor_id=previous_tutor_id)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
@@ -796,6 +818,60 @@ def unassign_tutor(booking, actor=None, now=None):
         raise
     _log_tutor_change(booking, 'booking.unassign_tutor', actor, previous_tutor_id, None)
     return booking, True
+
+
+def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
+    """
+    Make ``meet_link`` -- in its stored form (accounts.meet_links), or None to
+    remove it -- ``tutor``'s permanent Google Meet link. Returns (tutor,
+    changed, bookings): the account as saved, whether its link changed, and
+    the bookings whose link changed with it, soonest first.
+
+    Each live booking assigned to the tutor -- booked, its slot not yet ended,
+    as an enquiry counts it -- takes the new link too, so the classes still to
+    be taught use it. Every other booking keeps the link it had: one whose slot
+    has ended, or one completed, cancelled or moved, records the room it was
+    taught in (or was to be), whatever the tutor's link becomes. Each booking
+    changed records MEET_LINK_UPDATED in its history -- whether it has a link,
+    never the link. Only a TUTOR account has one (NotATutor), active or not.
+    Who may set it -- an administrator -- is the caller's check, and so is the
+    activity log.
+
+    Locks: the tutor's live bookings first, then the account row -- the order
+    assign_tutor takes a booking and its tutor in -- so an assignment racing
+    this change either commits first and is updated here, or waits for it and
+    copies the new link.
+    """
+    now = now or timezone.now()
+    live = {'assigned_tutor_id': tutor.pk, 'status': BookingStatus.BOOKED, 'slot__ends_at__gt': now}
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            for model in BOOKING_MODELS:
+                list(model.objects.select_for_update(of=('self',)).filter(**live).order_by('pk').only('pk'))
+            account = User.objects.select_for_update(no_key=True).filter(pk=tutor.pk).first()
+            if account is None or account.role != RoleChoices.TUTOR:
+                raise NotATutor()
+            if account.tutor_meet_link == meet_link:
+                return account, False, []
+            account.tutor_meet_link = meet_link
+            account.save(update_fields=['tutor_meet_link', 'updated_at'])
+            changed = []
+            for model in BOOKING_MODELS:
+                for booking in model.objects.filter(**live).select_related('slot'):
+                    if booking.tutor_meet_link == meet_link:
+                        continue
+                    booking.tutor_meet_link = meet_link
+                    booking.save(update_fields=['tutor_meet_link', 'updated_at'])
+                    history.record(
+                        booking, BookingEventKind.MEET_LINK_UPDATED, actor=actor, has_meet_link=meet_link is not None,
+                    )
+                    changed.append(booking)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    return account, True, sorted(changed, key=lambda booking: (booking.slot.starts_at, booking.created_at))
 
 
 def close_slot(booking_type, local_date, local_time, actor=None, reason=''):

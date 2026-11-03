@@ -433,6 +433,9 @@ SCENARIOS = [
     Scenario('team.reset_password', 'post', '/api/team/{mentor_c}/reset-password/', {'temporary_password': 'Fresh-Start-Secret-77'}),
     Scenario('team.permissions.grant', 'put', '/api/team/{tutor_a}/permissions/', {'permissions': ['accounts.view_team']}, capture=_member),
     Scenario('team.permissions.catalogue', 'get', '/api/team/permissions/'),
+    # A tutor's permanent Google Meet link (BDE-to-PDF Phase 1): team managers only, tutors only.
+    Scenario('team.meet_link', 'put', '/api/team/{tutor_a}/meet-link/',
+             {'tutor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
 
     # --- legacy staff endpoints ----------------------------------------------
     Scenario('staff.mentors', 'get', '/api/mentors/'),

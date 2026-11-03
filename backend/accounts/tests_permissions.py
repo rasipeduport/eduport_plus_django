@@ -875,7 +875,16 @@ class NewRoleTests(PermissionTestCase):
 
 
 class MigrationReversalTests(TransactionTestCase):
-    """0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again with the same seeds."""
+    """
+    0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again
+    with the same seeds, ending at the app's leaf.
+    """
+
+    @staticmethod
+    def profile_columns():
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'profiles'")
+            return {row[0] for row in cursor.fetchall()}
 
     def groups(self):
         return {
@@ -891,6 +900,7 @@ class MigrationReversalTests(TransactionTestCase):
         with connection.cursor() as cursor:
             cursor.execute("SELECT to_regclass('public.role_groups')")
             self.assertIsNone(cursor.fetchone()[0])
+        self.assertNotIn('tutor_meet_link', self.profile_columns())  # 0016 reversed with the rest
         self.assertFalse(Group.objects.exists())
         self.assertFalse(Permission.objects.filter(content_type__model='hubpermission').exists())
         self.assertTrue(Permission.objects.filter(codename='view_team').exists())  # 0007's, untouched
@@ -971,6 +981,8 @@ class MigrationReversalTests(TransactionTestCase):
         self.assertEqual(self.groups(), EXPECTED_ROLE_PERMISSIONS)
         self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
 
+        # Back to the leaf, whichever migration that is now: 0016 (a tutor's Meet link) changes no group.
         executor = MigrationExecutor(connection)
-        executor.migrate([('accounts', '0015_demo_diagnostic_workflow_permissions')])  # back to the leaf
+        executor.migrate(executor.loader.graph.leaf_nodes('accounts'))
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertIn('tutor_meet_link', self.profile_columns())

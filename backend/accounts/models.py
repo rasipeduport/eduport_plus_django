@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from .meet_links import MEET_LINK_DB_PATTERN, MEET_LINK_MAX_LENGTH, validate_meet_link
 from .permission_catalogue import hub_permission_meta
 
 
@@ -176,6 +177,18 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text='Password sign-in is refused until this time. Clear it (and the count) to unlock.',
     )
 
+    # A tutor's permanent Google Meet room, where their Demo and Diagnostic
+    # bookings are taught (accounts.meet_links). Tutors only, and set only
+    # through the Team API by an administrator; NULL = not configured. Each
+    # booking keeps its own copy (bookings.booking_service). Not the room of an
+    # enrolled student's classes, which is students.Student.meet_link.
+    tutor_meet_link = models.CharField(
+        max_length=MEET_LINK_MAX_LENGTH,
+        null=True,
+        blank=True,
+        validators=[validate_meet_link],
+    )
+
     # Django-required fields. `is_staff` means "may use the Django admin site"
     # and nothing else; application access comes from `role` (and, from
     # Phase 3, groups and permissions). It is never set by provisioning.
@@ -197,6 +210,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         # accounts.permission_catalogue and resolved by accounts.authz.
         permissions = [
             ('view_team', 'Can view the team directory'),
+        ]
+        constraints = [
+            # Only a tutor teaches bookings, so only a tutor has a Meet link.
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(role=RoleChoices.TUTOR),
+                name='profiles_meet_link_tutors_only',
+            ),
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
+                name='profiles_meet_link_google_meet',
+            ),
         ]
 
     def clean(self):
