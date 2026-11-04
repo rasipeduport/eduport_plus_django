@@ -6529,6 +6529,314 @@
     "status": 403
    }
   },
+  "communications.whatsapp_webhook_status @ admin": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ anon": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ mentor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ mentor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ parent_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ su_mentor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ su_tutor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ superuser": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ tutor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ tutor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ unknown": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ admin": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ anon": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ mentor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ mentor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ parent_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ su_mentor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ su_tutor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ superuser": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ tutor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ tutor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ unknown": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
   "dashboard.staff @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
    "note": "A superuser with the Mentor or Tutor role is no longer held to that role's scope: they act as an administrator (same results as the Admin-role superuser). The Django admin warns about the combination.",

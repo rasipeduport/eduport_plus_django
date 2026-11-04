@@ -28,6 +28,7 @@ from rest_framework.test import APITestCase
 from accounts.team import IsTeamManager, TeamAccess
 from activity.models import ActivityLog
 from bookings.authentication import BookingServiceAuthentication, IsBookingService
+from communications.webhooks import IsMetaCallback
 from core.authz_matrix import api_routes, api_url_patterns
 from core.querysets import scope_activity, scope_exams, scope_homework, scope_sessions, scope_students
 from exams.models import AdditionalExam, Exam
@@ -310,6 +311,9 @@ OPEN_VIEWS = {
 # Views no account may call: only the marketing site's server, with its service
 # key (bookings.authentication). Sessions are not read there at all.
 SERVICE_VIEWS = {'PublicBookingCalendarView', 'PublicBookingCreateView'}
+# Views only Meta's servers may call: the WhatsApp webhook, guarded by the verify
+# token or the callback signature (communications.webhooks). No session is read.
+WEBHOOK_VIEWS = {'WhatsAppWebhookView'}
 # Permission classes that decide by catalogue permission (accounts.authz).
 PERMISSION_FACTORIES = ('HasAppPermission', 'HasAnyAppPermission', 'ByMethod', 'IsStudentUser')
 
@@ -341,6 +345,10 @@ class ViewPermissionTests(SimpleTestCase):
                 self.assertEqual(classes, [IsBookingService], view.__name__)
                 self.assertEqual(list(view.authentication_classes), [BookingServiceAuthentication], view.__name__)
                 continue
+            if view.__name__ in WEBHOOK_VIEWS:
+                self.assertEqual(classes, [IsMetaCallback], view.__name__)
+                self.assertEqual(list(view.authentication_classes), [], view.__name__)
+                continue
             if not any(_decides_by_permission(permission) for permission in classes if permission is not IsAuthenticated):
                 unguarded.append(f'{route} ({view.__name__})')
         self.assertEqual(unguarded, [], 'API views without a permission guard')
@@ -348,6 +356,6 @@ class ViewPermissionTests(SimpleTestCase):
     def test_staff_endpoints_also_require_a_signed_in_account(self):
         # IsAuthenticated first, so an anonymous caller gets "not signed in" rather than "not allowed".
         for route, view in api_views():
-            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS:
+            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS | WEBHOOK_VIEWS:
                 with self.subTest(route=route):
                     self.assertIs(list(view.permission_classes)[0], IsAuthenticated)

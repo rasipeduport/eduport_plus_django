@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.core import checks
 from django.db.models.signals import post_migrate
 
 
@@ -18,3 +19,7 @@ class CommunicationsConfig(AppConfig):
         # The PRD's templates exist wherever communications is migrated: after
         # every `migrate`, and after a test flushes the tables.
         post_migrate.connect(_ensure_prd_templates, sender=self, dispatch_uid='communications.prd_templates')
+        # A misconfigured WhatsApp provider or allow-list stops `migrate`.
+        from .checks import check_whatsapp_settings
+
+        checks.register(check_whatsapp_settings)

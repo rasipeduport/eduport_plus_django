@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from bookings.models import BookingStatus, BookingType, ParentConfirmation
 
+from .chain import EarlierAcknowledgement, earlier_acknowledgement
 from .models import Step
 
 PLACEHOLDER = re.compile(r'\{\{\s*([A-Za-z0-9_]+)\s*\}\}')
@@ -124,6 +125,11 @@ class Requirement(TextChoices):
     MEET_LINK = 'MEET_LINK', 'Tutor Meet link'
     BDE_CONTACT = 'BDE_CONTACT', 'BDE contact'
     LEAD_DETAILS = 'LEAD_DETAILS', 'Parent and student details'
+    # A rescheduled booking's acknowledgement goes only once the one of the
+    # bookings it replaced is known not to have been accepted: never while it
+    # is being sent, and never while its outcome is unknown (for someone to
+    # check). One accepted closes this acknowledgement instead (planner).
+    EARLIER_ACKNOWLEDGEMENT = 'EARLIER_ACKNOWLEDGEMENT', "Earlier booking's acknowledgement not accepted"
 
 
 # What each step needs whatever its wording says: the confirmed message never
@@ -163,6 +169,10 @@ def requirements(booking, step, body, now=None):
     }
     result = [] if not unknown_placeholders(booking.booking_type, body) else [(Requirement.TEMPLATE_VALID, False)]
     result += [(gate, gates[gate]) for gate in _STEP_GATES[step]]
+    if step == Step.ACKNOWLEDGEMENT and booking.rescheduled_from_id:
+        earlier = earlier_acknowledgement(booking)
+        result.append((Requirement.EARLIER_ACKNOWLEDGEMENT,
+                       earlier in (EarlierAcknowledgement.NONE, EarlierAcknowledgement.NOT_ACCEPTED)))
     needed = {}
     for name in (*_STEP_VALUES.get(step, ()), *placeholders(body)):
         if name in _VALUE_REQUIREMENTS:

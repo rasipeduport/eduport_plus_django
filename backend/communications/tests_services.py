@@ -172,6 +172,11 @@ class TableRuleTests(CommunicationTestCase):
         self.refused(lambda: update(channel=Channel.MANUAL_WHATSAPP, status=MessageStatus.DELIVERED, sent_at=NOW,
                                     sent_by=self.bde))
         update(channel=Channel.MANUAL_WHATSAPP, status=MessageStatus.SENT, sent_at=NOW, sent_by=self.bde)
+        # WhatsApp is the only channel.
+        self.refused(lambda: update(channel='SMS'))
+        self.refused(lambda: MessageAttempt.objects.create(
+            message=ack, number=1, channel='SMS', provider='console', started_at=NOW, finished_at=NOW, outcome='FAILED',
+            error_code='X'))
         # A failure says why; a cancellation says why.
         self.refused(lambda: Message.objects.filter(pk=ack.pk).update(channel='', status=MessageStatus.FAILED, failed_at=NOW))
         self.refused(lambda: Message.objects.filter(pk=ack.pk).update(channel='', status=MessageStatus.CANCELLED, cancelled_at=NOW))

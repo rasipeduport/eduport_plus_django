@@ -202,7 +202,7 @@ class RescheduleTests(CommunicationTestCase):
         for booking in (second, third):
             with self.subTest(booking=booking.pk):
                 task = self.tasks(booking)[Step.ACKNOWLEDGEMENT]
-                self.assertEqual((task.status, task.resolution), (TaskStatus.DONE, TaskResolution.ALREADY_SENT))
+                self.assertEqual((task.status, task.resolution), (TaskStatus.DONE, TaskResolution.ALREADY_ACKNOWLEDGED))
                 self.assertNotIn('DEMO_ACKNOWLEDGEMENT', self.messages(booking))
         self.assertEqual(self.messages(first)['DEMO_ACKNOWLEDGEMENT'].status, MessageStatus.SENT)
 
@@ -217,7 +217,7 @@ class RescheduleTests(CommunicationTestCase):
         for booking in (third, fourth):
             with self.subTest(booking=booking.pk):
                 task = self.tasks(booking)[Step.ACKNOWLEDGEMENT]
-                self.assertEqual((task.status, task.resolution), (TaskStatus.DONE, TaskResolution.ALREADY_SENT))
+                self.assertEqual((task.status, task.resolution), (TaskStatus.DONE, TaskResolution.ALREADY_ACKNOWLEDGED))
                 self.assertNotIn('DEMO_ACKNOWLEDGEMENT', self.messages(booking))
         acks = Message.objects.filter(template__step=Step.ACKNOWLEDGEMENT)
         self.assertEqual(
@@ -245,6 +245,8 @@ class CompletionTests(CommunicationTestCase):
                 self.assertEqual(after.body, prd_text(key).replace('{{bde_name}}', 'Bde Anil'))
                 task = self.tasks(booking)[Step.AFTER_ACTIVITY]
                 self.assertEqual((task.active_from, task.due_at), (at, at + 3 * HOUR))
+                # It goes within 24 hours of completion or not at all.
+                self.assertEqual((after.scheduled_for, after.send_before), (at, at + 24 * HOUR))
 
                 # Neither a second run nor a report edit writes another.
                 booking.refresh_from_db()

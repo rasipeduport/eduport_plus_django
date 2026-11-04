@@ -132,8 +132,6 @@ class MessageTemplateVersion(models.Model):
     version = models.PositiveIntegerField()
     # Placeholders are {{name}} (communications.rendering.VARIABLES); bold is **text**.
     body = models.TextField()
-    # A plain-text wording for SMS, where the body does not suit it; empty = none.
-    sms_body = models.TextField(blank=True, default='')
     # The provider's approved template this version maps to, per provider; empty until one is chosen.
     provider_refs = models.JSONField(default=dict, blank=True)
     note = models.CharField(max_length=255, blank=True, default='')
@@ -178,11 +176,18 @@ class TaskStatus(models.TextChoices):
 
 
 class TaskResolution(models.TextChoices):
-    """How a task closed: what was done, or why it no longer applies."""
+    """
+    How a task closed: what was done, or why it no longer applies. A message
+    step closes when the provider accepts the message -- ACCEPTED when it only
+    queued it, SENT when it reported it sent. Delivered and Read are the
+    message's own states (Message.status), never a task's.
+    """
+    ACCEPTED = 'ACCEPTED', 'Accepted by the provider (queued, not yet sent)'
     SENT = 'SENT', 'Message sent'
     MARKED_SENT = 'MARKED_SENT', 'Sent manually'
-    # A rescheduled booking's acknowledgement: already sent for a booking it replaced.
-    ALREADY_SENT = 'ALREADY_SENT', 'Already sent for the earlier booking'
+    # A rescheduled booking's acknowledgement: a booking it replaced had its
+    # acknowledgement accepted, so no second one goes.
+    ALREADY_ACKNOWLEDGED = 'ALREADY_ACKNOWLEDGED', 'Acknowledged for the earlier booking'
     # The confirmation request once the parent has confirmed anyway.
     NOT_NEEDED = 'NOT_NEEDED', 'Not needed'
     CALLED = 'CALLED', 'Called'
@@ -194,7 +199,8 @@ class TaskResolution(models.TextChoices):
 
 # How a message step is done, and what the BDE may record for the 15-minute call -- and only for it.
 MESSAGE_RESOLUTIONS = (
-    TaskResolution.SENT, TaskResolution.MARKED_SENT, TaskResolution.ALREADY_SENT, TaskResolution.NOT_NEEDED,
+    TaskResolution.ACCEPTED, TaskResolution.SENT, TaskResolution.MARKED_SENT, TaskResolution.ALREADY_ACKNOWLEDGED,
+    TaskResolution.NOT_NEEDED,
 )
 CALL_OUTCOMES = (TaskResolution.CALLED, TaskResolution.MESSAGED, TaskResolution.NO_ANSWER)
 DONE_RESOLUTIONS = (*MESSAGE_RESOLUTIONS, *CALL_OUTCOMES)
@@ -360,11 +366,18 @@ UNSENT_STATUSES = (MessageStatus.WAITING, MessageStatus.PENDING, MessageStatus.F
 # Handed to a provider, or sent by hand: the parent has it, or will.
 HANDED_OVER_STATUSES = (MessageStatus.QUEUED, MessageStatus.SENT, MessageStatus.DELIVERED, MessageStatus.READ)
 SENT_STATUSES = (MessageStatus.SENT, MessageStatus.DELIVERED, MessageStatus.READ)
+# The failure code of a send whose outcome nobody knows: the provider may have
+# taken it, so it is never sent again by itself (communications.sending).
+OUTCOME_UNKNOWN = 'OUTCOME_UNKNOWN'
+# A delivery failure: the provider accepted the message (so it holds the
+# provider's id) and then reported it undelivered -- for the BDE to follow up,
+# unlike a send the provider refused. Never cancelled, expired or retried.
+DELIVERY_FAILURES = Q(status=MessageStatus.FAILED) & ~Q(provider_message_id='')
 
 
 class Channel(models.TextChoices):
+    """WhatsApp is the only channel: through a provider, or by the BDE by hand."""
     WHATSAPP = 'WHATSAPP', 'WhatsApp'
-    SMS = 'SMS', 'SMS'
     # Sent by the BDE from WhatsApp themselves: Sent at most, never Delivered or Read.
     MANUAL_WHATSAPP = 'MANUAL_WHATSAPP', 'WhatsApp (sent manually)'
 
@@ -533,6 +546,11 @@ class Message(models.Model):
     def booking(self):
         return self.diagnostic_booking or self.demo_booking
 
+    @property
+    def is_delivery_failure(self):
+        """Failed after the provider accepted it (DELIVERY_FAILURES), not refused when sent."""
+        return self.status == MessageStatus.FAILED and bool(self.provider_message_id)
+
 
 class AttemptOutcome(models.TextChoices):
     ACCEPTED = 'ACCEPTED', 'Accepted by the provider'
@@ -624,3 +642,48 @@ class MessageStatusEvent(models.Model):
 
     def __str__(self):
         return f'{self.get_status_display()} ({self.received_at:%Y-%m-%d %H:%M})'
+
+
+class UnmatchedStatusEvent(models.Model):
+    """
+    A status a provider reported for a message id no message holds yet --
+    most often a callback that came before the sender had recorded the id.
+    Kept until a message does (communications.status_updates.reconcile), then
+    applied to it and removed; one never matched is purged after
+    UNMATCHED_RETENTION. It holds the report only: no recipient number, no
+    message text.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.CharField(max_length=50)
+    provider_message_id = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=MessageStatus.choices)
+    provider_status = models.CharField(max_length=50, blank=True, default='')
+    occurred_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(default=timezone.now)
+    error_code = models.CharField(max_length=50, blank=True, default='')
+    error_message = models.TextField(blank=True, default='')
+    error_temporary = models.BooleanField(null=True, blank=True)
+    # The key its MessageStatusEvent will have: a report already kept, either way, is not kept again.
+    dedupe_key = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        db_table = 'communication_unmatched_status_events'
+        verbose_name = 'Unmatched status event'
+        verbose_name_plural = 'Unmatched status events'
+        ordering = ['received_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=[
+                    MessageStatus.QUEUED, MessageStatus.SENT, MessageStatus.DELIVERED,
+                    MessageStatus.READ, MessageStatus.FAILED,
+                ]),
+                name='communication_unmatched_status_events_provider_status',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['provider', 'provider_message_id'], name='comm_unmatched_msg_idx'),
+            models.Index(fields=['received_at'], name='comm_unmatched_received_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_status_display()} for an unknown message ({self.received_at:%Y-%m-%d %H:%M})'
