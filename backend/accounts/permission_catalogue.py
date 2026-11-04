@@ -16,11 +16,12 @@ rest are carried by role groups only.
 accounts.view_team predates the catalogue and lives on the User model; every
 other entry lives on the table-less accounts.HubPermission model. A permission
 is added here only together with the code that enforces it, and with a new
-migration creating its row -- with one planned exception: the Demo/Diagnostic
-workflow's permissions (Phase 5.2, migration 0015) are seeded ahead of the
-phases whose code checks them, as its design laid out. Each says which phase
-that is; none is individually grantable, and none opens anything until its
-phase's code asks for it.
+migration creating its row -- with two planned exceptions: the Demo/Diagnostic
+workflow's permissions (Phase 5.2, migration 0015) and the parent
+communication permissions (Phase 2A, migration 0017) are seeded ahead of the
+phases whose code checks them, as their designs laid out. Each says which
+phase that is; none is individually grantable, and none opens anything until
+its phase's code asks for it.
 """
 
 STAFF = ('ADMIN', 'MENTOR', 'TUTOR')
@@ -134,6 +135,15 @@ CATALOGUE = {
     'accounts.manage_conversions': _entry('Manage conversion on any lead', 'Conversions', ADMIN_ONLY),
     # Enquiries: an owner for an unowned lead (D14, P11).
     'accounts.assign_lead_owner': _entry('Assign an owner BDE to an unowned lead', 'Enquiries', ADMIN_ONLY),
+
+    # Parent communication (communications app): seeded in Phase 2A, checked by
+    # its APIs (2C). A BDE acts on their own leads' bookings only, which the
+    # communication code checks; tutors and Sales TL hold none.
+    'accounts.view_own_lead_communications': _entry("View their own leads' communication", 'Communications', BDE_ONLY),
+    'accounts.send_lead_communications': _entry('Send and follow up parent messages', 'Communications', BDE_AND_ADMIN),
+    'accounts.record_parent_confirmation': _entry("Record a parent's confirmation", 'Communications', BDE_AND_ADMIN),
+    'accounts.view_all_communications': _entry("View every booking's communication", 'Communications', ADMIN_ONLY),
+    'accounts.manage_message_templates': _entry('Manage message templates', 'Communications', ADMIN_ONLY),
 }
 
 

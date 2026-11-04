@@ -1,0 +1,185 @@
+"""
+Filling a template from a booking (PRD 3.11): the placeholders each booking
+type's templates may use, where each value comes from, how dates and times
+read, and what a message still needs before it can go (requirements).
+
+Strict by design. A placeholder with no value never renders as blank text --
+render raises MissingValues -- and one no template of the type may use is
+refused (UnknownPlaceholders). Every value comes from the booking the message
+belongs to: a Demo's message never shows a Diagnostic's details. Dates and
+times are the slot's own, which are Indian time (the templates say "IST").
+
+The sender is the lead's BDE: their name and their mobile number (Team). A
+lead with no BDE -- a booking made without a valid BDE link -- signs with the
+central contact in COMMUNICATIONS_FALLBACK_SENDER_NAME / _PHONE; a BDE with
+no mobile number never falls back to it, so their messages wait instead.
+"""
+import re
+
+from django.conf import settings
+from django.db.models import TextChoices
+from django.utils import timezone
+
+from bookings.models import BookingStatus, BookingType, ParentConfirmation
+
+from .models import Step
+
+PLACEHOLDER = re.compile(r'\{\{\s*([A-Za-z0-9_]+)\s*\}\}')
+
+_COMMON_VARIABLES = ('parent_name', 'student_name', 'tutor_name', 'meeting_link', 'bde_name', 'bde_phone')
+# The placeholders each booking type's templates may use. Diagnostic tests are
+# taught in the tutor's Meet room too, so both use meeting_link.
+VARIABLES = {
+    BookingType.DEMO: ('demo_date', 'demo_time', *_COMMON_VARIABLES),
+    BookingType.DIAGNOSTIC: ('diagnostic_date', 'diagnostic_time', *_COMMON_VARIABLES),
+}
+
+_DAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+_MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+
+class TemplateError(Exception):
+    """A template and a booking's values cannot make a message."""
+
+
+class UnknownPlaceholders(TemplateError):
+    def __init__(self, names):
+        super().__init__(f'Unknown placeholders: {", ".join(names)}')
+        self.names = names
+
+
+class MissingValues(TemplateError):
+    def __init__(self, names):
+        super().__init__(f'No value for: {", ".join(names)}')
+        self.names = names
+
+
+def placeholders(body):
+    """The placeholder names in ``body``, in the order they first appear."""
+    return list(dict.fromkeys(PLACEHOLDER.findall(body)))
+
+
+def unknown_placeholders(booking_type, body):
+    """The placeholders in ``body`` that ``booking_type``'s templates may not use."""
+    return [name for name in placeholders(body) if name not in VARIABLES[booking_type]]
+
+
+def check_placeholders(booking_type, body):
+    """Raise UnknownPlaceholders unless every placeholder in ``body`` is one ``booking_type`` may use."""
+    unknown = unknown_placeholders(booking_type, body)
+    if unknown:
+        raise UnknownPlaceholders(unknown)
+
+
+def format_date(value):
+    """A date as the messages show it: Tue, 4 Nov 2026."""
+    return f'{_DAYS[value.weekday()]}, {value.day} {_MONTHS[value.month - 1]} {value.year}'
+
+
+def format_time(value):
+    """A time as the messages show it, on the 12-hour clock: 7:30 PM."""
+    return f'{value.hour % 12 or 12}:{value.minute:02d} {"AM" if value.hour < 12 else "PM"}'
+
+
+def sender_contact(lead):
+    """(name, phone) the messages of ``lead``'s bookings sign with; None for what is missing."""
+    if lead.owner_bde_id:
+        return _text(lead.owner_bde.full_name), _text(lead.owner_bde.mobile_number)
+    return _text(settings.COMMUNICATIONS_FALLBACK_SENDER_NAME), _text(settings.COMMUNICATIONS_FALLBACK_SENDER_PHONE)
+
+
+def booking_values(booking):
+    """Every placeholder value of ``booking``'s type, read from ``booking``; None where it has none."""
+    prefix = 'demo' if booking.booking_type == BookingType.DEMO else 'diagnostic'
+    lead = booking.lead
+    tutor = booking.assigned_tutor
+    bde_name, bde_phone = sender_contact(lead)
+    return {
+        f'{prefix}_date': format_date(booking.slot.local_date),
+        f'{prefix}_time': format_time(booking.slot.local_time),
+        'parent_name': _text(lead.parent_name),
+        'student_name': _text(lead.student_name),
+        'tutor_name': _text(tutor.full_name) if tutor else None,
+        'meeting_link': _text(booking.tutor_meet_link),
+        'bde_name': bde_name,
+        'bde_phone': bde_phone,
+    }
+
+
+def render(body, values):
+    """``body`` with every placeholder replaced from ``values``. Raises MissingValues rather than leave one blank."""
+    missing = [name for name in placeholders(body) if not values.get(name)]
+    if missing:
+        raise MissingValues(missing)
+    return PLACEHOLDER.sub(lambda match: values[match.group(1)], body)
+
+
+class Requirement(TextChoices):
+    """Something a message needs before it can go; while one is unmet it is Waiting."""
+    TEMPLATE_VALID = 'TEMPLATE_VALID', 'Template'
+    PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmation'
+    BOOKING_ACTIVE = 'BOOKING_ACTIVE', 'Booking still upcoming'
+    BOOKING_COMPLETED = 'BOOKING_COMPLETED', 'Booking completed'
+    TUTOR_ASSIGNED = 'TUTOR_ASSIGNED', 'Tutor assigned'
+    MEET_LINK = 'MEET_LINK', 'Tutor Meet link'
+    BDE_CONTACT = 'BDE_CONTACT', 'BDE contact'
+    LEAD_DETAILS = 'LEAD_DETAILS', 'Parent and student details'
+
+
+# What each step needs whatever its wording says: the confirmed message never
+# goes without the parent's confirmation, a tutor, their Meet link and the
+# BDE's name and phone.
+_STEP_GATES = {
+    Step.ACKNOWLEDGEMENT: (Requirement.BOOKING_ACTIVE,),
+    Step.CONFIRMATION_REQUEST: (Requirement.BOOKING_ACTIVE,),
+    Step.PARENT_CONFIRMATION: (Requirement.PARENT_CONFIRMED, Requirement.BOOKING_ACTIVE),
+    Step.AFTER_ACTIVITY: (Requirement.BOOKING_COMPLETED,),
+}
+_STEP_VALUES = {
+    Step.PARENT_CONFIRMATION: ('tutor_name', 'meeting_link', 'bde_name', 'bde_phone'),
+}
+# Which requirement a missing value is; the date and time are always there.
+_VALUE_REQUIREMENTS = {
+    'tutor_name': Requirement.TUTOR_ASSIGNED,
+    'meeting_link': Requirement.MEET_LINK,
+    'bde_name': Requirement.BDE_CONTACT,
+    'bde_phone': Requirement.BDE_CONTACT,
+    'parent_name': Requirement.LEAD_DETAILS,
+    'student_name': Requirement.LEAD_DETAILS,
+}
+
+
+def requirements(booking, step, body, now=None):
+    """
+    What a ``step`` message of ``booking`` written from ``body`` needs, in the
+    order to show them: a list of (Requirement, met). It can go once all are met.
+    """
+    now = now or timezone.now()
+    values = booking_values(booking)
+    gates = {
+        Requirement.PARENT_CONFIRMED: booking.parent_confirmation == ParentConfirmation.CONFIRMED,
+        Requirement.BOOKING_ACTIVE: booking.status == BookingStatus.BOOKED and booking.slot.starts_at > now,
+        Requirement.BOOKING_COMPLETED: booking.status == BookingStatus.COMPLETED,
+    }
+    result = [] if not unknown_placeholders(booking.booking_type, body) else [(Requirement.TEMPLATE_VALID, False)]
+    result += [(gate, gates[gate]) for gate in _STEP_GATES[step]]
+    needed = {}
+    for name in (*_STEP_VALUES.get(step, ()), *placeholders(body)):
+        if name in _VALUE_REQUIREMENTS:
+            needed.setdefault(_VALUE_REQUIREMENTS[name], []).append(name)
+    for requirement in (Requirement.TUTOR_ASSIGNED, Requirement.MEET_LINK, Requirement.BDE_CONTACT,
+                        Requirement.LEAD_DETAILS):
+        if requirement in needed:
+            result.append((requirement, all(values.get(name) for name in needed[requirement])))
+    return result
+
+
+def is_ready(checks):
+    """Whether every requirement in ``checks`` (from requirements()) is met."""
+    return all(met for _requirement, met in checks)
+
+
+def _text(value):
+    """``value`` stripped, or None when there is nothing in it."""
+    value = (value or '').strip()
+    return value or None

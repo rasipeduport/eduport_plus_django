@@ -418,7 +418,8 @@ class MigrationReversalTests(TransactionTestCase):
                 rows = set(cursor.fetchall())
             self.assertEqual(rows, {(unassigned.id, None, None, None), (assigned.id, None, None, None)})
         finally:
-            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes('bookings'))
+            # Every app's latest, the apps built on bookings included.
+            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
 
 
 @skipUnless(connection.vendor == 'postgresql', 'the locks need PostgreSQL')

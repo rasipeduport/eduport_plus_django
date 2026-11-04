@@ -70,7 +70,9 @@ class SplitMigrationTests(TransactionTestCase):
         MigrationExecutor(connection).migrate([('bookings', target)])
 
     def latest(self):
-        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes('bookings'))
+        # Every app's latest: stepping bookings back also unapplies the apps
+        # built on it (reports, communications), which must come back too.
+        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
 
     def seed(self):
         """A Demo and a Diagnostic booking in the combined table, one of them cancelled, as 0004 left them."""
@@ -188,7 +190,7 @@ class ReasonCodeMigrationTests(TransactionTestCase):
                 booking_type=DEMO, local_date=DAY, local_time=MORNING, starts_at=ist(MORNING),
                 ends_at=ist(MORNING) + timedelta(hours=1)), seat=1, referral_status='NO_REF')
 
-            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes('bookings'))
+            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
             self.assertLessEqual({'cancel_reason_code', 'reschedule_reason_code', 'cancel_reason'}, self.columns('demo_bookings'))
             self.assertNotIn('reschedule_reason', self.columns('demo_bookings'))
             self.assertEqual(
@@ -204,7 +206,7 @@ class ReasonCodeMigrationTests(TransactionTestCase):
                 cursor.execute("SELECT count(*) FROM pg_proc WHERE proname = 'booking_reschedule_chain'")
                 self.assertEqual(cursor.fetchone()[0], 0)
         finally:
-            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes('bookings'))
+            MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
 
 
 class SplitCheckAfterTests(TestCase):

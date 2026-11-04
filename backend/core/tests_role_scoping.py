@@ -55,15 +55,19 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
 }
 # What /me lists: BDE its workspace's permissions and its own leads' Demo
 # handoff, reports and conversion; Sales TL the Conversion Tracker's (0015).
-# Those seeded by 0015 open no route until their phase's code asks for them.
+# Those seeded by 0015 and 0017 (parent communication) open no route until
+# their phase's code asks for them.
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
+    'accounts.record_parent_confirmation',
+    'accounts.send_lead_communications',
     'accounts.share_booking_report',
     'accounts.view_own_booking_links',
     'accounts.view_own_enquiries',
+    'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
 ]
 SALES_TL_PERMISSIONS = ['accounts.manage_team_conversion', 'accounts.view_conversion_tracker']

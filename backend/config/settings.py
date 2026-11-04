@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'homework',
     'bookings',
     'reports',
+    'communications',
 ]
 
 MIDDLEWARE = [
@@ -500,3 +501,9 @@ BOOKING_PHONE_DAILY_LIMIT = env.int('BOOKING_PHONE_DAILY_LIMIT', default=5)
 # (bookings.authentication), comma-separated so one can be rotated. None set
 # means the API answers nobody.
 BOOKING_SERVICE_API_KEYS = env.list('BOOKING_SERVICE_API_KEYS', default=[])
+
+# Parent communication (communications app). Messages for a lead with no BDE --
+# a booking made without a valid BDE link -- sign with this central name and
+# phone; while either is unset they wait instead of going out with a blank.
+COMMUNICATIONS_FALLBACK_SENDER_NAME = env('COMMUNICATIONS_FALLBACK_SENDER_NAME', default='')
+COMMUNICATIONS_FALLBACK_SENDER_PHONE = env('COMMUNICATIONS_FALLBACK_SENDER_PHONE', default='')

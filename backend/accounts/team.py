@@ -47,6 +47,7 @@ from rest_framework.views import APIView
 
 from activity.utils import log_activity
 from bookings.booking_service import BookingBusy, NotATutor, set_tutor_meet_link, upcoming_assignments
+from communications import planner
 from core.pagination import paginate_queryset
 from invitations.models import Invitation, InvitationRoleChoices
 from students.models import Student
@@ -561,6 +562,10 @@ class TeamMemberView(TeamView):
                     account.save(update_fields=changed + (['tutor_meet_link'] if meet_link_removed else []) + ['updated_at'])
                 except IntegrityError:
                     raise TeamError('CONFLICT', 'That username or email was just taken.', status.HTTP_409_CONFLICT)
+                # A BDE's parent messages sign with their name and phone: the
+                # unsent ones are checked again with the new details.
+                if {'full_name', 'mobile_number'} & set(changed):
+                    planner.sender_contact_changed(account, timezone.now())
 
         details = {
             field: {"old": before[field], "new": getattr(account, field)}

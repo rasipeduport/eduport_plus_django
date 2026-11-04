@@ -36,9 +36,12 @@ BDE_PERMISSIONS = [
     'accounts.cancel_booking',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
+    'accounts.record_parent_confirmation',
+    'accounts.send_lead_communications',
     'accounts.share_booking_report',
     'accounts.view_own_booking_links',
     'accounts.view_own_enquiries',
+    'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
 ]
 # Sales TL holds the Conversion Tracker's two permissions (0015); like BDE's
