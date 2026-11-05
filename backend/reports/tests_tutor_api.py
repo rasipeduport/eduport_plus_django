@@ -8,13 +8,14 @@ import uuid
 from datetime import timedelta
 from unittest import mock
 
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from bookings.booking_service import assign_tutor, cancel_booking, create_booking
 from bookings.models import BookingStatus, CancelReason, DemoBooking
 from bookings.scheduling import indian_today
-from bookings.tests_booking import DIAGNOSTIC, EVENING, MORNING, account, request, schedule
+from bookings.tests_booking import DIAGNOSTIC, EVENING, MORNING, account, request, schedule, start
 
 from .models import DemoReport, DiagnosticReport
 from .services import ReportBusy
@@ -58,7 +59,7 @@ class TutorReportApiTestCase(APITestCase):
         schedule()
         self.tutor = account('tutor_anu', role='TUTOR')
         self.other_tutor = account('tutor_binu', role='TUTOR')
-        # Booked three days ago for yesterday: both slots have started and ended.
+        # Booked three days ago for yesterday, and taught: both started by their tutor, both slots over.
         then = timezone.now() - timedelta(days=3)
         yesterday = indian_today() - timedelta(days=1)
         self.demo = self.assigned(create_booking(request(day=yesterday, at=EVENING), now=then)[0], then)
@@ -68,7 +69,9 @@ class TutorReportApiTestCase(APITestCase):
         self.client.force_authenticate(self.tutor)
 
     def assigned(self, booking, now, tutor=None):
-        return assign_tutor(booking, tutor or self.tutor, now=now)[0]
+        """``booking`` given to ``tutor``; one whose slot is already past was taught, so its tutor started it."""
+        booking = assign_tutor(booking, tutor or self.tutor, now=now)[0]
+        return start(booking) if booking.slot.starts_at <= timezone.now() else booking
 
     def upcoming(self, student='Ali', at=EVENING):
         """A Demo, assigned to the tutor, whose slot is two days away."""
@@ -243,7 +246,7 @@ class TutorReportErrorTests(TutorReportApiTestCase):
         self.assertRefused(self.submit(self.demo), 409, 'REPORT_EXISTS', version=1)
         self.edit(self.demo, 1, suggested_strategy='A new plan.')
         self.assertRefused(self.edit(self.demo, 1, suggested_strategy='Another plan.'), 409, 'REPORT_VERSION_CONFLICT', version=2)
-        self.assertRefused(self.submit(self.upcoming()), 409, 'SLOT_NOT_STARTED')
+        self.assertRefused(self.submit(self.upcoming()), 409, 'NOT_STARTED')
         cancelled = self.upcoming(student='Sara', at=MORNING)
         cancel_booking(cancelled, reason_code=CancelReason.PARENT_REQUEST)
         self.assertRefused(self.submit(cancelled), 409, 'BOOKING_CANCELLED')
@@ -274,3 +277,56 @@ class TutorReportPrivacyTests(TutorReportApiTestCase):
             self.assertNotIn(private, sent)
         # The child is named, as the report prints them.
         self.assertIn('Riya', sent)
+
+
+class LegacyCompletedApiTests(TutorReportApiTestCase):
+    """
+    A booking completed before Start existed -- started_at NULL, as
+    bookings.0009 leaves it -- on every report route: read, edited, printed
+    and previewed as any completed booking, never started again.
+    """
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.assertEqual(self.submit(self.demo).status_code, 201)
+        DemoBooking.objects.filter(pk=self.demo.pk).update(started_at=None, started_by=None)
+
+    def test_the_tutor_reads_edits_previews_and_prints_it(self):
+        shown = self.client.get(detail_url(self.demo)).json()
+        self.assertEqual(
+            (shown['status'], shown['activity_state'], shown['started_at'], shown['actions'], shown['start_refusal']['code'],
+             shown['has_report'], shown['report_due']),
+            ('COMPLETED', 'COMPLETED', None, {'start': False}, 'BOOKING_COMPLETED', True, False),
+        )
+        self.assertEqual(self.client.get(report_url(self.demo)).json()['version'], 1)
+        edited = self.edit(self.demo, 1, suggested_strategy='Revised later.')
+        self.assertEqual((edited.status_code, edited.json()['report']['version']), (200, 2))
+        self.assertEqual(self.client.get(report_url(self.demo, 'revisions/')).json()['count'], 2)
+        for suffix in ('pdf/', 'revisions/1/pdf/'):
+            pdf = self.client.get(report_url(self.demo, suffix))
+            self.assertEqual((pdf.status_code, pdf['Content-Type']), (200, 'application/pdf'), suffix)
+        preview = self.client.post(report_url(self.demo, 'preview/'), {'version': 2, **report_input(self.demo)}, format='json')
+        self.assertEqual((preview.status_code, preview['Content-Type']), (200, 'application/pdf'))
+        # Already complete: a second submit says so, and nothing can start it.
+        again = self.submit(self.demo)
+        self.assertEqual((again.status_code, again.json()['error']), (409, 'REPORT_EXISTS'))
+        started = self.client.post(f'/api/tutor/bookings/demo/{self.demo.id}/start/')
+        self.assertEqual((started.status_code, started.json()['error']), (409, 'BOOKING_COMPLETED'))
+        self.assertIsNone(DemoBooking.objects.get(pk=self.demo.pk).started_at)
+
+    def test_the_admin_reads_it_with_no_start_recorded(self):
+        self.client.force_authenticate(account('admin_legacy', role='ADMIN'))
+        detail = self.client.get(f'/api/bookings/demo/{self.demo.id}/').json()
+        self.assertEqual(
+            (detail['status'], detail['activity_state'], detail['started_at'], detail['started_by'], detail['report']['version'],
+             detail['report_due'], detail['tutor_change_refusal']['code'], detail['actions']),
+            ('COMPLETED', 'COMPLETED', None, None, 1, False, 'BOOKING_COMPLETED',
+             {'cancel': False, 'no_show': False, 'reschedule': False}),
+        )
+        self.assertEqual(self.client.get(f'/api/bookings/demo/{self.demo.id}/report/').json()['version'], 1)
+        pdf = self.client.get(f'/api/bookings/demo/{self.demo.id}/report/pdf/')
+        self.assertEqual((pdf.status_code, pdf['Content-Type']), (200, 'application/pdf'))
+        submitted = self.client.get('/api/bookings/demo/', {'report': 'submitted'}).json()['results']
+        self.assertEqual([row['id'] for row in submitted], [str(self.demo.id)])
+        self.assertEqual(self.client.get('/api/bookings/demo/', {'report': 'due'}).json()['results'], [])

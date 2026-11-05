@@ -1,7 +1,8 @@
 """
 The Diagnostic/Demo booking split (bookings.0005): the migration from the
 combined table and back, what each booking table refuses, and
-``manage.py booking_split_check`` before and after.
+``manage.py booking_split_check`` before and after; and the explicit Start
+columns (bookings.0009): a round trip with real rows.
 """
 import threading
 import uuid
@@ -10,29 +11,40 @@ from io import StringIO
 from unittest import skipUnless
 
 from django.core.management import CommandError, call_command
-from django.db import IntegrityError, OperationalError, connection, transaction
+from django.db import DatabaseError, IntegrityError, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
+from reports.models import DiagnosticReport
+from reports.tests_services import diagnostic_input
+
+from . import history
+from .booking_service import assign_tutor, cancel_booking, reschedule_booking, start_booking
 from .leads import name_key
+from .lifecycle import ActivityState, activity_state
 from .models import (
     BookingChannel,
+    BookingEventKind,
     BookingSlot,
     BookingStatus,
     BookingType,
+    CancelReason,
     DemoBooking,
     DiagnosticBooking,
     Lead,
     ReferralStatus,
+    RescheduleReason,
 )
 from .scheduling import slot_instants
 from .tests_assignment import ist, tutor
-from .tests_booking import DAY, EVENING, MORNING, account
+from .tests_booking import DAY, EVENING, MORNING, NOW, account, book, schedule, start
 
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 BEFORE_SPLIT = '0004_booking_tutor_assignment'
 SPLIT = '0005_booking_split'
+BEFORE_STARTED = '0008_booking_parent_confirmation'
+START_COLUMNS = {'started_at', 'started_by_id'}
 NEW_TABLES = {'diagnostic_bookings', 'demo_bookings', 'booking_events'}
 KEPT_TABLES = ('leads', 'booking_slots', 'booking_slot_times', 'booking_links')
 
@@ -207,6 +219,134 @@ class ReasonCodeMigrationTests(TransactionTestCase):
                 self.assertEqual(cursor.fetchone()[0], 0)
         finally:
             MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
+
+
+class StartedMigrationTests(TransactionTestCase):
+    """
+    bookings.0009 (started_at / started_by, the STARTED event): applied over
+    rows of every shape the database holds and taken back again, it leaves
+    every booking, lead, slot, event, report and communication row -- and
+    every relationship between them -- exactly as it was, and backfills
+    nothing. Once a booking has been started, the old event-kind rule can no
+    longer be restored: reversing 0009 is refused and changes nothing.
+    """
+
+    BOOKING_COLUMNS = (
+        'id', 'lead_id', 'slot_id', 'seat', 'status', 'channel', 'assigned_tutor_id', 'tutor_assigned_at',
+        'tutor_assigned_by_id', 'tutor_meet_link', 'completed_at', 'completed_by_id', 'cancelled_at', 'cancelled_by_id',
+        'cancel_reason_code', 'rescheduled_from_id', 'rescheduled_at', 'reschedule_reason_code', 'parent_confirmation',
+        'referral_status', 'attributed_bde_id', 'details',
+    )
+
+    def columns(self, table):
+        with connection.cursor() as cursor:
+            return {column.name for column in connection.introspection.get_table_description(cursor, table)}
+
+    def rows(self, table, *columns):
+        with connection.cursor() as cursor:
+            cursor.execute(f'SELECT {", ".join(columns)} FROM {table} ORDER BY 1')
+            return cursor.fetchall()
+
+    def fingerprint(self):
+        """Every row of every related table, by every column 0009 does not add: ids, relations, states, data."""
+        return {
+            'leads': self.rows('leads', 'id', 'owner_bde_id', 'owner_link_id', 'phone_key', 'student_name_key'),
+            'booking_slots': self.rows('booking_slots', 'id', 'booking_type', 'local_date', 'local_time', 'starts_at', 'ends_at'),
+            'demo_bookings': self.rows('demo_bookings', *self.BOOKING_COLUMNS),
+            'diagnostic_bookings': self.rows('diagnostic_bookings', *self.BOOKING_COLUMNS),
+            'booking_events': self.rows('booking_events', 'id', 'demo_booking_id', 'diagnostic_booking_id', 'kind', 'actor_id', 'data'),
+            'diagnostic_reports': self.rows('diagnostic_reports', 'id', 'booking_id', 'version', 'submitted_by_id', 'score'),
+            'diagnostic_report_revisions': self.rows('diagnostic_report_revisions', 'id', 'report_id', 'version', 'edited_by_id'),
+            'communication_tasks': self.rows('communication_tasks', 'id', 'demo_booking_id', 'diagnostic_booking_id', 'step', 'status'),
+            'communication_messages': self.rows('communication_messages', 'id', 'demo_booking_id', 'diagnostic_booking_id', 'status'),
+        }
+
+    def seed(self):
+        """
+        Through the services, the shapes the local database holds: booked
+        without a tutor, booked with one, cancelled, moved (a chain of two),
+        and a Diagnostic completed before Start existed -- its report, revision
+        and COMPLETED event in place, no start and no STARTED event -- each with
+        its communication plan. Returns (the legacy completed booking, the live assigned one).
+        """
+        schedule()
+        admin, teacher = account('admin_m', role='ADMIN'), tutor('tutor_m')
+        book(student='Riya')
+        assigned = assign_tutor(book(student='Ali', phone='0509000001', day=DAY + timedelta(days=1))[0], teacher, actor=admin, now=NOW)[0]
+        cancelled = book(student='Sara', phone='0509000002', day=DAY + timedelta(days=2))[0]
+        cancel_booking(cancelled, reason_code=CancelReason.PARENT_REQUEST, actor=admin, now=NOW)
+        moved = book(student='Noor', phone='0509000003', day=DAY + timedelta(days=3))[0]
+        reschedule_booking(moved, DAY + timedelta(days=4), EVENING, reason_code=RescheduleReason.OTHER, actor=admin, now=NOW)
+        legacy = assign_tutor(book(student='Riya', booking_type=DIAGNOSTIC, at=MORNING)[0], teacher, actor=admin, now=NOW)[0]
+        done_at = legacy.slot.ends_at
+        DiagnosticBooking.objects.filter(pk=legacy.pk).update(status=BookingStatus.COMPLETED, completed_at=done_at, completed_by=teacher)
+        snapshots = {'student_name_snapshot': 'Riya', 'grade_snapshot': '8', 'tutor_name_snapshot': 'Tutor M'}
+        report = DiagnosticReport.objects.create(
+            booking=legacy, version=1, submitted_by=teacher, submitted_at=done_at, updated_by=teacher, updated_at=done_at,
+            **snapshots, **diagnostic_input(),
+        )
+        report.revisions.create(
+            version=1, content={**diagnostic_input(), **snapshots}, changed_fields=list(DiagnosticReport.TUTOR_FIELDS),
+            edited_by=teacher, edited_at=done_at,
+        )
+        history.record(
+            legacy, BookingEventKind.COMPLETED, actor=teacher,
+            from_status=BookingStatus.BOOKED, to_status=BookingStatus.COMPLETED, report_id=report.id, version=1,
+        )
+        return DiagnosticBooking.objects.get(pk=legacy.pk), assigned
+
+    def latest(self):
+        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
+
+    def test_existing_rows_and_relationships_survive_the_round_trip(self):
+        try:
+            legacy, assigned = self.seed()
+            before = self.fingerprint()
+            self.assertEqual((len(before['demo_bookings']), len(before['diagnostic_bookings'])), (5, 1))
+            self.assertTrue(all(len(rows) for rows in before.values()), before)
+            for table in ('demo_bookings', 'diagnostic_bookings'):
+                self.assertLessEqual(START_COLUMNS, self.columns(table))
+
+            # Back to 0008: only the two columns go; every other row and relation stays.
+            MigrationExecutor(connection).migrate([('bookings', BEFORE_STARTED)])
+            for table in ('demo_bookings', 'diagnostic_bookings'):
+                self.assertFalse(START_COLUMNS & self.columns(table), table)
+            self.assertEqual(self.fingerprint(), before)
+
+            # Forward again over the populated tables, as the local database will be migrated.
+            self.latest()
+            for table in ('demo_bookings', 'diagnostic_bookings'):
+                self.assertLessEqual(START_COLUMNS, self.columns(table))
+            self.assertEqual(self.fingerprint(), before)
+            # Nothing is backfilled: every row reads not started, the completed one included -- and it is still complete.
+            for table in ('demo_bookings', 'diagnostic_bookings'):
+                self.assertEqual(set(self.rows(table, 'started_at', 'started_by_id')), {(None, None)})
+            legacy.refresh_from_db()
+            self.assertEqual((legacy.status, legacy.started_at, legacy.started_by), (BookingStatus.COMPLETED, None, None))
+            self.assertEqual(activity_state(legacy, timezone.now()), ActivityState.COMPLETED)
+            self.assertEqual((legacy.report.version, legacy.report.revisions.count()), (1, 1))
+            # The rules came back usable: the live booking can be started.
+            assigned = DemoBooking.objects.select_related('slot').get(pk=assigned.pk)
+            self.assertTrue(start_booking(assigned, assigned.assigned_tutor, now=assigned.slot.starts_at)[1])
+        finally:
+            self.latest()
+
+    def test_reversing_after_a_start_is_refused_and_changes_nothing(self):
+        try:
+            _legacy, assigned = self.seed()
+            start(assigned)
+            before = self.fingerprint()
+            with self.assertRaises(DatabaseError) as refused:
+                MigrationExecutor(connection).migrate([('bookings', BEFORE_STARTED)])
+            self.assertIn('booking_events_known_kind', str(refused.exception))
+            # The whole reversal rolled back: columns, constraints and rows as they were.
+            for table in ('demo_bookings', 'diagnostic_bookings'):
+                self.assertLessEqual(START_COLUMNS, self.columns(table))
+            self.assertEqual(self.fingerprint(), before)
+            self.assertIsNotNone(DemoBooking.objects.get(pk=assigned.pk).started_at)
+            self.assertEqual(MigrationExecutor(connection).migration_plan([('bookings', '0009_booking_started')]), [])
+        finally:
+            self.latest()
 
 
 class SplitCheckAfterTests(TestCase):

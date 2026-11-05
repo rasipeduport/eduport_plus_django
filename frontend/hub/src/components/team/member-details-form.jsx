@@ -338,8 +338,9 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
             hint={
               readOnly
                 ? null
-                : "The tutor's permanent room for their Demo and Diagnostic bookings. Bookings that have not ended " +
-                  'use a new link; past bookings keep the one they had. Leave blank if not set up yet.'
+                : "The tutor's permanent room for their Demo and Diagnostic bookings. Bookings the tutor has not " +
+                  'started yet use a new link; started and past bookings keep the one they had. Leave blank if not ' +
+                  'set up yet.'
             }
             error={errors.meet_link}
           >

@@ -242,10 +242,12 @@ export function reportError(err, fallback) {
 
 /**
  * Where a booking stands with its report, for the tutor: cancelled or moved
- * (no report can follow), completed (its report is in), report due (booked,
- * the slot over and no report yet -- the API's own report_due, design B.1), in
- * progress (the slot has started: the report may be written from now, D2), or
- * upcoming. A label only: the API decides what may be done.
+ * (no report can follow), completed (its report is in), report due (started,
+ * the slot over and no report yet -- the API's own report_due, design B.1), or
+ * where it stands as a class (the API's activity_state): in progress (started
+ * by the tutor, so the report may be written now), ready to start, not
+ * started yet, not started (the slot ended with no start), or upcoming. A
+ * label only: the API decides what may be done.
  */
 export function reportState(booking) {
   if (booking.status === 'CANCELLED' || booking.status === 'RESCHEDULED') {
@@ -255,15 +257,28 @@ export function reportState(booking) {
     return { key: 'completed', label: 'Completed', variant: 'secondary' };
   }
   if (booking.report_due) return { key: 'report_due', label: 'Report due', variant: 'warning' };
-  if (booking.slot?.started) return { key: 'in_progress', label: 'In progress', variant: 'info' };
-  return { key: 'upcoming', label: 'Upcoming', variant: 'success' };
+  const state = booking.activity_state in STATE_KEYS ? booking.activity_state : 'UPCOMING';
+  return { key: STATE_KEYS[state], ...bookingState({ activity_state: state }) };
 }
 
-/** What the tutor is offered on a booking: write its report once its slot has started, edit or download it once in. */
+// The key each state of a booked booking goes by on the tutor's screens.
+const STATE_KEYS = {
+  UPCOMING: 'upcoming',
+  READY: 'ready',
+  LATE: 'late',
+  IN_PROGRESS: 'in_progress',
+  NOT_STARTED: 'not_started',
+};
+
+/**
+ * What the tutor is offered on a booking: write its report once they have
+ * started it (never because its scheduled time has come), edit or download
+ * it once in.
+ */
 export function reportActions(booking) {
   const hasReport = Boolean(booking.has_report);
   return {
-    write: booking.status === 'BOOKED' && Boolean(booking.slot?.started) && !hasReport,
+    write: booking.status === 'BOOKED' && Boolean(booking.started_at) && !hasReport,
     edit: hasReport,
     pdf: hasReport,
   };

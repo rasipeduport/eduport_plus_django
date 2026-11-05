@@ -16,6 +16,7 @@ import { FormDialog } from '@/components/form-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportStateBadge } from '@/components/bookings/booking-badges';
+import { StartBookingButton } from '@/components/bookings/start-booking-button';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { DemoReportForm } from '@/components/reports/demo-report-form';
 import { DiagnosticReportForm } from '@/components/reports/diagnostic-report-form';
@@ -51,16 +52,20 @@ import { cn } from '@/lib/utils';
 
 const TITLES = { DIAGNOSTIC: 'Diagnostic report', DEMO: 'Demo report' };
 
-// Why a booking without its report offers no form (lib/reports reportState).
+// Why a booking without its report offers no form (lib/reports reportState):
+// the report follows the tutor's own Start, never the scheduled time.
 const CLOSED = {
-  upcoming: 'You can write the report once the class starts.',
+  upcoming: 'You can write the report once you start the class.',
+  ready: 'Start the class to write its report.',
+  late: 'The scheduled time has passed. Start the class to write its report.',
+  not_started: 'The slot ended without the class being started, so no report can be written.',
   cancelled: 'This booking was cancelled, so there is no report to write.',
   rescheduled: 'This booking was moved to another slot. Write the report on the new booking.',
 };
 
 // What the API's refusals of a save mean here (reports.services).
 const REFUSALS = {
-  SLOT_NOT_STARTED: 'The class has not started yet. You can write the report once it starts.',
+  NOT_STARTED: 'The class has not been started. Start it before writing its report.',
   BOOKING_CANCELLED: 'This booking was cancelled, so the report cannot be saved.',
   BOOKING_RESCHEDULED: 'This booking was moved to another slot, so the report cannot be saved here.',
   NOT_FOUND: 'This booking is no longer assigned to you, so the report cannot be saved.',
@@ -372,7 +377,7 @@ export default function TutorReportPage({ user }) {
           action: { label: 'Reload the latest version', onClick: () => setDiscarding('reload') },
         });
         return;
-      case 'SLOT_NOT_STARTED':
+      case 'NOT_STARTED':
       case 'BOOKING_CANCELLED':
       case 'BOOKING_RESCHEDULED':
         setNotice({ tone: 'error', text: REFUSALS[problem.code] });
@@ -511,7 +516,15 @@ export default function TutorReportPage({ user }) {
           </div>
         </form>
       ) : (
-        <p className="bg-muted text-muted-foreground rounded-md px-3 py-2 text-sm">{CLOSED[state.key]}</p>
+        <div className="bg-muted text-muted-foreground flex flex-col items-start gap-3 rounded-md px-3 py-2 text-sm">
+          <p>{CLOSED[state.key]}</p>
+          {/* Started here, the form opens at once: the booking as the API answered now has its start. */}
+          <StartBookingButton
+            booking={booking}
+            onStarted={setBooking}
+            onRefresh={() => setLoadKey((key) => key + 1)}
+          />
+        </div>
       )}
 
       {report ? (

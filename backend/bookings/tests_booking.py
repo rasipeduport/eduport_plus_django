@@ -31,6 +31,7 @@ from .booking_service import (
     create_booking,
     reopen_slot,
     set_schedule,
+    start_booking,
 )
 from .leads import InvalidLeadDetails, name_key, normalize_phone
 from .models import (
@@ -98,6 +99,16 @@ def schedule():
     for booking_type in (DEMO, DIAGNOSTIC):
         for at in (MORNING, EVENING):
             SlotTime.objects.create(booking_type=booking_type, start_time=at)
+
+
+def start(booking, minutes=1):
+    """
+    ``booking`` as its assigned tutor starts it, ``minutes`` into its slot --
+    their Start (booking_service.start_booking), which a report needs -- read
+    again with the start saved.
+    """
+    booking = type(booking).objects.select_related('slot').get(pk=booking.pk)
+    return start_booking(booking, booking.assigned_tutor, now=booking.slot.starts_at + timedelta(minutes=minutes))[0]
 
 
 def make_booking(booking_type=DEMO, **fields):

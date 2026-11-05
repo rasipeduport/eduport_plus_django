@@ -11,15 +11,24 @@ import { ReportVersions } from './report-versions';
 
 const when = (value) => (value ? format(new Date(value), 'd MMM yyyy, h:mm a') : null);
 
-/** Why a booked booking has no report yet: before its class, during it, or due after it (report_due). */
+/**
+ * Why a booked booking has no report yet, by its tutor's own start (the API's
+ * activity_state), never the slot's clock: due after a class the tutor started
+ * (report_due), started now, not started though its time has passed, never
+ * started at all, or still to come.
+ */
 function waiting(booking) {
-  if (booking.report_due) {
-    return booking.tutor
-      ? 'Report due. The class is over and the tutor has not written the report yet.'
-      : 'Report due. The class is over, and no tutor is assigned to write the report.';
+  if (booking.report_due) return 'Report due. The class is over and the tutor has not written the report yet.';
+  switch (booking.activity_state) {
+    case 'IN_PROGRESS':
+      return 'The tutor has started the class. They can write the report now.';
+    case 'LATE':
+      return 'The scheduled time has passed and the tutor has not started the class yet.';
+    case 'NOT_STARTED':
+      return 'The slot ended without the tutor starting the class, so no report can be written.';
+    default:
+      return 'The tutor can write the report once they start the class.';
   }
-  if (booking.slot?.started) return 'The class has started. The tutor can write the report now.';
-  return 'The tutor can write the report once the class starts.';
 }
 
 function Detail({ label, children }) {

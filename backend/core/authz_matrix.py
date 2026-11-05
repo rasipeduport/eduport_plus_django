@@ -613,6 +613,8 @@ SCENARIOS = [
     # booking_a has no tutor, so a tutor lists none and is not shown it.
     Scenario('tutor_bookings.list', 'get', '/api/tutor/bookings/'),
     Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/demo/{booking_a}/'),
+    # Start Demo: booking_a has no tutor, so no one may start it.
+    Scenario('tutor_bookings.start', 'post', '/api/tutor/bookings/demo/{booking_a}/start/', {}),
     # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
     Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
     Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),

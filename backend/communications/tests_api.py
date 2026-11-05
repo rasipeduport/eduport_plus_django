@@ -88,7 +88,8 @@ class ContentTests(CommunicationApiTestCase):
         self.assertEqual((data['timezone'], data['planned']), ('Asia/Kolkata', True))
         self.assertEqual(data['booking'], {
             'id': str(booking.pk), 'booking_type': 'DEMO', 'status': 'BOOKED', 'status_label': 'Booked',
-            'slot': data['booking']['slot'], 'student_name': booking.lead.student_name,
+            'slot': data['booking']['slot'], 'activity_state': 'UPCOMING', 'started_at': None,
+            'student_name': booking.lead.student_name,
             'parent_name': 'Asha Nair', 'phone': f'+971 {booking.lead.phone_number}',
             'owner_bde': {'id': str(self.bde.pk), 'full_name': 'Bde Anil'},
             'tutor': {'id': str(self.tutor.pk), 'full_name': 'Tutor Anu'},

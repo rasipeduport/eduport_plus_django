@@ -23,6 +23,9 @@ function describeBookingEvent(event) {
         : `${d.new_tutor?.full_name ?? 'A tutor'} assigned`;
     case 'TUTOR_UNASSIGNED':
       return `${d.old_tutor?.full_name ?? 'The tutor'} unassigned`;
+    // The tutor's own Start Demo / Start Diagnostic: the event's time is when they started it.
+    case 'STARTED':
+      return 'Started by the tutor';
     case 'RESCHEDULED':
       return `Moved from ${slotLabel(d.old_slot)} to ${slotLabel(d.new_slot)} — ${d.reason?.label ?? ''}`.replace(/ — $/, '');
     case 'CANCELLED':

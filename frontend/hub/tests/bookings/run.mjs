@@ -192,15 +192,18 @@ const VIEWER = { id: 'viewer', role: 'ADMIN', permissions: ['accounts.view_all_b
 
 const slot = (id, booking_type, date, time) => ({ id, booking_type, date, time, starts_at: `${date}T14:00:00+00:00`,
   ends_at: `${date}T15:00:00+00:00`, started: false, ended: false });
+// Where each booking stands as a class is the API's own activity_state (backend bookings.lifecycle), never the slot's clock.
 const RIYA = { id: 'b-riya', booking_type: 'DEMO', status: 'BOOKED', slot: slot('s-1', 'DEMO', '2026-10-31', '19:30'),
   student_name: 'Riya', grade: 'Class 8', parent_name: 'Asha Nair', phone: '+971 501234567', tutor: null, bde: null,
-  booked_at: '2026-10-28T09:00:00+00:00' };
+  booked_at: '2026-10-28T09:00:00+00:00', activity_state: 'UPCOMING', started_at: null };
 const ALI = { id: 'b-ali', booking_type: 'DIAGNOSTIC', status: 'BOOKED', slot: slot('s-2', 'DIAGNOSTIC', '2026-11-01', '10:00'),
   student_name: 'Ali', grade: 'Class 9', parent_name: 'Sara Khan', phone: '+91 9800000002',
-  tutor: { id: 't-a', full_name: 'Tutor A' }, bde: { id: 'bde-1', full_name: 'Bde One' }, booked_at: '2026-10-28T10:00:00+00:00' };
+  tutor: { id: 't-a', full_name: 'Tutor A' }, bde: { id: 'bde-1', full_name: 'Bde One' }, booked_at: '2026-10-28T10:00:00+00:00',
+  activity_state: 'UPCOMING', started_at: null };
 const ARUN = { id: 'b-arun', booking_type: 'DEMO', status: 'BOOKED', slot: slot('s-3', 'DEMO', '2026-11-01', '19:30'),
   student_name: 'Arun', grade: 'Class 7', parent_name: 'Meena Raj', phone: '+971 509999999',
-  tutor: { id: 't-b', full_name: 'Tutor B' }, bde: null, booked_at: '2026-10-28T11:00:00+00:00' };
+  tutor: { id: 't-b', full_name: 'Tutor B' }, bde: null, booked_at: '2026-10-28T11:00:00+00:00', activity_state: 'UPCOMING',
+  started_at: null };
 
 const list = (results, count = results.length, page = 1) => ({ results, count, page, page_size: 25, timezone: 'Asia/Kolkata' });
 
@@ -535,7 +538,7 @@ test("a booking whose tutor can no longer change says why, and offers no assignm
     [`GET ${LIST}`]: list([RIYA]),
     [`GET ${at(RIYA, 'tutors/')}`]: tutors(RIYA, null, {
       tutor_changeable: false,
-      tutor_change_refusal: { code: 'SLOT_STARTED', message: 'This booking has already started, so its tutor cannot be changed.' },
+      tutor_change_refusal: { code: 'BOOKING_STARTED', message: 'This booking has already started, so its tutor cannot be changed.' },
     }),
   });
   await open('/bookings', ADMIN);
@@ -639,7 +642,7 @@ test('Reschedule: a refusal at move time is shown and the slots read again; a bo
     [`GET ${LIST}`]: list([RIYA]),
     [`GET ${at(RIYA)}`]: detail(RIYA, { actions: CAN_ALL }),
     [`GET ${at(RIYA, 'reschedule-options/')}`]: { ...OPTIONS, reschedulable: false,
-      refusal: { code: 'SLOT_STARTED', message: 'This booking has already started, so it can no longer be moved.' } },
+      refusal: { code: 'BOOKING_STARTED', message: 'This booking has already started, so it can no longer be moved.' } },
   });
   await click(button('Cancel', topDialog()));
   await click(button('Reschedule', topDialog()));
@@ -647,7 +650,7 @@ test('Reschedule: a refusal at move time is shown and the slots read again; a bo
   assert.ok(button('Move booking', topDialog()).disabled);
 });
 
-test('Cancel: a reason from the list, No-show only once the slot has started; then a fresh list', async () => {
+test('Cancel: a reason from the list, No-show only once the scheduled time has passed; then a fresh list', async () => {
   const cancelled = detail(RIYA, { status: 'CANCELLED', cancel_reason: 'Parent asked to cancel', cancel_reason_code: 'PARENT_REQUEST',
     actions: { cancel: false, no_show: false, reschedule: false } });
   serve({
@@ -660,7 +663,7 @@ test('Cancel: a reason from the list, No-show only once the slot has started; th
   let dialog = topDialog();
   assert.match(clean(dialog.textContent), /^Cancel booking.*Riya · Demo class · Sat, 31 Oct · 7:30 PM IST.*Why is it cancelled\?/);
   assert.deepEqual([...dialog.querySelectorAll('label')].map((label) => clean(label.textContent)), [
-    'No-showAvailable once the slot has started.', 'Parent asked to cancel', 'Duplicate booking', 'Booked by mistake', 'Other',
+    'No-showAvailable once the scheduled time has passed.', 'Parent asked to cancel', 'Duplicate booking', 'Booked by mistake', 'Other',
   ]);
   assert.ok(radio('No-show').disabled);
   assert.ok(button('Cancel booking', dialog).disabled, 'nothing chosen yet');
@@ -676,21 +679,21 @@ test('Cancel: a reason from the list, No-show only once the slot has started; th
   assert.equal(calls('GET', LIST).length, 2, 'the list is read again');
 });
 
-test('Cancel: No-show once the slot has started, and a refusal shown as it comes', async () => {
+test('Cancel: No-show once the scheduled time has passed, and a refusal shown as it comes', async () => {
   serve({
     [`GET ${LIST}`]: list([RIYA]),
     [`GET ${at(RIYA)}`]: detail(RIYA, { actions: { cancel: true, no_show: true, reschedule: false } }),
     [`POST ${at(RIYA, 'cancel/')}`]: () => fail(409, { error: 'NO_SHOW_BEFORE_START',
-      message: 'A booking can be marked No-show only once its slot has started.' }),
+      message: 'A booking can be marked No-show only once its scheduled time has passed.' }),
   });
   await open(`/bookings?booking=${RIYA.id}`, ADMIN);
-  assert.ok(!button('Reschedule', topDialog()), 'a started booking is not moved');
+  assert.ok(!button('Reschedule', topDialog()), 'not offered when the API says no (a booking its tutor started)');
   await click(button('Cancel booking', topDialog()));
   assert.ok(!radio('No-show').disabled);
   await click(radio('No-show'));
   await click(button('Cancel booking', topDialog()));
   assert.deepEqual(calls('POST', at(RIYA, 'cancel/')).map((entry) => entry.data), [{ reason: 'NO_SHOW' }]);
-  assert.match(clean(topDialog().textContent), /A booking can be marked No-show only once its slot has started\./);
+  assert.match(clean(topDialog().textContent), /A booking can be marked No-show only once its scheduled time has passed\./);
 });
 
 test('History: the timeline on request, across the reschedule chain, with who and why', async () => {
@@ -786,7 +789,8 @@ test('A moved booking says why and links to its replacement', async () => {
 // --------------------------------------------------------- BDE cancellation (Q22)
 const ENQUIRY_URL = '/api/bde/enquiries/lead-1/';
 const BDE_BOOKED = { id: 'b-1', booking_type: 'DEMO', date: '2026-10-31', time: '19:30', starts_at: '2026-10-31T14:00:00+00:00',
-  status: 'BOOKED', ended: false, booked_at: '2026-10-28T09:00:00+00:00', cancelled_at: null, actions: { cancel: true, no_show: false } };
+  status: 'BOOKED', ended: false, activity_state: 'UPCOMING', started_at: null, booked_at: '2026-10-28T09:00:00+00:00',
+  cancelled_at: null, actions: { cancel: true, no_show: false } };
 const BDE_CANCELLED = { id: 'b-2', booking_type: 'DIAGNOSTIC', date: '2026-10-29', time: '10:00', starts_at: '2026-10-29T04:30:00+00:00',
   status: 'CANCELLED', ended: true, booked_at: '2026-10-27T09:00:00+00:00', cancelled_at: '2026-10-28T09:00:00+00:00',
   actions: { cancel: false, no_show: false } };
@@ -847,9 +851,16 @@ const TUTOR_A = { id: 't-a', full_name: 'Tutor A' };
 const IRA = { ...RIYA, id: 'b-ira', student_name: 'Ira', status: 'COMPLETED', slot: OVER, tutor: TUTOR_A,
   ...reportFields({ has_report: true, report_version: 2, report: { id: 'r-ira', version: 2,
     submitted_at: '2026-10-31T15:10:00+00:00', submitted_by: TUTOR_A, updated_at: '2026-10-31T16:20:00+00:00' } }) };
-const DEV = { ...RIYA, id: 'b-dev', student_name: 'Dev', slot: OVER, tutor: TUTOR_A, ...reportFields({ report_due: true }) };
-const NOOR = { ...RIYA, id: 'b-noor', student_name: 'Noor', slot: OVER, tutor: null, ...reportFields({ report_due: true }) };
-const SAM = { ...RIYA, id: 'b-sam', student_name: 'Sam', slot: { ...RIYA.slot, started: true }, tutor: TUTOR_A, ...reportFields() };
+const STARTED_AT = '2026-10-31T14:02:00+00:00';
+const DEV = { ...RIYA, id: 'b-dev', student_name: 'Dev', slot: OVER, tutor: TUTOR_A, activity_state: 'IN_PROGRESS',
+  started_at: STARTED_AT, ...reportFields({ report_due: true }) };
+const NOOR = { ...RIYA, id: 'b-noor', student_name: 'Noor', slot: OVER, tutor: TUTOR_A, activity_state: 'NOT_STARTED',
+  ...reportFields() };
+const SAM = { ...RIYA, id: 'b-sam', student_name: 'Sam', slot: { ...RIYA.slot, started: true }, tutor: TUTOR_A,
+  activity_state: 'IN_PROGRESS', started_at: STARTED_AT, ...reportFields() };
+// Its scheduled time has passed, and its tutor has not started it: the slot's clock alone is no start.
+const LEO = { ...RIYA, id: 'b-leo', student_name: 'Leo', slot: { ...RIYA.slot, started: true }, tutor: TUTOR_A,
+  activity_state: 'LATE', ...reportFields() };
 const SOON = { ...RIYA, ...reportFields() };
 const IRA_V1 = { assessment_review: 'Scored 9 out of 12.', class_observation_review: 'Attentive.', suggested_strategy: 'Timed practice.' };
 const IRA_V2 = { ...IRA_V1, suggested_strategy: 'Timed practice, twice a week.' };
@@ -883,9 +894,10 @@ test('reports: the Report column shows the version submitted, Report due, or not
   serve({ [`GET ${LIST}`]: list([IRA, DEV, NOOR, SAM, SOON]) });
   await open('/bookings', ADMIN);
   const cells = rows().map(reportCell);
-  assert.deepEqual(cells.map((cell) => clean(cell.textContent)), ['Report v2', 'Report due', 'Report due', '—', '—']);
+  // Report due only after a start: Noor's slot ended with none, so there is no report to be due.
+  assert.deepEqual(cells.map((cell) => clean(cell.textContent)), ['Report v2', 'Report due', '—', '—', '—']);
   assert.deepEqual(cells.map((cell) => cell.querySelector('[data-slot="badge"]')?.dataset.variant ?? null),
-    ['success', 'warning', 'warning', null, null]);
+    ['success', 'warning', null, null, null]);
 });
 
 test('reports: Filter by report reaches the API and the URL with search and every other filter; Report due looks at past slots', async () => {
@@ -977,12 +989,13 @@ test('reports: the sheet shows a submitted report read-only -- who and when, the
   });
 });
 
-test('reports: a booking without its report says why -- due (with or without a tutor), in progress, upcoming; none for a cancelled one', async () => {
+test('reports: a booking without its report says why -- due, started, late, never started, upcoming; none for a cancelled one', async () => {
   for (const [booking, says] of [
     [DEV, 'Report due. The class is over and the tutor has not written the report yet.'],
-    [NOOR, 'Report due. The class is over, and no tutor is assigned to write the report.'],
-    [SAM, 'The class has started. The tutor can write the report now.'],
-    [SOON, 'The tutor can write the report once the class starts.'],
+    [SAM, 'The tutor has started the class. They can write the report now.'],
+    [LEO, 'The scheduled time has passed and the tutor has not started the class yet.'],
+    [NOOR, 'The slot ended without the tutor starting the class, so no report can be written.'],
+    [SOON, 'The tutor can write the report once they start the class.'],
   ]) {
     serve({ [`GET ${LIST}`]: list([booking]), [`GET ${at(booking)}`]: detail(booking) });
     const page = await open(`/bookings?booking=${booking.id}`, ADMIN);
@@ -1175,10 +1188,17 @@ const TUTOR = { id: 'tutor', role: 'TUTOR', permissions: [VIEW_ASSIGNED, 'accoun
 // The tutor API's rows (backend bookings.tutor_bookings): the slot, without its id, and the child.
 const mySlot = (date, time) => ({ date, time, starts_at: `${date}T14:00:00+00:00`, ends_at: `${date}T15:00:00+00:00`,
   started: false, ended: false });
+// Its Start (backend tutor_bookings.start_refusal): offered only while the API says so, with why not otherwise.
+const TOO_EARLY = { code: 'START_TOO_EARLY', message: 'A booking can be started from 5 minutes before its scheduled time.' };
+const ALREADY_STARTED = { code: 'BOOKING_STARTED', message: 'This booking has already started.' };
+const notStartable = (start_refusal) => ({ actions: { start: false }, start_refusal });
 const MY_RIYA = { id: 'b-riya', booking_type: 'DEMO', status: 'BOOKED', slot: mySlot('2026-10-31', '19:30'),
-  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates' };
+  student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School', country: 'United Arab Emirates',
+  activity_state: 'UPCOMING', started_at: null, start_opens_at: '2026-10-31T13:55:00+00:00', ...notStartable(TOO_EARLY) };
 const MY_ALI = { id: 'b-ali', booking_type: 'DIAGNOSTIC', status: 'CANCELLED', slot: mySlot('2026-11-01', '10:00'),
-  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India' };
+  student_name: 'Ali', grade: 'Class 9', syllabus: 'IGCSE', school_name: 'Al Noor School', country: 'India',
+  activity_state: 'CANCELLED', started_at: null, start_opens_at: '2026-11-01T13:55:00+00:00',
+  ...notStartable({ code: 'BOOKING_CANCELLED', message: 'This booking is cancelled, so it cannot be started.' }) };
 const mine = (results, count = results.length, page = 1) => ({ results, count, page, page_size: 25, timezone: 'Asia/Kolkata' });
 const myDetail = (row) => ({ ...row, timezone: 'Asia/Kolkata' });
 const myAt = (booking) => `${MINE}${booking.booking_type.toLowerCase()}/${booking.id}/`;
@@ -1368,16 +1388,23 @@ test('My Bookings: nothing but the child and the slot is rendered, whatever else
 });
 
 // Where each booking stands with its report (P8): the API's own has_report, report_version and report_due,
-// and the slot's started / ended, as the tutor's rows carry them (backend bookings.tutor_bookings).
+// and where it stands as a class -- its activity_state and the tutor's own start -- as the tutor's rows
+// carry them (backend bookings.tutor_bookings). The slot's clock alone never starts a booking.
 const reportOf = (row, slot, report) => ({ ...row, slot: { ...row.slot, ...slot }, has_report: false, report_version: null,
   report_due: false, ...report });
+const MY_STARTED = { activity_state: 'IN_PROGRESS', started_at: '2026-10-31T14:02:00+00:00', ...notStartable(ALREADY_STARTED) };
 const MY_UPCOMING = reportOf(MY_RIYA, {}, {});
-const MY_RUNNING = reportOf({ ...MY_RIYA, id: 'b-sam', student_name: 'Sam' }, { started: true }, {});
+const MY_RUNNING = reportOf({ ...MY_RIYA, id: 'b-sam', student_name: 'Sam' }, { started: true }, MY_STARTED);
 const MY_DUE = reportOf({ ...MY_RIYA, id: 'b-dev', booking_type: 'DIAGNOSTIC', student_name: 'Dev' }, { started: true, ended: true },
-  { report_due: true });
+  { ...MY_STARTED, report_due: true });
 const MY_DONE = reportOf({ ...MY_RIYA, id: 'b-ira', status: 'COMPLETED', student_name: 'Ira' }, { started: true, ended: true },
-  { has_report: true, report_version: 2 });
+  { ...MY_STARTED, activity_state: 'COMPLETED', has_report: true, report_version: 2,
+    ...notStartable({ code: 'BOOKING_COMPLETED', message: 'This booking is already completed.' }) });
 const MY_CANCELLED = reportOf(MY_ALI, { started: true, ended: true }, {});
+// The slot ended and its tutor never started it: no report can follow.
+const MY_MISSED = reportOf({ ...MY_RIYA, id: 'b-kai', student_name: 'Kai' }, { started: true, ended: true },
+  { activity_state: 'NOT_STARTED',
+    ...notStartable({ code: 'START_WINDOW_CLOSED', message: "This booking's slot has ended, so it can no longer be started." }) });
 
 /** The report links in ``root``: [label, where it goes]. */
 const reportLinks = (root) => [...root.querySelectorAll('a')].map((link) => [clean(link.textContent), link.getAttribute('href')]);
@@ -1401,17 +1428,19 @@ test('My Bookings: each booking says where it stands with its report, and offers
   ]);
   assert.equal(actions(running).querySelector('a').getAttribute('aria-label'), 'Write report for Sam');
   assert.equal(actions(done).querySelector('a').getAttribute('aria-label'), 'Edit report for Ira');
-  // Report due is the API's word: a booked booking whose slot is over without it stays In progress.
-  serve({ [`GET ${MINE}`]: mine([reportOf(MY_RIYA, { started: true, ended: true }, {})]) });
+  // A slot that is over is not a start: never started, it is Not started, with no report to write.
+  serve({ [`GET ${MINE}`]: mine([MY_MISSED]) });
   await click(button('Refresh'));
-  assert.equal(status(rows()[0]), 'In progress');
+  assert.equal(status(rows()[0]), 'Not started');
+  assert.deepEqual(reportLinks(actions(rows()[0])), []);
+  assert.equal(button('Start Demo', rows()[0]), undefined);
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
 });
 
 test("My Bookings: the sheet's Report section -- what the report waits for, or its version, its PDF and Edit report", async () => {
   const cases = [
-    [MY_UPCOMING, 'You can write the report once the class starts.', [], false],
-    [MY_RUNNING, 'The class has started. You can write the report now.', [['Write report', '/my-bookings/demo/b-sam/report']], false],
+    [MY_UPCOMING, 'You can write the report once you start the class.', [], false],
+    [MY_RUNNING, 'You have started the class. You can write the report now.', [['Write report', '/my-bookings/demo/b-sam/report']], false],
     [MY_DUE, 'The class is over. The report is due.', [['Write report', '/my-bookings/diagnostic/b-dev/report']], false],
     [MY_DONE, 'Submitted — version 2', [['Edit report', '/my-bookings/demo/b-ira/report']], true],
   ];
@@ -1430,6 +1459,22 @@ test("My Bookings: the sheet's Report section -- what the report waits for, or i
   await open(`/my-bookings?${opened(MY_CANCELLED)}`, TUTOR);
   assert.ok(![...topDialog().querySelectorAll('h3')].some((heading) => heading.textContent === 'Report'));
   assert.deepEqual(reportLinks(topDialog()), []);
+});
+
+test("My Bookings: a booking completed before Start existed shows no start time, and still offers Edit report and its PDF", async () => {
+  const legacy = { ...MY_DONE, started_at: null };
+  serve({ [`GET ${MINE}`]: mine([legacy]), [`GET ${myAt(legacy)}`]: myDetail(legacy) });
+  await open(`/my-bookings?${opened(legacy)}`, TUTOR);
+  const [row] = rows();
+  assert.match(clean(row.textContent), /Completed.*Report v2/);
+  assert.deepEqual(reportLinks(row), [['Edit report', '/my-bookings/demo/b-ira/report']]);
+  const sheet = topDialog();
+  assert.match(clean(sheet.textContent), /StartedStart not recorded/);
+  assert.ok(![...sheet.querySelectorAll('button')].some((element) => /^Start /.test(clean(element.textContent))), 'no Start');
+  const report = [...sheet.querySelectorAll('section')].find((element) => element.querySelector('h3')?.textContent === 'Report');
+  assert.equal(clean(report.querySelector('dd').textContent), 'Submitted — version 2');
+  assert.deepEqual(reportLinks(report), [['Edit report', '/my-bookings/demo/b-ira/report']]);
+  assert.ok(button('Download PDF', report), 'its PDF');
 });
 
 test("My Bookings: the sheet downloads the report's PDF from the tutor's own route, or says why it could not", async () => {
@@ -1465,6 +1510,136 @@ test("My Bookings: the sheet downloads the report's PDF from the tutor's own rou
     Object.assign(URL, { createObjectURL, revokeObjectURL });
     window.HTMLAnchorElement.prototype.click = anchorClick;
   }
+});
+
+// ------------------------------------------------------------ Start Demo / Start Diagnostic (tutors)
+// A booking whose Start is open (the API's actions.start), and the same booking as the API answers it once started.
+const MY_READY = reportOf({ ...MY_RIYA, id: 'b-zoe', student_name: 'Zoe' }, {},
+  { activity_state: 'READY', actions: { start: true }, start_refusal: null });
+const startedOf = (booking) => ({ ...booking, ...MY_STARTED });
+const startAt = (booking) => `${myAt(booking)}start/`;
+
+/** Records what would open a new window: the Meet link never opens by itself. */
+function watchWindowOpen() {
+  const opened = [];
+  window.open = (...args) => opened.push(args);
+  return opened;
+}
+
+test('Start: offered only where the API says so, confirmed first; then the list is read again and offers Write report', async () => {
+  const windows = watchWindowOpen();
+  let listed = [MY_READY, MY_UPCOMING, MY_MISSED];
+  serve({
+    [`GET ${MINE}`]: () => ok(mine(listed)),
+    [`POST ${startAt(MY_READY)}`]: () => {
+      listed = [startedOf(MY_READY), MY_UPCOMING, MY_MISSED];
+      return ok({ booking: myDetail(startedOf(MY_READY)), changed: true });
+    },
+  });
+  await open('/my-bookings', TUTOR);
+  const [ready, upcoming, missed] = rows();
+  assert.ok(button('Start Demo for Zoe', ready), 'offered where actions.start');
+  assert.equal(button('Start Demo for Riya', upcoming), undefined, 'never just because the time is near');
+  assert.equal(button('Start Demo for Kai', missed), undefined, 'nor once the slot is over');
+  assert.deepEqual(reportLinks(ready), [], 'no report before the start');
+
+  await click(button('Start Demo for Zoe', ready));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent),
+    /^Start Demo\?.*Zoe · Demo class · Sat, 31 Oct · 7:30 PM IST.*started the Demo class now\. It cannot be undone\./);
+  await click(button('Not yet', dialog));
+  assert.equal(calls('POST', startAt(MY_READY)).length, 0, 'Not yet sends nothing');
+
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  assert.equal(calls('POST', startAt(MY_READY)).length, 1);
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0, 'the dialog closes');
+  assert.equal(calls('GET', MINE).length, 2, 'the list is read again');
+  const [started] = rows();
+  assert.equal(button('Start Demo for Zoe', started), undefined, 'Start gives way to the report');
+  assert.deepEqual(reportLinks(started), [['Write report', '/my-bookings/demo/b-zoe/report']]);
+  assert.match(clean(started.textContent), /In progress/);
+  assert.deepEqual(windows, [], 'the Meet link is not opened');
+});
+
+test("Start: the sheet starts it, then shows when it started and Write report; a Diagnostic says so", async () => {
+  let current = MY_READY;
+  serve({
+    [`GET ${MINE}`]: () => ok(mine([current])),
+    [`GET ${myAt(MY_READY)}`]: () => ok(myDetail(current)),
+    [`POST ${startAt(MY_READY)}`]: () => {
+      current = startedOf(MY_READY);
+      return ok({ booking: myDetail(current), changed: true });
+    },
+  });
+  const page = await open(`/my-bookings?${opened(MY_READY)}`, TUTOR);
+  let sheet = topDialog();
+  assert.match(clean(sheet.textContent), /StartedNot started/);
+  await click(button('Start Demo for Zoe', sheet));
+  await click(button('Start Demo', topDialog()));
+  sheet = topDialog();
+  assert.match(clean(sheet.textContent), /StartedStarted 31 Oct 2026, 7:32 PM IST/);
+  assert.equal(button('Start Demo for Zoe', sheet), undefined);
+  const report = [...sheet.querySelectorAll('section')].find((element) => element.querySelector('h3')?.textContent === 'Report');
+  assert.deepEqual(reportLinks(report), [['Write report', '/my-bookings/demo/b-zoe/report']]);
+  await page.unmount();
+
+  const diagnostic = { ...MY_READY, id: 'b-dia', booking_type: 'DIAGNOSTIC', student_name: 'Dia' };
+  serve({ [`GET ${MINE}`]: mine([diagnostic]), [`GET ${myAt(diagnostic)}`]: myDetail(diagnostic) });
+  await open(`/my-bookings?${opened(diagnostic)}`, TUTOR);
+  await click(button('Start Diagnostic for Dia', topDialog()));
+  assert.match(clean(topDialog().textContent), /^Start Diagnostic\?/);
+});
+
+test('Start: an early booking says when Start opens; a refusal shows in the dialog and the list is read again once it closes', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_UPCOMING]), [`GET ${myAt(MY_UPCOMING)}`]: myDetail(MY_UPCOMING) });
+  const page = await open(`/my-bookings?${opened(MY_UPCOMING)}`, TUTOR);
+  assert.match(clean(topDialog().textContent), /You can start from 31 Oct 2026, 7:25 PM IST\./);
+  await page.unmount();
+
+  serve({
+    [`GET ${MINE}`]: mine([MY_READY]),
+    [`POST ${startAt(MY_READY)}`]: () => fail(409, { error: 'START_WINDOW_CLOSED',
+      message: "This booking's slot has ended, so it can no longer be started." }),
+  });
+  await open('/my-bookings', TUTOR);
+  const reads = calls('GET', MINE).length;
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /The slot has ended, so this booking can no longer be started\./);
+  assert.ok(button('Start Demo', dialog).disabled, 'not offered again');
+  assert.equal(calls('GET', MINE).length, reads, 'read again only once the dialog closes');
+  await click(button('Not yet', dialog));
+  assert.equal(calls('GET', MINE).length, reads + 1);
+});
+
+test('Start: the Admin and the BDE read whether a booking was started, and are never offered Start', async () => {
+  const started = { ...ARUN, activity_state: 'IN_PROGRESS', started_at: '2026-11-01T14:02:00+00:00' };
+  const late = { ...RIYA, activity_state: 'LATE' };
+  serve({
+    [`GET ${LIST}`]: list([started, late]),
+    [`GET ${at(started)}`]: detail(started, { started_by: { id: 't-b', full_name: 'Tutor B' }, tutor_changeable: false,
+      tutor_change_refusal: { code: 'BOOKING_STARTED', message: 'This booking has already started, so its tutor cannot be changed.' } }),
+  });
+  const page = await open(`/bookings?booking=${started.id}`, ADMIN);
+  const [first, second] = rows();
+  assert.match(clean(first.textContent), /Arun.*In progress/);
+  assert.match(clean(second.textContent), /Riya.*Not started yet/);
+  assert.match(clean(topDialog().textContent), /StartedStarted 1 Nov 2026, 7:32 PM IST by Tutor B/);
+  assert.ok(![...document.querySelectorAll('button')].some((element) => /^Start /.test(clean(element.textContent))), 'no Start');
+  await page.unmount();
+
+  const taught = { ...BDE_BOOKED, ended: true, activity_state: 'IN_PROGRESS', started_at: '2026-10-31T14:02:00+00:00' };
+  const missed = { ...BDE_BOOKED, id: 'b-5', date: '2026-10-30', ended: true, activity_state: 'NOT_STARTED' };
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([taught, missed]) });
+  await open('/enquiries/lead-1', BDE);
+  const [firstRow, secondRow] = bookingRows();
+  assert.match(firstRow, /In progressStarted 31 Oct 2026, 7:32 PM IST/);
+  assert.match(secondRow, /Not started/);
+  assert.ok(!/Done/.test(secondRow), 'a slot that is over is never Done by itself');
+  assert.ok(![...document.querySelectorAll('button')].some((element) => /^Start /.test(clean(element.textContent))), 'no Start');
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
 });
 
 test('My Bookings: a report-aware booking still shows nothing of the parent, whatever else the API sends', async () => {
@@ -1605,7 +1780,7 @@ test("Bookings sheet: the booking's Meet link, or that none is configured; a tea
   assert.match(clean(topDialog().textContent), /Meet linkMeet link not configured/);
   await click(button('Set Meet link', topDialog()));
   const dialog = topDialog();
-  assert.match(clean(dialog.textContent), /^Set Meet link.*Tutor A's permanent Google Meet link\..*Past bookings keep the link they had\./);
+  assert.match(clean(dialog.textContent), /^Set Meet link.*Tutor A's permanent Google Meet link\..*other bookings the tutor has not started yet use it\. Started and past bookings keep the link they had\./);
   const input = dialog.querySelector('#booking-meet-link');
   const form = document.getElementById('booking-meet-link-form');
 
@@ -1644,6 +1819,16 @@ test("Bookings sheet: the API's refusal is shown in the dialog; nobody but a tea
   page = await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}`, ADMIN);
   assert.deepEqual(anchors(topDialog()), [[MEET, '_blank', 'noopener noreferrer']]);
   assert.ok(!button('Change Meet link') && !button('Set Meet link'));
+  await page.unmount();
+
+  // A booking its tutor has started keeps its room (backend set_tutor_meet_link): shown, not changed from here.
+  const started = { ...ALI, activity_state: 'IN_PROGRESS', started_at: '2026-11-01T04:32:00+00:00' };
+  serve({ [`GET ${DIAGNOSTIC_LIST}`]: list([started]),
+    [`GET ${at(ALI)}`]: detail(started, { tutor_meet_link: MEET, started_by: { id: 't-a', full_name: 'Tutor A' } }) });
+  page = await open(`/bookings?type=DIAGNOSTIC&booking=${ALI.id}`, MANAGER);
+  assert.match(clean(topDialog().textContent), /meet\.google\.com\/abc-defg-hij/);
+  assert.match(clean(topDialog().textContent), /StartedStarted 1 Nov 2026, 10:02 AM IST by Tutor A/);
+  assert.ok(!button('Change Meet link') && !button('Set Meet link'), 'no change offered once started');
   await page.unmount();
 
   // A booking whose slot has ended keeps its link: shown, not changed from here.
@@ -1967,7 +2152,7 @@ const requestUrl = (booking) => `${commsUrl(booking)}confirmation-request/`;
 const answerUrl = (booking) => `${commsUrl(booking)}parent-confirmation/`;
 const READY_PREVIEW = { step: 'CONFIRMATION_REQUEST', step_label: 'Confirmation request', ready: true,
   text: "Hi Sir/Ma'am,\n\nYour child's Demo class is scheduled for *Sat, 31 Oct 2026 at 7:30 PM IST*.\n\n*Bde One*",
-  requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming', met: true }, { code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: true }] };
+  requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming and not started', met: true }, { code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: true }] };
 const ASKED = commMessage('CONFIRMATION_REQUEST', 'Confirmation request', { created_by: BDE_ONE });
 const cardButton = (label) => button(label, communicationCard());
 const openSheet = (user = COMMS_ADMIN) => open(`/bookings?booking=${RIYA.id}`, user);
@@ -2033,7 +2218,7 @@ test('Confirmation: while the preview loads; a message that lacks something says
   assert.ok(topDialog().querySelector('[aria-busy="true"]'), 'the preview is loading');
   assert.ok(button('Request confirmation', topDialog()).disabled);
   await act(async () => later.resolve({ status: 200, data: { ...READY_PREVIEW, ready: false, text: null,
-    requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming', met: true },
+    requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming and not started', met: true },
       { code: 'CENTRAL_CONTACT', label: 'Central contact (this lead has no BDE)', met: false }] } }));
   await settle();
   assert.match(clean(topDialog().textContent),
@@ -2107,14 +2292,15 @@ test("Parent's answer: the API's refusal is shown in the dialog, which stays ope
     [`GET ${LIST}`]: list([RIYA]),
     [`GET ${at(RIYA)}`]: detail(RIYA),
     [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    // SLOT_STARTED is the scheduled time passing (backend PastStartNotConfirmable); BOOKING_STARTED is the tutor's Start.
     [`POST ${answerUrl(RIYA)}`]: () => fail(409, { error: 'SLOT_STARTED',
-      message: "This booking has already started, so the parent's answer can no longer be recorded." }),
+      message: "This booking's scheduled time has passed, so the parent's answer can no longer be recorded." }),
   });
   await openSheet();
   await click(cardButton('Record answer'));
   await click(radio('Confirmed', topDialog()));
   await click(button('Record answer', topDialog()));
-  assert.match(clean(topDialog().textContent), /This booking has already started, so the parent's answer can no longer be recorded\./);
+  assert.match(clean(topDialog().textContent), /This booking's scheduled time has passed, so the parent's answer can no longer be recorded\./);
   assert.ok(!communicationCard().querySelector('[role="status"]'));
 });
 

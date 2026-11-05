@@ -25,24 +25,27 @@ from bookings.booking_service import (
     reschedule_booking,
 )
 from bookings.models import CancelReason, DemoBooking, Lead, ParentConfirmation, RescheduleReason
-from bookings.tests_booking import DAY, DEMO, MORNING, NOW, account, link, request, schedule
+from bookings.tests_booking import DAY, DEMO, MORNING, NOW, account, link, request, schedule, start
 from reports.services import submit_report
 from reports.tests_services import report_input
 
 from . import planner, sending
 from .formatting import whatsapp_message
 from .models import (
-    OUTCOME_UNKNOWN,
     AttemptOutcome,
     Channel,
     Message,
     MessageAttempt,
     MessageCancelReason,
     MessageStatus,
+    MessageTemplate,
+    OUTCOME_UNKNOWN,
     Step,
     TaskResolution,
     TaskStatus,
+    template_key,
 )
+from .overview import booking_communication
 from .providers.base import SendResult
 from .rendering import Requirement, requirements
 from .safety import SendBlock
@@ -154,10 +157,80 @@ class AcceptedTests(SenderTestCase):
     def test_the_after_activity_message_of_a_completed_booking(self):
         booking = self.ready(self.book())
         completed_at = booking.slot.starts_at + timedelta(minutes=50)
+        start(booking)
         submit_report(booking, self.tutor, report_input(booking), now=completed_at)
         after = self.message(booking, Step.AFTER_ACTIVITY)
         self.assertEqual(send_message(after.pk, now=completed_at + timedelta(minutes=5)).outcome, SendOutcome.QUEUED)
         self.assertEqual(self.fresh(after).task.status, TaskStatus.DONE)
+
+
+class StartedBookingTests(SenderTestCase):
+    """
+    Once the tutor has started a booking (booking_service.start_booking), the
+    automatic messages before the class -- acknowledgement, confirmation
+    request, confirmed message -- no longer go, however early the start: the
+    sender's own check (rendering.Requirement.BOOKING_ACTIVE) leaves them
+    Waiting, and the expiry sweep closes them at the scheduled start as it
+    always did. A booking not started goes on as before.
+    """
+
+    def test_the_gate_reads_the_start_as_well_as_the_clock(self):
+        started, upcoming = self.ready(self.book()), self.ready(self.book(day=DAY + timedelta(days=1)))
+        start(started, minutes=-5)
+        started.refresh_from_db()
+        for booking, active in ((started, False), (upcoming, True)):
+            early = booking.slot.starts_at - timedelta(minutes=4)
+            for step in (Step.ACKNOWLEDGEMENT, Step.CONFIRMATION_REQUEST, Step.PARENT_CONFIRMATION):
+                with self.subTest(step=step, active=active):
+                    body = MessageTemplate.objects.get(key=template_key(booking.booking_type, step)).current_version().body
+                    checks = dict(requirements(booking, step, body, early))
+                    self.assertEqual(checks[Requirement.BOOKING_ACTIVE], active)
+                    # The scheduled time passing closes it either way, as before.
+                    self.assertFalse(dict(requirements(booking, step, body, booking.slot.starts_at))[Requirement.BOOKING_ACTIVE])
+        self.assertEqual(Requirement.BOOKING_ACTIVE.label, 'Booking still upcoming and not started')
+
+    def test_pending_messages_wait_once_started_and_expire_at_the_scheduled_start(self):
+        # Asked to confirm, not yet answered: a Pending acknowledgement and confirmation request.
+        asked = self.ready(self.book())
+        request = request_confirmation(asked, actor=self.admin, now=NOW)[0]
+        # Confirmed: a Pending confirmed message (tutor, Meet link and BDE in place).
+        confirmed = self.ready(self.book(day=DAY + timedelta(days=1)))
+        record_parent_confirmation(confirmed, ParentConfirmation.CONFIRMED, actor=self.bde, now=NOW)
+        pending = [self.message(asked), request, self.message(confirmed), self.message(confirmed, Step.PARENT_CONFIRMATION)]
+        for message in pending:
+            self.assertEqual(self.fresh(message).status, MessageStatus.PENDING)
+        # The control: the same shape, never started, goes at the same moment of its own slot.
+        control = self.ready(self.book(day=DAY + timedelta(days=2)))
+
+        for booking in (asked, confirmed):
+            start(booking, minutes=-5)
+        for message in pending:
+            booking = message.booking
+            early = booking.slot.starts_at - timedelta(minutes=4)
+            with self.subTest(step=message.template.step):
+                self.assertEqual(send_message(message.pk, now=early).outcome, SendOutcome.WAITING)
+                message = self.fresh(message)
+                self.assertEqual((message.status, message.body, message.attempt_count), (MessageStatus.WAITING, '', 0))
+        self.assertEqual(FakeProvider.outbox, [])
+        self.assertEqual(
+            send_message(self.message(control).pk, now=control.slot.starts_at - timedelta(minutes=4)).outcome,
+            SendOutcome.QUEUED,
+        )
+        self.assertEqual(len(FakeProvider.outbox), 1)
+
+        # What the overview says such a message waits for; then the sweep closes it at the scheduled start, as always.
+        asked.refresh_from_db()
+        shown = booking_communication(asked, asked.slot.starts_at - timedelta(minutes=4), self.admin)['messages']
+        by_step = {item['step']: item['waiting_for'] for item in shown}
+        gate = {'code': 'BOOKING_ACTIVE', 'label': 'Booking still upcoming and not started'}
+        self.assertEqual(by_step['ACKNOWLEDGEMENT'], [gate])
+        self.assertEqual(by_step['CONFIRMATION_REQUEST'], [gate])
+        # Its own confirmed message, never answered, waits for the parent as well.
+        self.assertEqual(by_step['PARENT_CONFIRMATION'], [{'code': 'PARENT_CONFIRMED', 'label': 'Parent confirmation'}, gate])
+        planner.close_expired(asked.slot.starts_at)
+        for message in pending[:2]:
+            message = self.fresh(message)
+            self.assertEqual((message.status, message.cancel_reason), (MessageStatus.CANCELLED, MessageCancelReason.EXPIRED))
 
 
 class RefusedTests(SenderTestCase):
@@ -265,6 +338,7 @@ class EligibilityTests(SenderTestCase):
         """Within 24 hours of completion or not at all: one left Pending while sending was off never goes days late."""
         booking = self.ready(self.book())
         completed_at = booking.slot.starts_at + timedelta(minutes=50)
+        start(booking)
         submit_report(booking, self.tutor, report_input(booking), now=completed_at)
         after = self.message(booking, Step.AFTER_ACTIVITY)
         closes = completed_at + timedelta(hours=24)

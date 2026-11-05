@@ -67,6 +67,7 @@ export const ACTION_LABELS = {
   'booking.reschedule': 'Booking rescheduled',
   'booking.assign_tutor': 'Tutor assigned',
   'booking.unassign_tutor': 'Tutor unassigned',
+  'booking.start': 'Booking started',
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
   'booking.parent_confirmation': 'Parent confirmation recorded',
@@ -305,6 +306,9 @@ export function describeActivity(row) {
         : `Assigned a tutor to ${bookingOfType(row)}`;
     case 'booking.unassign_tutor':
       return `Unassigned the tutor from ${bookingOfType(row)}`;
+    // The tutor's own Start (backend booking_service.start_booking): ids and instants only.
+    case 'booking.start':
+      return `Started ${bookingOfType(row)}`;
     // The first report completes its booking (backend reports.services): two entries, one each.
     case 'booking.complete':
       return `Completed ${bookingOfType(row)} with its report`;

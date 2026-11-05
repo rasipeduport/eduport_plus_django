@@ -307,28 +307,47 @@ test('the API\'s refusals keep a message for each field', () => {
 });
 
 test('where a booking stands with its report, and what its tutor is offered', () => {
+  // Where it stands as a class is the API's activity_state, and Write report follows the tutor's own start
+  // (started_at) -- never the slot's clock, which says nothing of a start.
+  const STARTED = '2026-11-01T14:02:00+00:00';
   const booking = (status, slot = {}, report = {}) => ({ status, slot: { started: false, ended: false, ...slot },
-    has_report: false, report_version: null, report_due: false, ...report });
+    activity_state: status === 'BOOKED' ? 'UPCOMING' : status, started_at: null, has_report: false, report_version: null,
+    report_due: false, ...report });
   const state = (b) => [reports.reportState(b).label, reports.reportState(b).variant];
   const actions = (b) => reports.reportActions(b);
 
   const upcoming = booking('BOOKED');
-  const running = booking('BOOKED', { started: true });
-  const due = booking('BOOKED', { started: true, ended: true }, { report_due: true });
-  const done = booking('COMPLETED', { started: true, ended: true }, { has_report: true, report_version: 2 });
+  const ready = booking('BOOKED', {}, { activity_state: 'READY' });
+  const late = booking('BOOKED', { started: true }, { activity_state: 'LATE' });
+  const running = booking('BOOKED', { started: true }, { activity_state: 'IN_PROGRESS', started_at: STARTED });
+  const due = booking('BOOKED', { started: true, ended: true }, { activity_state: 'IN_PROGRESS', started_at: STARTED, report_due: true });
+  const missed = booking('BOOKED', { started: true, ended: true }, { activity_state: 'NOT_STARTED' });
+  const done = booking('COMPLETED', { started: true, ended: true }, { started_at: STARTED, has_report: true, report_version: 2 });
   assert.deepEqual(state(upcoming), ['Upcoming', 'success']);
+  assert.deepEqual(state(ready), ['Ready to start', 'success']);
+  assert.deepEqual(state(late), ['Not started yet', 'warning']);
   assert.deepEqual(state(running), ['In progress', 'info']);
   assert.deepEqual(state(due), ['Report due', 'warning']);
+  assert.deepEqual(state(missed), ['Not started', 'warning']);
   assert.deepEqual(state(done), ['Completed', 'secondary']);
   assert.deepEqual(state(booking('CANCELLED', { started: true })), ['Cancelled', 'outline']);
   assert.deepEqual(state(booking('RESCHEDULED')), ['Rescheduled', 'outline']);
-  // Due is the API's word (report_due), never worked out here.
-  assert.equal(reports.reportState(booking('BOOKED', { started: true, ended: true })).label, 'In progress');
+  assert.deepEqual(reports.reportState(missed).key, 'not_started');
+  // Due is the API's word (report_due), never worked out here: a started booking whose slot is over stays In progress.
+  assert.equal(reports.reportState({ ...due, report_due: false }).label, 'In progress');
 
   assert.deepEqual(actions(upcoming), { write: false, edit: false, pdf: false });
+  assert.deepEqual(actions(ready), { write: false, edit: false, pdf: false });
+  assert.deepEqual(actions(late), { write: false, edit: false, pdf: false }, 'the scheduled time alone opens no report');
+  assert.deepEqual(actions(missed), { write: false, edit: false, pdf: false });
   assert.deepEqual(actions(running), { write: true, edit: false, pdf: false });
   assert.deepEqual(actions(due), { write: true, edit: false, pdf: false });
   assert.deepEqual(actions(done), { write: false, edit: true, pdf: true });
+  // A booking completed before Start existed has no recorded start: completed and editable all the same.
+  const legacy = { ...done, started_at: null };
+  assert.deepEqual(state(legacy), ['Completed', 'secondary']);
+  assert.deepEqual(actions(legacy), { write: false, edit: true, pdf: true });
+  assert.deepEqual(reports.reportBadge(legacy), { label: 'Report v2', variant: 'success' });
   assert.deepEqual(actions(booking('CANCELLED', { started: true, ended: true })), { write: false, edit: false, pdf: false });
 
   assert.deepEqual(reports.reportBadge(done), { label: 'Report v2', variant: 'success' });
@@ -552,13 +571,19 @@ const TUTOR = { id: 'tutor-anu', role: 'TUTOR', full_name: 'Tutor Anu', email: '
   permissions: ['accounts.submit_booking_report', 'accounts.view_assigned_bookings'] };
 const slotOf = (started, ended) => ({ date: '2026-11-01', time: '19:30', starts_at: '2026-11-01T14:00:00+00:00',
   ends_at: '2026-11-01T15:00:00+00:00', started, ended });
-// One assigned booking as the tutor API answers it (backend bookings.tutor_bookings): the child and the slot only.
+// One assigned booking as the tutor API answers it (backend bookings.tutor_bookings): the child and the slot only,
+// started by its tutor unless a test says otherwise -- a report follows the tutor's own Start.
+const STARTED = { activity_state: 'IN_PROGRESS', started_at: '2026-11-01T14:02:00+00:00', start_opens_at: '2026-11-01T13:55:00+00:00',
+  actions: { start: false }, start_refusal: { code: 'BOOKING_STARTED', message: 'This booking has already started.' } };
+const NOT_STARTED = { started_at: null, actions: { start: false } };
 const assigned = (id, type, extra = {}) => ({ id, booking_type: type, status: 'BOOKED', slot: slotOf(true, false),
   student_name: 'Riya', grade: 'Class 8', syllabus: 'CBSE', school_name: 'Delhi Private School',
-  country: 'United Arab Emirates', has_report: false, report_version: null, report_due: false, timezone: 'Asia/Kolkata', ...extra });
+  country: 'United Arab Emirates', has_report: false, report_version: null, report_due: false, timezone: 'Asia/Kolkata',
+  ...STARTED, ...extra });
 const DIAG = assigned('b-1', 'DIAGNOSTIC');
 const DEMO_DUE = assigned('b-3', 'DEMO', { slot: slotOf(true, true), report_due: true });
-const DEMO_DONE = assigned('b-2', 'DEMO', { status: 'COMPLETED', slot: slotOf(true, true), has_report: true, report_version: 2 });
+const DEMO_DONE = assigned('b-2', 'DEMO', { status: 'COMPLETED', slot: slotOf(true, true), has_report: true, report_version: 2,
+  activity_state: 'COMPLETED', start_refusal: { code: 'BOOKING_COMPLETED', message: 'This booking is already completed.' } });
 const tutorAt = (booking, rest = '') => `/api/tutor/bookings/${booking.booking_type.toLowerCase()}/${booking.id}/${rest}`;
 const pageOf = (booking) => `/my-bookings/${booking.booking_type.toLowerCase()}/${booking.id}/report`;
 const NO_REPORT = () => fail(404, { error: 'NO_REPORT', message: 'This booking has no report yet.' });
@@ -1077,6 +1102,26 @@ test('the report page: refusals -- submitted elsewhere, saved elsewhere, no long
   assert.equal(form(), null);
 });
 
+test('the report page: a booking not started yet offers Start, confirmed first; once started the form opens', async () => {
+  const ready = assigned('b-9', 'DEMO', { slot: slotOf(false, false), activity_state: 'READY', ...NOT_STARTED,
+    actions: { start: true }, start_refusal: null });
+  serve({
+    [`GET ${tutorAt(ready)}`]: ready,
+    [`POST ${tutorAt(ready, 'start/')}`]: () => ok({ booking: { ...ready, ...STARTED }, changed: true }),
+  });
+  const page = await openPage(pageOf(ready));
+  assert.ok(pageText().includes('Start the class to write its report.'));
+  assert.equal(form(), null, 'no form before the start');
+  await click(button('Start Demo for Riya'));
+  assert.match(clean(topDialog().textContent), /^Start Demo\?.*It cannot be undone\./);
+  await click(button('Start Demo', topDialog()));
+  assert.equal(calls('POST', tutorAt(ready, 'start/')).length, 1);
+  assert.ok(form(), 'the form for a first report, once started');
+  assert.equal(button('Start Demo for Riya'), undefined);
+  assert.equal(calls('POST', tutorAt(ready, 'report/')).length, 0, 'starting writes no report');
+  await page.unmount();
+});
+
 test('the report page: a booking not assigned, a mistyped link, a class not started, a cancelled booking, a load error', async () => {
   serve({
     [`GET ${tutorAt(DIAG)}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
@@ -1095,7 +1140,14 @@ test('the report page: a booking not assigned, a mistyped link, a class not star
   await page.unmount();
 
   for (const [booking, says] of [
-    [assigned('b-4', 'DEMO', { slot: slotOf(false, false) }), 'You can write the report once the class starts.'],
+    [assigned('b-4', 'DEMO', { slot: slotOf(false, false), activity_state: 'UPCOMING', ...NOT_STARTED,
+      start_refusal: { code: 'START_TOO_EARLY', message: 'A booking can be started from 5 minutes before its scheduled time.' } }),
+    'You can write the report once you start the class.'],
+    // Its scheduled time has passed, or its slot is over, with no start: still no form.
+    [assigned('b-7', 'DEMO', { activity_state: 'LATE', ...NOT_STARTED }),
+      'The scheduled time has passed. Start the class to write its report.'],
+    [assigned('b-8', 'DEMO', { slot: slotOf(true, true), activity_state: 'NOT_STARTED', ...NOT_STARTED }),
+      'The slot ended without the class being started, so no report can be written.'],
     [assigned('b-5', 'DIAGNOSTIC', { status: 'CANCELLED' }), 'This booking was cancelled, so there is no report to write.'],
     [assigned('b-6', 'DEMO', { status: 'RESCHEDULED' }), 'This booking was moved to another slot. Write the report on the new booking.'],
   ]) {

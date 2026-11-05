@@ -10,10 +10,13 @@ BDE's leads, nor leads nobody owns.
 An enquiry's status is not stored. It follows the lead's bookings, so it is
 always what the booking pages last did:
 
-    NEW        no booking yet
-    BOOKED     a booking whose slot has not ended
-    DONE       booked (or completed), and every booked slot has ended
-    CANCELLED  no booking holds a seat, and one at least was cancelled
+    NEW          no booking yet
+    BOOKED       a booking whose slot has not ended
+    DONE         none still to come, and one at least completed, or started by
+                 its tutor (bookings.lifecycle) -- one that happened
+    NOT_STARTED  none still to come or done: a slot ended with no start, so
+                 the class never happened (its scheduled time alone is never DONE)
+    CANCELLED    no booking holds a seat, and one at least was cancelled
 
 A rescheduled booking never decides the status: the booking it moved to
 does. (A lead left with rescheduled bookings only -- which a reschedule never
@@ -34,6 +37,7 @@ from django.utils import timezone
 from activity.utils import log_activity
 
 from .leads import InvalidLeadDetails, normalize_phone, student_name_key
+from .lifecycle import activity_state
 from .models import BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, BookingStatus, BookingType, Lead, LeadSource
 from .scheduling import BOOKING_TIMEZONE_NAME
 
@@ -48,6 +52,7 @@ class EnquiryStatus(TextChoices):
     NEW = 'NEW', 'New'
     BOOKED = 'BOOKED', 'Booked'
     DONE = 'DONE', 'Booking done'
+    NOT_STARTED = 'NOT_STARTED', 'Not started'
     CANCELLED = 'CANCELLED', 'Cancelled'
 
 
@@ -85,7 +90,12 @@ def with_status(leads, now):
     """``leads`` annotated with ``enquiry_status`` (EnquiryStatus) as of ``now``."""
     return leads.annotate(enquiry_status=Case(
         When(_has_booking(status=BookingStatus.BOOKED, slot__ends_at__gt=now), then=Value(EnquiryStatus.BOOKED)),
-        When(_has_booking(status__in=HOLDS_SEAT), then=Value(EnquiryStatus.DONE)),
+        # Past this point every booked booking's slot has ended.
+        When(
+            _has_booking(status=BookingStatus.COMPLETED) | _has_booking(status=BookingStatus.BOOKED, started_at__isnull=False),
+            then=Value(EnquiryStatus.DONE),
+        ),
+        When(_has_booking(status=BookingStatus.BOOKED), then=Value(EnquiryStatus.NOT_STARTED)),
         When(_has_booking(status=BookingStatus.CANCELLED), then=Value(EnquiryStatus.CANCELLED)),
         default=Value(EnquiryStatus.NEW),
         output_field=CharField(),
@@ -190,8 +200,10 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
     One enquiry in full (``lead`` from ``listed``), with every booking it has
     made -- each with its tutor and Meet link (_teaching) and what its owner
     BDE may do with it now (``actions``): cancel it while it is booked when
-    ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its slot
-    has started (D12). Each booking's parent confirmation (a ParentConfirmation
+    ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its
+    scheduled time has passed (D12) -- and where it stands as a class, started
+    by its tutor and when, or not (``activity_state``, ``started_at``), to read
+    only. Each booking's parent confirmation (a ParentConfirmation
     code) is shown to whoever may see the lead's communication
     (``show_confirmation``, accounts.view_own_lead_communications), else null.
     """
@@ -221,6 +233,8 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
                 **booking_brief(booking),
                 'status': booking.status,
                 'ended': booking.slot.ends_at <= now,
+                'activity_state': activity_state(booking, now),
+                'started_at': booking.started_at.isoformat() if booking.started_at else None,
                 'booked_at': booking.created_at.isoformat(),
                 'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
                 **_teaching(booking),

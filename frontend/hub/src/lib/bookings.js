@@ -43,7 +43,7 @@ export function bookingPagePath(type, id) {
 
 // Why a booking was cancelled or moved: a code from a fixed list (backend
 // bookings.models.CancelReason / RescheduleReason), never free text. No-show
-// is offered only once the slot has started (the booking's actions.no_show).
+// is offered only once the scheduled time has passed (the booking's actions.no_show).
 export const CANCEL_REASONS = [
   { value: 'NO_SHOW', label: 'No-show' },
   { value: 'PARENT_REQUEST', label: 'Parent asked to cancel' },
@@ -145,6 +145,29 @@ export function listParams(filters, page, pageSize) {
 // types (filtered by `type`); one booking is named by its type and its id.
 export const TUTOR_BOOKINGS_URL = '/api/tutor/bookings/';
 export const tutorBookingUrl = (type, id) => `${TUTOR_BOOKINGS_URL}${typePath(type)}/${id}/`;
+// Start Demo / Start Diagnostic: the tutor's own explicit start (backend booking_service.start_booking).
+export const tutorBookingStartUrl = (type, id) => `${tutorBookingUrl(type, id)}start/`;
+
+/** "Start Demo" or "Start Diagnostic". */
+export function startLabel(type) {
+  return type === 'DIAGNOSTIC' ? 'Start Diagnostic' : 'Start Demo';
+}
+
+// What a refused Start says to the tutor (backend booking_service), by its code.
+const START_REFUSALS = {
+  START_TOO_EARLY: 'It is too early to start. You can start from 5 minutes before the scheduled time.',
+  START_WINDOW_CLOSED: 'The slot has ended, so this booking can no longer be started.',
+  BOOKING_CANCELLED: 'This booking was cancelled, so it cannot be started.',
+  BOOKING_RESCHEDULED: 'This booking was moved to another slot. Start the new booking instead.',
+  BOOKING_COMPLETED: 'This booking is already completed.',
+  NOT_FOUND: 'This booking is no longer assigned to you.',
+};
+
+/** A failed Start as `bookingError` reads it, with the tutor's own wording for each refusal. */
+export function startError(err) {
+  const failure = bookingError(err, 'Could not start this booking. Please try again.');
+  return { ...failure, message: START_REFUSALS[failure.code] ?? failure.message };
+}
 
 /** The tutor list's filters from the page URL; a value the API would refuse is dropped, as in readFilters. */
 export function readTutorFilters(searchParams) {
@@ -159,23 +182,39 @@ export function tutorListParams(filters, page, pageSize) {
   return params;
 }
 
+// Where a booking stands as a class (backend bookings.lifecycle ActivityState).
+const ACTIVITY_STATES = {
+  UPCOMING: { label: 'Upcoming', variant: 'success' },
+  READY: { label: 'Ready to start', variant: 'success' },
+  LATE: { label: 'Not started yet', variant: 'warning' },
+  IN_PROGRESS: { label: 'In progress', variant: 'info' },
+  NOT_STARTED: { label: 'Not started', variant: 'warning' },
+  COMPLETED: { label: 'Completed', variant: 'secondary' },
+  CANCELLED: { label: 'Cancelled', variant: 'outline' },
+  RESCHEDULED: { label: 'Rescheduled', variant: 'outline' },
+};
+const BOOKED_STATE = { label: 'Booked', variant: 'success' };
+
 /**
- * Where a booking stands: cancelled, moved to another slot or completed by
- * its status, else by its slot's clock -- upcoming, in progress, done.
+ * Where a booking stands: cancelled, moved or completed by its status; a
+ * booked one by the API's own `activity_state`, never the slot's clock -- a
+ * booking starts only when its tutor starts it, so a scheduled time that has
+ * passed means Not started yet (or Not started, once the slot is over), never
+ * In progress or Done. A booked one given without it (a link in a reschedule
+ * chain) is just Booked.
  */
 export function bookingState(booking) {
-  if (booking.status === 'CANCELLED') return { label: 'Cancelled', variant: 'outline' };
-  if (booking.status === 'RESCHEDULED') return { label: 'Rescheduled', variant: 'outline' };
-  if (booking.status === 'COMPLETED') return { label: 'Completed', variant: 'secondary' };
-  if (booking.slot?.ended) return { label: 'Done', variant: 'secondary' };
-  if (booking.slot?.started) return { label: 'In progress', variant: 'info' };
-  return { label: 'Upcoming', variant: 'success' };
+  if (booking.status !== 'BOOKED' && booking.status in ACTIVITY_STATES) return ACTIVITY_STATES[booking.status];
+  return ACTIVITY_STATES[booking.activity_state] ?? BOOKED_STATE;
 }
 
-/** Whether the booking's tutor may still change: booked, and its slot not started (backend tutor_change_refusal). */
+/**
+ * Whether the booking's tutor may still change: booked, not started by its
+ * tutor, and its slot not over (backend tutor_change_refusal).
+ */
 export function tutorChangeable(booking) {
   if ('tutor_changeable' in booking) return Boolean(booking.tutor_changeable);
-  return booking.status === 'BOOKED' && !booking.slot?.started;
+  return booking.status === 'BOOKED' && !booking.started_at && !booking.slot?.ended;
 }
 
 // How the booking came in (backend bookings.models.ReferralStatus).

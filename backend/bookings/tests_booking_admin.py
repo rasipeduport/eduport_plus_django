@@ -305,7 +305,7 @@ class AvailabilityTests(BookingAdminTestCase):
         last_week = timezone.now() - timedelta(days=7)
         past = self.book('Old Kid', day=indian_today(last_week) + timedelta(days=1), now=last_week)
         res = self.client.get(tutors_url(past))
-        self.assertEqual((res.data['slot']['ended'], res.data['tutor_change_refusal']['code']), (True, 'SLOT_STARTED'))
+        self.assertEqual((res.data['slot']['ended'], res.data['tutor_change_refusal']['code']), (True, 'SLOT_ENDED'))
 
 
 class AssignmentTests(BookingAdminTestCase):
@@ -367,7 +367,7 @@ class AssignmentTests(BookingAdminTestCase):
         last_week = timezone.now() - timedelta(days=7)
         past = self.book('Old Kid', day=indian_today(last_week) + timedelta(days=1), now=last_week)
         res = self.put(self.tutor_a.id, booking=past)
-        self.assertEqual((res.status_code, res.data['error']), (status.HTTP_409_CONFLICT, 'SLOT_STARTED'))
+        self.assertEqual((res.status_code, res.data['error']), (status.HTTP_409_CONFLICT, 'SLOT_ENDED'))
 
     def test_the_activity_log_holds_ids_only(self):
         self.put(self.tutor_a.id)

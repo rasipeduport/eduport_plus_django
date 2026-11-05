@@ -75,7 +75,7 @@ class PreviewTests(ActionTestCase):
                 self.assertIn('*Bde Anil*', data['text'])
                 self.assertNotIn('**', data['text'])
                 self.assertEqual(data['requirements'], [
-                    {'code': 'BOOKING_ACTIVE', 'label': 'Booking still upcoming', 'met': True},
+                    {'code': 'BOOKING_ACTIVE', 'label': 'Booking still upcoming and not started', 'met': True},
                     {'code': 'BDE_CONTACT', 'label': "BDE's name and mobile number", 'met': True},
                 ])
         # Seeing it writes nothing.

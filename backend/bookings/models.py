@@ -19,7 +19,8 @@ books or closes it. Diagnostic and Demo bookings live in tables of their own
 (DiagnosticBooking, DemoBooking) with the same columns (BookingBase); each
 belongs to a lead (Lead): one parent's enquiry for one child, matched by phone
 and student name, shared by both types. A booking is taught one-to-one by the
-tutor assigned to it, and every change to it is kept in its history
+tutor assigned to it, who starts it explicitly (bookings.lifecycle), and every
+change to it is kept in its history
 (BookingEvent). bookings.booking_service is the only writer of bookings; the
 leads a BDE adds by hand (their enquiries) are written by bookings.enquiries.
 """
@@ -135,7 +136,7 @@ class CancelReason(models.TextChoices):
     """
     Why a booking was cancelled: a code from this list, never free text (Q9,
     decision M1), so nothing personal reaches the permanent history. No-show
-    only once the slot has started (D12).
+    only once the slot's scheduled time has passed (D12).
     """
     NO_SHOW = 'NO_SHOW', 'No-show'
     PARENT_REQUEST = 'PARENT_REQUEST', 'Parent asked to cancel'
@@ -432,6 +433,20 @@ class BookingBase(models.Model):
     details = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
+    # When its tutor started teaching it -- their Start Demo / Start
+    # Diagnostic, by the server's clock (booking_service.start_booking) -- and
+    # who that was. Its scheduled time alone never starts a booking (see
+    # bookings.lifecycle). NULL = not started, including a booking completed
+    # before Start existed (bookings.0009): its start was never recorded, and
+    # is never made up.
+    started_at = models.DateTimeField(null=True, blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='started_%(class)ss'
+    )
     # Set by the tutor's first report (a later phase).
     completed_at = models.DateTimeField(null=True, blank=True)
     completed_by = models.ForeignKey(
@@ -485,8 +500,8 @@ class BookingBase(models.Model):
     # The Google Meet room this booking is taught in: its tutor's permanent
     # link (accounts.User.tutor_meet_link), copied when the tutor is assigned
     # and kept in step while the booking is live (booking_service.
-    # set_tutor_meet_link). Once its slot has ended, or it is completed,
-    # cancelled or moved, it keeps the link it had, whatever the tutor's
+    # set_tutor_meet_link). Once it is started, its slot has ended, or it is
+    # completed, cancelled or moved, it keeps the link it had, whatever the tutor's
     # becomes. NULL = no tutor, or a tutor with no link configured.
     tutor_meet_link = models.CharField(max_length=MEET_LINK_MAX_LENGTH, null=True, blank=True)
     # What the parent said when asked to confirm, when it was recorded and by
@@ -602,6 +617,23 @@ class BookingBase(models.Model):
                     | Q(assigned_tutor__isnull=False, tutor_assigned_at__isnull=False)
                 ),
                 name='%(class)s_tutor_assignment_fields',
+            ),
+            # A start comes with its moment, and only from the tutor teaching
+            # it: who started it may since be gone (SET_NULL), but a started
+            # booking always has its tutor -- nothing changes the tutor once
+            # it has started. A moved booking was never started: a started
+            # one is never moved.
+            models.CheckConstraint(
+                condition=Q(started_by__isnull=True) | Q(started_at__isnull=False),
+                name='%(class)s_started_by_needs_started_at',
+            ),
+            models.CheckConstraint(
+                condition=Q(started_at__isnull=True) | Q(assigned_tutor__isnull=False),
+                name='%(class)s_started_needs_tutor',
+            ),
+            models.CheckConstraint(
+                condition=~Q(status=BookingStatus.RESCHEDULED) | Q(started_at__isnull=True),
+                name='%(class)s_rescheduled_never_started',
             ),
             # The Meet link is the tutor's: none without one, and only a Google Meet link.
             models.CheckConstraint(
@@ -735,6 +767,7 @@ class BookingEventKind(models.TextChoices):
     CREATED = 'CREATED', 'Created'
     TUTOR_ASSIGNED = 'TUTOR_ASSIGNED', 'Tutor assigned'
     TUTOR_UNASSIGNED = 'TUTOR_UNASSIGNED', 'Tutor unassigned'
+    STARTED = 'STARTED', 'Started'
     RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
     CANCELLED = 'CANCELLED', 'Cancelled'
     COMPLETED = 'COMPLETED', 'Completed'

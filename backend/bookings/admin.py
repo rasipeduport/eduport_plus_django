@@ -59,14 +59,15 @@ class BookingAdmin(ReadOnlyAdmin):
     def cancel_selected(self, request, queryset):
         self._cancel(request, queryset, CancelReason.OTHER)
 
-    @admin.action(description='Mark selected bookings as No-show (started slots only)')
+    @admin.action(description='Mark selected bookings as No-show (scheduled time passed)')
     def mark_selected_no_show(self, request, queryset):
         self._cancel(request, queryset, CancelReason.NO_SHOW)
 
     def _cancel(self, request, queryset, reason_code):
         # Only booked bookings: a completed or rescheduled one can no longer be
-        # cancelled, and No-show waits for the slot to start -- the service
-        # refuses both too. The reason is a code, never free text (M1).
+        # cancelled, and No-show waits for the slot's scheduled time to pass,
+        # whether or not the tutor started it -- the service refuses both too.
+        # The reason is a code, never free text (M1).
         cancelled, skipped = 0, 0
         for booking in queryset:
             try:

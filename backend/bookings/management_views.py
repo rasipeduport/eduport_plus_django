@@ -176,8 +176,9 @@ class BookingTutorView(APIView):
            changes nothing). 409 TUTOR_UNAVAILABLE with ``conflict`` when they
            already teach a class or another booking then; 400 INVALID_TUTOR
            for an account that is not an active tutor; 409 BOOKING_CANCELLED,
-           BOOKING_COMPLETED, BOOKING_RESCHEDULED or SLOT_STARTED when the
-           booking's tutor can no longer change. ``conflict`` names a booking
+           BOOKING_COMPLETED, BOOKING_RESCHEDULED, BOOKING_STARTED (its tutor
+           has started it) or SLOT_ENDED when the booking's tutor can no
+           longer change. ``conflict`` names a booking
            by ``booking_type`` and ``booking_id``.
     DELETE /api/bookings/<type>/<id>/tutor/
            Unassign it, under the same rules.
@@ -259,8 +260,10 @@ class BookingRescheduleView(APIView):
     replacement booking in full, the one it replaced, and whether the tutor
     carried over (``tutor``, Q24). 400 VALIDATION_ERROR or DATE_OUT_OF_WINDOW;
     409 BOOKING_COMPLETED, BOOKING_CANCELLED, BOOKING_RESCHEDULED,
-    SLOT_STARTED, SLOT_UNAVAILABLE, SLOT_FULL, SAME_SLOT or LEAD_TIME_CONFLICT
-    (with ``conflict``, Q26); 503 when the slot is busy.
+    BOOKING_STARTED (its tutor has started it; a booking whose scheduled time
+    passed with no start may still move), SLOT_UNAVAILABLE, SLOT_FULL,
+    SAME_SLOT, LEAD_ALREADY_BOOKED or LEAD_TIME_CONFLICT (with ``conflict``,
+    Q26); 503 when the slot is busy.
     """
     permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, RESCHEDULE_BOOKING]
 
@@ -295,7 +298,8 @@ class BookingCancelView(APIView):
     """
     POST /api/bookings/<type>/<id>/cancel/ {"reason": <code>}
     Cancel the booking (booking_service.cancel_booking); NO_SHOW marks a
-    no-show, only once its slot has started (D12). Answers the booking in full
+    no-show, only once its scheduled time has passed (D12), whether or not its
+    tutor started it. Answers the booking in full
     with ``changed`` (false for one already cancelled). 400 VALIDATION_ERROR;
     409 BOOKING_COMPLETED, BOOKING_RESCHEDULED or NO_SHOW_BEFORE_START.
     """

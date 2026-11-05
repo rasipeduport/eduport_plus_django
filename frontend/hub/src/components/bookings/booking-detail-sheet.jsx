@@ -13,7 +13,7 @@ import { AdminReportSection } from '@/components/reports/admin-report-section';
 import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeable } from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { BookingHistory } from './booking-history';
-import { BookingStateBadge, TutorName } from './booking-badges';
+import { BookingStateBadge, StartInfo, TutorName } from './booking-badges';
 import { MeetLink } from './meet-link';
 import { MeetLinkDialog } from './meet-link-dialog';
 
@@ -66,10 +66,13 @@ function DetailSkeleton() {
  * bookings before and after it when it was moved (`onOpenBooking`), and its
  * history on request. Its tutor first -- with
  * Assign / Change and Unassign for holders of accounts.assign_booking_tutor
- * while the booking is booked and its slot has not started, and the booking's
+ * while the booking is booked, not started by its tutor and its slot not over
+ * (the API's tutor_changeable), and the booking's
  * Meet link, which team managers (`canEditMeetLink`, accounts.manage_team) set
- * or change on the tutor's account until the slot ends -- then the slot,
- * the child, the parent and any cancellation. Only what the API returns is
+ * or change on the tutor's account until the tutor starts the booking or its
+ * slot ends -- then the slot,
+ * with whether and when its tutor started it (read-only: only the tutor
+ * starts a booking), the child, the parent and any cancellation. Only what the API returns is
  * shown. Assigning opens the page's tutor dialog (`onAssign`); unassigning
  * happens here, confirmed first (DELETE /api/bookings/<type>/<id>/tutor/).
  * Its parent communication follows the slot for holders of
@@ -158,8 +161,10 @@ export function BookingDetailSheet({
     body = <DetailSkeleton />;
   } else {
     const changeable = canAssign && tutorChangeable(shown);
-    // The tutor's permanent link, for team managers, while the booking can still use it (booked, not ended).
-    const meetLinkEditable = canEditMeetLink && Boolean(shown.tutor) && shown.status === 'BOOKED' && !shown.slot?.ended;
+    // The tutor's permanent link, for team managers, while the booking would still take it: booked, not started
+    // by its tutor and not ended (backend booking_service.set_tutor_meet_link). A started booking keeps its room.
+    const meetLinkEditable =
+      canEditMeetLink && Boolean(shown.tutor) && shown.status === 'BOOKED' && !shown.started_at && !shown.slot?.ended;
     const lead = shown.lead ?? {};
     body = (
       <div className="flex flex-col gap-4">
@@ -225,6 +230,11 @@ export function BookingDetailSheet({
         >
           <Detail label="Type">{bookingTypeLabel(shown.booking_type)}</Detail>
           <Detail label="When">{slotLabel(shown.slot)}</Detail>
+          {shown.status !== 'RESCHEDULED' ? (
+            <Detail label="Started">
+              <StartInfo booking={shown} showBy />
+            </Detail>
+          ) : null}
           {shown.rescheduled_from ? (
             <Detail label="Moved from">
               <ChainLink link={shown.rescheduled_from} onOpen={onOpenBooking} label="Open the booking it replaced" />

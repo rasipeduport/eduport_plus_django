@@ -10,6 +10,7 @@ import { BOOKING_TYPES, DEFAULT_WHEN, WHEN_FILTERS } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
 import { ReportStateBadge } from './booking-badges';
 import { MeetLink } from './meet-link';
+import { StartBookingButton } from './start-booking-button';
 
 const ALL = '__all__';
 
@@ -20,12 +21,14 @@ const ALL = '__all__';
  * assigns or changes a tutor. Each row shows the slot in Indian time, the
  * child it is for, its Google Meet link (from lg) and where the booking
  * stands with its report (lib/reports
- * reportState), with Write report or Edit report when the report can be
- * written or has been -- nothing of the parent, the BDE or the assignment is
- * read here. The page keeps the filters in the URL; `onChange` receives what
- * changed.
+ * reportState), with Start Demo / Start Diagnostic while the API offers it,
+ * then Write report or Edit report once the report can be written or has
+ * been -- nothing of the parent, the BDE or the assignment is read here. The
+ * page keeps the filters in the URL; `onChange` receives what changed, and
+ * `onStarted` is called once a booking here has been started (or turned out
+ * no longer startable), for the page to read the list again.
  */
-export function TutorBookingList({ rows, total, page, pageSize, filters, pending, onChange, onOpen }) {
+export function TutorBookingList({ rows, total, page, pageSize, filters, pending, onChange, onOpen, onStarted }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endRow = Math.min(page * pageSize, total);
@@ -136,6 +139,7 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap justify-end gap-2">
+                        <StartBookingButton booking={booking} onStarted={onStarted} onRefresh={onStarted} />
                         <TutorReportLink booking={booking} />
                         <Button
                           variant="outline"

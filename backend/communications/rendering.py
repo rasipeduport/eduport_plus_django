@@ -123,7 +123,9 @@ class Requirement(TextChoices):
     """Something a message needs before it can go; while one is unmet it is Waiting."""
     TEMPLATE_VALID = 'TEMPLATE_VALID', 'Template'
     PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmation'
-    BOOKING_ACTIVE = 'BOOKING_ACTIVE', 'Booking still upcoming'
+    # Still to come, and not yet started by its tutor: the messages before the
+    # class go only while both hold (booking_service.start_booking).
+    BOOKING_ACTIVE = 'BOOKING_ACTIVE', 'Booking still upcoming and not started'
     BOOKING_COMPLETED = 'BOOKING_COMPLETED', 'Booking completed'
     TUTOR_ASSIGNED = 'TUTOR_ASSIGNED', 'Tutor assigned'
     MEET_LINK = 'MEET_LINK', 'Tutor Meet link'
@@ -141,7 +143,8 @@ class Requirement(TextChoices):
 
 # What each step needs whatever its wording says: the confirmed message never
 # goes without the parent's confirmation, a tutor, their Meet link and the
-# BDE's name and phone.
+# BDE's name and phone; nothing before the class goes once the booking's
+# scheduled time has come or its tutor has started it, whichever is first.
 _STEP_GATES = {
     Step.ACKNOWLEDGEMENT: (Requirement.BOOKING_ACTIVE,),
     Step.CONFIRMATION_REQUEST: (Requirement.BOOKING_ACTIVE,),
@@ -171,7 +174,9 @@ def requirements(booking, step, body, now=None):
     values = booking_values(booking)
     gates = {
         Requirement.PARENT_CONFIRMED: booking.parent_confirmation == ParentConfirmation.CONFIRMED,
-        Requirement.BOOKING_ACTIVE: booking.status == BookingStatus.BOOKED and booking.slot.starts_at > now,
+        Requirement.BOOKING_ACTIVE: (
+            booking.status == BookingStatus.BOOKED and booking.started_at is None and booking.slot.starts_at > now
+        ),
         Requirement.BOOKING_COMPLETED: booking.status == BookingStatus.COMPLETED,
     }
     result = [] if not unknown_placeholders(booking.booking_type, body) else [(Requirement.TEMPLATE_VALID, False)]
