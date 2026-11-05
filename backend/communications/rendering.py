@@ -13,6 +13,10 @@ The sender is the lead's BDE: their name and their mobile number (Team). A
 lead with no BDE -- a booking made without a valid BDE link -- signs with the
 central contact in COMMUNICATIONS_FALLBACK_SENDER_NAME / _PHONE; a BDE with
 no mobile number never falls back to it, so their messages wait instead.
+Nothing stands in for a missing contact: the central one is empty until it is
+set, a number goes in as written (no country code added), and a message
+without its sender waits, naming what it lacks -- the BDE's details
+(BDE_CONTACT) or, for a lead with no BDE, the central contact (CENTRAL_CONTACT).
 """
 import re
 
@@ -123,7 +127,10 @@ class Requirement(TextChoices):
     BOOKING_COMPLETED = 'BOOKING_COMPLETED', 'Booking completed'
     TUTOR_ASSIGNED = 'TUTOR_ASSIGNED', 'Tutor assigned'
     MEET_LINK = 'MEET_LINK', 'Tutor Meet link'
-    BDE_CONTACT = 'BDE_CONTACT', 'BDE contact'
+    BDE_CONTACT = 'BDE_CONTACT', "BDE's name and mobile number"
+    # What a lead with no BDE signs with instead (sender_contact): while it is
+    # not set, its messages wait for it by that name, not a BDE's.
+    CENTRAL_CONTACT = 'CENTRAL_CONTACT', 'Central contact (this lead has no BDE)'
     LEAD_DETAILS = 'LEAD_DETAILS', 'Parent and student details'
     # A rescheduled booking's acknowledgement goes only once the one of the
     # bookings it replaced is known not to have been accepted: never while it
@@ -177,10 +184,13 @@ def requirements(booking, step, body, now=None):
     for name in (*_STEP_VALUES.get(step, ()), *placeholders(body)):
         if name in _VALUE_REQUIREMENTS:
             needed.setdefault(_VALUE_REQUIREMENTS[name], []).append(name)
+    # The sender's details are the lead's BDE's, or the central contact's for a lead with no BDE.
+    sender = Requirement.BDE_CONTACT if booking.lead.owner_bde_id else Requirement.CENTRAL_CONTACT
     for requirement in (Requirement.TUTOR_ASSIGNED, Requirement.MEET_LINK, Requirement.BDE_CONTACT,
                         Requirement.LEAD_DETAILS):
         if requirement in needed:
-            result.append((requirement, all(values.get(name) for name in needed[requirement])))
+            met = all(values.get(name) for name in needed[requirement])
+            result.append((sender if requirement == Requirement.BDE_CONTACT else requirement, met))
     return result
 
 

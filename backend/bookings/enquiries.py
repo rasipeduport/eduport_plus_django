@@ -185,13 +185,15 @@ def _row(lead, next_booking):
     }
 
 
-def enquiry_detail(lead, now, can_cancel=False):
+def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
     """
     One enquiry in full (``lead`` from ``listed``), with every booking it has
     made -- each with its tutor and Meet link (_teaching) and what its owner
     BDE may do with it now (``actions``): cancel it while it is booked when
     ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its slot
-    has started (D12).
+    has started (D12). Each booking's parent confirmation (a ParentConfirmation
+    code) is shown to whoever may see the lead's communication
+    (``show_confirmation``, accounts.view_own_lead_communications), else null.
     """
     bookings = sorted(
         [
@@ -222,6 +224,7 @@ def enquiry_detail(lead, now, can_cancel=False):
                 'booked_at': booking.created_at.isoformat(),
                 'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
                 **_teaching(booking),
+                'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
                 'actions': _booking_actions(booking, now, can_cancel),
             }
             for booking in bookings

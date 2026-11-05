@@ -90,7 +90,7 @@ class ConfirmationRequestTests(CommunicationTestCase):
     def test_blocked_rather_than_sent_with_a_blank_signature(self):
         with self.assertRaises(MessageBlocked) as caught:
             request_confirmation(self.book(owned=False), actor=self.admin, now=NOW)
-        self.assertEqual(caught.exception.missing, [Requirement.BDE_CONTACT])
+        self.assertEqual(caught.exception.missing, [Requirement.CENTRAL_CONTACT])
 
     @override_settings(COMMUNICATIONS_FALLBACK_SENDER_NAME='Eduport Plus Team', COMMUNICATIONS_FALLBACK_SENDER_PHONE='+91 80000 00000')
     def test_an_unowned_leads_request_signs_with_the_central_contact(self):

@@ -92,6 +92,15 @@ BDE_WORKSPACE = {
     # booking_a's lead is not the BDE's own: its report is answered as a booking that does not exist (P9).
     'bde.bookings.report_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                 'fields': ['error', 'message']},
+    # ... and its communication too (Phase 3.1), which the BDE may neither preview, ask about nor answer for (3.2).
+    'communications.booking': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                               'fields': ['error', 'message']},
+    'communications.preview': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                               'fields': ['error', 'message']},
+    'communications.request_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
+                                            'records': [], 'fields': ['error', 'message']},
+    'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
+                                           'records': [], 'fields': ['error', 'message']},
 }
 
 

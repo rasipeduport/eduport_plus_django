@@ -17,10 +17,19 @@ from dataclasses import dataclass
 from django.db import OperationalError, transaction
 from django.utils import timezone
 
-from bookings.booking_service import BUSY_SQLSTATES, BookingBusy, BookingNotOwned, _locked_booking, _set_lock_timeout
+from activity.utils import log_activity
+from bookings.booking_service import (
+    BUSY_SQLSTATES,
+    BookingBusy,
+    BookingNotOwned,
+    _locked_booking,
+    _set_lock_timeout,
+    slot_label,
+)
 from bookings.models import BookingStatus, ParentConfirmation
 
 from . import planner
+from .formatting import whatsapp_message
 from .models import CALL_OUTCOMES, CallOutcome, CommunicationTask, MessageTemplate, Step, TaskStatus, template_key
 from .rendering import booking_values, is_ready, render, requirements
 
@@ -76,14 +85,23 @@ class TaskClosed(CommunicationError):
     message = 'This task is closed, so nothing more can be recorded on it.'
 
 
+class NotPlanned(CommunicationError):
+    """A booking made before communications existed: it has no tasks, so nothing is written for it."""
+    code = 'NOT_PLANNED'
+    http_status = 409
+    message = 'This booking was made before parent communication began, so nothing can be sent for it.'
+
+
 @dataclass(frozen=True)
 class Preview:
     """
-    What a booking's message for a step would say now: ``body`` is None while
-    it lacks something (``requirements``, a list of (Requirement, met)).
+    What a booking's message for a step would say now: ``body`` as the
+    template writes it, ``text`` exactly as WhatsApp would show it -- both None
+    while it lacks something (``requirements``, a list of (Requirement, met)).
     """
     body: str
     requirements: list
+    text: str = None
 
 
 def preview(booking, step, now=None):
@@ -91,8 +109,10 @@ def preview(booking, step, now=None):
     now = now or timezone.now()
     version = MessageTemplate.objects.get(key=template_key(booking.booking_type, step)).current_version()
     checks = requirements(booking, step, version.body, now)
-    body = render(version.body, booking_values(booking)) if is_ready(checks) else None
-    return Preview(body=body, requirements=checks)
+    if not is_ready(checks):
+        return Preview(body=None, requirements=checks)
+    values = booking_values(booking)
+    return Preview(body=render(version.body, values), requirements=checks, text=whatsapp_message(version.body, values))
 
 
 def request_confirmation(booking, *, actor, owner_bde=None, now=None):
@@ -103,9 +123,12 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
     again returns the message already written, so it never goes twice.
 
     Refused once the booking is no longer upcoming (BookingNotUpcoming), once
-    the parent has answered (ConfirmationNotNeeded), and while the message
-    lacks something it needs, such as the BDE's name (MessageBlocked). The
-    message is written Pending; the sending engine sends it.
+    the parent has answered (ConfirmationNotNeeded), for a booking made before
+    communications existed (NotPlanned: it has no tasks), and while the
+    message lacks something it needs, such as the BDE's name (MessageBlocked).
+    The message is written Pending; the sending engine sends it. Writing it is
+    logged once (activity ``booking.confirmation_request``); asking again, or
+    being refused, logs nothing.
     """
     now = now or timezone.now()
     try:
@@ -120,6 +143,8 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
             existing = booking.communication_messages.filter(template__step=Step.CONFIRMATION_REQUEST).first()
             if existing is not None:
                 return existing, False
+            if not booking.communication_tasks.filter(step=Step.CONFIRMATION_REQUEST).exists():
+                raise NotPlanned()
             version = MessageTemplate.objects.get(
                 key=template_key(booking.booking_type, Step.CONFIRMATION_REQUEST),
             ).current_version()
@@ -135,6 +160,15 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
         raise
+    log_activity(
+        action='booking.confirmation_request',
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(booking.slot),
+        # Ids only, as for every booking entry: no parent, student, phone or message text.
+        context={'booking_type': booking.booking_type, 'lead_id': str(booking.lead_id), 'message_id': str(message.pk)},
+        actor=actor,
+    )
     return message, True
 
 
