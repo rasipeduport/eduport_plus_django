@@ -15,6 +15,7 @@ from django.db.models import Prefetch, TextChoices
 
 from accounts.authz import has_app_permission
 from bookings.coordination import slot_brief
+from bookings.lifecycle import activity_state
 from bookings.models import BookingStatus, NotConfirmedReason, ParentConfirmation
 from bookings.scheduling import BOOKING_TIMEZONE_NAME
 
@@ -92,6 +93,9 @@ def _booking(booking, now):
         'status': booking.status,
         'status_label': booking.get_status_display(),
         'slot': slot_brief(booking.slot, now),
+        # Whether its tutor has started it (bookings.lifecycle), read-only.
+        'activity_state': activity_state(booking, now),
+        'started_at': booking.started_at.isoformat() if booking.started_at else None,
         'student_name': lead.student_name,
         'parent_name': lead.parent_name,
         'phone': f'{lead.phone_dial_code} {lead.phone_number}',
@@ -231,13 +235,16 @@ def _actions(booking, messages, now, user, request):
     services apply (the caller already sees the booking, so it is theirs to act
     on): ask for confirmation once while the parent has not answered
     (services.request_confirmation), and record the answer until the slot
-    starts (booking_service.record_parent_confirmation). The 15-minute call is
-    a task only: nothing is recorded on it.
+    starts or its tutor starts it, whichever comes first
+    (booking_service.record_parent_confirmation). The 15-minute call is a task
+    only: nothing is recorded on it.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
 
-    upcoming = booking.status == BookingStatus.BOOKED and booking.slot.starts_at > now
+    upcoming = (
+        booking.status == BookingStatus.BOOKED and booking.started_at is None and booking.slot.starts_at > now
+    )
     asked = any(message.template.step == Step.CONFIRMATION_REQUEST for message in messages)
     return {
         'request_confirmation': (

@@ -34,8 +34,10 @@ from bookings.models import (
     Lead,
     RescheduleReason,
 )
+from bookings.coordination import report_summary
+from bookings.lifecycle import ActivityState, activity_state
 from bookings.tests_booking import (
-    DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, BookingTestCase, account, book, request, schedule,
+    DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, BookingTestCase, account, book, request, schedule, start,
 )
 
 from .models import DemoReport, DiagnosticReport, DiagnosticReportRevision, ReportShare
@@ -47,9 +49,10 @@ from .services import (
     ReportBusy,
     ReportExists,
     ReportInvalid,
+    NotStarted,
     ReportVersionConflict,
-    SlotNotStarted,
     edit_report,
+    preview_content,
     submit_report,
 )
 
@@ -82,6 +85,17 @@ def started(booking, minutes=5):
     return booking.slot.starts_at + timedelta(minutes=minutes)
 
 
+def start_first(booking):
+    """
+    Start ``booking`` as its tutor does before writing its report -- a minute
+    into its slot (bookings.tests_booking.start) -- when it is booked, has a
+    tutor and is not started yet; anything else is left for the report to refuse.
+    """
+    booking = type(booking).objects.get(pk=booking.pk)
+    if booking.status == BookingStatus.BOOKED and booking.assigned_tutor_id and booking.started_at is None:
+        start(booking)
+
+
 # What the history and the activity log must never hold: the report's text, any name, the phone.
 PRIVATE = (
     'Works carefully', 'Two sessions', 'Fractions', 'Word problems', 'mental arithmetic', 'good questions',
@@ -99,6 +113,7 @@ class ReportServiceTestCase(BookingTestCase):
         self.demo = assign_tutor(book()[0], self.tutor, now=NOW)[0]
 
     def submit(self, booking, tutor=None, now=None, **changes):
+        start_first(booking)
         return submit_report(booking, tutor or self.tutor, report_input(booking, **changes), now=now or started(booking))
 
     def edit(self, booking, version, tutor=None, **changes):
@@ -176,13 +191,25 @@ class SubmitTests(ReportServiceTestCase):
         for booking in (self.demo, self.diagnostic):
             self.assertNothingWritten(booking)
 
-    def test_from_the_slot_start_and_after_it_ends(self):
-        with self.assertRaises(SlotNotStarted):
-            self.submit(self.demo, now=started(self.demo, minutes=-1))
+    def test_only_once_its_tutor_has_started_it(self):
+        # The scheduled time alone is never a start: not at the slot, not long after it ended.
+        for moment in (self.demo.slot.starts_at, started(self.demo, minutes=60 * 24 * 3)):
+            with self.subTest(now=moment), self.assertRaises(NotStarted) as refused:
+                submit_report(self.demo, self.tutor, demo_input(), now=moment)
+            self.assertEqual((refused.exception.code, refused.exception.http_status), ('NOT_STARTED', 409))
         self.assertNothingWritten(self.demo)
-        # At the start itself (D2), and long after the slot has ended (a report due).
-        self.assertEqual(self.submit(self.demo, now=self.demo.slot.starts_at).version, 1)
+        # Started five minutes early, its report may follow at once -- before the scheduled time.
+        start(self.demo, minutes=-5)
+        self.assertEqual(submit_report(self.demo, self.tutor, demo_input(), now=started(self.demo, -4)).version, 1)
+        # And long after the slot has ended (a report due).
+        start(self.diagnostic)
         self.assertEqual(self.submit(self.diagnostic, now=started(self.diagnostic, minutes=60 * 24 * 3)).version, 1)
+
+    def test_a_preview_needs_the_start_too(self):
+        with self.assertRaises(NotStarted):
+            preview_content(self.demo, self.tutor, demo_input())
+        self.assertEqual(preview_content(start(self.demo), self.tutor, demo_input())['tutor_name_snapshot'], 'Tutor Anu')
+        self.assertNothingWritten(self.demo)
 
     def test_only_once(self):
         self.submit(self.demo)
@@ -329,6 +356,28 @@ class EditTests(ReportServiceTestCase):
         self.assertEqual((changed, report.version, report.shares.get().report_version), (True, 2, 1))
 
 
+class LegacyCompletedTests(ReportServiceTestCase):
+    """A booking completed before Start existed has no recorded start, and none is made up."""
+
+    def setUp(self):
+        super().setUp()
+        self.report = self.submit(self.diagnostic)
+        # As bookings.0009 leaves one: completed, its start never recorded.
+        type(self.diagnostic).objects.filter(pk=self.diagnostic.pk).update(started_at=None, started_by=None)
+        self.diagnostic = self.fresh(self.diagnostic)
+
+    def test_it_stays_completed_and_editable(self):
+        self.assertEqual((self.diagnostic.status, self.diagnostic.started_at), (BookingStatus.COMPLETED, None))
+        later = self.diagnostic.slot.ends_at + timedelta(days=1)
+        self.assertEqual(activity_state(self.diagnostic, later), ActivityState.COMPLETED)
+        self.assertFalse(report_summary(self.diagnostic, later)['report_due'])
+        report, changed = self.edit(self.diagnostic, 1, score=21)
+        self.assertEqual((changed, report.version), (True, 2))
+        self.assertEqual(self.fresh(self.diagnostic).started_at, None)
+        content = preview_content(self.diagnostic, self.tutor, diagnostic_input(score=22))
+        self.assertEqual(content['score'], 22)
+
+
 class CompletedBookingTests(ReportServiceTestCase):
     """What completing a booking means for the rest of the booking rules, now that it happens."""
 
@@ -379,7 +428,8 @@ class ConcurrentReportTests(TransactionTestCase):
         # Diagnostics in the morning, Demos in the evening: one tutor teaches them all.
         at = MORNING if booking_type == DIAGNOSTIC else EVENING
         made, _created = create_booking(request(student=student, booking_type=booking_type, day=day, at=at), now=NOW)
-        return assign_tutor(made, self.tutor, now=NOW)[0]
+        # Started by its tutor, so its report may be written.
+        return start(assign_tutor(made, self.tutor, now=NOW)[0])
 
     def race(self, calls):
         barrier = threading.Barrier(len(calls))

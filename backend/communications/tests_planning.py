@@ -15,7 +15,7 @@ from django.test import TestCase, override_settings
 from bookings.booking_service import assign_tutor, cancel_booking, create_booking, reschedule_booking
 from bookings.models import CancelReason, DemoBooking, DiagnosticBooking, ParentConfirmation, RescheduleReason
 from bookings.scheduling import BOOKING_TIMEZONE
-from bookings.tests_booking import DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, account, link, request, schedule
+from bookings.tests_booking import DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, account, link, request, schedule, start
 from reports.services import edit_report, submit_report
 from reports.tests_services import report_input
 
@@ -230,6 +230,7 @@ class RescheduleTests(CommunicationTestCase):
 class CompletionTests(CommunicationTestCase):
     def complete(self, booking, minutes=50):
         at = booking.slot.starts_at + timedelta(minutes=minutes)
+        start(booking)
         submit_report(booking, self.tutor, report_input(booking), now=at)
         return at
 

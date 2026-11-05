@@ -10,9 +10,11 @@ import { PdfDownloadButton } from '@/components/reports/pdf-download-button';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { bookingError, tutorBookingUrl } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
+import { istMoment } from '@/lib/communications';
 import { reportActions, reportPdfFallbackName, reportPdfUrl, reportState, tutorReportUrl } from '@/lib/reports';
-import { ReportStateBadge } from './booking-badges';
+import { ReportStateBadge, StartInfo } from './booking-badges';
 import { MeetLink } from './meet-link';
+import { StartBookingButton } from './start-booking-button';
 
 function Section({ title, footer, children }) {
   return (
@@ -24,12 +26,36 @@ function Section({ title, footer, children }) {
   );
 }
 
-// What a booking without its report is waiting for (lib/reports reportState).
+// What a booking without its report is waiting for (lib/reports reportState):
+// the report follows the tutor's own Start, never the scheduled time.
 const REPORT_WAITING = {
-  upcoming: 'You can write the report once the class starts.',
-  in_progress: 'The class has started. You can write the report now.',
+  upcoming: 'You can write the report once you start the class.',
+  ready: 'Start the class to write its report.',
+  late: 'The scheduled time has passed. Start the class to write its report.',
+  in_progress: 'You have started the class. You can write the report now.',
   report_due: 'The class is over. The report is due.',
+  not_started: 'The slot ended without the class being started, so no report can be written.',
 };
+
+/**
+ * When the tutor started the booking, or when they can -- with Start Demo /
+ * Start Diagnostic while the API offers it (`actions.start`).
+ */
+function StartSection({ booking, onStarted, onRefresh }) {
+  const refusal = booking.start_refusal;
+  let note = null;
+  if (refusal?.code === 'START_TOO_EARLY') note = `You can start from ${istMoment(booking.start_opens_at)}.`;
+  else if (refusal?.code === 'START_WINDOW_CLOSED') note = 'The slot has ended, so it can no longer be started.';
+  return (
+    <Detail label="Started">
+      <span className="flex flex-col items-start gap-2">
+        <StartInfo booking={booking} />
+        {note ? <span className="text-muted-foreground text-xs font-normal">{note}</span> : null}
+        <StartBookingButton booking={booking} onStarted={onStarted} onRefresh={onRefresh} />
+      </span>
+    </Detail>
+  );
+}
 
 /**
  * The booking's report, for its tutor: not written yet and why, or the
@@ -81,7 +107,7 @@ function Detail({ label, children }) {
  * not exist; a link without a known `bookingType` names no booking, so it is
  * not found without asking the API.
  */
-export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, reloadKey }) {
+export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, reloadKey, onChanged }) {
   const [booking, setBooking] = useState(null);
   const [failure, setFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -105,6 +131,16 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
 
   // Nothing of another booking shows while this one loads.
   const shown = booking && booking.id === bookingId && booking.booking_type === bookingType ? booking : null;
+
+  // Started here: show the booking as the API answered, and let the list catch up.
+  const started = (updated) => {
+    setBooking(updated);
+    onChanged?.();
+  };
+  const refresh = () => {
+    setRetryKey((key) => key + 1);
+    onChanged?.();
+  };
 
   // A link naming a booking without a known type names none. (While the sheet
   // closes there is no booking at all, and nothing to say about one.)
@@ -157,6 +193,7 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
               )}
             </Detail>
           ) : null}
+          {teaches(shown) ? <StartSection booking={shown} onStarted={started} onRefresh={refresh} /> : null}
         </Section>
 
         {teaches(shown) ? <ReportSection booking={shown} /> : null}

@@ -24,10 +24,12 @@ DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 LIST_URL = '/api/tutor/bookings/'
 # Everything a tutor is shown of a booking, and of its slot.
 # The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due),
-# and the Meet room it is taught in (Phase 1: tutor_meet_link).
+# and the Meet room it is taught in (Phase 1: tutor_meet_link); where it stands as a class, its
+# Start and why it cannot be started now (activity_state, started_at, start_opens_at, actions, start_refusal).
 ROW_FIELDS = {
     'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country',
     'tutor_meet_link', 'has_report', 'report_version', 'report_due',
+    'activity_state', 'started_at', 'start_opens_at', 'actions', 'start_refusal',
 }
 SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 NOT_FOUND = {'error': 'NOT_FOUND', 'message': 'No such booking.'}
@@ -99,6 +101,14 @@ class ListTests(TutorBookingsTestCase):
             'country': 'United Arab Emirates',
             # Phase 1: the booking's copy of its tutor's Meet link; tutor_a has none configured.
             'tutor_meet_link': None,
+            # Two days away: Start opens five minutes before the slot.
+            'activity_state': 'UPCOMING',
+            'started_at': None,
+            'start_opens_at': (evening.slot.starts_at - timedelta(minutes=5)).isoformat(),
+            'actions': {'start': False},
+            'start_refusal': {
+                'code': 'START_TOO_EARLY', 'message': 'A booking can be started from 5 minutes before its scheduled time.',
+            },
             'has_report': False,
             'report_version': None,
             'report_due': False,

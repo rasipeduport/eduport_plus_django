@@ -40,8 +40,11 @@ def lead(owner, student, phone='501234567', link=None, source=LeadSource.BOOKING
     )
 
 
-def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED):
-    """A booking of ``of`` at 19:30 IST, ``days`` from today (negative: in the past)."""
+def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED, started_by=None):
+    """
+    A booking of ``of`` at 19:30 IST, ``days`` from today (negative: in the
+    past); ``started_by`` its tutor, who started it a minute into the slot.
+    """
     local_date = timezone.now().astimezone(BOOKING_TIMEZONE).date() + timedelta(days=days)
     starts_at, ends_at = slot_instants(local_date, EVENING)
     slot, _ = BookingSlot.objects.get_or_create(
@@ -55,6 +58,8 @@ def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED):
         lead=of, slot=slot, seat=seat, status=status, referral_status=ReferralStatus.NO_REF,
         cancelled_at=timezone.now() if cancelled else None, cancel_reason_code='OTHER' if cancelled else '',
         rescheduled_at=timezone.now() if moved else None, reschedule_reason_code='OTHER' if moved else '',
+        assigned_tutor=started_by, tutor_assigned_at=starts_at - timedelta(days=1) if started_by else None,
+        started_by=started_by, started_at=starts_at + timedelta(minutes=1) if started_by else None,
     )
 
 
@@ -115,11 +120,11 @@ class ScopeTests(EnquiryTestCase):
         self.assertEqual([b['status'] for b in data['bookings']], ['CANCELLED', 'BOOKED'])
         for row in data['bookings']:
             # What the owner BDE may do with it (Q22), who teaches it where
-            # (Phase 1: tutor, tutor_meet_link) and the parent's answer (Phase 3.1),
-            # but never who cancelled it or why.
+            # (Phase 1: tutor, tutor_meet_link), the parent's answer (Phase 3.1) and
+            # whether its tutor started it, read-only -- but never who cancelled it or why.
             self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'ended',
-                                        'booked_at', 'cancelled_at', 'tutor', 'tutor_meet_link',
-                                        'parent_confirmation', 'actions'})
+                                        'activity_state', 'started_at', 'booked_at', 'cancelled_at', 'tutor',
+                                        'tutor_meet_link', 'parent_confirmation', 'actions'})
         self.assertNotIn('Parent asked', response.content.decode())
         self.assertNotIn('owner_bde', data)
 
@@ -132,9 +137,12 @@ class StatusAndFilterTests(EnquiryTestCase):
         booking(self.booked, 4, DIAGNOSTIC)
         booking(self.booked, 2, DEMO)
         booking(self.booked, -3, DEMO)
+        # Taught: its tutor started it (D5: an ended slot alone is never done).
         self.done = lead(self.bde, 'Visited', phone='501000003')
-        booking(self.done, -2)
+        booking(self.done, -2, started_by=account('tutor_t', role='TUTOR'))
         booking(self.done, 5, status=BookingStatus.CANCELLED)
+        self.not_started = lead(self.bde, 'Missed', phone='501000008')
+        booking(self.not_started, -1)
         self.cancelled = lead(self.bde, 'Dropped', phone='501000004')
         booking(self.cancelled, 2, status=BookingStatus.CANCELLED)
 
@@ -148,6 +156,8 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual(booked['next_booking']['booking_type'], DEMO)
         self.assertEqual(booked['next_booking']['time'], '19:30')
         self.assertEqual((rows[str(self.done.id)]['status'], rows[str(self.done.id)]['status_label']), ('DONE', 'Booking done'))
+        self.assertEqual((rows[str(self.not_started.id)]['status'], rows[str(self.not_started.id)]['status_label']),
+                         ('NOT_STARTED', 'Not started'))
         self.assertEqual(rows[str(self.cancelled.id)]['status'], 'CANCELLED')
 
     def test_a_rescheduled_booking_never_decides_the_status(self):
@@ -166,7 +176,10 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertNotIn(str(moved_only.id), self.ids(self.client.get(ENQUIRIES, {'status': 'cancelled'})))
 
     def test_status_filter(self):
-        expected = {'NEW': self.new, 'BOOKED': self.booked, 'DONE': self.done, 'CANCELLED': self.cancelled}
+        expected = {
+            'NEW': self.new, 'BOOKED': self.booked, 'DONE': self.done, 'NOT_STARTED': self.not_started,
+            'CANCELLED': self.cancelled,
+        }
         for state, row in expected.items():
             with self.subTest(status=state):
                 self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'status': state.lower()})), {str(row.id)})
@@ -202,7 +215,7 @@ class StatusAndFilterTests(EnquiryTestCase):
     def test_paging(self):
         response = self.client.get(ENQUIRIES, {'page': 2, 'page_size': 3})
         data = response.json()
-        self.assertEqual((data['count'], data['page'], data['page_size'], len(data['results'])), (4, 2, 3, 1))
+        self.assertEqual((data['count'], data['page'], data['page_size'], len(data['results'])), (5, 2, 3, 2))
 
 
 class AddEnquiryTests(EnquiryTestCase):

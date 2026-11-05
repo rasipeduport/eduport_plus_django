@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { reportActions, tutorReportPagePath } from '@/lib/reports';
 
 /**
- * Write report -- a booked booking whose class has started and has no report
+ * Write report -- a booked booking its tutor has started and has no report
  * yet -- or Edit report, once it has one (lib/reports reportActions); nothing
  * otherwise. Either opens the booking's report page. Offering it is only a
  * label: the API decides whether the report may be saved.

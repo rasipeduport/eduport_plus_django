@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from bookings.booking_service import cancel_booking, create_booking
+from bookings.booking_service import assign_tutor, cancel_booking, create_booking
 from bookings.models import BookingStatus, CancelReason, DemoBooking
 from bookings.scheduling import indian_today
 from bookings.tests_booking import EVENING, MORNING, account, request
@@ -170,7 +170,8 @@ class AdminBookingReportFieldTests(AdminReportApiTestCase):
 
     def test_the_list_finds_the_reports_due(self):
         # Yesterday's Demos: Riya's has no report (due), Ali's has one (not due), Sara's was a No-show
-        # (cancelled: nothing is due); and one upcoming Demo, not due yet.
+        # (cancelled: nothing is due), Zoya's was never started (no class, so no report is due);
+        # and one upcoming Demo, not due yet.
         then = timezone.now() - timedelta(days=3)
         yesterday = indian_today() - timedelta(days=1)
         reported = self.assigned(
@@ -179,6 +180,10 @@ class AdminBookingReportFieldTests(AdminReportApiTestCase):
         )
         cancelled = create_booking(request(student='Sara', phone='0507654322', day=yesterday, at=MORNING), now=then)[0]
         cancel_booking(cancelled, reason_code=CancelReason.NO_SHOW)
+        never_started = assign_tutor(
+            create_booking(request(student='Zoya', phone='0507654323', day=yesterday, at=MORNING), now=then)[0],
+            self.other_tutor, now=then,
+        )[0]
         upcoming = self.upcoming()
         self.client.force_authenticate(self.other_tutor)
         self.assertEqual(self.submit(reported).status_code, 201)
@@ -193,8 +198,10 @@ class AdminBookingReportFieldTests(AdminReportApiTestCase):
         self.assertEqual(ids(report='due'), {riya})
         # Exactly the rows the list itself marks report_due.
         rows = self.client.get('/api/bookings/demo/').json()['results']
-        self.assertEqual(len(rows), 4)
+        self.assertEqual(len(rows), 5)
         self.assertEqual({row['id'] for row in rows if row['report_due']}, {riya})
+        states = {row['id']: row['activity_state'] for row in rows}
+        self.assertEqual((states[riya], states[str(never_started.id)]), ('IN_PROGRESS', 'NOT_STARTED'))
         # With every other filter and the search, as they were.
         self.assertEqual(ids(report='DUE', status='BOOKED'), {riya})
         self.assertEqual(ids(report='due', status='COMPLETED'), set())
@@ -204,7 +211,7 @@ class AdminBookingReportFieldTests(AdminReportApiTestCase):
         self.assertEqual(ids(report='due', q='Ali'), set())
         self.assertEqual(ids(report='due', assigned='true', tutor=str(self.tutor.id)), {riya})
         self.assertEqual(ids(report='due', tutor=str(self.other_tutor.id)), set())
-        self.assertEqual(ids(report='missing'), {riya, str(cancelled.id), str(upcoming.id)})
+        self.assertEqual(ids(report='missing'), {riya, str(cancelled.id), str(never_started.id), str(upcoming.id)})
         self.assertEqual(ids(report='submitted'), {str(reported.id)})
         refused = self.client.get('/api/bookings/demo/', {'report': 'overdue'})
         self.assertEqual((refused.status_code, refused.json()['error'], refused.json()['fields']), (400, 'INVALID_INPUT', ['report']))

@@ -112,6 +112,7 @@ export default function TutorBookingsPage() {
           pending={pending}
           onChange={update}
           onOpen={(booking) => update({ booking: booking.id, booking_type: booking.booking_type })}
+          onStarted={reload}
         />
       </>
     );
@@ -142,6 +143,7 @@ export default function TutorBookingsPage() {
           if (!open) update({ booking: null, booking_type: null });
         }}
         reloadKey={reloadKey}
+        onChanged={reload}
       />
     </div>
   );

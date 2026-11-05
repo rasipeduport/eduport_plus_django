@@ -8,8 +8,9 @@ takes, in the same order: the booking's slot, then the booking
 tutor change of the same booking queues behind it, or it behind them, and
 never deadlocks; whichever commits first wins and the other sees its result.
 Under the locks: only the booking's assigned tutor (anyone else is told the
-booking does not exist), only a booked booking whose slot has started (D2),
-and only once. It saves the report as version 1 with its first revision,
+booking does not exist), only a booked booking its tutor has started --
+their own Start, never the slot's time alone (bookings.lifecycle) -- and only
+once. It saves the report as version 1 with its first revision,
 completes the booking, records COMPLETED in the booking's history and writes
 its after-activity message (communications.planner) -- all of it or none.
 The tutor's scheduling lock is not taken: nothing about the tutor's time
@@ -98,10 +99,11 @@ class ReportExists(ReportError):
         self.version = version
 
 
-class SlotNotStarted(ReportError):
-    code = 'SLOT_NOT_STARTED'
+class NotStarted(ReportError):
+    """No recorded start: the booking's tutor has not started it (booking_service.start_booking)."""
+    code = 'NOT_STARTED'
     http_status = 409
-    message = 'A report can be written once the slot has started.'
+    message = 'Start the booking before writing its report.'
 
 
 class BookingCancelled(ReportError):
@@ -153,8 +155,8 @@ def submit_report(booking, tutor, fields, now=None):
                 raise BookingCancelled()
             if booking.status == BookingStatus.RESCHEDULED:
                 raise BookingRescheduled()
-            if booking.slot.starts_at > now:
-                raise SlotNotStarted()
+            if booking.started_at is None:
+                raise NotStarted()
 
             saved_at = timezone.now()
             snapshots = system_snapshots(booking, tutor)
@@ -257,26 +259,25 @@ def edit_report(booking, tutor, fields, version):
     return report, True
 
 
-def preview_content(booking, tutor, fields, now=None):
+def preview_content(booking, tutor, fields):
     """
     What ``tutor``'s report on ``booking`` would print if ``fields`` were saved
     now, saving nothing: the fields as clean_fields leaves them and the system
     snapshots a save would take (D7) -- the content a revision holds, for
     reports.pdf to draw exactly as it draws a saved version. Offered wherever a
     save could follow: to the booking's assigned tutor, on a booked booking
-    whose slot has started (a submit) or a completed one (an edit). It only
+    its tutor has started (a submit) or a completed one (an edit). It only
     reads, takes no lock and logs nothing. Raises a ReportError subclass, as a
     save of the same fields would.
     """
-    now = now or timezone.now()
     cleaned = clean_fields(report_model(booking.booking_type), fields)
     _check_assigned(booking, tutor)
     if booking.status == BookingStatus.CANCELLED:
         raise BookingCancelled()
     if booking.status == BookingStatus.RESCHEDULED:
         raise BookingRescheduled()
-    if booking.status == BookingStatus.BOOKED and booking.slot.starts_at > now:
-        raise SlotNotStarted()
+    if booking.status == BookingStatus.BOOKED and booking.started_at is None:
+        raise NotStarted()
     return {**cleaned, **system_snapshots(booking, tutor)}
 
 

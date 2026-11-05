@@ -75,8 +75,8 @@ export function MeetLinkDialog({ tutor, link, open, onOpenChange, onSaved }) {
           aria-invalid={error ? true : undefined}
         />
         <p className="text-muted-foreground text-xs">
-          Saved on the tutor&apos;s account: this booking and their other bookings that have not ended use it.
-          Past bookings keep the link they had.
+          Saved on the tutor&apos;s account: this booking and their other bookings the tutor has not started yet use
+          it. Started and past bookings keep the link they had.
         </p>
       </form>
     </FormDialog>

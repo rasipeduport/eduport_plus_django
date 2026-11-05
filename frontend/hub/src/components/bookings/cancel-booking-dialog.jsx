@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 /**
  * Cancelling a booking (POST /api/bookings/<type>/<id>/cancel/, or the BDE's
  * own route when `cancelUrl` is given) with a reason picked from the list --
- * never typed (Q9): No-show only once the slot has started (the booking's
- * actions.no_show, D12). The API checks it all again -- for a BDE, that the
+ * never typed (Q9): No-show only once its scheduled time has passed, whether
+ * or not the tutor started it (the booking's actions.no_show, D12). The API
+ * checks it all again -- for a BDE, that the
  * booking's lead is theirs -- and its refusal is shown as it comes.
  */
 export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, cancelUrl }) {
@@ -88,7 +89,7 @@ export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, 
               <span>
                 <span className="font-medium">{option.label}</span>
                 {unavailable ? (
-                  <span className="text-muted-foreground block text-xs">Available once the slot has started.</span>
+                  <span className="text-muted-foreground block text-xs">Available once the scheduled time has passed.</span>
                 ) : null}
               </span>
             </label>

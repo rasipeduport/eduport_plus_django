@@ -122,8 +122,9 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
     its 12-hour target is only a target. Returns (message, created): asking
     again returns the message already written, so it never goes twice.
 
-    Refused once the booking is no longer upcoming (BookingNotUpcoming), once
-    the parent has answered (ConfirmationNotNeeded), for a booking made before
+    Refused once the booking is no longer upcoming (BookingNotUpcoming): no
+    longer booked, its scheduled time come, or started by its tutor, however
+    early; once the parent has answered (ConfirmationNotNeeded), for a booking made before
     communications existed (NotPlanned: it has no tasks), and while the
     message lacks something it needs, such as the BDE's name (MessageBlocked).
     The message is written Pending; the sending engine sends it. Writing it is
@@ -136,7 +137,8 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
             _set_lock_timeout()
             booking = _locked_booking(booking)
             _check_owner(booking, owner_bde)
-            if booking.status != BookingStatus.BOOKED or booking.slot.starts_at <= now:
+            if (booking.status != BookingStatus.BOOKED or booking.started_at is not None
+                    or booking.slot.starts_at <= now):
                 raise BookingNotUpcoming()
             if booking.parent_confirmation != ParentConfirmation.AWAITING:
                 raise ConfirmationNotNeeded()

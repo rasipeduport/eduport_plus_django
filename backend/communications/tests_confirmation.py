@@ -21,6 +21,7 @@ from bookings.booking_service import (
     CompletedNotConfirmable,
     InvalidConfirmation,
     InvalidReason,
+    PastStartNotConfirmable,
     RescheduledNotConfirmable,
     StartedNotConfirmable,
     assign_tutor,
@@ -40,7 +41,7 @@ from bookings.models import (
     RescheduleReason,
 )
 from bookings.scheduling import indian_today
-from bookings.tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account
+from bookings.tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, start
 from reports.services import submit_report
 from reports.tests_services import report_input
 
@@ -315,14 +316,17 @@ class WhoAndWhenTests(ConfirmationTestCase):
         moved = self.book()
         reschedule_booking(moved, DAY + timedelta(days=1), MORNING, reason_code=RescheduleReason.OTHER,
                            actor=self.admin, now=NOW)
-        completed = self.ready(self.book())
+        completed = start(self.ready(self.book()))
         submit_report(completed, self.tutor, report_input(completed), now=completed.slot.starts_at + timedelta(minutes=5))
-        started = self.book()
+        past_start = self.book()
+        # Started five minutes early (another slot: one tutor teaches both): refused before the scheduled time comes.
+        started = start(self.ready(self.book(at=MORNING)), minutes=-5)
         for booking, error, now in (
             (cancelled, CancelledNotConfirmable, NOW),
             (moved, RescheduledNotConfirmable, NOW),
             (completed, CompletedNotConfirmable, NOW),
-            (started, StartedNotConfirmable, started.slot.starts_at),
+            (past_start, PastStartNotConfirmable, past_start.slot.starts_at),
+            (started, StartedNotConfirmable, started.slot.starts_at - timedelta(minutes=4)),
         ):
             with self.subTest(error=error.__name__):
                 with self.assertRaises(error):

@@ -118,11 +118,11 @@ class ReportPreviewTests(ReportPreviewTestCase):
         self.assertEqual(everything_saved()['DemoReport'] + everything_saved()['DiagnosticReport'], 0)
 
     def test_a_preview_follows_the_rules_a_save_would(self):
-        self.assertRefused(self.preview(self.upcoming())[0], 409, 'SLOT_NOT_STARTED')
+        self.assertRefused(self.preview(self.upcoming())[0], 409, 'NOT_STARTED')
         cancelled = self.upcoming(student='Sara', at=MORNING)
         cancel_booking(cancelled, reason_code=CancelReason.PARENT_REQUEST)
         self.assertRefused(self.preview(cancelled)[0], 409, 'BOOKING_CANCELLED')
-        # A completed booking previews its edits (above); a booked one whose slot has started, its first report.
+        # A completed booking previews its edits (above); a booked one its tutor has started, its first report.
         self.assertPreviewPdf(self.preview(self.diagnostic)[0], self.diagnostic)
 
 

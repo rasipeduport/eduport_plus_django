@@ -25,15 +25,19 @@ from .booking_service import (
     BookingCancelled,
     BookingCompleted,
     BookingRescheduled,
+    BookingStarted,
     CancelledNotMovable,
-    SlotStarted,
+    LeadAlreadyBooked,
+    SlotEnded,
     StartedNotMovable,
     assignable_tutors,
     is_assignable_tutor,
     lead_commitments,
+    live_booking,
     tutor_commitments,
     tutor_conflicts,
 )
+from .lifecycle import activity_state
 from .models import BookingEvent, BookingSlot, BookingStatus, CancelReason, Lead, NotConfirmedReason, RescheduleReason
 from .scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME, bookable_window, slot_instants
 
@@ -65,7 +69,7 @@ def parse_filters(params):
         from, to  YYYY-MM-DD               (the slot's Indian date, inclusive)
         when      upcoming | past          (the slot has not ended / has ended)
         report    submitted | missing      (whether the booking has its report)
-                  | due                    (booked, the slot over, no report: report_summary's report_due)
+                  | due                    (started, the slot over, no report: report_summary's report_due)
         q         parent or child name, or phone digits
     """
     filters, invalid = {}, []
@@ -139,7 +143,7 @@ def listed(model):
     """Every booking of ``model``'s type (a booking table), with what its rows show."""
     return model.objects.select_related(
         'slot', 'lead', 'lead__owner_bde', 'assigned_tutor', 'attributed_bde', 'tutor_assigned_by', 'cancelled_by',
-        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot', 'report',
+        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot', 'report', 'started_by',
     )
 
 
@@ -168,8 +172,10 @@ def filtered(bookings, now, status=None, assigned=None, tutor_id=None, slot_id=N
     if has_report is not None:
         bookings = bookings.filter(report__isnull=not has_report)
     if report_due:
-        # The rows' report_due (report_summary): still booked, its slot over, and no report.
-        bookings = bookings.filter(status=BookingStatus.BOOKED, slot__ends_at__lte=now, report__isnull=True)
+        # The rows' report_due (report_summary): started, its slot over, and no report.
+        bookings = bookings.filter(
+            status=BookingStatus.BOOKED, started_at__isnull=False, slot__ends_at__lte=now, report__isnull=True,
+        )
     if q:
         # The enquiry search, on the bookings' leads: parent or child name, or phone digits.
         bookings = bookings.filter(lead__in=enquiries.search(Lead.objects.all(), q))
@@ -189,6 +195,12 @@ def _when(value):
 
 
 def slot_brief(slot, now):
+    """
+    A slot, in Indian time. ``started`` and ``ended`` say whether its scheduled
+    start and end have passed -- the slot's clock, never whether a booking in
+    it has started: that is the booking's own ``activity_state`` and
+    ``started_at`` (bookings.lifecycle).
+    """
     return {
         'id': str(slot.id),
         'booking_type': slot.booking_type,
@@ -209,8 +221,10 @@ def tutor_change_refusal(booking, now):
             BookingStatus.RESCHEDULED: BookingRescheduled,
         }.get(booking.status, BookingCancelled)
         return {'code': refusal.code, 'message': refusal.message}
-    if booking.slot.starts_at <= now:
-        return {'code': SlotStarted.code, 'message': SlotStarted.message}
+    if booking.started_at is not None:
+        return {'code': BookingStarted.code, 'message': BookingStarted.message}
+    if booking.slot.ends_at <= now:
+        return {'code': SlotEnded.code, 'message': SlotEnded.message}
     return None
 
 
@@ -230,6 +244,9 @@ def booking_row(booking, now):
         # The BDE whose link brought this booking, if one did.
         'bde': _person(booking.attributed_bde),
         'booked_at': booking.created_at.isoformat(),
+        # Whether its tutor has started it, and when (bookings.lifecycle): read-only here.
+        'activity_state': activity_state(booking, now),
+        'started_at': _when(booking.started_at),
         **report_summary(booking, now),
     }
 
@@ -237,15 +254,20 @@ def booking_row(booking, now):
 def report_summary(booking, now):
     """
     Whether the booking has its report and at which version, and whether one is
-    due: a booked booking whose slot has ended without a report stays booked,
-    shown as Report due, until its tutor submits one (design B.1). The Admin's
-    rows and the tutor's alike (bookings.tutor_bookings).
+    due: a booking its tutor started whose slot has ended without a report
+    stays booked, shown as Report due, until its tutor submits one (design
+    B.1). One never started is not due a report -- it is NOT_STARTED
+    (bookings.lifecycle). The Admin's rows and the tutor's alike
+    (bookings.tutor_bookings).
     """
     report = getattr(booking, 'report', None)
     return {
         'has_report': report is not None,
         'report_version': report.version if report is not None else None,
-        'report_due': report is None and booking.status == BookingStatus.BOOKED and booking.slot.ends_at <= now,
+        'report_due': (
+            report is None and booking.status == BookingStatus.BOOKED and booking.started_at is not None
+            and booking.slot.ends_at <= now
+        ),
     }
 
 
@@ -288,6 +310,8 @@ def booking_detail(booking, now, user=None, request=None):
         'referral_status': booking.referral_status,
         'tutor_assigned_at': _when(booking.tutor_assigned_at),
         'tutor_assigned_by': _person(booking.tutor_assigned_by),
+        # Who started it -- its tutor, by their own Start -- with the row's started_at.
+        'started_by': _person(booking.started_by),
         # The Meet room this booking is taught in (its own copy of the tutor's
         # link), or null: no tutor, or one with no link configured.
         'tutor_meet_link': booking.tutor_meet_link,
@@ -331,31 +355,39 @@ def booking_actions(booking, now, user=None, request=None):
     """
     What ``user`` may do with ``booking`` now, by the permissions they hold and
     the rules the service applies: cancel a booked booking, mark it No-show
-    once its slot has started (D12), move it until its slot starts (Q23).
+    once its scheduled time has passed (D12), move it while its tutor has not
+    started it (Q23, move_refusal).
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
 
     booked = booking.status == BookingStatus.BOOKED
-    started = booking.slot.starts_at <= now
     cancel = booked and holds(CANCEL_BOOKING)
     return {
         'cancel': cancel,
-        'no_show': cancel and started,
-        'reschedule': booked and not started and holds(RESCHEDULE_BOOKING),
+        'no_show': cancel and booking.slot.starts_at <= now,
+        'reschedule': booked and holds(RESCHEDULE_BOOKING) and move_refusal(booking, now) is None,
     }
 
 
 def move_refusal(booking, now):
-    """Why ``booking`` cannot be moved now (reschedule_booking's own refusals), or None."""
+    """
+    Why ``booking`` cannot be moved now (reschedule_booking's own refusals), or
+    None. One whose slot ended with no start may move, unless the lead has
+    booked that type again since (LeadAlreadyBooked, Q26).
+    """
     if booking.status != BookingStatus.BOOKED:
         refusal = {
             BookingStatus.COMPLETED: BookingCompleted,
             BookingStatus.RESCHEDULED: BookingRescheduled,
         }.get(booking.status, CancelledNotMovable)
         return {'code': refusal.code, 'message': refusal.message}
-    if booking.slot.starts_at <= now:
+    if booking.started_at is not None:
         return {'code': StartedNotMovable.code, 'message': StartedNotMovable.message}
+    live = live_booking(booking.lead, type(booking), now, exclude_booking=booking)
+    if live is not None:
+        refusal = LeadAlreadyBooked(live)
+        return {'code': refusal.code, 'message': refusal.message}
     return None
 
 

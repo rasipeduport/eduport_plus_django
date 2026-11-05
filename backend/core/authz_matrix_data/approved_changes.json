@@ -2432,7 +2432,7 @@
    }
   },
   "bookings.assign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2440,6 +2440,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2482,6 +2483,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -2555,7 +2558,7 @@
    }
   },
   "bookings.assign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2563,6 +2566,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2605,6 +2609,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -2630,7 +2636,7 @@
    }
   },
   "bookings.assign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2638,6 +2644,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2680,6 +2687,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -2705,7 +2714,7 @@
    }
   },
   "bookings.assign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2713,6 +2722,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2755,6 +2765,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -2816,7 +2828,7 @@
    }
   },
   "bookings.cancel @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2824,6 +2836,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2868,6 +2881,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -2938,7 +2953,7 @@
    }
   },
   "bookings.cancel @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -2946,6 +2961,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -2990,6 +3006,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3012,7 +3030,7 @@
    }
   },
   "bookings.cancel @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3020,6 +3038,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3064,6 +3083,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3086,7 +3107,7 @@
    }
   },
   "bookings.cancel @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3094,6 +3115,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3138,6 +3160,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3196,7 +3220,7 @@
    }
   },
   "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3204,6 +3228,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3245,6 +3270,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3312,7 +3339,7 @@
    }
   },
   "bookings.detail @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3320,6 +3347,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3361,6 +3389,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3380,7 +3410,7 @@
    }
   },
   "bookings.detail @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3388,6 +3418,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3429,6 +3460,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3448,7 +3481,7 @@
    }
   },
   "bookings.detail @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3456,6 +3489,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -3497,6 +3531,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -3752,7 +3788,7 @@
    }
   },
   "bookings.list @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "An administrator (Admin / Coordinator) lists every booking, whichever lead it belongs to. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3760,6 +3796,7 @@
      "page",
      "page_size",
      "results",
+     "results[].activity_state",
      "results[].bde",
      "results[].booked_at",
      "results[].booking_type",
@@ -3779,6 +3816,7 @@
      "results[].slot.started",
      "results[].slot.starts_at",
      "results[].slot.time",
+     "results[].started_at",
      "results[].status",
      "results[].student_name",
      "results[].tutor",
@@ -3840,7 +3878,7 @@
    }
   },
   "bookings.list @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3848,6 +3886,7 @@
      "page",
      "page_size",
      "results",
+     "results[].activity_state",
      "results[].bde",
      "results[].booked_at",
      "results[].booking_type",
@@ -3867,6 +3906,7 @@
      "results[].slot.started",
      "results[].slot.starts_at",
      "results[].slot.time",
+     "results[].started_at",
      "results[].status",
      "results[].student_name",
      "results[].tutor",
@@ -3880,7 +3920,7 @@
    }
   },
   "bookings.list @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3888,6 +3928,7 @@
      "page",
      "page_size",
      "results",
+     "results[].activity_state",
      "results[].bde",
      "results[].booked_at",
      "results[].booking_type",
@@ -3907,6 +3948,7 @@
      "results[].slot.started",
      "results[].slot.starts_at",
      "results[].slot.time",
+     "results[].started_at",
      "results[].status",
      "results[].student_name",
      "results[].tutor",
@@ -3920,7 +3962,7 @@
    }
   },
   "bookings.list @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -3928,6 +3970,7 @@
      "page",
      "page_size",
      "results",
+     "results[].activity_state",
      "results[].bde",
      "results[].booked_at",
      "results[].booking_type",
@@ -3947,6 +3990,7 @@
      "results[].slot.started",
      "results[].slot.starts_at",
      "results[].slot.time",
+     "results[].started_at",
      "results[].status",
      "results[].student_name",
      "results[].tutor",
@@ -4556,7 +4600,7 @@
    }
   },
   "bookings.reschedule @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -4565,6 +4609,7 @@
      "booking.actions.cancel",
      "booking.actions.no_show",
      "booking.actions.reschedule",
+     "booking.activity_state",
      "booking.bde",
      "booking.booked_at",
      "booking.booking_type",
@@ -4617,6 +4662,8 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
+     "booking.started_by",
      "booking.status",
      "booking.student_name",
      "booking.timezone",
@@ -4692,7 +4739,7 @@
    }
   },
   "bookings.reschedule @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -4701,6 +4748,7 @@
      "booking.actions.cancel",
      "booking.actions.no_show",
      "booking.actions.reschedule",
+     "booking.activity_state",
      "booking.bde",
      "booking.booked_at",
      "booking.booking_type",
@@ -4753,6 +4801,8 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
+     "booking.started_by",
      "booking.status",
      "booking.student_name",
      "booking.timezone",
@@ -4780,7 +4830,7 @@
    }
   },
   "bookings.reschedule @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -4789,6 +4839,7 @@
      "booking.actions.cancel",
      "booking.actions.no_show",
      "booking.actions.reschedule",
+     "booking.activity_state",
      "booking.bde",
      "booking.booked_at",
      "booking.booking_type",
@@ -4841,6 +4892,8 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
+     "booking.started_by",
      "booking.status",
      "booking.student_name",
      "booking.timezone",
@@ -4868,7 +4921,7 @@
    }
   },
   "bookings.reschedule @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -4877,6 +4930,7 @@
      "booking.actions.cancel",
      "booking.actions.no_show",
      "booking.actions.reschedule",
+     "booking.activity_state",
      "booking.bde",
      "booking.booked_at",
      "booking.booking_type",
@@ -4929,6 +4983,8 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
+     "booking.started_by",
      "booking.status",
      "booking.student_name",
      "booking.timezone",
@@ -6170,7 +6226,7 @@
    }
   },
   "bookings.unassign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -6178,6 +6234,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -6220,6 +6277,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -6287,7 +6346,7 @@
    }
   },
   "bookings.unassign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -6295,6 +6354,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -6337,6 +6397,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -6356,7 +6418,7 @@
    }
   },
   "bookings.unassign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -6364,6 +6426,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -6406,6 +6469,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -6425,7 +6490,7 @@
    }
   },
   "bookings.unassign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -6433,6 +6498,7 @@
      "actions.cancel",
      "actions.no_show",
      "actions.reschedule",
+     "activity_state",
      "bde",
      "booked_at",
      "booking_type",
@@ -6475,6 +6541,8 @@
      "slot.started",
      "slot.starts_at",
      "slot.time",
+     "started_at",
+     "started_by",
      "status",
      "student_name",
      "timezone",
@@ -6530,7 +6598,7 @@
    }
   },
   "communications.booking @ admin": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -6538,6 +6606,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6552,6 +6621,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6623,7 +6693,7 @@
    }
   },
   "communications.booking @ su_mentor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -6631,6 +6701,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6645,6 +6716,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6668,7 +6740,7 @@
    }
   },
   "communications.booking @ su_tutor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -6676,6 +6748,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6690,6 +6763,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6713,7 +6787,7 @@
    }
   },
   "communications.booking @ superuser": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -6721,6 +6795,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6735,6 +6810,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6794,7 +6870,7 @@
    }
   },
   "communications.parent_confirmation @ admin": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -6802,6 +6878,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6816,6 +6893,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6891,7 +6969,7 @@
    }
   },
   "communications.parent_confirmation @ su_mentor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -6899,6 +6977,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6913,6 +6992,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6940,7 +7020,7 @@
    }
   },
   "communications.parent_confirmation @ su_tutor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -6948,6 +7028,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -6962,6 +7043,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -6989,7 +7071,7 @@
    }
   },
   "communications.parent_confirmation @ superuser": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -6997,6 +7079,7 @@
      "actions.record_confirmation",
      "actions.request_confirmation",
      "booking",
+     "booking.activity_state",
      "booking.booking_type",
      "booking.id",
      "booking.owner_bde",
@@ -7011,6 +7094,7 @@
      "booking.slot.started",
      "booking.slot.starts_at",
      "booking.slot.time",
+     "booking.started_at",
      "booking.status",
      "booking.status_label",
      "booking.student_name",
@@ -14853,6 +14937,148 @@
   "tutor_bookings.list @ unknown": {
    "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
    "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ admin": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ anon": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ mentor_a": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ mentor_b": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ parent_a": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.start @ su_mentor": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Not assigned to the caller (booking_a has no tutor): 404 NOT_FOUND.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.start @ su_tutor": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Not assigned to the caller (booking_a has no tutor): 404 NOT_FOUND.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.start @ superuser": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Not assigned to the caller (booking_a has no tutor): 404 NOT_FOUND.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.start @ tutor_a": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Not assigned to the caller (booking_a has no tutor): 404 NOT_FOUND.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.start @ tutor_b": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Not assigned to the caller (booking_a has no tutor): 404 NOT_FOUND.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.start @ unknown": {
+   "decision": "Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): POST /api/tutor/bookings/<type>/<id>/start/ needs accounts.view_assigned_bookings and accounts.submit_booking_report (D2: no new permission), both the TUTOR role's (a superuser holds them under D1); only the booking's assigned tutor may start it. booking_a has no tutor, so every holder is told it does not exist and everyone else is refused.",
+   "note": "Holds neither tutor permission: refused before any booking is read.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

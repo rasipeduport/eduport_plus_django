@@ -206,7 +206,7 @@ class BdeBookingCancelView(BdeWorkspaceView):
     POST /api/bde/bookings/<type>/<id>/cancel/ {"reason": <code>}
     Cancel a booking of one of the caller's own leads (Q22), for a reason from
     the list (Q9) -- the same rules, reasons and history as the Admin's
-    (booking_service.cancel_booking): No-show only once the slot has started,
+    (booking_service.cancel_booking): No-show only once its scheduled time has passed,
     a completed or moved booking never. Answers the enquiry in full with
     ``changed``.
 

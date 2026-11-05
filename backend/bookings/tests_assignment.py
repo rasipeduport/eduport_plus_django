@@ -30,7 +30,8 @@ from .booking_service import (
     CONFLICT_BOOKING,
     CONFLICT_SESSION,
     BookingCancelled,
-    SlotStarted,
+    BookingStarted,
+    SlotEnded,
     TutorNotAssignable,
     TutorUnavailable,
     assign_tutor,
@@ -40,7 +41,7 @@ from .booking_service import (
 )
 from .models import BookingStatus, CancelReason, DemoBooking, SlotTime
 from .scheduling import BOOKING_TIMEZONE
-from .tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, book, booking_count, schedule
+from .tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, book, booking_count, schedule, start
 
 BOOKED, CANCELLED = BookingStatus.BOOKED, BookingStatus.CANCELLED
 SCHEDULED, ATTENDED = SessionStatusChoices.SCHEDULED, SessionStatusChoices.ATTENDED
@@ -133,13 +134,27 @@ class AssignTests(AssignmentTestCase):
             self.assign()
         self.assertUnassigned(self.booking)
 
-    def test_a_slot_that_has_started_takes_no_tutor(self):
-        starts_at = self.booking.slot.starts_at
-        for moment in (starts_at, starts_at + timedelta(minutes=30), starts_at + timedelta(days=1)):
-            with self.subTest(now=moment), self.assertRaises(SlotStarted):
+    def test_a_slot_that_has_ended_takes_no_tutor(self):
+        ends_at = self.booking.slot.ends_at
+        for moment in (ends_at, ends_at + timedelta(days=1)):
+            with self.subTest(now=moment), self.assertRaises(SlotEnded):
                 self.assign(now=moment)
         self.assertUnassigned(self.booking)
-        self.assertTrue(self.assign(now=starts_at - timedelta(minutes=1))[1])
+        # Its scheduled time alone is no start (D4): until the slot ends, a tutor may still take it.
+        starts_at = self.booking.slot.starts_at
+        self.assertTrue(self.assign(now=starts_at)[1])
+        self.assertTrue(self.assign(who=tutor('tutor_two'), now=starts_at + timedelta(minutes=59))[1])
+
+    def test_a_started_booking_keeps_its_tutor(self):
+        self.assign()
+        start(self.booking, minutes=-5)
+        for change in (lambda: self.assign(who=tutor('tutor_two'), now=NOW),
+                       lambda: unassign_tutor(self.booking, actor=self.admin, now=NOW)):
+            with self.assertRaises(BookingStarted) as refused:
+                change()
+            self.assertEqual(refused.exception.code, 'BOOKING_STARTED')
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.assigned_tutor, self.tutor)
 
 
 class ConflictTests(AssignmentTestCase):
@@ -260,8 +275,8 @@ class ChangeTests(AssignmentTestCase):
 
     def test_unassigning_follows_the_assignment_rules(self):
         self.assign()
-        with self.assertRaises(SlotStarted):
-            unassign_tutor(self.booking, actor=self.admin, now=self.booking.slot.starts_at)
+        with self.assertRaises(SlotEnded):
+            unassign_tutor(self.booking, actor=self.admin, now=self.booking.slot.ends_at)
         cancel_booking(self.booking, actor=self.admin, reason_code=CancelReason.OTHER)
         with self.assertRaises(BookingCancelled):
             unassign_tutor(self.booking, actor=self.admin, now=NOW)

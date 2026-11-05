@@ -11,10 +11,12 @@ export const ENQUIRY_STATUSES = [
   { value: 'NEW', label: 'New' },
   { value: 'BOOKED', label: 'Booked' },
   { value: 'DONE', label: 'Booking done' },
+  // A slot that ended without its tutor starting it: the class never happened, so never Booking done.
+  { value: 'NOT_STARTED', label: 'Not started' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const STATUS_VARIANT = { NEW: 'info', BOOKED: 'success', DONE: 'secondary', CANCELLED: 'outline' };
+const STATUS_VARIANT = { NEW: 'info', BOOKED: 'success', DONE: 'secondary', NOT_STARTED: 'warning', CANCELLED: 'outline' };
 
 export function statusVariant(status) {
   return STATUS_VARIANT[status] ?? 'outline';

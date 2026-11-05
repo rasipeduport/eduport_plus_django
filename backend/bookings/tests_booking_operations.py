@@ -32,7 +32,7 @@ from .booking_service import (
 )
 from .models import BookingEventKind, BookingStatus, CancelReason, DemoBooking, DiagnosticBooking, RescheduleReason
 from .scheduling import indian_today
-from .tests_booking import EVENING, MORNING, account, request, schedule
+from .tests_booking import EVENING, MORNING, account, request, schedule, start
 from .tests_booking_admin import DEMO, DIAGNOSTIC, PRIVATE, BookingAdminTestCase, detail_url
 
 ELEVEN = time(11, 0)
@@ -102,8 +102,9 @@ class CancelTests(OperationsTestCase):
         detail = self.client.get(detail_url(ahead)).data
         self.assertEqual(detail['actions'], {'cancel': True, 'no_show': False, 'reschedule': True})
 
+        # Last week's, never started: a No-show, and still movable (D3).
         past = self.last_week('Old Kid')
-        self.assertEqual(self.client.get(detail_url(past)).data['actions'], {'cancel': True, 'no_show': True, 'reschedule': False})
+        self.assertEqual(self.client.get(detail_url(past)).data['actions'], {'cancel': True, 'no_show': True, 'reschedule': True})
         res = self.cancel(past, reason='NO_SHOW')
         self.assertEqual((res.status_code, res.data['cancel_reason']), (200, 'No-show'))
 
@@ -227,11 +228,14 @@ class RescheduleTests(OperationsTestCase):
         booking.refresh_from_db()
         self.assertEqual((booking.status, self.kinds(booking)), (BookingStatus.BOOKED, [BookingEventKind.CREATED]))
 
-    def test_not_once_it_has_started_or_is_cancelled(self):
-        past = self.last_week('Old Kid')
-        res = self.move(past, self.day + timedelta(days=1))
+    def test_not_once_its_tutor_has_started_it_or_it_is_cancelled(self):
+        started = self.book('Sara', at=MORNING)
+        assign_tutor(started, self.tutor_a, actor=self.admin)
+        start(started, minutes=-5)
+        res = self.move(started, self.day + timedelta(days=1))
         self.assertEqual((res.status_code, res.data['error'], res.data['message']),
-                         (409, 'SLOT_STARTED', 'This booking has already started, so it can no longer be moved.'))
+                         (409, 'BOOKING_STARTED', 'This booking has already started, so it can no longer be moved.'))
+        self.assertFalse(self.client.get(detail_url(started)).data['actions']['reschedule'])
         cancelled = self.book('Riya')
         cancel_booking(cancelled, reason_code=CancelReason.OTHER, actor=self.admin)
         res = self.move(cancelled, self.day + timedelta(days=1))
@@ -267,6 +271,37 @@ class RescheduleTests(OperationsTestCase):
 
 
 # ------------------------------------------------------ options and history
+
+class NeverStartedRescheduleTests(OperationsTestCase):
+    """D3: a booking whose scheduled time passed with no start never happened, so the Admin may still move it."""
+
+    def test_after_its_scheduled_time_and_after_its_slot_ended(self):
+        past = self.last_week('Old Kid')
+        detail = self.client.get(detail_url(past)).data
+        self.assertEqual((detail['activity_state'], detail['actions']['reschedule']), ('NOT_STARTED', True))
+        res = self.move(past, self.day + timedelta(days=1))
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        past.refresh_from_db()
+        self.assertEqual(past.status, BookingStatus.RESCHEDULED)
+        self.assertEqual(res.data['booking']['activity_state'], 'UPCOMING')
+
+    def test_never_beside_a_live_booking_of_the_same_type(self):
+        stale = self.last_week('Zoya')
+        # The parent booked a Demo again once the old slot was over: that one is the child's live Demo (Q26).
+        again, created = create_booking(
+            request(student='Zoya', phone='0' + stale.lead.phone_number, day=self.day, at=EVENING),
+        )
+        self.assertTrue(created)
+        self.assertEqual(again.lead_id, stale.lead_id)
+        detail = self.client.get(detail_url(stale)).data
+        self.assertFalse(detail['actions']['reschedule'])
+        options = self.client.get(ops_url(stale, 'reschedule-options')).data
+        self.assertEqual((options['reschedulable'], options['refusal']['code']), (False, 'LEAD_ALREADY_BOOKED'))
+        res = self.move(stale, self.day + timedelta(days=1))
+        self.assertEqual((res.status_code, res.data['error']), (409, 'LEAD_ALREADY_BOOKED'))
+        stale.refresh_from_db()
+        self.assertEqual((stale.status, self.kinds(stale)), (BookingStatus.BOOKED, [BookingEventKind.CREATED]))
+
 
 class OptionsAndHistoryTests(OperationsTestCase):
     def slot(self, data, day, at):

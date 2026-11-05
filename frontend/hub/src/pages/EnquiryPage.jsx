@@ -15,7 +15,8 @@ import {
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import { bdeBookingCancelUrl, readBookingType } from '@/lib/bookings';
+import { bdeBookingCancelUrl, bookingState, readBookingType } from '@/lib/bookings';
+import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -38,13 +39,6 @@ function Field({ label, children }) {
       <dd className="min-w-0 font-medium break-words">{children || <span className="text-muted-foreground">—</span>}</dd>
     </div>
   );
-}
-
-function bookingState(booking) {
-  if (booking.status === 'CANCELLED') return { label: 'Cancelled', variant: 'outline' };
-  if (booking.status === 'RESCHEDULED') return { label: 'Rescheduled', variant: 'outline' };
-  if (booking.status === 'COMPLETED') return { label: 'Completed', variant: 'secondary' };
-  return booking.ended ? { label: 'Done', variant: 'secondary' } : { label: 'Upcoming', variant: 'success' };
 }
 
 /**
@@ -112,7 +106,15 @@ function BookingsPanel({ bookings, onCancel, onOpenCommunication }) {
                       <BookingTypeBadge type={booking.booking_type} />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={state.variant}>{state.label}</Badge>
+                      {/* Where it stands as a class, read-only: only its tutor starts it, never its scheduled time. */}
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={state.variant}>{state.label}</Badge>
+                        {booking.started_at ? (
+                          <span className="text-muted-foreground text-xs whitespace-nowrap">
+                            Started {istMoment(booking.started_at)}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     {communication ? (
                       <TableCell>

@@ -1,6 +1,7 @@
 """
-Creating, cancelling and rescheduling bookings, assigning their tutors,
-closing slots and setting the schedule: the one place booking rows are written.
+Creating, cancelling, rescheduling and starting bookings, assigning their
+tutors, closing slots and setting the schedule: the one place booking rows
+are written.
 
 create_booking runs in one transaction:
 
@@ -77,6 +78,7 @@ from sessions.services import lock_tutor_schedule
 from . import history
 from .attribution import resolve_referral
 from .leads import match_lead, normalize_phone
+from .lifecycle import START_EARLY, start_opens_at
 from .models import (
     BOOKING_MODELS,
     HOLDS_SEAT,
@@ -155,9 +157,42 @@ class BookingRescheduled(BookingError):
 
 
 class SlotStarted(BookingError):
+    """The booking's scheduled time has passed -- never that it has started: only its tutor starts it (BookingStarted)."""
     code = 'SLOT_STARTED'
     http_status = 409
+    message = "This booking's scheduled time has passed."
+
+
+class SlotEnded(BookingError):
+    code = 'SLOT_ENDED'
+    http_status = 409
+    message = "This booking's slot has ended, so its tutor cannot be changed."
+
+
+class BookingStarted(BookingError):
+    """Its tutor has started it (start_booking): who teaches it, and when, no longer change."""
+    code = 'BOOKING_STARTED'
+    http_status = 409
     message = 'This booking has already started, so its tutor cannot be changed.'
+
+
+class BookingNotAssigned(BookingError):
+    """A tutor acting on a booking that is not assigned to them: answered as one that does not exist."""
+    code = 'NOT_FOUND'
+    http_status = 404
+    message = 'No such booking.'
+
+
+class StartTooEarly(BookingError):
+    code = 'START_TOO_EARLY'
+    http_status = 409
+    message = f'A booking can be started from {START_EARLY.seconds // 60} minutes before its scheduled time.'
+
+
+class StartWindowClosed(BookingError):
+    code = 'START_WINDOW_CLOSED'
+    http_status = 409
+    message = "This booking's slot has ended, so it can no longer be started."
 
 
 class InvalidReason(BookingError):
@@ -168,7 +203,7 @@ class InvalidReason(BookingError):
 class NoShowBeforeStart(BookingError):
     code = 'NO_SHOW_BEFORE_START'
     http_status = 409
-    message = 'A booking can be marked No-show only once its slot has started.'
+    message = 'A booking can be marked No-show only once its scheduled time has passed.'
 
 
 class BookingNotOwned(BookingError):
@@ -188,8 +223,20 @@ class CancelledNotMovable(BookingCancelled):
     message = 'This booking is cancelled, so it can no longer be moved.'
 
 
-class StartedNotMovable(SlotStarted):
+class StartedNotMovable(BookingStarted):
     message = 'This booking has already started, so it can no longer be moved.'
+
+
+class CompletedNotStartable(BookingCompleted):
+    message = 'This booking is already completed.'
+
+
+class CancelledNotStartable(BookingCancelled):
+    message = 'This booking is cancelled, so it cannot be started.'
+
+
+class RescheduledNotStartable(BookingRescheduled):
+    message = 'This booking was moved to another slot. Start the new booking instead.'
 
 
 class InvalidConfirmation(BookingError):
@@ -215,8 +262,12 @@ class RescheduledNotConfirmable(BookingRescheduled):
     message = "This booking was moved to another slot. Record the parent's answer on the new booking."
 
 
-class StartedNotConfirmable(SlotStarted):
+class StartedNotConfirmable(BookingStarted):
     message = "This booking has already started, so the parent's answer can no longer be recorded."
+
+
+class PastStartNotConfirmable(SlotStarted):
+    message = "This booking's scheduled time has passed, so the parent's answer can no longer be recorded."
 
 
 class LeadTimeConflict(BookingError):
@@ -328,7 +379,7 @@ def create_booking(request, now=None):
             existing = model.objects.filter(slot=slot, lead=lead, status__in=HOLDS_SEAT).first()
             if existing is not None:
                 return existing, False
-            live = model.objects.filter(lead=lead, status=BookingStatus.BOOKED, slot__ends_at__gt=now).first()
+            live = live_booking(lead, model, now)
             if live is not None:
                 raise LeadAlreadyBooked(live)
             clash = lead_conflict(lead, slot.starts_at, slot.ends_at)
@@ -396,7 +447,8 @@ def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None
     (a CancelReason, else InvalidReason). Returns (booking, changed); one
     already cancelled is left as it is. A completed booking (BookingCompleted)
     or a rescheduled one (BookingRescheduled) can no longer be cancelled, and
-    No-show only once the slot has started (NoShowBeforeStart, D12).
+    No-show only once the slot's scheduled time has passed (NoShowBeforeStart,
+    D12) -- whether or not its tutor started it.
 
     The reason is a code, never free text (M1): the booking, its history and
     the activity log keep the code only. "Parent did not confirm" is not one
@@ -451,8 +503,10 @@ def record_parent_confirmation(booking, outcome, *, reason_code='', confirm_canc
     unsent messages stopped. A Confirmed parent may still turn out Not
     Confirmed; nothing goes back to Awaiting.
 
-    Only while the booking is booked and its slot has not started (the
-    *NotConfirmable errors). The Admin may record any booking's answer; a BDE
+    Only while the booking is booked, its tutor has not started it and its
+    scheduled time has not come (the *NotConfirmable errors): a Not Confirmed
+    must never cancel a class its tutor has begun, however early they started
+    it. The Admin may record any booking's answer; a BDE
     only their own leads' (``owner_bde``, checked under the booking's lock as
     for cancel_booking).
     """
@@ -478,8 +532,10 @@ def record_parent_confirmation(booking, outcome, *, reason_code='', confirm_canc
                 raise CompletedNotConfirmable()
             if booking.status == BookingStatus.RESCHEDULED:
                 raise RescheduledNotConfirmable()
-            if booking.slot.starts_at <= now:
+            if booking.started_at is not None:
                 raise StartedNotConfirmable()
+            if booking.slot.starts_at <= now:
+                raise PastStartNotConfirmable()
             if outcome == booking.parent_confirmation:
                 return booking, False
             booking.parent_confirmation = outcome
@@ -545,11 +601,14 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
     Q23). Returns a RescheduleResult.
 
     Only a booked booking (BookingCompleted, BookingRescheduled,
-    CancelledNotMovable) whose slot has not started (StartedNotMovable), and
-    only into a slot the public pages would offer: a date in the window
-    (DateOutOfWindow), an active time (SlotUnavailable), open with a free seat
-    (SlotFull), not its own (SameSlot). The lead may hold no other live
-    booking, of either type, at the new time (LeadTimeConflict, Q26). The
+    CancelledNotMovable) its tutor has not started (StartedNotMovable) --
+    one whose scheduled time passed, or whose slot ended, with no start may
+    still move: the class never happened -- and only into a slot the public
+    pages would offer: a date in the window (DateOutOfWindow), an active time
+    (SlotUnavailable), open with a free seat (SlotFull), not its own
+    (SameSlot). The lead may hold no other live booking of this type
+    (LeadAlreadyBooked: one a parent made after the slot of this one ended)
+    nor one of either type at the new time (LeadTimeConflict, Q26). The
     tutor carries over when they are an active tutor free for the new slot;
     otherwise the replacement starts unassigned and the result says why (Q24).
     The old booking keeps its tutor as history. Who may reschedule -- the Admin
@@ -586,7 +645,7 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
                 raise BookingRescheduled()
             if old.status != BookingStatus.BOOKED:
                 raise CancelledNotMovable()
-            if old.slot.starts_at <= now:
+            if old.started_at is not None:
                 raise StartedNotMovable()
             if new_slot.closed_at is not None:
                 raise SlotFull()
@@ -594,6 +653,12 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
             free = [seat for seat in range(1, min(new_slot.capacity, SLOT_CAPACITY) + 1) if seat not in taken]
             if not free:
                 raise SlotFull()
+            # Once its slot has ended this booking is no longer live, so the
+            # parent may have booked this type again: moving it as well would
+            # leave two (Q26), checked under the lead lock as create_booking does.
+            live = live_booking(lead, model, now, exclude_booking=old)
+            if live is not None:
+                raise LeadAlreadyBooked(live)
             clash = lead_conflict(lead, new_starts_at, new_ends_at, exclude_booking=old)
             if clash is not None:
                 raise LeadTimeConflict(clash)
@@ -674,6 +739,18 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
         booking=new, previous=old, tutor_carried_over=carried, tutor=tutor,
         tutor_conflict=tutor_conflict, tutor_not_assignable=not_assignable,
     )
+
+
+def live_booking(lead, model, now, exclude_booking=None):
+    """
+    The lead's live booking of ``model``'s type -- booked, its slot not yet
+    ended, as an enquiry counts it -- ``exclude_booking`` left out, or None:
+    the one booking of a type a child may hold at a time (Q26).
+    """
+    bookings = model.objects.filter(lead=lead, status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+    if exclude_booking is not None:
+        bookings = bookings.exclude(pk=exclude_booking.pk)
+    return bookings.select_related('slot').first()
 
 
 def lead_commitments(lead, starts_at, ends_at, exclude_booking=None):
@@ -835,7 +912,8 @@ def upcoming_assignments(tutor, now=None):
     active tutor (Team deactivation or role change, the Django admin): there
     is no rule yet for handing a booking to another tutor, so they are
     reassigned or unassigned first (assign_tutor / unassign_tutor), never left
-    on an account that cannot teach them. The caller holds the account's row
+    on an account that cannot teach them (one already started cannot be handed
+    over, so the account waits for its slot to end). The caller holds the account's row
     lock, which assign_tutor also takes, so no assignment can land after the
     count.
     """
@@ -854,8 +932,10 @@ def assign_tutor(booking, tutor, actor=None, now=None):
     Make ``tutor`` the one who teaches ``booking``; returns (booking, changed).
 
     Only an active TUTOR (else TutorNotAssignable), only while the booking is
-    booked (BookingCancelled, BookingCompleted, BookingRescheduled) and its
-    slot has not started (SlotStarted), and
+    booked (BookingCancelled, BookingCompleted, BookingRescheduled), its tutor
+    has not started it (BookingStarted) and its slot has not ended
+    (SlotEnded) -- a booking whose scheduled time passed with no start may
+    still be handed to a tutor who can take it -- and
     only when the tutor is free for the whole slot (TutorUnavailable, see
     find_tutor_conflict). Every check is made again under the locks, whatever
     the caller saw before. The same tutor again changes nothing and is not
@@ -903,8 +983,8 @@ def unassign_tutor(booking, actor=None, now=None):
     """
     Take the tutor off ``booking``, clearing who was assigned, when and by
     whom; returns (booking, changed). Under the same rules as assign_tutor --
-    booked, slot not started -- so a cancelled or past booking keeps the
-    tutor it had. A booking with no tutor is left as it is.
+    booked, not started, slot not ended -- so a cancelled, started or past
+    booking keeps the tutor it had. A booking with no tutor is left as it is.
     """
     now = now or timezone.now()
     try:
@@ -933,6 +1013,74 @@ def unassign_tutor(booking, actor=None, now=None):
     return booking, True
 
 
+def start_booking(booking, tutor, now=None):
+    """
+    Record that ``tutor`` has started teaching ``booking``: their Start Demo or
+    Start Diagnostic, the only thing that starts a booking -- its scheduled
+    time alone never does (bookings.lifecycle). Returns (booking, changed); a
+    booking already started is left as it is, however often Start is sent
+    again (a second click, another tab), with one STARTED event in its history.
+
+    Only the booking's assigned tutor (anyone else is told it does not exist,
+    BookingNotAssigned), only while it is booked (CompletedNotStartable,
+    CancelledNotStartable, RescheduledNotStartable), and only from START_EARLY
+    before its slot starts (StartTooEarly) until the slot ends
+    (StartWindowClosed). ``started_at`` is the server's clock read under the
+    locks (``now`` pins it), so the moment checked is the moment recorded.
+
+    Locks: the slot, then the booking (_locked_booking), the order every
+    booking write takes them in. A Start racing a cancellation, a reschedule,
+    a tutor change or another Start waits for it, or it for the Start, and
+    whichever commits second sees what the first did. Its communication steps
+    keep their scheduled times and the after-activity message still follows
+    completion; the automatic messages before the class no longer go once it
+    has started (communications.rendering, BOOKING_ACTIVE), as the BDE's
+    confirmation actions already close.
+    """
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            booking = _locked_booking(booking)
+            at = now or timezone.now()
+            if booking.assigned_tutor_id is None or booking.assigned_tutor_id != tutor.pk:
+                raise BookingNotAssigned()
+            if booking.status == BookingStatus.COMPLETED:
+                raise CompletedNotStartable()
+            if booking.status == BookingStatus.RESCHEDULED:
+                raise RescheduledNotStartable()
+            if booking.status != BookingStatus.BOOKED:
+                raise CancelledNotStartable()
+            if booking.started_at is not None:
+                return booking, False
+            if at < start_opens_at(booking.slot):
+                raise StartTooEarly()
+            if at >= booking.slot.ends_at:
+                raise StartWindowClosed()
+            booking.started_at = at
+            booking.started_by = tutor
+            booking.save(update_fields=['started_at', 'started_by', 'updated_at'])
+            history.record(booking, BookingEventKind.STARTED, actor=tutor)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    log_activity(
+        action='booking.start',
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(booking.slot),
+        # Ids and instants only, as for every booking entry.
+        context={
+            'booking_type': booking.booking_type,
+            'slot_starts_at': booking.slot.starts_at.isoformat(),
+            'started_at': booking.started_at.isoformat(),
+            'lead_id': str(booking.lead_id),
+        },
+        actor=tutor,
+    )
+    return booking, True
+
+
 def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
     """
     Make ``meet_link`` -- in its stored form (accounts.meet_links), or None to
@@ -941,10 +1089,11 @@ def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
     the bookings whose link changed with it, soonest first.
 
     Each live booking assigned to the tutor -- booked, its slot not yet ended,
-    as an enquiry counts it -- takes the new link too, so the classes still to
-    be taught use it. Every other booking keeps the link it had: one whose slot
-    has ended, or one completed, cancelled or moved, records the room it was
-    taught in (or was to be), whatever the tutor's link becomes. Each booking
+    as an enquiry counts it -- and not started yet takes the new link too, so
+    the classes still to be taught use it. Every other booking keeps the link
+    it had: one started, or whose slot has ended, or one completed, cancelled
+    or moved, records the room it was taught in (or was to be), whatever the
+    tutor's link becomes. Each booking
     changed records MEET_LINK_UPDATED in its history -- whether it has a link,
     never the link. Only a TUTOR account has one (NotATutor), active or not.
     Who may set it -- an administrator -- is the caller's check, and so is the
@@ -956,7 +1105,10 @@ def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
     copies the new link.
     """
     now = now or timezone.now()
-    live = {'assigned_tutor_id': tutor.pk, 'status': BookingStatus.BOOKED, 'slot__ends_at__gt': now}
+    live = {
+        'assigned_tutor_id': tutor.pk, 'status': BookingStatus.BOOKED, 'slot__ends_at__gt': now,
+        'started_at__isnull': True,
+    }
     try:
         with transaction.atomic():
             _set_lock_timeout()
@@ -1160,8 +1312,10 @@ def _check_tutor_changeable(booking, now):
         raise BookingRescheduled()
     if booking.status != BookingStatus.BOOKED:
         raise BookingCancelled()
-    if booking.slot.starts_at <= now:
-        raise SlotStarted()
+    if booking.started_at is not None:
+        raise BookingStarted()
+    if booking.slot.ends_at <= now:
+        raise SlotEnded()
 
 
 def _locked_tutor(tutor_id):
