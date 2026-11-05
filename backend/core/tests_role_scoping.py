@@ -28,6 +28,7 @@ from rest_framework.test import APITestCase
 from accounts.team import IsTeamManager, TeamAccess
 from activity.models import ActivityLog
 from bookings.authentication import BookingServiceAuthentication, IsBookingService
+from communications.webhooks import IsMetaCallback
 from core.authz_matrix import api_routes, api_url_patterns
 from core.querysets import scope_activity, scope_exams, scope_homework, scope_sessions, scope_students
 from exams.models import AdditionalExam, Exam
@@ -55,15 +56,19 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
 }
 # What /me lists: BDE its workspace's permissions and its own leads' Demo
 # handoff, reports and conversion; Sales TL the Conversion Tracker's (0015).
-# Those seeded by 0015 open no route until their phase's code asks for them.
+# Those seeded by 0015 and 0017 (parent communication) open no route until
+# their phase's code asks for them.
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
+    'accounts.record_parent_confirmation',
+    'accounts.send_lead_communications',
     'accounts.share_booking_report',
     'accounts.view_own_booking_links',
     'accounts.view_own_enquiries',
+    'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
 ]
 SALES_TL_PERMISSIONS = ['accounts.manage_team_conversion', 'accounts.view_conversion_tracker']
@@ -306,6 +311,9 @@ OPEN_VIEWS = {
 # Views no account may call: only the marketing site's server, with its service
 # key (bookings.authentication). Sessions are not read there at all.
 SERVICE_VIEWS = {'PublicBookingCalendarView', 'PublicBookingCreateView'}
+# Views only Meta's servers may call: the WhatsApp webhook, guarded by the verify
+# token or the callback signature (communications.webhooks). No session is read.
+WEBHOOK_VIEWS = {'WhatsAppWebhookView'}
 # Permission classes that decide by catalogue permission (accounts.authz).
 PERMISSION_FACTORIES = ('HasAppPermission', 'HasAnyAppPermission', 'ByMethod', 'IsStudentUser')
 
@@ -337,6 +345,10 @@ class ViewPermissionTests(SimpleTestCase):
                 self.assertEqual(classes, [IsBookingService], view.__name__)
                 self.assertEqual(list(view.authentication_classes), [BookingServiceAuthentication], view.__name__)
                 continue
+            if view.__name__ in WEBHOOK_VIEWS:
+                self.assertEqual(classes, [IsMetaCallback], view.__name__)
+                self.assertEqual(list(view.authentication_classes), [], view.__name__)
+                continue
             if not any(_decides_by_permission(permission) for permission in classes if permission is not IsAuthenticated):
                 unguarded.append(f'{route} ({view.__name__})')
         self.assertEqual(unguarded, [], 'API views without a permission guard')
@@ -344,6 +356,6 @@ class ViewPermissionTests(SimpleTestCase):
     def test_staff_endpoints_also_require_a_signed_in_account(self):
         # IsAuthenticated first, so an anonymous caller gets "not signed in" rather than "not allowed".
         for route, view in api_views():
-            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS:
+            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS | WEBHOOK_VIEWS:
                 with self.subTest(route=route):
                     self.assertIs(list(view.permission_classes)[0], IsAuthenticated)

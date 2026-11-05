@@ -698,7 +698,7 @@
   },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
    "result": {
     "capture": {
      "groups": [],
@@ -718,19 +718,23 @@
       "accounts.manage_booking_slots",
       "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_message_templates",
       "accounts.manage_session",
       "accounts.manage_team",
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.record_parent_confirmation",
       "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.send_lead_communications",
       "accounts.share_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
       "accounts.view_all_bookings",
+      "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
@@ -881,7 +885,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
    "result": {
     "capture": {
      "groups": [],
@@ -904,6 +908,7 @@
       "accounts.manage_booking_slots",
       "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -911,15 +916,18 @@
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.record_parent_confirmation",
       "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.send_lead_communications",
       "accounts.share_booking_report",
       "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
       "accounts.view_all_bookings",
+      "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
@@ -936,6 +944,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
@@ -974,7 +983,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
    "result": {
     "capture": {
      "groups": [],
@@ -997,6 +1006,7 @@
       "accounts.manage_booking_slots",
       "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1004,15 +1014,18 @@
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.record_parent_confirmation",
       "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.send_lead_communications",
       "accounts.share_booking_report",
       "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
       "accounts.view_all_bookings",
+      "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
@@ -1029,6 +1042,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
@@ -1067,7 +1081,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4), so a superuser now lists 59. The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
    "result": {
     "capture": {
      "groups": [],
@@ -1090,6 +1104,7 @@
       "accounts.manage_booking_slots",
       "accounts.manage_conversions",
       "accounts.manage_exam",
+      "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1097,15 +1112,18 @@
       "accounts.purge_student",
       "accounts.reassign_student_staff",
       "accounts.record_exam_result",
+      "accounts.record_parent_confirmation",
       "accounts.reschedule_booking",
       "accounts.score_additional_exam",
       "accounts.score_homework",
+      "accounts.send_lead_communications",
       "accounts.share_booking_report",
       "accounts.submit_booking_report",
       "accounts.sync_student_quota",
       "accounts.view_activity_actors",
       "accounts.view_all_activity",
       "accounts.view_all_bookings",
+      "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
       "accounts.view_all_sessions",
@@ -1122,6 +1140,7 @@
       "accounts.view_own_activity",
       "accounts.view_own_booking_links",
       "accounts.view_own_enquiries",
+      "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
@@ -6506,6 +6525,1154 @@
     "fields": [
      "detail"
     ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ admin": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "communications.booking @ anon": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ mentor_a": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ mentor_b": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ parent_a": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ su_mentor": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "communications.booking @ su_tutor": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "communications.booking @ superuser": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "communications.booking @ tutor_a": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ tutor_b": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.booking @ unknown": {
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
+   "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ admin": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "changed",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.by.full_name",
+     "parent_confirmation.by.id",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "admin",
+     "booking_a",
+     "slot_a"
+    ],
+    "status": 200
+   }
+  },
+  "communications.parent_confirmation @ anon": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ mentor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ mentor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ parent_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ su_mentor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "changed",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.by.full_name",
+     "parent_confirmation.by.id",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a",
+     "su_mentor"
+    ],
+    "status": 200
+   }
+  },
+  "communications.parent_confirmation @ su_tutor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "changed",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.by.full_name",
+     "parent_confirmation.by.id",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a",
+     "su_tutor"
+    ],
+    "status": 200
+   }
+  },
+  "communications.parent_confirmation @ superuser": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
+   "result": {
+    "fields": [
+     "actions",
+     "actions.record_confirmation",
+     "actions.request_confirmation",
+     "booking",
+     "booking.booking_type",
+     "booking.id",
+     "booking.owner_bde",
+     "booking.parent_name",
+     "booking.phone",
+     "booking.slot",
+     "booking.slot.booking_type",
+     "booking.slot.date",
+     "booking.slot.ended",
+     "booking.slot.ends_at",
+     "booking.slot.id",
+     "booking.slot.started",
+     "booking.slot.starts_at",
+     "booking.slot.time",
+     "booking.status",
+     "booking.status_label",
+     "booking.student_name",
+     "booking.tutor",
+     "changed",
+     "messages",
+     "parent_confirmation",
+     "parent_confirmation.at",
+     "parent_confirmation.by",
+     "parent_confirmation.by.full_name",
+     "parent_confirmation.by.id",
+     "parent_confirmation.label",
+     "parent_confirmation.reason",
+     "parent_confirmation.status",
+     "planned",
+     "tasks",
+     "timezone"
+    ],
+    "records": [
+     "booking_a",
+     "slot_a",
+     "superuser"
+    ],
+    "status": 200
+   }
+  },
+  "communications.parent_confirmation @ tutor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ tutor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.parent_confirmation @ unknown": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ admin": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
+   "result": {
+    "fields": [
+     "ready",
+     "requirements",
+     "requirements[].code",
+     "requirements[].label",
+     "requirements[].met",
+     "step",
+     "step_label",
+     "text"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "communications.preview @ anon": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ mentor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ mentor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ parent_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ su_mentor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
+   "result": {
+    "fields": [
+     "ready",
+     "requirements",
+     "requirements[].code",
+     "requirements[].label",
+     "requirements[].met",
+     "step",
+     "step_label",
+     "text"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "communications.preview @ su_tutor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
+   "result": {
+    "fields": [
+     "ready",
+     "requirements",
+     "requirements[].code",
+     "requirements[].label",
+     "requirements[].met",
+     "step",
+     "step_label",
+     "text"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "communications.preview @ superuser": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
+   "result": {
+    "fields": [
+     "ready",
+     "requirements",
+     "requirements[].code",
+     "requirements[].label",
+     "requirements[].met",
+     "step",
+     "step_label",
+     "text"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "communications.preview @ tutor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ tutor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.preview @ unknown": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ admin": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.request_confirmation @ anon": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ mentor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ mentor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ parent_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ su_mentor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.request_confirmation @ su_tutor": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.request_confirmation @ superuser": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.request_confirmation @ tutor_a": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ tutor_b": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.request_confirmation @ unknown": {
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ admin": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ anon": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ mentor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ mentor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ parent_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ su_mentor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ su_tutor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ superuser": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ tutor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ tutor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_status @ unknown": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A callback without Meta's signature is refused, whoever the caller is -- a signed-in account is not Meta: 403 INVALID_SIGNATURE, nothing applied.",
+   "result": {
+    "error": "INVALID_SIGNATURE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The callback signature is missing or does not match.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ admin": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ anon": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ mentor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ mentor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ parent_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ su_mentor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ su_tutor": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ superuser": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ tutor_a": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ tutor_b": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.whatsapp_webhook_verify @ unknown": {
+   "decision": "BDE-to-PDF Phase 2B step 5 (WhatsApp webhook): /api/communications/webhooks/whatsapp/ is Meta's WhatsApp Cloud API callback URL. No session is read there (no authentication classes); IsMetaCallback admits a subscription check carrying our verify token (GET) or a callback signed with our app secret (POST, X-Hub-Signature-256, HMAC-SHA256).",
+   "note": "A subscription check with a token that is not ours -- and, with no verify token configured, any -- is refused, whoever the caller is: 403 VERIFICATION_FAILED, no challenge echoed.",
+   "result": {
+    "error": "VERIFICATION_FAILED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "The subscription could not be verified.",
     "records": [],
     "status": 403
    }

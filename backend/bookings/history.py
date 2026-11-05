@@ -20,7 +20,8 @@ DATA_KEYS = frozenset({
     'slot_id', 'seat', 'referral_status', 'via',  # CREATED
     'old_tutor_id', 'new_tutor_id',  # TUTOR_ASSIGNED / TUTOR_UNASSIGNED
     'from_status', 'to_status',  # a change of status
-    'reason_code',  # CANCELLED / RESCHEDULED: a CancelReason or RescheduleReason, never text
+    # CANCELLED / RESCHEDULED / PARENT_NOT_CONFIRMED: a CancelReason, RescheduleReason or NotConfirmedReason, never text
+    'reason_code',
     'old_slot_id', 'new_slot_id', 'replacement_id',  # RESCHEDULED: where it moved, and the booking replacing it
     'rescheduled_from_id',  # CREATED by a reschedule: the booking it replaces
     'report_id', 'version',  # COMPLETED / REPORT_EDITED: the report and the version saved (reports.services)

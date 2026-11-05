@@ -44,6 +44,7 @@ SEED_ENQUIRIES = importlib.import_module('accounts.migrations.0012_bde_enquiries
 SEED_BOOKINGS = importlib.import_module('accounts.migrations.0013_booking_management_permissions')
 SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_assigned_bookings_permission')
 SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnostic_workflow_permissions')
+SEED_COMMUNICATIONS = importlib.import_module('accounts.migrations.0017_communication_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -90,6 +91,7 @@ ADMIN_ONLY = names(
     'manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots',
     'view_all_bookings', 'assign_booking_tutor',
     'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
+    'view_all_communications', 'manage_message_templates',
 )
 TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report')
 # What later migrations add, one module each: BDE its booking links (0010),
@@ -116,6 +118,17 @@ WORKFLOW_GRANTS = {
                  'manage_own_conversion'),
     'SALES_TL': names('manage_team_conversion', 'view_conversion_tracker'),
 }
+# Parent communication (0017), written out on its own: a BDE their own
+# leads', the Admin every booking's and the templates; tutors and Sales TL none.
+COMMUNICATION_PERMISSIONS = names(
+    'view_own_lead_communications', 'send_lead_communications', 'record_parent_confirmation',
+    'view_all_communications', 'manage_message_templates',
+)
+COMMUNICATION_GRANTS = {
+    'ADMIN': names('send_lead_communications', 'record_parent_confirmation', 'view_all_communications',
+                   'manage_message_templates'),
+    'BDE': names('view_own_lead_communications', 'send_lead_communications', 'record_parent_confirmation'),
+}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -124,9 +137,10 @@ NEW_ROLE_PERMISSIONS_AT_0014 = {
 }
 # What they carry -- and, each its own modules only, may ever hold -- today.
 NEW_ROLE_PERMISSIONS = {
-    role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] for role in NEW_ROLE_PERMISSIONS_AT_0014
+    role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
+    for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
-# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, and today.
+# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
@@ -141,8 +155,11 @@ GROUP_PERMISSIONS_AT_0014 = {
     **GROUP_PERMISSIONS_AT_0013,
     'TUTOR': GROUP_PERMISSIONS_AT_0013['TUTOR'] | ASSIGNED_BOOKING_PERMISSIONS,
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0015 = {
     role: held | WORKFLOW_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0014.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | COMMUNICATION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0015.items()
 }
 
 
@@ -180,9 +197,9 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_59(self):
-        self.assertEqual(len(CATALOGUE), 59)
-        self.assertLessEqual(WORKFLOW_PERMISSIONS, set(CATALOGUE))
+    def test_the_catalogue_is_the_approved_64(self):
+        self.assertEqual(len(CATALOGUE), 64)
+        self.assertLessEqual(WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS, set(CATALOGUE))
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -229,7 +246,7 @@ class CatalogueTests(PermissionTestCase):
         for role in ('MENTOR', 'STUDENT'):
             with self.subTest(role=role):
                 self.assertFalse(allowed_for_role(role) & WORKFLOW_PERMISSIONS)
-        for name in WORKFLOW_PERMISSIONS:
+        for name in WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS:
             with self.subTest(permission=name):
                 self.assertFalse(CATALOGUE[name]['grantable'])
 
@@ -239,10 +256,13 @@ class CatalogueTests(PermissionTestCase):
     def test_the_migrations_seed_what_the_catalogue_declares(self):
         self.assertEqual(
             SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
-            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS + SEED_WORKFLOW.HUB_PERMISSIONS,
+            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS + SEED_WORKFLOW.HUB_PERMISSIONS
+            + SEED_COMMUNICATIONS.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_WORKFLOW.GRANTS.items()}, WORKFLOW_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_COMMUNICATIONS.GRANTS.items()},
+                         COMMUNICATION_GRANTS)
         seeded = {role: names(*codenames) for role, _name, codenames in SEED.ROLE_GROUPS}
         self.assertEqual(seeded, EXPECTED_ROLE_PERMISSIONS)
         for seed, role, expected in ((SEED_BDE, 'BDE', BOOKING_LINK_PERMISSIONS),
@@ -800,6 +820,24 @@ class SeedFunctionTests(PermissionTestCase):
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         self.assertEqual(before, after)
 
+    def test_running_the_communication_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_COMMUNICATIONS.grant_communication_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_reads_parent_communication(self):
+        held = {role: effective_permissions(self.make(f'comms_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertEqual(held['BDE'] & COMMUNICATION_PERMISSIONS, COMMUNICATION_GRANTS['BDE'])
+        self.assertEqual(held['ADMIN'] & COMMUNICATION_PERMISSIONS, COMMUNICATION_GRANTS['ADMIN'])
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & COMMUNICATION_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand a tutor or Sales TL the log.
+        for role in ('TUTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in COMMUNICATION_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'comms_{role.lower()}_2', role)) & COMMUNICATION_PERMISSIONS)
+
     def test_who_reschedules_and_who_cancels(self):
         held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
         self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
@@ -876,8 +914,8 @@ class NewRoleTests(PermissionTestCase):
 
 class MigrationReversalTests(TransactionTestCase):
     """
-    0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply again
-    with the same seeds, ending at the app's leaf.
+    0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply
+    again with the same seeds, ending at the app's leaf.
     """
 
     @staticmethod
@@ -935,7 +973,19 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0015_demo_diagnostic_workflow_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0015)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0017_communication_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0017 alone reverses: every group is back to 0015's and the communication rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0016_user_tutor_meet_link')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0015)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in COMMUNICATION_PERMISSIONS],
+        ).exists())
 
         # 0015 alone reverses: every group is back to 0014's and the workflow rows gone.
         executor = MigrationExecutor(connection)
@@ -981,7 +1031,7 @@ class MigrationReversalTests(TransactionTestCase):
         self.assertEqual(self.groups(), EXPECTED_ROLE_PERMISSIONS)
         self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
 
-        # Back to the leaf, whichever migration that is now: 0016 (a tutor's Meet link) changes no group.
+        # Back to the leaf, whichever migration that is now; 0016 (a tutor's Meet link) changes no group.
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes('accounts'))
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)

@@ -34,7 +34,7 @@ from .booking_service import (
     tutor_commitments,
     tutor_conflicts,
 )
-from .models import BookingEvent, BookingSlot, BookingStatus, CancelReason, Lead, RescheduleReason
+from .models import BookingEvent, BookingSlot, BookingStatus, CancelReason, Lead, NotConfirmedReason, RescheduleReason
 from .scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME, bookable_window, slot_instants
 
 CANCEL_BOOKING = 'accounts.cancel_booking'
@@ -559,7 +559,7 @@ def booking_history(booking, now):
     slot_ids = {e.data.get(key) for e in events for key in EVENT_SLOT_KEYS if e.data.get(key)}
     tutors = {str(u.pk): u for u in User.objects.filter(pk__in=tutor_ids)}
     slots = {str(slot.pk): slot for slot in BookingSlot.objects.filter(pk__in=slot_ids)}
-    reasons = {'CANCELLED': CancelReason, 'RESCHEDULED': RescheduleReason}
+    reasons = {'CANCELLED': CancelReason, 'RESCHEDULED': RescheduleReason, 'PARENT_NOT_CONFIRMED': NotConfirmedReason}
 
     def details(event):
         data = event.data

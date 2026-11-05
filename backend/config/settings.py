@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'homework',
     'bookings',
     'reports',
+    'communications',
 ]
 
 MIDDLEWARE = [
@@ -428,10 +429,11 @@ GOOGLE_PRIVATE_KEY = env('GOOGLE_PRIVATE_KEY', default='')
 # ---------------------------------------------------------------------------
 # Celery (background jobs)
 # ---------------------------------------------------------------------------
-# One job: the enrolment-sheet class-quota sync (students.tasks). No result
-# backend -- nothing waits on a return value, and the task logs its own
-# summary -- and no django-celery-beat, so the schedule below needs no tables
-# and no migrations.
+# A few scheduled jobs: the enrolment-sheet class-quota sync (students.tasks),
+# the session purge (accounts.tasks) and parent WhatsApp messages
+# (communications.tasks). No result backend -- nothing waits on a return
+# value, and each task logs its own summary -- and no django-celery-beat, so
+# the schedule below needs no tables and no migrations.
 # Defaults to a Redis on the host, the same way DB_HOST defaults to localhost:
 # this is the value `manage.py runserver` / `celery -A config worker` want when
 # run natively. Compose overrides it to `redis://redis:6379/0` on all three
@@ -467,6 +469,32 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'accounts.tasks.clear_expired_sessions',
         'schedule': crontab(minute='30', hour='3'),
     },
+    # Parent WhatsApp messages (communications.tasks): due messages handed to
+    # the sender every minute; stuck sends recovered and expired steps closed
+    # every 5 minutes, two minutes apart. A tick no worker takes in time
+    # expires, so a worker that was down does not run a backlog. Nothing is
+    # sent while COMMUNICATIONS_SENDING_ENABLED is off.
+    'dispatch-whatsapp-messages': {
+        'task': 'communications.tasks.dispatch_messages',
+        'schedule': crontab(minute='*'),
+        'options': {'expires': 55},
+    },
+    'recover-stuck-whatsapp-sends': {
+        'task': 'communications.tasks.recover_stuck_sends',
+        'schedule': crontab(minute='*/5'),
+        'options': {'expires': 240},
+    },
+    'close-expired-communications': {
+        'task': 'communications.tasks.close_expired_communications',
+        'schedule': crontab(minute='2-59/5'),
+        'options': {'expires': 240},
+    },
+    # WhatsApp statuses that came before their message's id was recorded.
+    'reconcile-whatsapp-statuses': {
+        'task': 'communications.tasks.reconcile_status_updates',
+        'schedule': crontab(minute='4-59/5'),
+        'options': {'expires': 240},
+    },
 }
 
 # Email Configuration
@@ -500,3 +528,27 @@ BOOKING_PHONE_DAILY_LIMIT = env.int('BOOKING_PHONE_DAILY_LIMIT', default=5)
 # (bookings.authentication), comma-separated so one can be rotated. None set
 # means the API answers nobody.
 BOOKING_SERVICE_API_KEYS = env.list('BOOKING_SERVICE_API_KEYS', default=[])
+
+# Parent communication (communications app). Messages for a lead with no BDE --
+# a booking made without a valid BDE link -- sign with this central name and
+# phone; while either is unset they wait instead of going out with a blank.
+COMMUNICATIONS_FALLBACK_SENDER_NAME = env('COMMUNICATIONS_FALLBACK_SENDER_NAME', default='')
+COMMUNICATIONS_FALLBACK_SENDER_PHONE = env('COMMUNICATIONS_FALLBACK_SENDER_PHONE', default='')
+
+# WhatsApp, the only channel parent messages go through (communications.safety).
+# Closed by default: nothing is handed to a provider until sending is switched
+# on, the default provider ("none") sends nothing so messages stay Pending, and
+# only allow-listed numbers -- full international numbers, comma-separated --
+# may receive a message unless every number is allowed on purpose (production).
+COMMUNICATIONS_SENDING_ENABLED = env.bool('COMMUNICATIONS_SENDING_ENABLED', default=False)
+COMMUNICATIONS_WHATSAPP_PROVIDER = env('COMMUNICATIONS_WHATSAPP_PROVIDER', default='none')
+COMMUNICATIONS_RECIPIENT_ALLOWLIST = env.list('COMMUNICATIONS_RECIPIENT_ALLOWLIST', default=[])
+COMMUNICATIONS_ALLOW_ALL_RECIPIENTS = env.bool('COMMUNICATIONS_ALLOW_ALL_RECIPIENTS', default=False)
+# Seconds one provider call may take (1-60).
+COMMUNICATIONS_PROVIDER_TIMEOUT = env.int('COMMUNICATIONS_PROVIDER_TIMEOUT', default=10)
+# Meta's WhatsApp Cloud API webhook (communications.webhooks): the app secret
+# every callback is signed with, and the token Meta's subscription check
+# presents. Both from the platform's secret store, never a tracked file; while
+# either is unset the webhook refuses everything.
+COMMUNICATIONS_META_APP_SECRET = env('COMMUNICATIONS_META_APP_SECRET', default='')
+COMMUNICATIONS_META_VERIFY_TOKEN = env('COMMUNICATIONS_META_VERIFY_TOKEN', default='')

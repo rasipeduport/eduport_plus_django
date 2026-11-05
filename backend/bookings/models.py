@@ -142,6 +142,32 @@ class CancelReason(models.TextChoices):
     DUPLICATE = 'DUPLICATE', 'Duplicate booking'
     BOOKED_BY_MISTAKE = 'BOOKED_BY_MISTAKE', 'Booked by mistake'
     OTHER = 'OTHER', 'Other'
+    # Set only by recording the parent as Not Confirmed
+    # (booking_service.record_parent_confirmation), never picked on its own.
+    NOT_CONFIRMED = 'NOT_CONFIRMED', 'Parent did not confirm'
+
+
+# What the Admin or a BDE may pick when cancelling a booking.
+MANUAL_CANCEL_REASONS = [value for value in CancelReason.values if value != CancelReason.NOT_CONFIRMED]
+
+
+class ParentConfirmation(models.TextChoices):
+    """
+    What the parent said when the BDE asked them to confirm (PRD 3.11, step 3).
+    Not Confirmed always cancels the booking, in the same step.
+    """
+    AWAITING = 'AWAITING', 'Awaiting confirmation'
+    CONFIRMED = 'CONFIRMED', 'Confirmed'
+    NOT_CONFIRMED = 'NOT_CONFIRMED', 'Not confirmed'
+
+
+class NotConfirmedReason(models.TextChoices):
+    """Why the parent did not confirm: a code, never free text (as for CancelReason, M1)."""
+    PARENT_DECLINED = 'PARENT_DECLINED', 'Parent declined'
+    NO_RESPONSE = 'NO_RESPONSE', 'No response'
+    NOT_INTERESTED = 'NOT_INTERESTED', 'Not interested'
+    TIME_NOT_SUITABLE = 'TIME_NOT_SUITABLE', "Time doesn't suit"
+    OTHER = 'OTHER', 'Other'
 
 
 class RescheduleReason(models.TextChoices):
@@ -463,6 +489,24 @@ class BookingBase(models.Model):
     # cancelled or moved, it keeps the link it had, whatever the tutor's
     # becomes. NULL = no tutor, or a tutor with no link configured.
     tutor_meet_link = models.CharField(max_length=MEET_LINK_MAX_LENGTH, null=True, blank=True)
+    # What the parent said when asked to confirm, when it was recorded and by
+    # whom (booking_service.record_parent_confirmation). A replacement made by
+    # a reschedule starts again from Awaiting; the booking it replaced keeps its own.
+    parent_confirmation = models.CharField(
+        max_length=20, choices=ParentConfirmation.choices, default=ParentConfirmation.AWAITING,
+    )
+    parent_confirmation_at = models.DateTimeField(null=True, blank=True)
+    parent_confirmation_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='parent_confirmed_%(class)ss'
+    )
+    # Why the parent did not confirm (NotConfirmedReason), set with Not Confirmed.
+    not_confirmed_reason = models.CharField(
+        max_length=30, choices=NotConfirmedReason.choices, blank=True, default='',
+    )
 
     class Meta:
         abstract = True
@@ -568,6 +612,43 @@ class BookingBase(models.Model):
                 condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
                 name='%(class)s_meet_link_google_meet',
             ),
+            models.CheckConstraint(
+                condition=Q(parent_confirmation__in=ParentConfirmation.values),
+                name='%(class)s_known_parent_confirmation',
+            ),
+            # An answer comes with the moment it was recorded; who recorded it
+            # may since be gone (SET_NULL).
+            models.CheckConstraint(
+                condition=(
+                    Q(parent_confirmation=ParentConfirmation.AWAITING, parent_confirmation_at__isnull=True,
+                      parent_confirmation_by__isnull=True)
+                    | (~Q(parent_confirmation=ParentConfirmation.AWAITING) & Q(parent_confirmation_at__isnull=False))
+                ),
+                name='%(class)s_parent_confirmation_fields',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                     & Q(not_confirmed_reason__in=NotConfirmedReason.values))
+                    | (~Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED) & Q(not_confirmed_reason=''))
+                ),
+                name='%(class)s_not_confirmed_reason_with_answer',
+            ),
+            # Not Confirmed is a cancellation, and the only one with its reason code.
+            models.CheckConstraint(
+                condition=(
+                    ~Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                    | Q(status=BookingStatus.CANCELLED, cancel_reason_code=CancelReason.NOT_CONFIRMED)
+                ),
+                name='%(class)s_not_confirmed_is_cancelled',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(cancel_reason_code=CancelReason.NOT_CONFIRMED)
+                    | Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                ),
+                name='%(class)s_not_confirmed_cancel_reason',
+            ),
         ]
         indexes = [
             models.Index(fields=['attributed_bde', 'created_at'], name='%(class)s_bde_idx'),
@@ -659,6 +740,8 @@ class BookingEventKind(models.TextChoices):
     COMPLETED = 'COMPLETED', 'Completed'
     REPORT_EDITED = 'REPORT_EDITED', 'Report edited'
     MEET_LINK_UPDATED = 'MEET_LINK_UPDATED', 'Meet link updated'
+    PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmed'
+    PARENT_NOT_CONFIRMED = 'PARENT_NOT_CONFIRMED', 'Parent did not confirm'
 
 
 class BookingEvent(models.Model):

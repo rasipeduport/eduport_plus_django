@@ -59,6 +59,10 @@ export const PERMISSIONS = {
   viewAllBookings: 'accounts.view_all_bookings',
   assignBookingTutor: 'accounts.assign_booking_tutor',
   viewAssignedBookings: 'accounts.view_assigned_bookings',
+
+  // A booking's parent communication: every booking's (administrators), or a BDE's own leads'.
+  viewAllCommunications: 'accounts.view_all_communications',
+  viewOwnLeadCommunications: 'accounts.view_own_lead_communications',
 };
 
 const P = PERMISSIONS;

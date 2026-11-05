@@ -43,6 +43,8 @@ export default function BookingsPage({ user }) {
   const canAssign = can(user, PERMISSIONS.assignBookingTutor);
   // A tutor's permanent Meet link belongs to their account: team managers set it (backend accounts.team).
   const canEditMeetLink = can(user, PERMISSIONS.manageTeam);
+  // Each booking's parent communication, in its sheet (Phase 3.1).
+  const canViewCommunication = can(user, PERMISSIONS.viewAllCommunications);
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -187,7 +189,10 @@ export default function BookingsPage({ user }) {
         }}
         canAssign={canAssign}
         canEditMeetLink={canEditMeetLink}
+        canViewCommunication={canViewCommunication}
         reloadKey={reloadKey}
+        // The parent's answer may cancel the booking: the list, the booking and its timeline are read again.
+        onCommunicationChanged={() => setReloadKey((key) => key + 1)}
         onAssign={setAssigning}
         onChanged={(booking) => changed(`Unassigned the tutor from ${booking.student_name}'s booking.`)}
         onReschedule={setRescheduling}

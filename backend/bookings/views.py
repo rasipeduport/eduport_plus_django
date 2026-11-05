@@ -24,6 +24,7 @@ from .services import links_for, owns_booking_links
 VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
 CANCEL_BOOKING = 'accounts.cancel_booking'
 VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
+VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications'
 
 
 class BdeBookingLinksView(APIView):
@@ -166,7 +167,7 @@ class BdeEnquiriesView(BdeWorkspaceView):
             )
         now = timezone.now()
         lead = enquiries.listed(enquiries.own_leads(request.user), now).get(pk=lead.pk)
-        return Response(enquiries.enquiry_detail(lead, now, can_cancel=_can_cancel(request)), status=status.HTTP_201_CREATED)
+        return Response(_enquiry(request, lead, now), status=status.HTTP_201_CREATED)
 
 
 class BdeEnquiryDetailView(BdeWorkspaceView):
@@ -185,11 +186,19 @@ class BdeEnquiryDetailView(BdeWorkspaceView):
         lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=pk), now).first()
         if lead is None:
             return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
-        return Response(enquiries.enquiry_detail(lead, now, can_cancel=_can_cancel(request)), status=status.HTTP_200_OK)
+        return Response(_enquiry(request, lead, now), status=status.HTTP_200_OK)
 
 
 def _can_cancel(request):
     return has_app_permission(request.user, CANCEL_BOOKING, request)
+
+
+def _enquiry(request, lead, now):
+    """The enquiry in full, with what the caller may do and see by the permissions they hold."""
+    return enquiries.enquiry_detail(
+        lead, now, can_cancel=_can_cancel(request),
+        show_confirmation=has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request),
+    )
 
 
 class BdeBookingCancelView(BdeWorkspaceView):
@@ -233,7 +242,7 @@ class BdeBookingCancelView(BdeWorkspaceView):
             return _bde_error(exc.code, exc.message, exc.http_status)
         now = timezone.now()
         lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
-        return Response({**enquiries.enquiry_detail(lead, now, can_cancel=True), 'changed': changed}, status=status.HTTP_200_OK)
+        return Response({**_enquiry(request, lead, now), 'changed': changed}, status=status.HTTP_200_OK)
 
 
 def _no_booking():

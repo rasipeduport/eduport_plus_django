@@ -36,9 +36,12 @@ BDE_PERMISSIONS = [
     'accounts.cancel_booking',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
+    'accounts.record_parent_confirmation',
+    'accounts.send_lead_communications',
     'accounts.share_booking_report',
     'accounts.view_own_booking_links',
     'accounts.view_own_enquiries',
+    'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
 ]
 # Sales TL holds the Conversion Tracker's two permissions (0015); like BDE's
@@ -89,6 +92,15 @@ BDE_WORKSPACE = {
     # booking_a's lead is not the BDE's own: its report is answered as a booking that does not exist (P9).
     'bde.bookings.report_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                 'fields': ['error', 'message']},
+    # ... and its communication too (Phase 3.1), which the BDE may neither preview, ask about nor answer for (3.2).
+    'communications.booking': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                               'fields': ['error', 'message']},
+    'communications.preview': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                               'fields': ['error', 'message']},
+    'communications.request_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
+                                            'records': [], 'fields': ['error', 'message']},
+    'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
+                                           'records': [], 'fields': ['error', 'message']},
 }
 
 

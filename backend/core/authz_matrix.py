@@ -562,6 +562,20 @@ SCENARIOS = [
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
     Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
 
+    # --- WhatsApp webhook (Meta's servers only, by signature; no session read) --
+    Scenario('communications.whatsapp_webhook_verify', 'get',
+             '/api/communications/webhooks/whatsapp/?hub.mode=subscribe&hub.verify_token=matrix&hub.challenge=42'),
+    Scenario('communications.whatsapp_webhook_status', 'post', '/api/communications/webhooks/whatsapp/',
+             {'object': 'whatsapp_business_account', 'entry': []}),
+    # --- parent communications in the Hub (every booking's, or a BDE's own leads') --
+    Scenario('communications.booking', 'get', '/api/communications/bookings/demo/{booking_a}/'),
+    Scenario('communications.preview', 'get',
+             '/api/communications/bookings/demo/{booking_a}/preview/?step=CONFIRMATION_REQUEST'),
+    Scenario('communications.request_confirmation', 'post',
+             '/api/communications/bookings/demo/{booking_a}/confirmation-request/'),
+    Scenario('communications.parent_confirmation', 'post',
+             '/api/communications/bookings/demo/{booking_a}/parent-confirmation/', {'outcome': 'CONFIRMED'}),
+
     # --- booking slots (administrators) ----------------------------------------
     # A date that stays ahead of the clock, so it is always one that may change.
     Scenario('bookings.slot_day', 'get', '/api/booking-slots/demo/2099-01-05/'),

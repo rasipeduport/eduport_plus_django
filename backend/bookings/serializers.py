@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .leads import InvalidLeadDetails, normalize_phone
-from .models import MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
+from .models import MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
 from .public_serializers import CLASSES, SYLLABI
 from .services import link_url
 
@@ -29,7 +29,8 @@ class SlotChangeSerializer(serializers.Serializer):
 
 class CancelSerializer(serializers.Serializer):
     """POST /api/bookings/<type>/<id>/cancel/: why, as a code from the list (Q9), never free text (M1)."""
-    reason = serializers.ChoiceField(choices=CancelReason.choices)
+    # Not "Parent did not confirm": only recording the parent's answer cancels with that.
+    reason = serializers.ChoiceField(choices=[(value, CancelReason(value).label) for value in MANUAL_CANCEL_REASONS])
 
 
 class RescheduleSerializer(serializers.Serializer):

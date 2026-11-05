@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   CalendarDaysIcon,
@@ -15,7 +15,7 @@ import {
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import { bdeBookingCancelUrl } from '@/lib/bookings';
+import { bdeBookingCancelUrl, readBookingType } from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -27,6 +27,8 @@ import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { MeetLink } from '@/components/bookings/meet-link';
+import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
+import { BookingCommunicationSheet } from '@/components/communications/communication-sheet';
 import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
 
 function Field({ label, children }) {
@@ -48,7 +50,10 @@ function bookingState(booking) {
 /**
  * The enquiry's bookings. Its owner BDE may cancel one that is still booked
  * (Q22) -- the API says which in each booking's `actions` and checks again,
- * that the lead is theirs, on every request.
+ * that the lead is theirs, on every request. With the lead's communication to
+ * see (accounts.view_own_lead_communications, `onOpenCommunication`), each
+ * shows the parent's answer to the confirmation request and opens its
+ * communication.
  */
 /**
  * Who teaches a booking and its Google Meet link, to read and pass on -- the
@@ -71,7 +76,8 @@ function Teaching({ booking }) {
   );
 }
 
-function BookingsPanel({ bookings, onCancel }) {
+function BookingsPanel({ bookings, onCancel, onOpenCommunication }) {
+  const communication = Boolean(onOpenCommunication);
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
       {bookings.length === 0 ? (
@@ -88,6 +94,7 @@ function BookingsPanel({ bookings, onCancel }) {
                 <TableHead>When (IST)</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
+                {communication ? <TableHead>Confirmation</TableHead> : null}
                 <TableHead>Tutor</TableHead>
                 <TableHead>Booked on</TableHead>
                 <TableHead className="w-px">
@@ -107,21 +114,38 @@ function BookingsPanel({ bookings, onCancel }) {
                     <TableCell>
                       <Badge variant={state.variant}>{state.label}</Badge>
                     </TableCell>
+                    {communication ? (
+                      <TableCell>
+                        <ParentConfirmationBadge status={booking.parent_confirmation} booked={booking.status === 'BOOKED'} />
+                      </TableCell>
+                    ) : null}
                     <TableCell className="min-w-40 whitespace-normal">
                       <Teaching booking={booking} />
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">{formatDay(booking.booked_at)}</TableCell>
                     <TableCell>
-                      {booking.actions?.cancel ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onCancel(booking)}
-                          aria-label={`Cancel the ${bookingTypeLabel(booking.booking_type).toLowerCase()} on ${slotLabel(booking)}`}
-                        >
-                          Cancel
-                        </Button>
-                      ) : null}
+                      <div className="flex justify-end gap-2">
+                        {communication ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onOpenCommunication(booking)}
+                            aria-label={`Communication for the ${bookingTypeLabel(booking.booking_type).toLowerCase()} on ${slotLabel(booking)}`}
+                          >
+                            Communication
+                          </Button>
+                        ) : null}
+                        {booking.actions?.cancel ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onCancel(booking)}
+                            aria-label={`Cancel the ${bookingTypeLabel(booking.booking_type).toLowerCase()} on ${slotLabel(booking)}`}
+                          >
+                            Cancel
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -167,15 +191,43 @@ function Unavailable({ failure }) {
  * made for them and the reports on those bookings, to send to the parent
  * (P9, for holders of accounts.view_own_lead_reports). Follow-ups come with
  * their own module. The API answers another BDE's enquiry exactly as one that
- * does not exist.
+ * does not exist. Each booking's parent communication opens in a side sheet
+ * (?booking=<id>&booking_type=<type>) for holders of
+ * accounts.view_own_lead_communications (Phase 3.1), where the BDE asks the
+ * parent to confirm and records their answer when the API offers it (3.2).
  */
 export default function EnquiryPage({ user }) {
   const { enquiryId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [enquiry, setEnquiry] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [cancelling, setCancelling] = useState(null);
   const [notice, setNotice] = useState(null);
+  const canSeeCommunication = can(user, PERMISSIONS.viewOwnLeadCommunications);
+  const openId = searchParams.get('booking');
+  const openType = readBookingType(searchParams.get('booking_type'));
+
+  /** The enquiry as it now stands, read in place -- after an action in a booking's communication sheet. */
+  const refreshEnquiry = () => {
+    api
+      .get(enquiryUrl(enquiryId))
+      .then((response) => setEnquiry(response.data))
+      .catch((err) => setFailure(enquiryError(err, 'Could not load this enquiry.')));
+  };
+
+  /** Open `booking`'s communication sheet, or close it (null). */
+  const showCommunication = (booking) => {
+    const params = new URLSearchParams(searchParams);
+    if (booking) {
+      params.set('booking', booking.id);
+      params.set('booking_type', booking.booking_type);
+    } else {
+      params.delete('booking');
+      params.delete('booking_type');
+    }
+    setSearchParams(params);
+  };
 
   useEffect(() => {
     let active = true;
@@ -280,6 +332,7 @@ export default function EnquiryPage({ user }) {
           onCancel={(booking) =>
             setCancelling({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
           }
+          onOpenCommunication={canSeeCommunication ? showCommunication : null}
         />
 
         {can(user, PERMISSIONS.viewOwnLeadReports) ? <LeadReportsPanel enquiry={enquiry} /> : null}
@@ -316,6 +369,19 @@ export default function EnquiryPage({ user }) {
           );
         }}
       />
+      {canSeeCommunication ? (
+        <BookingCommunicationSheet
+          bookingType={openType}
+          bookingId={openId}
+          open={Boolean(openId && openType)}
+          onOpenChange={(open) => {
+            if (!open) showCommunication(null);
+          }}
+          reloadKey={reloadKey}
+          // The parent's answer may cancel the booking: the bookings table catches up.
+          onChanged={refreshEnquiry}
+        />
+      ) : null}
     </div>
   );
 }

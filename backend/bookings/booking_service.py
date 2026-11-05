@@ -31,7 +31,10 @@ Diagnostic and Demo bookings live in tables of their own
 (bookings.models.booking_model); every write below picks the table of the
 booking's type, and every check that spans both types (a tutor's commitments,
 a phone number's bookings today) reads both. Each write also records the
-change in the booking's history (bookings.history), in the same transaction.
+change in the booking's history (bookings.history), in the same transaction,
+and a booking's creation, answer from the parent, cancellation, reschedule,
+tutor change or Meet link change keeps its parent communication in step there
+too (communications.planner).
 
 The seats' partial unique index makes a fourth booked row for one slot
 impossible even for code that skipped the lock; the lock is what keeps the
@@ -67,6 +70,7 @@ from django.utils import timezone
 
 from accounts.models import RoleChoices, User
 from activity.utils import log_activity
+from communications import planner
 from sessions.models import Session, SessionStatusChoices
 from sessions.services import lock_tutor_schedule
 
@@ -76,12 +80,15 @@ from .leads import match_lead, normalize_phone
 from .models import (
     BOOKING_MODELS,
     HOLDS_SEAT,
+    MANUAL_CANCEL_REASONS,
     SLOT_CAPACITY,
     BookingEventKind,
     BookingSlot,
     BookingStatus,
     CancelReason,
     Lead,
+    NotConfirmedReason,
+    ParentConfirmation,
     ReferralStatus,
     RescheduleReason,
     SlotTime,
@@ -165,7 +172,7 @@ class NoShowBeforeStart(BookingError):
 
 
 class BookingNotOwned(BookingError):
-    """A BDE cancelling a booking whose lead they do not own: answered as one that does not exist."""
+    """A BDE acting on a booking whose lead they do not own: answered as one that does not exist."""
     code = 'NOT_FOUND'
     http_status = 404
     message = 'No such booking.'
@@ -183,6 +190,33 @@ class CancelledNotMovable(BookingCancelled):
 
 class StartedNotMovable(SlotStarted):
     message = 'This booking has already started, so it can no longer be moved.'
+
+
+class InvalidConfirmation(BookingError):
+    code = 'INVALID_CONFIRMATION'
+    message = 'Record the parent as Confirmed or Not Confirmed.'
+
+
+class CancellationNotConfirmed(BookingError):
+    """Not Confirmed without the BDE confirming that it cancels the booking."""
+    code = 'CANCELLATION_NOT_CONFIRMED'
+    message = 'Not Confirmed cancels the booking. Confirm the cancellation to record it.'
+
+
+class CancelledNotConfirmable(BookingCancelled):
+    message = "This booking is cancelled, so the parent's answer can no longer be recorded."
+
+
+class CompletedNotConfirmable(BookingCompleted):
+    message = "This booking is completed, so the parent's answer can no longer be recorded."
+
+
+class RescheduledNotConfirmable(BookingRescheduled):
+    message = "This booking was moved to another slot. Record the parent's answer on the new booking."
+
+
+class StartedNotConfirmable(SlotStarted):
+    message = "This booking has already started, so the parent's answer can no longer be recorded."
 
 
 class LeadTimeConflict(BookingError):
@@ -330,6 +364,8 @@ def create_booking(request, now=None):
                 slot_id=slot.id, seat=booking.seat, referral_status=booking.referral_status, via='public_booking',
             )
             owner_id = Lead.objects.filter(pk=lead.pk).values_list('owner_bde_id', flat=True).get()
+            # Its five communication steps and first messages, committed with it or not at all.
+            planner.plan_booking(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -363,12 +399,14 @@ def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None
     No-show only once the slot has started (NoShowBeforeStart, D12).
 
     The reason is a code, never free text (M1): the booking, its history and
-    the activity log keep the code only. The Admin may cancel any booking; a
-    BDE only the bookings of their own leads (Q22): with ``owner_bde`` given,
-    the booking's lead must be theirs, checked under the booking's lock
+    the activity log keep the code only. "Parent did not confirm" is not one
+    to pick: only recording the parent's answer cancels with it
+    (record_parent_confirmation). The Admin may cancel any booking; a BDE only
+    the bookings of their own leads (Q22): with ``owner_bde`` given, the
+    booking's lead must be theirs, checked under the booking's lock
     (BookingNotOwned, answered as a booking that does not exist).
     """
-    if reason_code not in CancelReason.values:
+    if reason_code not in MANUAL_CANCEL_REASONS:
         raise InvalidReason()
     now = now or timezone.now()
     try:
@@ -386,29 +424,98 @@ def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None
                 raise BookingRescheduled()
             if reason_code == CancelReason.NO_SHOW and booking.slot.starts_at > now:
                 raise NoShowBeforeStart()
-            previous_status = booking.status
-            booking.status = BookingStatus.CANCELLED
-            booking.cancelled_at = timezone.now()
-            booking.cancelled_by = actor
-            booking.cancel_reason_code = reason_code
-            booking.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancel_reason_code', 'updated_at'])
-            history.record(
-                booking, BookingEventKind.CANCELLED, actor=actor,
-                from_status=previous_status, to_status=booking.status, reason_code=reason_code,
-            )
+            _cancel_locked(booking, reason_code, actor, now)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    _log_cancellation(booking, reason_code, actor)
+    return booking, True
+
+
+def record_parent_confirmation(booking, outcome, *, reason_code='', confirm_cancellation=False, actor=None,
+                               now=None, owner_bde=None):
+    """
+    Record what the parent said when the BDE asked them to confirm ``booking``
+    (PRD 3.11, step 3): ``outcome`` is a ParentConfirmation, Confirmed or Not
+    Confirmed (else InvalidConfirmation). Returns (booking, changed).
+
+    Confirmed is recorded at once -- when, and by whom -- and saying it again
+    changes nothing. It sends nothing itself: the confirmed message goes once
+    the booking also has its tutor, their Meet link and the BDE's contact
+    details (communications.planner.parent_confirmed). Not Confirmed needs a
+    NotConfirmedReason (InvalidReason) and ``confirm_cancellation`` -- the BDE
+    agreeing that it cancels the booking (CancellationNotConfirmed) -- and
+    then cancels it, with the same cancellation cancel_booking makes, in the
+    same transaction: reason "Parent did not confirm", its future tasks and
+    unsent messages stopped. A Confirmed parent may still turn out Not
+    Confirmed; nothing goes back to Awaiting.
+
+    Only while the booking is booked and its slot has not started (the
+    *NotConfirmable errors). The Admin may record any booking's answer; a BDE
+    only their own leads' (``owner_bde``, checked under the booking's lock as
+    for cancel_booking).
+    """
+    if outcome == ParentConfirmation.NOT_CONFIRMED:
+        if reason_code not in NotConfirmedReason.values:
+            raise InvalidReason()
+        if not confirm_cancellation:
+            raise CancellationNotConfirmed()
+    elif outcome == ParentConfirmation.CONFIRMED:
+        reason_code = ''
+    else:
+        raise InvalidConfirmation()
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            booking = _locked_booking(booking)
+            if owner_bde is not None and booking.lead.owner_bde_id != owner_bde.pk:
+                raise BookingNotOwned()
+            if booking.status == BookingStatus.CANCELLED:
+                raise CancelledNotConfirmable()
+            if booking.status == BookingStatus.COMPLETED:
+                raise CompletedNotConfirmable()
+            if booking.status == BookingStatus.RESCHEDULED:
+                raise RescheduledNotConfirmable()
+            if booking.slot.starts_at <= now:
+                raise StartedNotConfirmable()
+            if outcome == booking.parent_confirmation:
+                return booking, False
+            booking.parent_confirmation = outcome
+            booking.parent_confirmation_at = timezone.now()
+            booking.parent_confirmation_by = actor
+            booking.not_confirmed_reason = reason_code
+            answer_fields = [
+                'parent_confirmation', 'parent_confirmation_at', 'parent_confirmation_by', 'not_confirmed_reason',
+            ]
+            if outcome == ParentConfirmation.CONFIRMED:
+                booking.save(update_fields=[*answer_fields, 'updated_at'])
+                history.record(booking, BookingEventKind.PARENT_CONFIRMED, actor=actor)
+                planner.parent_confirmed(booking, now, actor=actor)
+            else:
+                history.record(booking, BookingEventKind.PARENT_NOT_CONFIRMED, actor=actor, reason_code=reason_code)
+                _cancel_locked(booking, CancelReason.NOT_CONFIRMED, actor, now, extra_fields=answer_fields)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
         raise
     log_activity(
-        action='booking.cancel',
+        action='booking.parent_confirmation',
         entity_type='booking',
         entity_id=booking.id,
         entity_label=slot_label(booking.slot),
-        # The code only, never a free-text reason (M1).
-        context={'booking_type': booking.booking_type, 'reason_code': reason_code, 'lead_id': str(booking.lead_id)},
+        # Codes only, never free text (M1).
+        context={
+            'booking_type': booking.booking_type,
+            'outcome': outcome,
+            'reason_code': reason_code or None,
+            'lead_id': str(booking.lead_id),
+        },
         actor=actor,
     )
+    if outcome == ParentConfirmation.NOT_CONFIRMED:
+        _log_cancellation(booking, CancelReason.NOT_CONFIRMED, actor)
     return booking, True
 
 
@@ -539,6 +646,8 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
                     new, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
                     old_tutor_id=None, new_tutor_id=tutor.pk, via='reschedule',
                 )
+            # The old booking's communication stops; the new one's is planned from its own slot.
+            planner.booking_rescheduled(old, new, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -780,6 +889,8 @@ def assign_tutor(booking, tutor, actor=None, now=None):
                 booking, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
                 old_tutor_id=previous_tutor_id, new_tutor_id=tutor.pk,
             )
+            # A waiting confirmed message may now have its tutor and Meet link.
+            planner.refresh_messages(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -812,6 +923,8 @@ def unassign_tutor(booking, actor=None, now=None):
                 'assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'tutor_meet_link', 'updated_at',
             ])
             history.record(booking, BookingEventKind.TUTOR_UNASSIGNED, actor=actor, old_tutor_id=previous_tutor_id)
+            # An unsent confirmed message waits again for a tutor.
+            planner.refresh_messages(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -866,6 +979,8 @@ def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
                     history.record(
                         booking, BookingEventKind.MEET_LINK_UPDATED, actor=actor, has_meet_link=meet_link is not None,
                     )
+                    # Its unsent confirmed message goes with the new link, or waits for one.
+                    planner.refresh_messages(booking, now)
                     changed.append(booking)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
@@ -1002,6 +1117,40 @@ def _locked_booking(booking):
     """``booking`` read again under its slot's lock and then its own: the order every booking write takes them in."""
     BookingSlot.objects.select_for_update().filter(pk=booking.slot_id).first()
     return type(booking).objects.select_for_update(of=('self',)).select_related('slot', 'lead').get(pk=booking.pk)
+
+
+def _cancel_locked(booking, reason_code, actor, now, extra_fields=()):
+    """
+    Cancel ``booking``, already read under its locks and checked, for
+    ``reason_code``: its status, its history and its communication -- open
+    tasks cancelled, unsent messages stopped -- in the caller's transaction.
+    ``extra_fields`` are other fields the caller changed, saved with it.
+    """
+    previous_status = booking.status
+    booking.status = BookingStatus.CANCELLED
+    booking.cancelled_at = timezone.now()
+    booking.cancelled_by = actor
+    booking.cancel_reason_code = reason_code
+    booking.save(update_fields=[
+        'status', 'cancelled_at', 'cancelled_by', 'cancel_reason_code', *extra_fields, 'updated_at',
+    ])
+    history.record(
+        booking, BookingEventKind.CANCELLED, actor=actor,
+        from_status=previous_status, to_status=booking.status, reason_code=reason_code,
+    )
+    planner.booking_cancelled(booking, now)
+
+
+def _log_cancellation(booking, reason_code, actor):
+    log_activity(
+        action='booking.cancel',
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(booking.slot),
+        # The code only, never a free-text reason (M1).
+        context={'booking_type': booking.booking_type, 'reason_code': reason_code, 'lead_id': str(booking.lead_id)},
+        actor=actor,
+    )
 
 
 def _check_tutor_changeable(booking, now):
