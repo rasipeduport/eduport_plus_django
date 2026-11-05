@@ -1519,10 +1519,20 @@ const MY_READY = reportOf({ ...MY_RIYA, id: 'b-zoe', student_name: 'Zoe' }, {},
 const startedOf = (booking) => ({ ...booking, ...MY_STARTED });
 const startAt = (booking) => `${myAt(booking)}start/`;
 
-/** Records what would open a new window: the Meet link never opens by itself. */
-function watchWindowOpen() {
+/**
+ * Records each tab the page opens: what it was opened with, whether it was
+ * still linked to the Hub, where it was sent and whether it was closed.
+ * `refuse` acts as a browser blocking every new tab.
+ */
+function watchWindowOpen({ refuse = false } = {}) {
   const opened = [];
-  window.open = (...args) => opened.push(args);
+  window.open = (...args) => {
+    const tab = { args, opener: window, closed: false, sentTo: null };
+    tab.location = { replace: (url) => { tab.sentTo = url; } };
+    tab.close = () => { tab.closed = true; };
+    opened.push(tab);
+    return refuse ? null : tab;
+  };
   return opened;
 }
 
@@ -1547,6 +1557,7 @@ test('Start: offered only where the API says so, confirmed first; then the list 
   const dialog = topDialog();
   assert.match(clean(dialog.textContent),
     /^Start Demo\?.*Zoe · Demo class · Sat, 31 Oct · 7:30 PM IST.*started the Demo class now\. It cannot be undone\./);
+  assert.match(clean(dialog.textContent), /This booking has no Meet link, so Google Meet will not open\./);
   await click(button('Not yet', dialog));
   assert.equal(calls('POST', startAt(MY_READY)).length, 0, 'Not yet sends nothing');
 
@@ -1559,7 +1570,82 @@ test('Start: offered only where the API says so, confirmed first; then the list 
   assert.equal(button('Start Demo for Zoe', started), undefined, 'Start gives way to the report');
   assert.deepEqual(reportLinks(started), [['Write report', '/my-bookings/demo/b-zoe/report']]);
   assert.match(clean(started.textContent), /In progress/);
-  assert.deepEqual(windows, [], 'the Meet link is not opened');
+  assert.deepEqual(windows, [], 'no Meet link, so no tab');
+});
+
+test('Start: Google Meet opens in a new tab, opened on the click and sent to the link the API answers with', async () => {
+  const windows = watchWindowOpen();
+  const linked = { ...MY_READY, tutor_meet_link: MEET };
+  // The tutor's link changed since the list was read: the API's answer is the one followed.
+  const moved = 'https://meet.google.com/xyz-abcd-efg';
+  let atPost = null;
+  serve({
+    [`GET ${MINE}`]: mine([linked]),
+    [`POST ${startAt(linked)}`]: () => {
+      atPost = windows.map((tab) => ({ args: tab.args, opener: tab.opener, sentTo: tab.sentTo }));
+      return ok({ booking: myDetail({ ...startedOf(linked), tutor_meet_link: moved }), changed: true });
+    },
+  });
+  await open('/my-bookings', TUTOR);
+  await click(button('Start Demo for Zoe', rows()[0]));
+  assert.match(clean(topDialog().textContent), /It cannot be undone\. Google Meet opens in a new tab\./);
+  await click(button('Not yet', topDialog()));
+  assert.deepEqual(windows, [], 'Not yet opens nothing');
+
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  assert.deepEqual(atPost, [{ args: ['', '_blank'], opener: null, sentTo: null }],
+    'a blank tab, cut from the Hub, is open before the API is asked');
+  assert.equal(windows.length, 1, 'one tab');
+  assert.equal(windows[0].sentTo, moved, "sent to the API's link");
+  assert.equal(windows[0].closed, false);
+});
+
+test('Start: a refused start closes the tab it opened; a blocked tab still reaches Meet; a link gone by the answer opens nothing', async () => {
+  const linked = { ...MY_READY, tutor_meet_link: MEET };
+  let windows = watchWindowOpen();
+  serve({
+    [`GET ${MINE}`]: mine([linked]),
+    [`POST ${startAt(linked)}`]: () => fail(409, { error: 'START_WINDOW_CLOSED',
+      message: "This booking's slot has ended, so it can no longer be started." }),
+  });
+  let page = await open('/my-bookings', TUTOR);
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  assert.match(clean(topDialog().textContent), /The slot has ended/);
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].closed, true, 'the blank tab is closed');
+  assert.equal(windows[0].sentTo, null, 'and never sent to Meet');
+  await page.unmount();
+
+  const answered = (booking) => {
+    let listed = [linked];
+    return {
+      [`GET ${MINE}`]: () => ok(mine(listed)),
+      [`POST ${startAt(linked)}`]: () => {
+        listed = [booking];
+        return ok({ booking: myDetail(booking), changed: true });
+      },
+    };
+  };
+  windows = watchWindowOpen({ refuse: true });
+  serve(answered(startedOf(linked)));
+  page = await open('/my-bookings', TUTOR);
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  assert.deepEqual(windows.map((tab) => tab.args), [['', '_blank'], [MEET, '_blank', 'noopener,noreferrer']],
+    'the blank tab was refused, so Meet is opened directly once started');
+  await page.unmount();
+
+  windows = watchWindowOpen();
+  serve(answered({ ...startedOf(linked), tutor_meet_link: null }));
+  await open('/my-bookings', TUTOR);
+  await click(button('Start Demo for Zoe', rows()[0]));
+  await click(button('Start Demo', topDialog()));
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].closed, true, 'the link was removed meanwhile: the blank tab is closed');
+  assert.equal(windows[0].sentTo, null);
+  assert.match(clean(rows()[0].textContent), /In progress/, 'the start itself still counts');
 });
 
 test("Start: the sheet starts it, then shows when it started and Write report; a Diagnostic says so", async () => {
