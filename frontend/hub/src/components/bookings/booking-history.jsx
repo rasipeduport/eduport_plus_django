@@ -38,6 +38,11 @@ function describeBookingEvent(event) {
     // The tutor's permanent link changed while the booking was live; the history keeps whether there is one, never the link.
     case 'MEET_LINK_UPDATED':
       return d.has_meet_link ? "Meet link updated to the tutor's new link" : "Meet link removed with the tutor's";
+    // The parent's answer to the confirmation request (PRD 3.11). Not Confirmed also cancels the booking, its own event next.
+    case 'PARENT_CONFIRMED':
+      return 'Parent confirmed';
+    case 'PARENT_NOT_CONFIRMED':
+      return d.reason?.label ? `Parent did not confirm — ${d.reason.label}` : 'Parent did not confirm';
     default:
       return event.kind_label ?? event.kind;
   }

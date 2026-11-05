@@ -15,7 +15,7 @@ export const DEFAULT_TYPE = 'DEMO';
 // so a booking is named by its type and its id: /api/bookings/<demo|diagnostic>/<id>/.
 const TYPE_PATHS = { DEMO: 'demo', DIAGNOSTIC: 'diagnostic' };
 
-function typePath(type) {
+export function typePath(type) {
   const segment = TYPE_PATHS[type];
   if (!segment) throw new Error(`Unknown booking type: ${type}`);
   return segment;

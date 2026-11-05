@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
+import { CommunicationSection } from '@/components/communications/communication-section';
 import { AdminReportSection } from '@/components/reports/admin-report-section';
 import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeable } from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
@@ -71,6 +72,10 @@ function DetailSkeleton() {
  * the child, the parent and any cancellation. Only what the API returns is
  * shown. Assigning opens the page's tutor dialog (`onAssign`); unassigning
  * happens here, confirmed first (DELETE /api/bookings/<type>/<id>/tutor/).
+ * Its parent communication follows the slot for holders of
+ * accounts.view_all_communications (`canViewCommunication`), with asking for
+ * the parent's confirmation and recording their answer where the API offers
+ * them -- after which the page reads everything again (`onCommunicationChanged`).
  */
 export function BookingDetailSheet({
   bookingType,
@@ -79,9 +84,11 @@ export function BookingDetailSheet({
   onOpenChange,
   canAssign,
   canEditMeetLink,
+  canViewCommunication,
   reloadKey,
   onAssign,
   onChanged,
+  onCommunicationChanged,
   onReschedule,
   onCancel,
   onOpenBooking,
@@ -228,6 +235,17 @@ export function BookingDetailSheet({
           <Detail label="Came in">{referralLabel(shown.referral_status)}</Detail>
           <Detail label="Credited BDE">{shown.bde?.full_name}</Detail>
         </Section>
+
+        {/* Its parent communication (Phase 3.1), and the parent's confirmation (3.2). */}
+        {canViewCommunication ? (
+          <CommunicationSection
+            key={`${bookingType}-${shown.id}`}
+            bookingType={bookingType}
+            bookingId={shown.id}
+            reloadKey={reloadKey}
+            onChanged={onCommunicationChanged}
+          />
+        ) : null}
 
         {/* Its report, read-only (P8): only a booked or completed booking has one to write or read. */}
         {shown.status === 'BOOKED' || shown.status === 'COMPLETED' ? (

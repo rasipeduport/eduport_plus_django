@@ -1763,6 +1763,417 @@ test('Activity feed: tutor changes on bookings are labelled and described, namin
   }
 });
 
+// ------------------------------------------------ parent communication (Phase 3.1)
+// A booking's communication as GET /api/communications/bookings/<type>/<id>/ answers it (backend communications.overview),
+// read-only: administrators see every booking's (accounts.view_all_communications), a BDE their own leads'.
+const COMMS_ADMIN = { ...ADMIN, id: 'comms-admin', permissions: [...ADMIN.permissions, 'accounts.view_all_communications'] };
+const BDE_COMMS = { ...BDE, id: 'bde-comms', permissions: [...BDE.permissions, 'accounts.view_own_lead_communications'] };
+const BDE_ONE = { id: 'bde-1', full_name: 'Bde One' };
+const commsUrl = (booking) => `/api/communications/bookings/${booking.booking_type.toLowerCase()}/${booking.id}/`;
+const commTask = (step, step_label, extra = {}) => ({ id: `task-${step}`, step, step_label, status: 'OPEN', status_label: 'Open',
+  resolution: '', resolution_label: '', owner_role: 'BDE', owner: BDE_ONE, active_from: '2026-10-28T09:00:00+00:00', due_at: null,
+  expires_at: '2026-10-31T14:00:00+00:00', overdue: false, resolved_at: null, resolved_by: null, ...extra });
+const commMessage = (step, step_label, extra = {}) => ({ id: `msg-${step}`, step, step_label, status: 'PENDING', status_label: 'Pending',
+  channel: '', channel_label: '', provider: '', recipient_phone: '+971501234567', text: '', waiting_for: [], scheduled_for: null,
+  send_before: '2026-10-31T14:00:00+00:00', queued_at: null, sent_at: null, delivered_at: null, read_at: null, failed_at: null,
+  cancelled_at: null, attempt_count: 0, next_attempt_at: null, failure_code: '', failure_reason: '', problem: null, cancel_reason: null,
+  created_by: null, created_at: '2026-10-28T09:00:00+00:00', attempts: [], events: [], ...extra });
+const metaReport = (status, status_label, at) => ({ status, status_label, provider_status: status.toLowerCase(), occurred_at: at,
+  received_at: at, error_code: '', error_message: '' });
+const communication = (booking, extra = {}) => ({
+  booking: { id: booking.id, booking_type: booking.booking_type, status: 'BOOKED', status_label: 'Booked', slot: RIYA.slot,
+    student_name: 'Riya', parent_name: 'Asha Nair', phone: '+971 501234567', owner_bde: BDE_ONE, tutor: null },
+  timezone: 'Asia/Kolkata', planned: true,
+  parent_confirmation: { status: 'CONFIRMED', label: 'Confirmed', at: '2026-10-29T10:30:00+00:00', by: BDE_ONE, reason: null },
+  tasks: [
+    commTask('ACKNOWLEDGEMENT', 'Initial acknowledgement', { status: 'DONE', status_label: 'Done', resolution: 'ACCEPTED',
+      resolution_label: 'Accepted by the provider (queued, not yet sent)', resolved_at: '2026-10-28T09:01:00+00:00' }),
+    commTask('CONFIRMATION_REQUEST', 'Confirmation request', { status: 'MISSED', status_label: 'Missed', resolved_at: '2026-10-31T14:00:00+00:00' }),
+    commTask('PARENT_CONFIRMATION', 'Parent confirmation', { due_at: '2026-10-31T14:00:00+00:00', overdue: true }),
+    commTask('PRE_ACTIVITY_CALL', 'Pre-activity call', { active_from: '2026-10-31T13:45:00+00:00', due_at: '2026-10-31T14:00:00+00:00',
+      expires_at: '2026-10-31T15:00:00+00:00' }),
+    commTask('AFTER_ACTIVITY', 'After-activity message', { active_from: null, expires_at: null }),
+  ],
+  messages: [
+    commMessage('ACKNOWLEDGEMENT', 'Initial acknowledgement', { status: 'READ', status_label: 'Read', channel: 'WHATSAPP',
+      channel_label: 'WhatsApp', provider: 'meta', text: 'Hi, your Demo class on *Sat, 31 Oct 2026 at 7:30 PM IST* is booked.',
+      attempt_count: 1,
+      queued_at: '2026-10-28T09:01:00+00:00', sent_at: '2026-10-28T09:02:00+00:00', delivered_at: '2026-10-28T09:03:00+00:00',
+      read_at: '2026-10-28T09:10:00+00:00',
+      attempts: [{ number: 1, outcome: 'ACCEPTED', outcome_label: 'Accepted by the provider', channel: 'WHATSAPP', provider: 'meta',
+        started_at: '2026-10-28T09:01:00+00:00', finished_at: '2026-10-28T09:01:00+00:00', error_code: '', error_message: '',
+        retryable: false, triggered_by: null }],
+      events: [metaReport('SENT', 'Sent', '2026-10-28T09:02:00+00:00'), metaReport('DELIVERED', 'Delivered', '2026-10-28T09:03:00+00:00'),
+        metaReport('READ', 'Read', '2026-10-28T09:10:00+00:00')] }),
+    commMessage('CONFIRMATION_REQUEST', 'Confirmation request', { status: 'FAILED', status_label: 'Failed', channel: 'WHATSAPP',
+      channel_label: 'WhatsApp', provider: 'meta', queued_at: '2026-10-29T08:00:00+00:00', failed_at: '2026-10-29T08:01:00+00:00',
+      failure_code: '131026', failure_reason: 'Permanent delivery failure: Message undeliverable', attempt_count: 1,
+      problem: { code: 'DELIVERY_FAILED', label: 'Accepted, then not delivered' }, created_by: BDE_ONE }),
+    commMessage('PARENT_CONFIRMATION', 'Parent confirmation', { status: 'WAITING', status_label: 'Waiting',
+      waiting_for: [{ code: 'TUTOR_ASSIGNED', label: 'Tutor assigned' }, { code: 'MEET_LINK', label: 'Tutor Meet link' }] }),
+  ],
+  actions: { request_confirmation: false, record_confirmation: true },
+  ...extra,
+});
+const communicationCard = () => [...document.querySelectorAll('[role="dialog"] section')]
+  .find((section) => clean(section.querySelector('h3')?.textContent) === 'Communication');
+const listItems = (list) => [...list.children].map((item) => clean(item.textContent));
+
+test("Communication: an administrator reads the booking's communication in its sheet, read-only, every moment in IST", async () => {
+  serve({ [`GET ${LIST}`]: list([RIYA]), [`GET ${at(RIYA)}`]: detail(RIYA), [`GET ${commsUrl(RIYA)}`]: communication(RIYA) });
+  await open(`/bookings?booking=${RIYA.id}`, COMMS_ADMIN);
+  assert.equal(calls('GET', commsUrl(RIYA)).length, 1);
+  const card = communicationCard();
+  assert.ok(card, 'a Communication card after the Booking card');
+  const titles = [...topDialog().querySelectorAll('section h3')].map((title) => clean(title.textContent));
+  assert.equal(titles[titles.indexOf('Booking') + 1], 'Communication');
+  // Three parts, nothing more: the parent's confirmation, the five steps and the messages.
+  assert.deepEqual([...card.querySelectorAll('h4')].map((title) => clean(title.textContent)),
+    ['Parent confirmation', 'Communication steps', 'Message history']);
+  assert.match(clean(card.textContent), /Parent confirmationRecord answerStatusConfirmedRecorded29 Oct 2026, 4:00 PM IST · by Bde One/);
+
+  // Each step by its status and its moment -- the call too: a task, with nothing to record on it.
+  const [steps, messages] = card.querySelectorAll('ol');
+  assert.deepEqual(listItems(steps), [
+    'Initial acknowledgementDoneSent · 28 Oct 2026, 2:31 PM IST',
+    'Confirmation requestMissedTime ran out 31 Oct 2026, 7:30 PM IST',
+    'Confirmed messageOverdueDue 31 Oct 2026, 7:30 PM IST',
+    'Pre-activity BDE callOpenDue 31 Oct 2026, 7:30 PM IST',
+    'After-activity messageOpenAfter the class',
+  ]);
+  // Each message by its status and when it got there; why one failed, inline.
+  assert.deepEqual(listItems(messages), [
+    'Initial acknowledgementRead28 Oct 2026, 2:40 PM ISTShow details',
+    'Confirmation requestFailed29 Oct 2026, 1:31 PM ISTPermanent delivery failure: Message undeliverable (131026)Show details',
+    'Confirmed messageWaitingWaiting for: Tutor assigned, Tutor Meet link',
+  ]);
+
+  // On request: the text as it went and each moment it went through.
+  await click(button('Show the details of the initial acknowledgement', card));
+  // WhatsApp's bold, as the preview shows it -- never the template's ** markers.
+  assert.ok(clean(messages.children[0].textContent).includes('Hi, your Demo class on *Sat, 31 Oct 2026 at 7:30 PM IST* is booked.'
+    + 'Sent to WhatsApp28 Oct 2026, 2:31 PM IST'
+    + 'Sent28 Oct 2026, 2:32 PM ISTDelivered28 Oct 2026, 2:33 PM ISTRead28 Oct 2026, 2:40 PM ISTAttempts1'));
+  await click(button('Show the details of the confirmation request', card));
+  assert.ok(clean(messages.children[1].textContent).includes('Sent to WhatsApp29 Oct 2026, 1:30 PM IST'
+    + 'Failed29 Oct 2026, 1:31 PM ISTAttempts1Requested byBde One'));
+  // Nothing to press but the details and what the API offers: the answer may be recorded, nothing is to be asked.
+  assert.deepEqual([...card.querySelectorAll('button')].map((element) => clean(element.textContent))
+    .filter((label) => !/^(Show|Hide) details$/.test(label)), ['Record answer']);
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'nothing but reads');
+});
+
+test('Communication: no card, and no request for one, without accounts.view_all_communications', async () => {
+  serve({ [`GET ${LIST}`]: list([RIYA]), [`GET ${at(RIYA)}`]: detail(RIYA), [`GET ${commsUrl(RIYA)}`]: communication(RIYA) });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  assert.match(clean(topDialog().textContent), /Delhi Private School/, 'the sheet is open');
+  assert.ok(!communicationCard());
+  assert.equal(calls('GET', commsUrl(RIYA)).length, 0);
+});
+
+test('Communication: a booking made before it began says so; one that cannot be read says why, and Try again reads it again', async () => {
+  let failing = true;
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: () => (failing ? fail(500, {}) : ok(communication(RIYA, { planned: false, tasks: [], messages: [] }))),
+  });
+  await open(`/bookings?booking=${RIYA.id}`, COMMS_ADMIN);
+  assert.match(clean(communicationCard().textContent), /Could not load this booking's communication\.Try again/);
+  failing = false;
+  await click(button('Try again', communicationCard()));
+  assert.equal(calls('GET', commsUrl(RIYA)).length, 2);
+  assert.match(clean(communicationCard().textContent),
+    /ConfirmedRecorded.*No messages were planned for this booking: it was made before parent communication began\./);
+});
+
+test("BDE: each booking shows the parent's answer and opens its communication in a side sheet", async () => {
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, parent_confirmation: 'CONFIRMED' }, { ...BDE_CANCELLED, parent_confirmation: 'AWAITING' }]),
+    [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED),
+  });
+  const page = await open('/enquiries/lead-1', BDE_COMMS);
+  assert.ok([...document.querySelectorAll('thead th')].some((cell) => clean(cell.textContent) === 'Confirmation'));
+  assert.match(bookingRows()[0], /Confirmed/);
+  // Never confirmed before it was cancelled: said as it is, nothing to follow up (no warning).
+  const awaiting = [...document.querySelectorAll('tbody tr')][1].querySelectorAll('[data-slot="badge"]');
+  const badge = [...awaiting].find((element) => clean(element.textContent) === 'Awaiting confirmation');
+  assert.equal(badge?.getAttribute('data-variant'), 'outline');
+
+  await click(button('Communication for the demo class on Sat, 31 Oct · 7:30 PM IST'));
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: BDE_BOOKED.id, booking_type: 'DEMO' });
+  assert.equal(calls('GET', commsUrl(BDE_BOOKED)).length, 1);
+  const sheet = clean(topDialog().textContent);
+  for (const part of ['Communication', 'Riya · Demo class · Sat, 31 Oct · 7:30 PM IST', 'Parent confirmationRecord answerStatusConfirmed',
+    'Pre-activity BDE callOpenDue 31 Oct 2026, 7:30 PM IST', 'Waiting for: Tutor assigned, Tutor Meet link']) {
+    assert.ok(sheet.includes(part), `the sheet shows ${part}`);
+  }
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'nothing but reads');
+
+  await keyDown(topDialog(), 'Escape');
+  assert.ok(!topDialog(), 'the sheet closed');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
+});
+
+test('BDE: no Confirmation column, Communication or request for one without accounts.view_own_lead_communications', async () => {
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, parent_confirmation: null }]),
+    [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED),
+  });
+  await open(`/enquiries/lead-1?booking=${BDE_BOOKED.id}&booking_type=DEMO`, BDE);
+  assert.ok(![...document.querySelectorAll('thead th')].some((cell) => clean(cell.textContent) === 'Confirmation'));
+  assert.ok(!button('Communication for the demo class on Sat, 31 Oct · 7:30 PM IST'));
+  assert.ok(!topDialog(), 'no sheet, even with a booking in the URL');
+  assert.equal(calls('GET', commsUrl(BDE_BOOKED)).length, 0);
+});
+
+test("BDE: a booking that is not one of their leads' is answered as not found", async () => {
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, parent_confirmation: 'AWAITING' }]),
+    [`GET /api/communications/bookings/demo/b-other/`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
+  });
+  await open('/enquiries/lead-1?booking=b-other&booking_type=DEMO', BDE_COMMS);
+  assert.match(clean(topDialog().textContent), /No communication found for this booking\./);
+});
+
+test("History: the parent's answer to the confirmation request, with why they did not confirm", async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${at(RIYA, 'history/')}`]: { booking_id: RIYA.id, timezone: 'Asia/Kolkata',
+      chain: [{ id: RIYA.id, status: 'CANCELLED', slot: RIYA.slot, current: true }],
+      events: [
+        { id: 'p1', booking_id: RIYA.id, kind: 'PARENT_CONFIRMED', kind_label: 'Parent confirmed', at: '2026-10-29T10:30:00+00:00',
+          actor: BDE_ONE, details: {} },
+        { id: 'p2', booking_id: RIYA.id, kind: 'PARENT_NOT_CONFIRMED', kind_label: 'Parent did not confirm', at: '2026-10-30T10:30:00+00:00',
+          actor: BDE_ONE, details: { reason: { code: 'NO_RESPONSE', label: 'No response' } } },
+      ] },
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Show history', topDialog()));
+  const items = [...topDialog().querySelectorAll('[aria-label="History"] li')].map((li) => clean(li.textContent));
+  assert.match(items[0], /^Parent confirmed.* · by Bde One$/);
+  assert.match(items[1], /^Parent did not confirm — No response.* · by Bde One$/);
+});
+
+// ------------------------------------------------ the parent's confirmation (Phase 3.2)
+// Asking the parent to confirm and recording their answer, where the API's `actions` offer them.
+const AWAITING = { parent_confirmation: { status: 'AWAITING', label: 'Awaiting confirmation', at: null, by: null, reason: null } };
+const askable = (booking, extra = {}) => communication(booking, { ...AWAITING,
+  actions: { request_confirmation: true, record_confirmation: true }, ...extra });
+const previewUrl = (booking) => `${commsUrl(booking)}preview/`;
+const requestUrl = (booking) => `${commsUrl(booking)}confirmation-request/`;
+const answerUrl = (booking) => `${commsUrl(booking)}parent-confirmation/`;
+const READY_PREVIEW = { step: 'CONFIRMATION_REQUEST', step_label: 'Confirmation request', ready: true,
+  text: "Hi Sir/Ma'am,\n\nYour child's Demo class is scheduled for *Sat, 31 Oct 2026 at 7:30 PM IST*.\n\n*Bde One*",
+  requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming', met: true }, { code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: true }] };
+const ASKED = commMessage('CONFIRMATION_REQUEST', 'Confirmation request', { created_by: BDE_ONE });
+const cardButton = (label) => button(label, communicationCard());
+const openSheet = (user = COMMS_ADMIN) => open(`/bookings?booking=${RIYA.id}`, user);
+
+test('Confirmation: the request is shown exactly as it goes, then added; the card, the booking and the list are read again', async () => {
+  const asked = askable(RIYA, { messages: [...communication(RIYA).messages, ASKED],
+    actions: { request_confirmation: false, record_confirmation: true } });
+  let requested = false;
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: () => ok(requested ? asked : askable(RIYA)),
+    [`GET ${previewUrl(RIYA)}`]: READY_PREVIEW,
+    [`POST ${requestUrl(RIYA)}`]: () => {
+      requested = true;
+      return ok({ ...asked, created: true });
+    },
+  });
+  await openSheet();
+  await click(cardButton('Request confirmation'));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /^Request confirmation.*Riya · Demo class · Sat, 31 Oct · 7:30 PM IST/);
+  assert.deepEqual(calls('GET', previewUrl(RIYA)).map((entry) => entry.params), [{ step: 'CONFIRMATION_REQUEST' }]);
+  assert.equal(dialog.querySelector('[aria-label="Message preview"]').textContent, READY_PREVIEW.text, 'exactly as it goes');
+  const reads = { detail: calls('GET', at(RIYA)).length, list: calls('GET', LIST).length };
+
+  await click(button('Request confirmation', dialog));
+  assert.equal(calls('POST', requestUrl(RIYA)).length, 1);
+  assert.ok(!topDialog().textContent.includes('The parent receives this on WhatsApp'), 'the dialog closed');
+  const card = communicationCard();
+  assert.match(clean(card.querySelector('[role="status"]').textContent), /^Confirmation request added\. It is sent to the parent on WhatsApp\.$/);
+  assert.ok(!cardButton('Request confirmation'), 'nothing more to ask');
+  assert.equal(listItems(card.querySelectorAll('ol')[1]).at(-1), 'Confirmation requestReady to send');
+  assert.ok(calls('GET', at(RIYA)).length > reads.detail && calls('GET', LIST).length > reads.list,
+    'the booking and the list are read again');
+});
+
+test('Confirmation: asked again, it says the request was already added', async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    [`GET ${previewUrl(RIYA)}`]: READY_PREVIEW,
+    [`POST ${requestUrl(RIYA)}`]: () => ok({ ...askable(RIYA, { messages: [ASKED] }), created: false }),
+  });
+  await openSheet();
+  await click(cardButton('Request confirmation'));
+  await click(button('Request confirmation', topDialog()));
+  assert.match(clean(communicationCard().querySelector('[role="status"]').textContent),
+    /^A confirmation request was already added for this booking\.$/);
+});
+
+test('Confirmation: while the preview loads; a message that lacks something says what and cannot be requested', async () => {
+  const later = deferred();
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    [`GET ${previewUrl(RIYA)}`]: () => later.promise,
+  });
+  await openSheet();
+  await click(cardButton('Request confirmation'));
+  assert.ok(topDialog().querySelector('[aria-busy="true"]'), 'the preview is loading');
+  assert.ok(button('Request confirmation', topDialog()).disabled);
+  await act(async () => later.resolve({ status: 200, data: { ...READY_PREVIEW, ready: false, text: null,
+    requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming', met: true },
+      { code: 'CENTRAL_CONTACT', label: 'Central contact (this lead has no BDE)', met: false }] } }));
+  await settle();
+  assert.match(clean(topDialog().textContent),
+    /This message cannot be sent yet\. It still needs: Central contact \(this lead has no BDE\)\./);
+  assert.ok(button('Request confirmation', topDialog()).disabled, 'nothing to request');
+  assert.equal(globalThis.__bookingsApi.calls.filter((entry) => entry.method === 'POST').length, 0);
+});
+
+test("Confirmation: the API's refusal is shown in the dialog, with what is missing; a preview that fails can be tried again", async () => {
+  let previews = 0;
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    [`GET ${previewUrl(RIYA)}`]: () => (previews++ === 0 ? fail(500, {}) : ok(READY_PREVIEW)),
+    [`POST ${requestUrl(RIYA)}`]: () => fail(409, { error: 'MESSAGE_BLOCKED',
+      message: 'This message cannot be sent yet: some of its details are missing.', missing: [{ code: 'CENTRAL_CONTACT', label: 'Central contact (this lead has no BDE)' }] }),
+  });
+  await openSheet();
+  await click(cardButton('Request confirmation'));
+  assert.match(clean(topDialog().textContent), /Could not prepare the message\.Try again/);
+  await click(button('Try again', topDialog()));
+  assert.ok(topDialog().querySelector('[aria-label="Message preview"]'), 'read again');
+  await click(button('Request confirmation', topDialog()));
+  assert.match(clean(topDialog().textContent),
+    /This message cannot be sent yet: some of its details are missing\. Missing: Central contact \(this lead has no BDE\)\./);
+  assert.ok(!communicationCard().querySelector('[role="status"]'), 'nothing was added');
+});
+
+test("Parent's answer: Confirmed is recorded as it is; Not confirmed needs a reason and the cancellation agreed to", async () => {
+  const answers = [];
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    [`POST ${answerUrl(RIYA)}`]: (entry) => {
+      answers.push(entry.data);
+      return ok({ ...askable(RIYA), changed: true });
+    },
+  });
+  await openSheet();
+  await click(cardButton('Record answer'));
+  let dialog = topDialog();
+  assert.match(clean(dialog.textContent), /^Record parent's answer.*Riya · Demo class · Sat, 31 Oct · 7:30 PM IST/);
+  assert.ok(button('Record answer', dialog).disabled, 'nothing chosen yet');
+  await click(radio('Confirmed', dialog));
+  await click(button('Record answer', dialog));
+  assert.deepEqual(answers, [{ outcome: 'CONFIRMED' }]);
+  assert.match(clean(communicationCard().querySelector('[role="status"]').textContent), /^Recorded that the parent confirmed\.$/);
+
+  await click(cardButton('Record answer'));
+  dialog = topDialog();
+  assert.ok(!choice('Why not?', dialog) && !dialog.querySelector('input[type="checkbox"]'), 'a fresh dialog');
+  await click(radio('Not confirmed', dialog));
+  const confirm = () => button('Record and cancel booking', topDialog());
+  assert.ok(confirm().disabled, 'a reason first');
+  await click(radio('No response', topDialog()));
+  assert.ok(confirm().disabled, 'and the cancellation agreed to');
+  const agree = choice('Cancel Riya', topDialog());
+  assert.match(clean(agree.textContent), /^Cancel Riya's demo class on Sat, 31 Oct · 7:30 PM IST\. Not confirmed always cancels the booking\.$/);
+  await click(agree.querySelector('input[type="checkbox"]'));
+  assert.ok(!confirm().disabled);
+  await click(confirm());
+  assert.deepEqual(answers.at(-1), { outcome: 'NOT_CONFIRMED', reason: 'NO_RESPONSE', confirm_cancellation: true });
+  assert.match(clean(communicationCard().querySelector('[role="status"]').textContent),
+    /^Recorded that the parent did not confirm\. The booking is cancelled\.$/);
+});
+
+test("Parent's answer: the API's refusal is shown in the dialog, which stays open", async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA),
+    [`POST ${answerUrl(RIYA)}`]: () => fail(409, { error: 'SLOT_STARTED',
+      message: "This booking has already started, so the parent's answer can no longer be recorded." }),
+  });
+  await openSheet();
+  await click(cardButton('Record answer'));
+  await click(radio('Confirmed', topDialog()));
+  await click(button('Record answer', topDialog()));
+  assert.match(clean(topDialog().textContent), /This booking has already started, so the parent's answer can no longer be recorded\./);
+  assert.ok(!communicationCard().querySelector('[role="status"]'));
+});
+
+test('Confirmation: nothing to ask or record unless the API offers it', async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA, { actions: { request_confirmation: false, record_confirmation: false } }),
+  });
+  await openSheet();
+  assert.ok(!cardButton('Request confirmation') && !cardButton('Record answer'));
+});
+
+test("BDE: asks the parent to confirm and records the answer in the communication sheet; the enquiry is read again", async () => {
+  let answered = false;
+  serve({
+    [`GET ${ENQUIRY_URL}`]: () => ok(enquiry([{ ...BDE_BOOKED, parent_confirmation: answered ? 'CONFIRMED' : 'AWAITING' }])),
+    [`GET ${commsUrl(BDE_BOOKED)}`]: askable(BDE_BOOKED),
+    [`GET ${previewUrl(BDE_BOOKED)}`]: READY_PREVIEW,
+    [`POST ${requestUrl(BDE_BOOKED)}`]: () => ok({ ...askable(BDE_BOOKED, { messages: [ASKED],
+      actions: { request_confirmation: false, record_confirmation: true } }), created: true }),
+    [`POST ${answerUrl(BDE_BOOKED)}`]: () => {
+      answered = true;
+      return ok({ ...communication(BDE_BOOKED), changed: true });
+    },
+  });
+  await open(`/enquiries/lead-1?booking=${BDE_BOOKED.id}&booking_type=DEMO`, BDE_COMMS);
+  const inSheet = (label) => button(label, topDialog());
+  await click(inSheet('Request confirmation'));
+  await click(inSheet('Request confirmation'));
+  assert.equal(calls('POST', requestUrl(BDE_BOOKED)).length, 1);
+  assert.match(clean(topDialog().textContent), /Confirmation request added\. It is sent to the parent on WhatsApp\./);
+  await click(inSheet('Record answer'));
+  await click(radio('Confirmed', topDialog()));
+  await click(inSheet('Record answer'));
+  assert.equal(calls('POST', answerUrl(BDE_BOOKED)).length, 1);
+  assert.equal(calls('GET', ENQUIRY_URL).length, 3, 'the enquiry is read again after each action');
+  assert.match(bookingRows()[0], /Confirmed/);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
+});
+
+test("Activity feed: the parent's answer is labelled and described by its codes, naming nobody", () => {
+  const entry = (context) => ({ action: 'booking.parent_confirmation', context, changes: {} });
+  assert.equal(actionLabel('booking.parent_confirmation'), 'Parent confirmation recorded');
+  assert.equal(describeActivity(entry({ booking_type: 'DEMO', outcome: 'CONFIRMED', reason_code: null })),
+    "Recorded the parent's confirmation of a demo booking");
+  assert.equal(describeActivity(entry({ booking_type: 'DIAGNOSTIC', outcome: 'NOT_CONFIRMED', reason_code: 'TIME_NOT_SUITABLE' })),
+    "Recorded that the parent did not confirm a diagnostic booking — Time doesn't suit");
+  assert.equal(describeActivity(entry({ outcome: 'NOT_CONFIRMED' })), 'Recorded that the parent did not confirm a booking');
+});
+
+test('Activity feed: a confirmation request is labelled and described by its type, naming nobody', () => {
+  const entry = (context) => ({ action: 'booking.confirmation_request', context, changes: {} });
+  assert.equal(actionLabel('booking.confirmation_request'), 'Confirmation requested');
+  assert.equal(describeActivity(entry({ booking_type: 'DIAGNOSTIC', lead_id: 'lead-1', message_id: 'msg-1' })),
+    'Asked the parent to confirm a diagnostic booking');
+  assert.equal(describeActivity(entry({})), 'Asked the parent to confirm a booking');
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

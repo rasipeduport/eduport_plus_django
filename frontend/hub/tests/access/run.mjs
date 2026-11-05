@@ -159,7 +159,9 @@ const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+97
     // Who teaches it and its Google Meet link, to read (Phase 1: the tutor's name and the booking's copy of their link).
     tutor: { full_name: 'Tutor A' }, tutor_meet_link: 'https://meet.google.com/abc-defg-hij',
     // What the API offers the owner BDE (P3, Q22): cancel it; No-show once its slot starts.
-    actions: { cancel: true, no_show: false } }] } };
+    actions: { cancel: true, no_show: false },
+    // The parent's answer to the confirmation request (Phase 3.1), for whoever may see the lead's communication.
+    parent_confirmation: 'AWAITING' }] } };
 // The reports on it (P9, design F.4): one submitted Demo report, at its second version, as the owner BDE's list answers it.
 const REPORTED_DEMO_ID = 'e3c1a7b9-2d4f-4b6a-8c5e-9f0a1b2c3d4e';
 const BDE_REPORTS = { status: 200, body: { timezone: 'Asia/Kolkata', count: 1, results: [{
@@ -265,10 +267,45 @@ function withAssignedBookings(answers, own = []) {
 }
 const OWN_BOOKINGS = [MY_BOOKING, MY_CANCELLED_BOOKING];
 
+// Parent communication (Phase 3.1, on the read-only communication API), laid
+// over the same recorded answers: what accounts.0017 grants the administrator's
+// role group -- every booking's communication, sending, the parent's answer,
+// the templates -- and the BDE's -- their own leads' -- and a superuser all of
+// it (D1). The administrators are served the open booking's communication; it
+// is read in the booking's sheet, so only its call shows here.
+const VIEW_ALL_COMMUNICATIONS = 'accounts.view_all_communications';
+const VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications';
+const SEND_LEAD_COMMUNICATIONS = 'accounts.send_lead_communications';
+const RECORD_PARENT_CONFIRMATION = 'accounts.record_parent_confirmation';
+const ADMIN_COMMUNICATIONS = ['accounts.manage_message_templates', RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS,
+  VIEW_ALL_COMMUNICATIONS];
+const BOOKING_COMMUNICATION_PATH = `/api/communications/bookings/demo/${BOOKING_ID}/`;
+const BOOKING_COMMUNICATION = { status: 200, body: { timezone: 'Asia/Kolkata', planned: true,
+  booking: { id: BOOKING_ID, booking_type: 'DEMO', status: 'BOOKED', status_label: 'Booked', slot: UNASSIGNED_BOOKING.slot,
+    student_name: 'Riya', parent_name: 'Asha Nair', phone: '+971 501234567', owner_bde: null, tutor: null },
+  parent_confirmation: { status: 'AWAITING', label: 'Awaiting confirmation', at: null, by: null, reason: null },
+  tasks: [{ id: '5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b', step: 'ACKNOWLEDGEMENT', step_label: 'Initial acknowledgement',
+    status: 'OPEN', status_label: 'Open', resolution: '', resolution_label: '', owner_role: 'ADMIN', owner: null,
+    active_from: '2026-10-28T09:00:00+00:00', due_at: '2026-10-28T12:00:00+00:00', expires_at: '2026-10-31T14:00:00+00:00',
+    overdue: false, resolved_at: null, resolved_by: null }],
+  messages: [],
+  actions: { request_confirmation: true, record_confirmation: true } } };
+function withCommunications(answers, permissions) {
+  const me = answers['/api/auth/me/'];
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions: [...me.body.user.permissions, ...permissions].sort() } } },
+    [BOOKING_COMMUNICATION_PATH]: BOOKING_COMMUNICATION,
+  };
+}
+const SUPERUSER_COMMUNICATIONS = [...ADMIN_COMMUNICATIONS, VIEW_OWN_LEAD_COMMUNICATIONS];
+
 const CALLERS = {
-  admin: { answers: withBookings(withBookingSlots(fixtures.callers.admin)) },
-  superuser: { answers: withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.superuser))))) },
-  su_mentor: { answers: withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))) },
+  admin: { answers: withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS) },
+  superuser: { answers: withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS) },
+  su_mentor: { answers: withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS) },
   tutor_b: { answers: withAssignedBookings(fixtures.callers.tutor_b) },
@@ -279,7 +316,8 @@ const CALLERS = {
       [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY, [`${ENQUIRY_PATH}reports/`]: BDE_REPORTS },
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
     me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', 'accounts.create_demo_booking', 'accounts.manage_own_conversion',
-      'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, 'accounts.view_own_lead_reports']),
+      RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS,
+      VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports']),
   },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };

@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 
 import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
+import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
 import { reportFieldsText } from './reports';
 
@@ -67,6 +68,8 @@ export const ACTION_LABELS = {
   'booking.assign_tutor': 'Tutor assigned',
   'booking.unassign_tutor': 'Tutor unassigned',
   'booking.complete': 'Booking completed',
+  'booking.confirmation_request': 'Confirmation requested',
+  'booking.parent_confirmation': 'Parent confirmation recorded',
   // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
   'report.submit': 'Report submitted',
   'report.edit': 'Report edited',
@@ -305,6 +308,15 @@ export function describeActivity(row) {
     // The first report completes its booking (backend reports.services): two entries, one each.
     case 'booking.complete':
       return `Completed ${bookingOfType(row)} with its report`;
+    // Asking the parent to confirm (backend communications.services.request_confirmation): logged once, ids only.
+    case 'booking.confirmation_request':
+      return `Asked the parent to confirm ${bookingOfType(row)}`;
+    // The parent's answer (backend booking_service.record_parent_confirmation): codes only. Not Confirmed cancels the booking.
+    case 'booking.parent_confirmation': {
+      if (row.context?.outcome !== 'NOT_CONFIRMED') return `Recorded the parent's confirmation of ${bookingOfType(row)}`;
+      const reason = notConfirmedReasonLabel(row.context?.reason_code);
+      return `Recorded that the parent did not confirm ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}`;
+    }
     case 'report.submit':
       return `Submitted the report on ${bookingOfType(row)}`;
     case 'report.edit': {
