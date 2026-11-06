@@ -379,6 +379,11 @@ def _public_booking(w):
             'student_class': 'Class 8', 'syllabus': 'CBSE', 'ref': None}
 
 
+def _public_invite_booking(w):
+    date, _time = w.day(2)
+    return {'token': 'MatrixInviteToken', 'date': date, 'time': '19:30', 'display_time': '07:30 pm - 08:30 pm'}
+
+
 def _public_lead(w):
     return {'source': 'WEBSITE', 'parent_name': 'Matrix Parent', 'student_name': 'Matrix Form Child',
             'phone': {'dial_code': '+971', 'number': '0501234567'}, 'school': 'Matrix School', 'grade': 'Class 8',
@@ -579,6 +584,9 @@ SCENARIOS = [
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
     Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
     Scenario('public.lead_create', 'post', '/api/public/leads/', _public_lead),
+    # A Demo invitation's page: its state and its booking, the token in the body (bookings.demo_invites).
+    Scenario('public.demo_invite_state', 'post', '/api/public/demo-invites/state/', {'token': 'MatrixInviteToken'}),
+    Scenario('public.demo_invite_book', 'post', '/api/public/demo-invites/book/', _public_invite_booking),
 
     # --- WhatsApp webhook (Meta's servers only, by signature; no session read) --
     Scenario('communications.whatsapp_webhook_verify', 'get',
@@ -626,6 +634,10 @@ SCENARIOS = [
     # world gives lead_a, which has no report, to its BDE.
     Scenario('bde.enquiries.reports', 'get', '/api/bde/enquiries/{lead_a}/reports/'),
     Scenario('bde.bookings.report_pdf', 'get', '/api/bde/bookings/demo/{booking_a}/report/pdf/'),
+    # A Diagnostic's Demo invitation for its parent (bookings.demo_invites): the Admin for any lead, a BDE for
+    # their own. booking_a is a Demo, never a Diagnostic, so whoever may send one is told it does not exist.
+    Scenario('bookings.demo_invite', 'post', '/api/bookings/diagnostic/{booking_a}/demo-invite/'),
+    Scenario('bde.bookings.demo_invite', 'post', '/api/bde/bookings/diagnostic/{booking_a}/demo-invite/'),
 
     # --- My Bookings (tutors: the bookings assigned to them) ----------------------
     # booking_a has no tutor, so a tutor lists none and is not shown it.

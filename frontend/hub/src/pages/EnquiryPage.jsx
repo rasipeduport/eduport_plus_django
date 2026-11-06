@@ -15,7 +15,7 @@ import {
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import { bdeBookingCancelUrl, bookingState, readBookingType } from '@/lib/bookings';
+import { bdeBookingCancelUrl, bdeDemoInviteUrl, bookingState, readBookingType } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { DemoInviteButton } from '@/components/bookings/demo-invite-button';
 import { MeetLink } from '@/components/bookings/meet-link';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
@@ -45,7 +46,9 @@ function Field({ label, children }) {
 /**
  * The enquiry's bookings. Its owner BDE may cancel one that is still booked
  * (Q22) -- the API says which in each booking's `actions` and checks again,
- * that the lead is theirs, on every request. With the lead's communication to
+ * that the lead is theirs, on every request -- and, from a Diagnostic whose
+ * report is in, send the parent (`recipient`) a Demo invitation (actions.demo_invite;
+ * a refusal reads the enquiry again, `onInviteRefused`). With the lead's communication to
  * see (accounts.view_own_lead_communications, `onOpenCommunication`), each
  * shows the parent's answer to the confirmation request and opens its
  * communication.
@@ -71,7 +74,7 @@ function Teaching({ booking }) {
   );
 }
 
-function BookingsPanel({ bookings, onCancel, onOpenCommunication }) {
+function BookingsPanel({ bookings, onCancel, onOpenCommunication, recipient, onInviteRefused }) {
   const communication = Boolean(onOpenCommunication);
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
@@ -147,6 +150,13 @@ function BookingsPanel({ bookings, onCancel, onOpenCommunication }) {
                           >
                             Cancel
                           </Button>
+                        ) : null}
+                        {booking.actions?.demo_invite ? (
+                          <DemoInviteButton
+                            inviteUrl={bdeDemoInviteUrl(booking.booking_type, booking.id)}
+                            recipient={recipient}
+                            onRefused={onInviteRefused}
+                          />
                         ) : null}
                       </div>
                     </TableCell>
@@ -345,6 +355,8 @@ export default function EnquiryPage({ user }) {
             setCancelling({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
           }
           onOpenCommunication={canSeeCommunication ? showCommunication : null}
+          recipient={{ dialCode: enquiry.phone_dial_code, number: enquiry.phone_number }}
+          onInviteRefused={refreshEnquiry}
         />
 
         {can(user, PERMISSIONS.viewOwnLeadReports) ? <LeadReportsPanel enquiry={enquiry} /> : null}

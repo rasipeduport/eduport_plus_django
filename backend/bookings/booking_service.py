@@ -20,6 +20,10 @@ create_booking runs in one transaction:
    refused (Q26); a closed or full slot is refused; otherwise the lowest
    free seat (1-3) is taken.
 
+create_invited_demo_booking books a Demo with a Demo invitation
+(bookings.demo_invites) the same way, for the invitation's lead instead of a
+matched one, and then locks the invitation's row too.
+
 The lead lock is what keeps Q26 true under concurrency: two requests for one
 child in different slots, or of different types, lock different slot rows
 and would both pass a check made under those alone. Both queue on the lead
@@ -62,11 +66,13 @@ assigned (or carried over by a reschedule) and drops it when unassigned.
 set_tutor_meet_link keeps live bookings in step with a changed link; every
 other booking keeps the link it had.
 """
+import re
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, time as time_type, timedelta
 
 from django.conf import settings
 from django.db import OperationalError, connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import RoleChoices, User
@@ -84,10 +90,15 @@ from .models import (
     HOLDS_SEAT,
     MANUAL_CANCEL_REASONS,
     SLOT_CAPACITY,
+    BookingChannel,
     BookingEventKind,
     BookingSlot,
     BookingStatus,
+    BookingType,
     CancelReason,
+    DemoBooking,
+    DemoInvite,
+    DiagnosticBooking,
     Lead,
     NotConfirmedReason,
     ParentConfirmation,
@@ -96,9 +107,12 @@ from .models import (
     SlotTime,
     booking_model,
 )
+from .public_serializers import CLASSES, SYLLABI
 from .scheduling import booking_window, slot_instants
 
 LOCK_TIMEOUT = '3s'
+# Demo invitation tokens are secrets.token_urlsafe values (43 characters today, 64 at most in the column).
+INVITE_TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 # lock_not_available, deadlock_detected
 BUSY_SQLSTATES = {'55P03', '40P01'}
 
@@ -295,6 +309,51 @@ class LeadAlreadyBooked(BookingError):
         self.booking = booking
 
 
+class DiagnosticReportMissing(BookingError):
+    """A Demo invitation needs the Diagnostic's report: its booking has none (bookings.demo_invites)."""
+    code = 'NO_REPORT'
+    http_status = 409
+    message = "The Diagnostic's report has not been submitted yet."
+
+
+class DemoNotOffered(BookingError):
+    """The lead's class or syllabus is not one the Demo page offers (public_serializers.CLASSES, SYLLABI)."""
+    code = 'DEMO_NOT_OFFERED'
+    http_status = 409
+    message = 'Demo classes are offered for CBSE students of Class 5 to Class 10 only.'
+
+
+class DemoAlreadyHeld(BookingError):
+    """The lead already has a Demo to come, under way or completed (held_demo)."""
+    code = 'DEMO_ALREADY_BOOKED'
+    http_status = 409
+    message = 'This student already has a Demo booked or completed.'
+
+
+class InviteNotFound(BookingError):
+    code = 'INVITE_NOT_FOUND'
+    http_status = 404
+    message = 'This invitation link is not valid.'
+
+
+class InviteUsed(BookingError):
+    code = 'INVITE_USED'
+    http_status = 409
+    message = 'This invitation has already been used to book a Demo.'
+
+
+class InviteExpired(BookingError):
+    code = 'INVITE_EXPIRED'
+    http_status = 409
+    message = 'This invitation has expired.'
+
+
+class InviteRevoked(BookingError):
+    code = 'INVITE_REVOKED'
+    http_status = 409
+    message = 'This invitation is no longer valid.'
+
+
 class TutorNotAssignable(BookingError):
     code = 'INVALID_TUTOR'
     message = 'Selected tutor is not an active tutor.'
@@ -363,10 +422,7 @@ def create_booking(request, now=None):
     """
     now = now or timezone.now()
     model = booking_model(request.booking_type)
-    if request.date not in booking_window(request.booking_type, now):
-        raise DateOutOfWindow()
-    if not SlotTime.objects.filter(booking_type=request.booking_type, start_time=request.time, is_active=True).exists():
-        raise SlotUnavailable()
+    _check_offered(request.booking_type, request.date, request.time, now)
     _dial, _national, phone_key = normalize_phone(request.phone_dial_code, request.phone_number)
     referral = resolve_referral(request.ref, request.booking_type)
 
@@ -379,21 +435,7 @@ def create_booking(request, now=None):
             existing = model.objects.filter(slot=slot, lead=lead, status__in=HOLDS_SEAT).first()
             if existing is not None:
                 return existing, False
-            live = live_booking(lead, model, now)
-            if live is not None:
-                raise LeadAlreadyBooked(live)
-            clash = lead_conflict(lead, slot.starts_at, slot.ends_at)
-            if clash is not None:
-                raise LeadTimeConflict(clash)
-            if slot.closed_at is not None:
-                raise SlotFull()
-            taken = set(model.objects.filter(slot=slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))
-            free = [seat for seat in range(1, min(slot.capacity, SLOT_CAPACITY) + 1) if seat not in taken]
-            if not free:
-                raise SlotFull()
-            since = timezone.now() - timedelta(days=1)
-            if _bookings_since(phone_key, since) >= settings.BOOKING_PHONE_DAILY_LIMIT:
-                raise TooManyBookings()
+            seat = _free_seat(model, slot, lead, phone_key, now)
 
             if referral.status == ReferralStatus.ATTRIBUTED:
                 # First valid attribution wins: only a lead nobody owns yet
@@ -404,7 +446,7 @@ def create_booking(request, now=None):
             booking = model.objects.create(
                 lead=lead,
                 slot=slot,
-                seat=free[0],
+                seat=seat,
                 referral_status=referral.status,
                 referral_link=referral.link,
                 attributed_bde=referral.bde,
@@ -439,6 +481,163 @@ def create_booking(request, now=None):
         },
     )
     return booking, True
+
+
+def create_invited_demo_booking(token, local_date, local_time, display_time='', now=None):
+    """
+    Book a Demo with the invitation ``token`` (bookings.demo_invites) in the
+    slot at ``local_date`` / ``local_time``; returns (booking, created).
+    ``created`` is False for a repeated submission: the booking this
+    invitation already made in that slot. Raises a BookingError subclass.
+
+    The booking is the invitation's lead's -- the lead of the Diagnostic it
+    names, never one matched from typed details -- and nothing about the lead
+    changes: its details and its owner stay as they are. It is a BDE handoff
+    made by whoever sent the invitation, with no referral, and its details are
+    the lead's as a public booking would have submitted them.
+
+    Every rule a public booking meets applies (_check_offered, _free_seat),
+    under the same locks in the same order -- the slot, then the lead -- and
+    then the invitation's row. Two uses of one invitation, or one and a
+    booking on the Demo page for the same child, queue on the lead, and the
+    second sees what the first did. The invitation must still be active and
+    its lead still invitable (demo_invite_refusal); it is marked used, naming
+    the booking, in the same transaction. The Diagnostic, its report and its
+    history are only read.
+    """
+    pinned = now
+    now = now or timezone.now()
+    invite = invite_by_token(token)
+    if invite is None:
+        raise InviteNotFound()
+    repeat = _invite_repeat(invite, now, local_date, local_time)
+    if repeat is not None:
+        return repeat, False
+    _check_offered(BookingType.DEMO, local_date, local_time, now)
+
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            slot = _locked_slot(BookingType.DEMO, local_date, local_time)
+            lead = _locked_lead(invite.lead_id)
+            # The invitation's row last (slot, lead, invitation): one use at a time.
+            invite = (DemoInvite.objects.select_for_update(of=('self',)).select_related('demo_booking__slot')
+                      .get(pk=invite.pk))
+            at = pinned or timezone.now()
+            repeat = _invite_repeat(invite, at, local_date, local_time)
+            if repeat is not None:
+                return repeat, False
+            diagnostic = DiagnosticBooking.objects.select_related('report').get(pk=invite.diagnostic_booking_id)
+            refusal = demo_invite_refusal(diagnostic, lead, now)
+            if refusal is not None:
+                raise refusal
+            seat = _free_seat(DemoBooking, slot, lead, lead.phone_key, now)
+
+            booking = DemoBooking.objects.create(
+                lead=lead,
+                slot=slot,
+                seat=seat,
+                channel=BookingChannel.BDE_HANDOFF,
+                created_by_id=invite.created_by_id,
+                details=_lead_submission(lead, display_time),
+            )
+            invite.used_at = at
+            invite.demo_booking = booking
+            invite.save(update_fields=['used_at', 'demo_booking'])
+            history.record(
+                booking, BookingEventKind.CREATED,
+                slot_id=slot.id, seat=booking.seat, via='demo_invite', invite_id=invite.id,
+            )
+            owner_id = lead.owner_bde_id
+            planner.plan_booking(booking, now)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+
+    log_activity(
+        action='booking.create',
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(slot),
+        # Ids only, as for a public booking: no names, phone numbers or tokens.
+        context={
+            'booking_type': booking.booking_type,
+            'slot_starts_at': slot.starts_at.isoformat(),
+            'referral_status': None,
+            'attributed_bde_id': None,
+            'lead_id': str(booking.lead_id),
+            'lead_owner_id': _str_or_none(owner_id),
+            'via': 'demo_invite',
+            'invite_id': str(invite.id),
+            'diagnostic_booking_id': str(invite.diagnostic_booking_id),
+        },
+    )
+    return booking, True
+
+
+def held_demo(lead, now):
+    """
+    The lead's Demo that a new one would duplicate, or None: one booked whose
+    slot has not ended, one its tutor has started, or one completed -- the
+    soonest. A cancelled or moved Demo holds nothing, nor does one whose slot
+    ended with no start: that class never happened.
+    """
+    return (
+        DemoBooking.objects.filter(lead=lead)
+        .filter(
+            Q(status=BookingStatus.COMPLETED)
+            | Q(status=BookingStatus.BOOKED, slot__ends_at__gt=now)
+            | Q(status=BookingStatus.BOOKED, started_at__isnull=False)
+        )
+        .select_related('slot')
+        .order_by('slot__starts_at', 'created_at')
+        .first()
+    )
+
+
+def invited_demo_pending(lead):
+    """
+    A Demo an invitation of the lead booked -- or the booking it was moved
+    to -- that is still booked, whatever its slot's clock says, or None. Until
+    staff cancel it (No-show included) or its tutor completes it, the lead is
+    sent no other invitation: a new link follows a cancelled invited Demo, not
+    one whose slot ended with nobody recording what happened.
+    """
+    for invite in DemoInvite.objects.filter(lead=lead, demo_booking__isnull=False).select_related('demo_booking'):
+        booking = invite.demo_booking
+        while booking is not None and booking.status == BookingStatus.RESCHEDULED:
+            booking = DemoBooking.objects.filter(rescheduled_from=booking).first()
+        if booking is not None and booking.status == BookingStatus.BOOKED:
+            return booking
+    return None
+
+
+def demo_invite_refusal(diagnostic, lead, now):
+    """
+    Why the parent of ``lead``, the lead of the Diagnostic booking
+    ``diagnostic``, may not be invited to book a Demo from it now -- a
+    BookingError to raise -- or None. The Diagnostic needs its submitted
+    report (DiagnosticReportMissing), never its status alone; the child a
+    class and syllabus the Demo page offers (DemoNotOffered: CBSE only); and
+    no Demo of theirs may be to come, under way or completed (held_demo), nor
+    one an earlier invitation booked still be booked (invited_demo_pending) --
+    DemoAlreadyHeld. Who is asking is the caller's check.
+    """
+    if getattr(diagnostic, 'report', None) is None:
+        return DiagnosticReportMissing()
+    if lead.syllabus not in SYLLABI[BookingType.DEMO] or lead.grade not in CLASSES:
+        return DemoNotOffered()
+    if held_demo(lead, now) is not None or invited_demo_pending(lead) is not None:
+        return DemoAlreadyHeld()
+    return None
+
+
+def invite_by_token(token):
+    """The Demo invitation whose token is ``token``, or None -- for anything that is not a token at all, too."""
+    if not isinstance(token, str) or not INVITE_TOKEN_RE.match(token):
+        return None
+    return DemoInvite.objects.select_related('demo_booking__slot').filter(token=token).first()
 
 
 def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None):
@@ -1356,6 +1555,76 @@ def _bookings_since(phone_key, since):
     return sum(
         model.objects.filter(lead__phone_key=phone_key, created_at__gte=since).count() for model in BOOKING_MODELS
     )
+
+
+def _check_offered(booking_type, local_date, local_time, now):
+    """A slot the public pages offer: a date in the window (DateOutOfWindow) and an active time (SlotUnavailable)."""
+    if local_date not in booking_window(booking_type, now):
+        raise DateOutOfWindow()
+    if not SlotTime.objects.filter(booking_type=booking_type, start_time=local_time, is_active=True).exists():
+        raise SlotUnavailable()
+
+
+def _free_seat(model, slot, lead, phone_key, now):
+    """
+    The seat a new ``model`` booking of ``lead`` takes in ``slot``, read under
+    the slot's and the lead's locks: the lowest free one (1-3). Refused when the
+    lead already holds a live booking of this type (LeadAlreadyBooked) or one
+    of either type at an overlapping time (LeadTimeConflict, Q26), when the
+    slot is closed or full (SlotFull), and when the phone number ``phone_key``
+    has made settings.BOOKING_PHONE_DAILY_LIMIT bookings in a day
+    (TooManyBookings) -- in that order.
+    """
+    live = live_booking(lead, model, now)
+    if live is not None:
+        raise LeadAlreadyBooked(live)
+    clash = lead_conflict(lead, slot.starts_at, slot.ends_at)
+    if clash is not None:
+        raise LeadTimeConflict(clash)
+    if slot.closed_at is not None:
+        raise SlotFull()
+    taken = set(model.objects.filter(slot=slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))
+    free = [seat for seat in range(1, min(slot.capacity, SLOT_CAPACITY) + 1) if seat not in taken]
+    if not free:
+        raise SlotFull()
+    since = timezone.now() - timedelta(days=1)
+    if _bookings_since(phone_key, since) >= settings.BOOKING_PHONE_DAILY_LIMIT:
+        raise TooManyBookings()
+    return free[0]
+
+
+def _invite_repeat(invite, at, local_date, local_time):
+    """
+    The booking ``invite`` already made in this slot, still holding its seat,
+    for a repeated submission; None while the invitation is active at ``at``.
+    Refused once it is used for anything else (InviteUsed), revoked
+    (InviteRevoked) or expired (InviteExpired).
+    """
+    if invite.used_at is not None:
+        booking = invite.demo_booking
+        if (booking is not None and booking.status in HOLDS_SEAT
+                and (booking.slot.local_date, booking.slot.local_time) == (local_date, local_time)):
+            return booking
+        raise InviteUsed()
+    if invite.revoked_at is not None:
+        raise InviteRevoked()
+    if at >= invite.expires_at:
+        raise InviteExpired()
+    return None
+
+
+def _lead_submission(lead, display_time):
+    """A booking's ``details`` from its lead, in the keys a public booking submits them under (_submitted)."""
+    return {
+        'parent_name': lead.parent_name,
+        'phone': f'{lead.phone_dial_code} {lead.phone_number}',
+        'student_name': lead.student_name,
+        'school': lead.school_name,
+        'student_class': lead.grade,
+        'syllabus': lead.syllabus,
+        'country': lead.country,
+        'display_time': display_time,
+    }
 
 
 def _lead_details(request):

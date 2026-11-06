@@ -69,7 +69,7 @@ class OwnLeadTests(BdeCancellationTestCase):
                 self.assertEqual(res.status_code, 200, res.data)
                 self.assertTrue(res.data['changed'])
                 row = next(b for b in res.data['bookings'] if b['id'] == str(booking.id))
-                self.assertEqual((row['status'], row['actions']), ('CANCELLED', {'cancel': False, 'no_show': False}))
+                self.assertEqual((row['status'], row['actions']), ('CANCELLED', {'cancel': False, 'no_show': False, 'demo_invite': False}))
                 booking.refresh_from_db()
                 self.assertEqual((booking.status, booking.cancel_reason_code, booking.cancelled_by),
                                  (BookingStatus.CANCELLED, 'PARENT_REQUEST', self.bde_a))
@@ -114,9 +114,9 @@ class OwnLeadTests(BdeCancellationTestCase):
         cancel_booking(cancelled, reason_code=CancelReason.OTHER, actor=self.admin)
         rows = {row['id']: row['actions'] for row in self.client.get(f'/api/bde/enquiries/{upcoming.lead_id}/').data['bookings']}
         self.assertEqual(rows, {
-            str(upcoming.id): {'cancel': True, 'no_show': False},
-            str(started.id): {'cancel': True, 'no_show': True},
-            str(cancelled.id): {'cancel': False, 'no_show': False},
+            str(upcoming.id): {'cancel': True, 'no_show': False, 'demo_invite': False},
+            str(started.id): {'cancel': True, 'no_show': True, 'demo_invite': False},
+            str(cancelled.id): {'cancel': False, 'no_show': False, 'demo_invite': False},
         })
 
 
@@ -190,6 +190,6 @@ class WhoMayNotTests(BdeCancellationTestCase):
         client.force_authenticate(type(self.bde_a).objects.get(pk=self.bde_a.pk))
         self.assertEqual(self.cancel(mine, client=client).status_code, 403)
         rows = client.get(f'/api/bde/enquiries/{mine.lead_id}/').data['bookings']
-        self.assertEqual(rows[0]['actions'], {'cancel': False, 'no_show': False})
+        self.assertEqual(rows[0]['actions'], {'cancel': False, 'no_show': False, 'demo_invite': False})
         self.untouched(mine)
         self.assertEqual(BookingEvent.objects.filter(kind=BookingEventKind.CANCELLED).count(), 0)

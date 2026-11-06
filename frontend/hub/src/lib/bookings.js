@@ -30,10 +30,13 @@ export const bookingHistoryUrl = (type, id) => `${bookingUrl(type, id)}history/`
 export const bookingRescheduleOptionsUrl = (type, id) => `${bookingUrl(type, id)}reschedule-options/`;
 export const bookingRescheduleUrl = (type, id) => `${bookingUrl(type, id)}reschedule/`;
 export const bookingCancelUrl = (type, id) => `${bookingUrl(type, id)}cancel/`;
+// A Diagnostic's Demo invitation for its parent (backend bookings.demo_invites): the Admin's, and a BDE's for their own lead.
+export const bookingDemoInviteUrl = (type, id) => `${bookingUrl(type, id)}demo-invite/`;
 // A BDE's routes on a booking of their own lead; the API checks the lead is theirs on every request.
 export const bdeBookingUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/`;
 // Cancelling it (Q22).
 export const bdeBookingCancelUrl = (type, id) => `${bdeBookingUrl(type, id)}cancel/`;
+export const bdeDemoInviteUrl = (type, id) => `${bdeBookingUrl(type, id)}demo-invite/`;
 
 /** The Bookings page with one booking open in its detail sheet (?type=<TYPE>&booking=<id>). */
 export function bookingPagePath(type, id) {
@@ -230,6 +233,15 @@ const REFERRAL_LABELS = {
 
 export function referralLabel(status) {
   return REFERRAL_LABELS[status] ?? status ?? '—';
+}
+
+/**
+ * How a booking came in, as its detail names it: a Demo booked with a Demo
+ * invitation (a BDE handoff, backend bookings.demo_invites), or the booking
+ * page's link as referralLabel reads it.
+ */
+export function cameInLabel(booking) {
+  return booking?.channel === 'BDE_HANDOFF' ? 'Demo invitation' : referralLabel(booking?.referral_status);
 }
 
 /**

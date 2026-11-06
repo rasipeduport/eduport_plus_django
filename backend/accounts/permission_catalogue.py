@@ -117,10 +117,12 @@ CATALOGUE = {
     'accounts.view_assigned_bookings': _entry('View the bookings assigned to them', 'Bookings', TUTOR_ONLY),
     # The Demo/Diagnostic workflow (Phase 5.2), seeded by 0015 ahead of its
     # code; the phase that enforces each is noted.
-    # Bookings: the Demo handoff (P10); cancel and reschedule (P3). Only the
-    # Admin reschedules (Q23). The Admin and the owner BDE cancel (Q22): a BDE
-    # only the bookings of their own leads, which the cancel code checks --
-    # holding the permission is not enough.
+    # Bookings: the Demo handoff -- a BDE sending their own lead's parent a
+    # Demo invitation once the Diagnostic report is in (bookings.demo_invites;
+    # the Admin sends one with send_lead_communications) -- and cancel and
+    # reschedule (P3). Only the Admin reschedules (Q23). The Admin and the
+    # owner BDE cancel (Q22): a BDE only the bookings of their own leads, which
+    # the cancel and invitation code check -- holding the permission is not enough.
     'accounts.create_demo_booking': _entry('Start a Demo booking for their own lead', 'Bookings', BDE_ONLY),
     'accounts.reschedule_booking': _entry('Reschedule a booking', 'Bookings', ADMIN_ONLY),
     'accounts.cancel_booking': _entry('Cancel a booking with a reason', 'Bookings', BDE_AND_ADMIN),

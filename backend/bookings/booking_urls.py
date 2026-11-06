@@ -2,6 +2,7 @@ from django.urls import path
 
 from .management_views import (
     BookingCancelView,
+    BookingDemoInviteView,
     BookingDetailView,
     BookingHistoryView,
     BookingListView,
@@ -25,4 +26,6 @@ urlpatterns = [
     path('<str:booking_type>/<uuid:pk>/reschedule-options/', RescheduleOptionsView.as_view(), name='reschedule-options'),
     path('<str:booking_type>/<uuid:pk>/reschedule/', BookingRescheduleView.as_view(), name='reschedule'),
     path('<str:booking_type>/<uuid:pk>/cancel/', BookingCancelView.as_view(), name='cancel'),
+    # A Diagnostic's Demo invitation for its parent (bookings.demo_invites); any other type is 404.
+    path('<str:booking_type>/<uuid:pk>/demo-invite/', BookingDemoInviteView.as_view(), name='demo-invite'),
 ]

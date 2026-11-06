@@ -1567,6 +1567,144 @@
     "status": 403
    }
   },
+  "bde.bookings.demo_invite @ admin": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ anon": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ mentor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ mentor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ parent_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ su_mentor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ su_tutor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ superuser": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ tutor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ tutor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.demo_invite @ unknown": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.bookings.report_pdf @ admin": {
    "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
    "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
@@ -2440,12 +2578,13 @@
    }
   },
   "bookings.assign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "An administrator assigns the booking's tutor (bookings.booking_service.assign_tutor). With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2457,9 +2596,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -2566,12 +2708,13 @@
    }
   },
   "bookings.assign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2583,9 +2726,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -2644,12 +2790,13 @@
    }
   },
   "bookings.assign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2661,9 +2808,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -2722,12 +2872,13 @@
    }
   },
   "bookings.assign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2739,9 +2890,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -2836,12 +2990,13 @@
    }
   },
   "bookings.cancel @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2855,9 +3010,12 @@
      "cancelled_by.full_name",
      "cancelled_by.id",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -2961,12 +3119,13 @@
    }
   },
   "bookings.cancel @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -2980,9 +3139,12 @@
      "cancelled_by.full_name",
      "cancelled_by.id",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3038,12 +3200,13 @@
    }
   },
   "bookings.cancel @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3057,9 +3220,12 @@
      "cancelled_by.full_name",
      "cancelled_by.id",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3115,12 +3281,13 @@
    }
   },
   "bookings.cancel @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Cancels booking_a with reason PARENT_REQUEST (rolled back with the scenario). Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3134,9 +3301,12 @@
      "cancelled_by.full_name",
      "cancelled_by.id",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3227,13 +3397,154 @@
     "status": 403
    }
   },
+  "bookings.demo_invite @ admin": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.demo_invite @ anon": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ mentor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ mentor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ parent_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ su_mentor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.demo_invite @ su_tutor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.demo_invite @ superuser": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.demo_invite @ tutor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ tutor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.demo_invite @ unknown": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "booking_a is a Demo, never a Diagnostic: the Admin and superusers (D1) are told it does not exist (404); every other role is refused (403).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "An administrator sees one booking in full: the parent, the child, the slot, the BDE and the tutor. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3244,9 +3555,12 @@
      "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3347,12 +3661,13 @@
    }
   },
   "bookings.detail @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3363,9 +3678,12 @@
      "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3418,12 +3736,13 @@
    }
   },
   "bookings.detail @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3434,9 +3753,12 @@
      "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -3489,12 +3811,13 @@
    }
   },
   "bookings.detail @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -3505,9 +3828,12 @@
      "cancel_reason_code",
      "cancelled_at",
      "cancelled_by",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -4608,13 +4934,14 @@
    }
   },
   "bookings.reschedule @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "booking",
      "booking.actions",
      "booking.actions.cancel",
+     "booking.actions.demo_invite",
      "booking.actions.no_show",
      "booking.actions.reschedule",
      "booking.activity_state",
@@ -4625,9 +4952,12 @@
      "booking.cancel_reason_code",
      "booking.cancelled_at",
      "booking.cancelled_by",
+     "booking.channel",
+     "booking.created_by",
      "booking.grade",
      "booking.has_report",
      "booking.id",
+     "booking.invited_from",
      "booking.lead",
      "booking.lead.country",
      "booking.lead.id",
@@ -4747,13 +5077,14 @@
    }
   },
   "bookings.reschedule @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "booking",
      "booking.actions",
      "booking.actions.cancel",
+     "booking.actions.demo_invite",
      "booking.actions.no_show",
      "booking.actions.reschedule",
      "booking.activity_state",
@@ -4764,9 +5095,12 @@
      "booking.cancel_reason_code",
      "booking.cancelled_at",
      "booking.cancelled_by",
+     "booking.channel",
+     "booking.created_by",
      "booking.grade",
      "booking.has_report",
      "booking.id",
+     "booking.invited_from",
      "booking.lead",
      "booking.lead.country",
      "booking.lead.id",
@@ -4838,13 +5172,14 @@
    }
   },
   "bookings.reschedule @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "booking",
      "booking.actions",
      "booking.actions.cancel",
+     "booking.actions.demo_invite",
      "booking.actions.no_show",
      "booking.actions.reschedule",
      "booking.activity_state",
@@ -4855,9 +5190,12 @@
      "booking.cancel_reason_code",
      "booking.cancelled_at",
      "booking.cancelled_by",
+     "booking.channel",
+     "booking.created_by",
      "booking.grade",
      "booking.has_report",
      "booking.id",
+     "booking.invited_from",
      "booking.lead",
      "booking.lead.country",
      "booking.lead.id",
@@ -4929,13 +5267,14 @@
    }
   },
   "bookings.reschedule @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "Moves booking_a a day later (rolled back with the scenario): 201 with the replacement booking. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "booking",
      "booking.actions",
      "booking.actions.cancel",
+     "booking.actions.demo_invite",
      "booking.actions.no_show",
      "booking.actions.reschedule",
      "booking.activity_state",
@@ -4946,9 +5285,12 @@
      "booking.cancel_reason_code",
      "booking.cancelled_at",
      "booking.cancelled_by",
+     "booking.channel",
+     "booking.created_by",
      "booking.grade",
      "booking.has_report",
      "booking.id",
+     "booking.invited_from",
      "booking.lead",
      "booking.lead.country",
      "booking.lead.id",
@@ -6234,12 +6576,13 @@
    }
   },
   "bookings.unassign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "An administrator unassigns the booking's tutor; this booking has none, so nothing changes. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -6251,9 +6594,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -6354,12 +6700,13 @@
    }
   },
   "bookings.unassign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -6371,9 +6718,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -6426,12 +6776,13 @@
    }
   },
   "bookings.unassign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -6443,9 +6794,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -6498,12 +6852,13 @@
    }
   },
   "bookings.unassign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it.",
-   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field.",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names).",
+   "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is. With P3 the booking in full also carries cancel_reason_code, the reschedule fields and links (rescheduled_at/by, reschedule_reason(_code), rescheduled_from, rescheduled_to) and the caller's actions. Fields added only: the same status, records and every earlier field. With Phase 1 the booking in full also carries tutor_meet_link: the booking's own copy of its tutor's Meet link, copied when the tutor is assigned (null here: tutor_a has none in this world). Field added only: the same status, records and every earlier field. Fields added only: booking_a is a public-page Demo, so actions.demo_invite is false, created_by and invited_from null.",
    "result": {
     "fields": [
      "actions",
      "actions.cancel",
+     "actions.demo_invite",
      "actions.no_show",
      "actions.reschedule",
      "activity_state",
@@ -6515,9 +6870,12 @@
      "cancelled_at",
      "cancelled_by",
      "changed",
+     "channel",
+     "created_by",
      "grade",
      "has_report",
      "id",
+     "invited_from",
      "lead",
      "lead.country",
      "lead.id",
@@ -10175,6 +10533,270 @@
   "public.booking_create @ unknown": {
    "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
    "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ admin": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ anon": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 401
+   }
+  },
+  "public.demo_invite_book @ mentor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ mentor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ parent_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ su_mentor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ su_tutor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ superuser": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ tutor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ tutor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_book @ unknown": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ admin": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ anon": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 401
+   }
+  },
+  "public.demo_invite_state @ mentor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ mentor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ parent_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ su_mentor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ su_tutor": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ superuser": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ tutor_a": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ tutor_b": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.demo_invite_state @ unknown": {
+   "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
+   "note": "No caller here presents the service key: anonymous 401, every session 403 -- staff sessions never reach the public API.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

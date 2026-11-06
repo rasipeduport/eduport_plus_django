@@ -13,9 +13,10 @@ function describeBookingEvent(event) {
   const d = event.details ?? {};
   switch (event.kind) {
     case 'CREATED':
-      return d.via === 'reschedule'
-        ? `Booked in the new slot, ${slotLabel(d.slot)}`
-        : `Booked on the booking page for ${slotLabel(d.slot)}`;
+      if (d.via === 'reschedule') return `Booked in the new slot, ${slotLabel(d.slot)}`;
+      // The parent picked the slot on the page a Demo invitation opens (backend bookings.demo_invites).
+      if (d.via === 'demo_invite') return `Booked with a Demo invitation for ${slotLabel(d.slot)}`;
+      return `Booked on the booking page for ${slotLabel(d.slot)}`;
     case 'TUTOR_ASSIGNED':
       if (d.via === 'reschedule') return `${d.new_tutor?.full_name ?? 'The tutor'} carried over to the new slot`;
       return d.old_tutor
@@ -53,7 +54,8 @@ function describeBookingEvent(event) {
 
 function who(event) {
   if (event.actor) return event.actor.full_name;
-  return event.kind === 'CREATED' ? 'the booking page' : 'the system';
+  if (event.kind !== 'CREATED') return 'the system';
+  return event.details?.via === 'demo_invite' ? 'the invitation page' : 'the booking page';
 }
 
 /**

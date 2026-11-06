@@ -1,7 +1,8 @@
 from django.contrib import admin, messages
 
 from .booking_service import BookingError, cancel_booking
-from .models import BookingEvent, BookingSlot, CancelReason, DemoBooking, DiagnosticBooking, Lead, SlotTime
+from .demo_invites import revoke_invite
+from .models import BookingEvent, BookingSlot, CancelReason, DemoBooking, DemoInvite, DiagnosticBooking, Lead, SlotTime
 
 
 class ReadOnlyAdmin(admin.ModelAdmin):
@@ -92,6 +93,31 @@ class DiagnosticBookingAdmin(BookingAdmin):
 @admin.register(DemoBooking)
 class DemoBookingAdmin(BookingAdmin):
     pass
+
+
+@admin.register(DemoInvite)
+class DemoInviteAdmin(ReadOnlyAdmin):
+    """
+    Demo invitations (bookings.demo_invites), shown -- never the token, which
+    would open the parent's booking page -- and revoked through the audited
+    action below; they are issued from the Hub only.
+    """
+    list_display = ('created_at', 'diagnostic_booking', 'lead', 'status_label', 'expires_at', 'used_at', 'created_by')
+    list_select_related = ('diagnostic_booking__slot', 'lead', 'created_by')
+    exclude = ('token',)
+    actions = ['revoke_selected']
+
+    @admin.display(description='Status')
+    def status_label(self, obj):
+        return obj.get_status_display()
+
+    @admin.action(description='Revoke selected invitations (their links stop working)')
+    def revoke_selected(self, request, queryset):
+        revoked = sum(revoke_invite(invite, request.user, request=request)[1] for invite in queryset)
+        message = f'Revoked {revoked} invitation(s).'
+        if revoked < len(queryset):
+            message += f' Skipped {len(queryset) - revoked} that were not active.'
+        self.message_user(request, message, messages.SUCCESS)
 
 
 @admin.register(BookingEvent)

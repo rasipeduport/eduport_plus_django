@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon, MessageCircleIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { whatsAppUrl } from '@/lib/enquiries';
+import { useLinkCopy } from '@/hooks/use-link-copy';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group';
 import {
@@ -46,12 +47,60 @@ function linkCopy(link) {
   );
 }
 
-function selectContents(element) {
-  const selection = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  selection.removeAllRanges();
-  selection.addRange(range);
+/**
+ * What useLinkCopy (hooks/use-link-copy.js) did: the link the browser would not copy, selected, with
+ * how to copy it; and, for screen readers, "<copiedLabel> copied.".
+ */
+export function CopyStatus({ manual, urlRef, copiedLabel }) {
+  const status = manual ? MANUAL_COPY : copiedLabel ? `${copiedLabel} copied.` : '';
+  return (
+    <>
+      {manual ? (
+        <p ref={urlRef} className="bg-muted max-w-full rounded-md px-2 py-1 font-mono text-xs break-all">
+          {manual.url}
+        </p>
+      ) : null}
+      {/* Always in the page so screen readers announce changes; only the
+          manual-copy instruction needs to be seen. */}
+      <p role="status" className={manual ? 'text-muted-foreground text-xs' : 'sr-only'}>
+        {status}
+      </p>
+    </>
+  );
+}
+
+/**
+ * The ways to pass a link on, as menu items: copy it (`onCopy`), send it on
+ * WhatsApp with `message` before it -- to `recipient`'s chat when given, else
+ * to whoever WhatsApp asks -- or preview the public page it opens. The BDE's
+ * booking links share them, and so does a Diagnostic's Demo invitation
+ * (components/bookings/demo-invite-button.jsx).
+ */
+export function ShareLinkMenuItems({ url, message, recipient = null, onCopy }) {
+  const text = `${message} ${url}`;
+  const toParent = recipient ? whatsAppUrl(recipient.dialCode, recipient.number, text) : null;
+  const whatsApp = toParent ?? `https://wa.me/?text=${encodeURIComponent(text)}`;
+  return (
+    <>
+      <DropdownMenuItem onSelect={onCopy}>
+        <CopyIcon />
+        Copy Link
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a href={whatsApp} target="_blank" rel="noopener noreferrer">
+          <MessageCircleIcon />
+          {toParent ? 'Send to the parent on WhatsApp' : 'Share on WhatsApp'}
+        </a>
+      </DropdownMenuItem>
+      {/* The public page itself, as the parent will open it. */}
+      <DropdownMenuItem asChild>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <ExternalLinkIcon />
+          Preview Link
+        </a>
+      </DropdownMenuItem>
+    </>
+  );
 }
 
 /**
@@ -61,9 +110,6 @@ function selectContents(element) {
  */
 function ShareLinkButton({ link, copied, onCopy, recipient }) {
   const copy = linkCopy(link);
-  const text = `${copy.message} ${link.url}`;
-  const toParent = recipient ? whatsAppUrl(recipient.dialCode, recipient.number, text) : null;
-  const whatsApp = toParent ?? `https://wa.me/?text=${encodeURIComponent(text)}`;
 
   return (
     <ButtonGroup>
@@ -79,23 +125,7 @@ function ShareLinkButton({ link, copied, onCopy, recipient }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onCopy(link)}>
-            <CopyIcon />
-            Copy Link
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a href={whatsApp} target="_blank" rel="noopener noreferrer">
-              <MessageCircleIcon />
-              {toParent ? 'Send to the parent on WhatsApp' : 'Share on WhatsApp'}
-            </a>
-          </DropdownMenuItem>
-          {/* The public booking page itself, the BDE's ref token in its URL. */}
-          <DropdownMenuItem asChild>
-            <a href={link.url} target="_blank" rel="noopener noreferrer">
-              <ExternalLinkIcon />
-              Preview Link
-            </a>
-          </DropdownMenuItem>
+          <ShareLinkMenuItems url={link.url} message={copy.message} recipient={recipient} onCopy={() => onCopy(link)} />
         </DropdownMenuContent>
       </DropdownMenu>
     </ButtonGroup>
@@ -115,9 +145,7 @@ export function ShareLinkButtons({ recipient = null }) {
   const [reloadKey, setReloadKey] = useState(0);
   // The booking type just copied, for a moment; or the link the browser
   // refused to copy (e.g. an insecure origin), then shown selected instead.
-  const [copied, setCopied] = useState(null);
-  const [manual, setManual] = useState(null);
-  const urlRef = useRef(null);
+  const { copied, manual, urlRef, copy } = useLinkCopy();
 
   useEffect(() => {
     let active = true;
@@ -143,26 +171,7 @@ export function ShareLinkButtons({ recipient = null }) {
     };
   }, [reloadKey]);
 
-  useEffect(() => {
-    if (!copied) return undefined;
-    const timer = setTimeout(() => setCopied(null), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  useEffect(() => {
-    if (manual && urlRef.current) selectContents(urlRef.current);
-  }, [manual]);
-
-  const copyLink = async (link) => {
-    try {
-      await navigator.clipboard.writeText(link.url);
-      setManual(null);
-      setCopied(link.booking_type);
-    } catch {
-      setCopied(null);
-      setManual(link);
-    }
-  };
+  const copyLink = (link) => copy(link.booking_type, link.url);
 
   if (failure) {
     // An account the API holds no links for (not a BDE) has nothing to share.
@@ -187,7 +196,6 @@ export function ShareLinkButtons({ recipient = null }) {
   }
 
   const copiedLink = links.find((link) => link.booking_type === copied);
-  const status = manual ? MANUAL_COPY : copiedLink ? `${linkCopy(copiedLink).label} copied.` : '';
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5 sm:items-end">
@@ -202,16 +210,7 @@ export function ShareLinkButtons({ recipient = null }) {
           />
         ))}
       </div>
-      {manual ? (
-        <p ref={urlRef} className="bg-muted max-w-full rounded-md px-2 py-1 font-mono text-xs break-all">
-          {manual.url}
-        </p>
-      ) : null}
-      {/* Always in the page so screen readers announce changes; only the
-          manual-copy instruction needs to be seen. */}
-      <p role="status" className={manual ? 'text-muted-foreground text-xs' : 'sr-only'}>
-        {status}
-      </p>
+      <CopyStatus manual={manual} urlRef={urlRef} copiedLabel={copiedLink ? linkCopy(copiedLink).label : null} />
     </div>
   );
 }

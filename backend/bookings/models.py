@@ -21,7 +21,9 @@ belongs to a lead (Lead): one parent's enquiry for one child, matched by phone
 and student name, shared by both types. A booking is taught one-to-one by the
 tutor assigned to it, who starts it explicitly (bookings.lifecycle), and every
 change to it is kept in its history
-(BookingEvent). bookings.booking_service is the only writer of bookings; the
+(BookingEvent). Once a Diagnostic's report is in, the parent may be sent a
+Demo invitation (DemoInvite) that books a Demo for the same lead.
+bookings.booking_service is the only writer of bookings; the
 leads the lead forms send and the ones added by hand (a BDE's enquiries, an
 administrator's leads) are written by bookings.lead_intake, and a lead's
 owner is changed by bookings.ownership alone.
@@ -869,3 +871,129 @@ class BookingEvent(models.Model):
     @property
     def booking(self):
         return self.diagnostic_booking or self.demo_booking
+
+
+# ---------------------------------------------------------------- demo invitations
+
+# 32 random bytes: 256 bits, 43 URL-safe characters.
+INVITE_TOKEN_BYTES = 32
+
+
+def new_invite_token():
+    """A fresh, unguessable invitation token."""
+    return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
+
+
+class DemoInviteStatus(models.TextChoices):
+    """Where an invitation stands (DemoInvite.status): read from its columns and the clock, never stored."""
+    ACTIVE = 'ACTIVE', 'Active'
+    USED = 'USED', 'Used'
+    EXPIRED = 'EXPIRED', 'Expired'
+    REVOKED = 'REVOKED', 'Revoked'
+
+
+class DemoInvite(models.Model):
+    """
+    The Demo booking link a parent is sent once their child's Diagnostic
+    report is in (bookings.demo_invites): it names the Diagnostic booking and
+    its lead, so the parent picks a Demo slot and types nothing again.
+
+    The token is all the URL carries -- an opaque random string, as for
+    BookingLink, never derived from the lead, the student or the phone. It is
+    kept as it is so the same link can be copied, sent and previewed again for
+    as long as it lasts; it never reaches a log.
+
+    Active until it expires (``expires_at``), is used to book a Demo
+    (``used_at`` and ``demo_booking``, set together, once) or is revoked. An
+    expired invitation that a new one replaced records when (``replaced_at``):
+    it still reads as expired. A Diagnostic has at most one open invitation --
+    neither used, revoked nor replaced -- at a time; the Demo it books is a
+    separate booking, and the Diagnostic, its report and its history are never
+    written to.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    token = models.CharField(max_length=64, unique=True, default=new_invite_token, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='demo_invites')
+    diagnostic_booking = models.ForeignKey(DiagnosticBooking, on_delete=models.PROTECT, related_name='demo_invites')
+    # The Admin or BDE who sent it; the Demo it books names them as its creator (a BDE handoff).
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='created_demo_invites'
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    demo_booking = models.OneToOneField(
+        DemoBooking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='demo_invite'
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_demo_invites'
+    )
+    replaced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'demo_invites'
+        verbose_name = 'Demo invitation'
+        verbose_name_plural = 'Demo invitations'
+        ordering = ['-created_at']
+        constraints = [
+            # One open invitation per Diagnostic: issuing again under the lead
+            # lock returns it (bookings.demo_invites.issue_invite).
+            models.UniqueConstraint(
+                fields=['diagnostic_booking'],
+                condition=Q(used_at__isnull=True, revoked_at__isnull=True, replaced_at__isnull=True),
+                name='demo_invites_one_open_per_diagnostic',
+            ),
+            models.CheckConstraint(
+                condition=Q(used_at__isnull=True, demo_booking__isnull=True)
+                | Q(used_at__isnull=False, demo_booking__isnull=False),
+                name='demo_invites_used_with_its_booking',
+            ),
+            # Closed once at most: used, revoked or replaced.
+            models.CheckConstraint(
+                condition=~Q(used_at__isnull=False, revoked_at__isnull=False)
+                & ~Q(used_at__isnull=False, replaced_at__isnull=False)
+                & ~Q(revoked_at__isnull=False, replaced_at__isnull=False),
+                name='demo_invites_closed_once',
+            ),
+            models.CheckConstraint(condition=Q(expires_at__gt=models.F('created_at')), name='demo_invites_expires_after_created'),
+            models.CheckConstraint(
+                condition=Q(used_at__isnull=True) | Q(used_at__lt=models.F('expires_at')),
+                name='demo_invites_used_before_expiry',
+            ),
+            models.CheckConstraint(
+                condition=Q(replaced_at__isnull=True) | Q(replaced_at__gte=models.F('expires_at')),
+                name='demo_invites_replaced_once_expired',
+            ),
+            models.CheckConstraint(
+                condition=Q(revoked_by__isnull=True) | Q(revoked_at__isnull=False),
+                name='demo_invites_revoked_by_needs_revoked_at',
+            ),
+        ]
+
+    def __str__(self):
+        # Never the token: this shows up in the Django admin and in logs.
+        return f"Demo invitation {self.id} ({self.get_status_display()})"
+
+    def status(self, now=None):
+        """A DemoInviteStatus: used, revoked, expired by ``now`` (default: the clock), or active."""
+        if self.used_at is not None:
+            return DemoInviteStatus.USED
+        if self.revoked_at is not None:
+            return DemoInviteStatus.REVOKED
+        if (now or timezone.now()) >= self.expires_at:
+            return DemoInviteStatus.EXPIRED
+        return DemoInviteStatus.ACTIVE
+
+    def get_status_display(self):
+        return DemoInviteStatus(self.status()).label
