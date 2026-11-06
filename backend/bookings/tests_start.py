@@ -599,12 +599,12 @@ class ReadOnlyStartTests(StartApiTestCase):
                     (state, booking.started_at.isoformat() if booking.started_at else None),
                 )
                 self.assertNotIn('started_by', shown)
-        # D5: an enquiry is Booking done only when a class happened, never because its slot ended.
+        # D5: an enquiry is completed only when a class happened, never because its slot ended.
         self.assertEqual(
-            (rows[str(taught.lead_id)]['status'], rows[str(missed.lead_id)]['status']), ('DONE', 'NOT_STARTED'),
+            (rows[str(taught.lead_id)]['status'], rows[str(missed.lead_id)]['status']), ('DEMO_COMPLETED', 'DEMO_NOT_STARTED'),
         )
-        self.assertEqual(rows[str(missed.lead_id)]['status_label'], 'Not started')
-        only = self.client.get('/api/bde/enquiries/', {'status': 'NOT_STARTED'}).json()['results']
+        self.assertEqual(rows[str(missed.lead_id)]['status_label'], 'Demo not started')
+        only = self.client.get('/api/bde/enquiries/', {'status': 'DEMO_NOT_STARTED'}).json()['results']
         self.assertEqual([row['id'] for row in only], [str(missed.lead_id)])
 
     def test_an_enquiry_status_follows_what_happened(self):
@@ -616,18 +616,18 @@ class ReadOnlyStartTests(StartApiTestCase):
             return next(row['status'] for row in rows if row['id'] == str(missed.lead_id))
 
         self.as_user(self.bde)
-        self.assertEqual(status_of(), 'NOT_STARTED')
+        self.assertEqual(status_of(), 'DEMO_NOT_STARTED')
         # The parent books again: the booking still to come decides it.
         again, created = create_booking(request(student='Riya', phone=number, day=indian_today() + timedelta(days=2)))
         self.assertEqual((created, again.lead_id), (True, missed.lead_id))
-        self.assertEqual(status_of(), 'BOOKED')
+        self.assertEqual(status_of(), 'DEMO_BOOKED')
         cancel_booking(again, reason_code=CancelReason.PARENT_REQUEST)
-        self.assertEqual(status_of(), 'NOT_STARTED')
-        # A class that happened -- yesterday morning's Diagnostic, started and reported -- makes it done.
+        self.assertEqual(status_of(), 'DEMO_NOT_STARTED')
+        # A class that happened -- yesterday morning's Diagnostic, started and reported -- makes it completed.
         then = timezone.now() - timedelta(days=3)
         diagnostic, _ = create_booking(request(
             student='Riya', phone=number, booking_type=DIAGNOSTIC, day=indian_today() - timedelta(days=1), at=MORNING,
         ), now=then)
         diagnostic = start(assign_tutor(diagnostic, self.tutor, now=then)[0])
         submit_report(diagnostic, self.tutor, report_input(diagnostic), now=diagnostic.slot.starts_at + timedelta(minutes=30))
-        self.assertEqual(status_of(), 'DONE')
+        self.assertEqual(status_of(), 'DIAGNOSTIC_COMPLETED')

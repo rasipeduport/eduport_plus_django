@@ -68,3 +68,18 @@ class EnquiryCreateSerializer(serializers.Serializer):
         except InvalidLeadDetails as exc:
             raise serializers.ValidationError({exc.field: [exc.message]})
         return data
+
+
+class LeadCreateSerializer(EnquiryCreateSerializer):
+    """
+    A lead an administrator adds by hand (bookings.lead_admin.add_lead): an
+    enquiry's details and, when known, the parent's email. No owner field: it
+    is assigned afterwards (bookings.ownership).
+    """
+    parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
+
+
+class LeadOwnerSerializer(serializers.Serializer):
+    """Giving a lead to a BDE (bookings.lead_views.LeadOwnerView): who, and who the caller saw owning it (null: nobody)."""
+    bde_id = serializers.UUIDField()
+    current_owner_id = serializers.UUIDField(allow_null=True)

@@ -151,14 +151,17 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual(rows[str(self.new.id)]['status'], 'NEW')
         self.assertEqual(rows[str(self.new.id)]['next_booking'], None)
         booked = rows[str(self.booked.id)]
-        # The earliest booking still to come names the status.
-        self.assertEqual((booked['status'], booked['status_label']), ('BOOKED', 'Demo booked'))
+        # The earliest booking still to come names the status (bookings.lead_status).
+        self.assertEqual((booked['status'], booked['status_label']), ('DEMO_BOOKED', 'Demo booked'))
         self.assertEqual(booked['next_booking']['booking_type'], DEMO)
         self.assertEqual(booked['next_booking']['time'], '19:30')
-        self.assertEqual((rows[str(self.done.id)]['status'], rows[str(self.done.id)]['status_label']), ('DONE', 'Booking done'))
+        # A class that happened is not hidden by a later cancellation.
+        self.assertEqual((rows[str(self.done.id)]['status'], rows[str(self.done.id)]['status_label']),
+                         ('DEMO_COMPLETED', 'Demo completed'))
         self.assertEqual((rows[str(self.not_started.id)]['status'], rows[str(self.not_started.id)]['status_label']),
-                         ('NOT_STARTED', 'Not started'))
-        self.assertEqual(rows[str(self.cancelled.id)]['status'], 'CANCELLED')
+                         ('DEMO_NOT_STARTED', 'Demo not started'))
+        self.assertEqual((rows[str(self.cancelled.id)]['status'], rows[str(self.cancelled.id)]['status_label']),
+                         ('DEMO_CANCELLED', 'Demo cancelled'))
 
     def test_a_rescheduled_booking_never_decides_the_status(self):
         moved_then_booked = lead(self.bde, 'Moved On', phone='501000005')
@@ -172,17 +175,24 @@ class StatusAndFilterTests(EnquiryTestCase):
         booking(moved_only, 1, status=BookingStatus.RESCHEDULED)
         rows = {row['id']: row['status'] for row in self.client.get(ENQUIRIES).json()['results']}
         self.assertEqual((rows[str(moved_then_booked.id)], rows[str(moved_then_cancelled.id)], rows[str(moved_only.id)]),
-                         ('BOOKED', 'CANCELLED', 'NEW'))
-        self.assertNotIn(str(moved_only.id), self.ids(self.client.get(ENQUIRIES, {'status': 'cancelled'})))
+                         ('DEMO_BOOKED', 'DEMO_CANCELLED', 'NEW'))
+        self.assertNotIn(str(moved_only.id), self.ids(self.client.get(ENQUIRIES, {'status': 'demo_cancelled'})))
 
     def test_status_filter(self):
         expected = {
-            'NEW': self.new, 'BOOKED': self.booked, 'DONE': self.done, 'NOT_STARTED': self.not_started,
-            'CANCELLED': self.cancelled,
+            'NEW': self.new, 'DEMO_BOOKED': self.booked, 'DEMO_COMPLETED': self.done, 'DEMO_NOT_STARTED': self.not_started,
+            'DEMO_CANCELLED': self.cancelled,
         }
         for state, row in expected.items():
             with self.subTest(status=state):
                 self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'status': state.lower()})), {str(row.id)})
+
+    def test_a_stage_of_either_type_filters_too(self):
+        # The dashboard's Upcoming Bookings opens My Leads at ?status=BOOKED.
+        diagnostic = lead(self.bde, 'Tested', phone='501000009')
+        booking(diagnostic, 3, DIAGNOSTIC)
+        self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'status': 'booked'})), {str(self.booked.id), str(diagnostic.id)})
+        self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'status': 'CANCELLED'})), {str(self.cancelled.id)})
 
     def test_source_and_its_filter(self):
         link = BookingLink.objects.create(bde=self.bde, booking_type=DIAGNOSTIC)
@@ -206,7 +216,8 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'q': '12'})), set())
 
     def test_unknown_filters_are_refused(self):
-        for params in ({'status': 'LOST'}, {'source': 'BOOKING_PAGE'}):
+        # DONE was a status before statuses named their booking type.
+        for params in ({'status': 'LOST'}, {'status': 'DONE'}, {'source': 'SALESFORCE'}):
             with self.subTest(params=params):
                 response = self.client.get(ENQUIRIES, params)
                 self.assertEqual(response.status_code, 400)

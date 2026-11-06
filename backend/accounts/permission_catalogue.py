@@ -133,8 +133,9 @@ CATALOGUE = {
     'accounts.manage_team_conversion': _entry("Manage conversion on their team's leads", 'Conversions', SALES_TL_ONLY),
     'accounts.view_conversion_tracker': _entry('View the complete Conversion Tracker', 'Conversions', ADMIN_AND_SALES_TL),
     'accounts.manage_conversions': _entry('Manage conversion on any lead', 'Conversions', ADMIN_ONLY),
-    # Enquiries: an owner for an unowned lead (D14, P11).
-    'accounts.assign_lead_owner': _entry('Assign an owner BDE to an unowned lead', 'Enquiries', ADMIN_ONLY),
+    # Leads: the owner BDE of any lead, given or changed by an administrator
+    # (D14; bookings.ownership, enforced since accounts.0018).
+    'accounts.assign_lead_owner': _entry("Assign or reassign a lead's owner BDE", 'Leads', ADMIN_ONLY),
 
     # Parent communication (communications app): seeded in Phase 2A, checked by
     # its APIs (2C). A BDE acts on their own leads' bookings only, which the
@@ -144,6 +145,11 @@ CATALOGUE = {
     'accounts.record_parent_confirmation': _entry("Record a parent's confirmation", 'Communications', BDE_AND_ADMIN),
     'accounts.view_all_communications': _entry("View every booking's communication", 'Communications', ADMIN_ONLY),
     'accounts.manage_message_templates': _entry('Manage message templates', 'Communications', ADMIN_ONLY),
+
+    # Leads (administrators: every lead, whatever brought it in; bookings app),
+    # accounts.0018. Giving one its owner BDE is accounts.assign_lead_owner, above.
+    'accounts.view_all_leads': _entry('View all leads', 'Leads', ADMIN_ONLY),
+    'accounts.add_lead': _entry('Add leads', 'Leads', ADMIN_ONLY),
 }
 
 

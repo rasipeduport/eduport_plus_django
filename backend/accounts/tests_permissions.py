@@ -45,6 +45,7 @@ SEED_BOOKINGS = importlib.import_module('accounts.migrations.0013_booking_manage
 SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_assigned_bookings_permission')
 SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnostic_workflow_permissions')
 SEED_COMMUNICATIONS = importlib.import_module('accounts.migrations.0017_communication_permissions')
+SEED_LEADS = importlib.import_module('accounts.migrations.0018_lead_management_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -91,7 +92,7 @@ ADMIN_ONLY = names(
     'manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots',
     'view_all_bookings', 'assign_booking_tutor',
     'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
-    'view_all_communications', 'manage_message_templates',
+    'view_all_communications', 'manage_message_templates', 'view_all_leads', 'add_lead',
 )
 TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report')
 # What later migrations add, one module each: BDE its booking links (0010),
@@ -129,6 +130,9 @@ COMMUNICATION_GRANTS = {
                    'manage_message_templates'),
     'BDE': names('view_own_lead_communications', 'send_lead_communications', 'record_parent_confirmation'),
 }
+# Lead management (0018): every lead, and adding one, for the Admin alone.
+LEAD_PERMISSIONS = names('view_all_leads', 'add_lead')
+LEAD_GRANTS = {'ADMIN': LEAD_PERMISSIONS}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -140,7 +144,8 @@ NEW_ROLE_PERMISSIONS = {
     role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
     for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
-# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, and today.
+# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
+# and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
@@ -158,8 +163,11 @@ GROUP_PERMISSIONS_AT_0014 = {
 GROUP_PERMISSIONS_AT_0015 = {
     role: held | WORKFLOW_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0014.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0017 = {
     role: held | COMMUNICATION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0015.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | LEAD_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0017.items()
 }
 
 
@@ -197,9 +205,9 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_64(self):
-        self.assertEqual(len(CATALOGUE), 64)
-        self.assertLessEqual(WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS, set(CATALOGUE))
+    def test_the_catalogue_is_the_approved_66(self):
+        self.assertEqual(len(CATALOGUE), 66)
+        self.assertLessEqual(WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS, set(CATALOGUE))
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -256,10 +264,15 @@ class CatalogueTests(PermissionTestCase):
     def test_the_migrations_seed_what_the_catalogue_declares(self):
         self.assertEqual(
             SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
-            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS + SEED_WORKFLOW.HUB_PERMISSIONS
-            + SEED_COMMUNICATIONS.HUB_PERMISSIONS,
+            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS
+            # 0018 renames assign_lead_owner (seeded by 0015): it covers reassigning too.
+            + [(codename, SEED_LEADS.ASSIGN_OWNER_NAMES[1] if codename == SEED_LEADS.ASSIGN_OWNER else name)
+               for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
+            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
+        self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_LEADS.GRANTS.items()}, LEAD_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_WORKFLOW.GRANTS.items()}, WORKFLOW_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_COMMUNICATIONS.GRANTS.items()},
                          COMMUNICATION_GRANTS)
@@ -838,6 +851,24 @@ class SeedFunctionTests(PermissionTestCase):
             role_group(role).permissions.add(*(permission(name) for name in COMMUNICATION_PERMISSIONS))
             self.assertFalse(effective_permissions(self.make(f'comms_{role.lower()}_2', role)) & COMMUNICATION_PERMISSIONS)
 
+    def test_running_the_lead_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_LEADS.grant_lead_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_reads_every_lead(self):
+        held = {role: effective_permissions(self.make(f'leads_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertLessEqual(LEAD_PERMISSIONS | names('assign_lead_owner'), held['ADMIN'])
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & (LEAD_PERMISSIONS | names('assign_lead_owner')), role)
+        # A group set up wrongly still cannot hand anyone else every lead.
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in LEAD_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'leads_{role.lower()}_2', role)) & LEAD_PERMISSIONS)
+        self.assertEqual(permission('accounts.assign_lead_owner').name, "Assign or reassign a lead's owner BDE")
+
     def test_who_reschedules_and_who_cancels(self):
         held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
         self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
@@ -914,8 +945,8 @@ class NewRoleTests(PermissionTestCase):
 
 class MigrationReversalTests(TransactionTestCase):
     """
-    0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and apply
-    again with the same seeds, ending at the app's leaf.
+    0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and
+    apply again with the same seeds, ending at the app's leaf.
     """
 
     @staticmethod
@@ -977,7 +1008,23 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0017_communication_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0017)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0018_lead_management_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        assign_owner = Permission.objects.get(content_type__model='hubpermission', codename='assign_lead_owner')
+        self.assertEqual(assign_owner.name, "Assign or reassign a lead's owner BDE")
+
+        # 0018 alone reverses: ADMIN's group is back to 0017's, the lead rows gone and the old name back.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0017_communication_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0017)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in LEAD_PERMISSIONS],
+        ).exists())
+        assign_owner.refresh_from_db()
+        self.assertEqual(assign_owner.name, 'Assign an owner BDE to an unowned lead')
 
         # 0017 alone reverses: every group is back to 0015's and the communication rows gone.
         executor = MigrationExecutor(connection)

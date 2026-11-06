@@ -21,6 +21,8 @@ import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
 import EnquiryPage from './pages/EnquiryPage';
+import LeadsPage from './pages/LeadsPage';
+import LeadPage from './pages/LeadPage';
 import { canOpenPage, homePage, isBde } from './lib/access';
 
 /**
@@ -96,8 +98,11 @@ function HubRoutes({ user, logout }) {
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}
         <Route path="/booking-links" element={<Navigate to="/dashboard" replace />} />
-        {/* A BDE's own enquiries. The API serves each BDE only theirs: another
-            BDE's enquiry is answered as one that does not exist. */}
+        {/* Every lead and its owner BDE, for administrators. */}
+        <Route path="/leads" element={page('/leads', <LeadsPage user={user} />)} />
+        <Route path="/leads/:leadId" element={page('/leads', <LeadPage user={user} />)} />
+        {/* A BDE's own leads (My Leads). The API serves each BDE only theirs:
+            another BDE's lead is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
         <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage user={user} />)} />
         <Route path="*" element={<Navigate to={home} replace />} />

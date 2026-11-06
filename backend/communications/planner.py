@@ -14,6 +14,8 @@ leaves no task or message behind.
                          changed: the unsent messages checked again at once
     sender_contact_changed  a BDE's name or phone changed: the unsent
                          messages of their leads' upcoming bookings checked again
+    lead_owner_changed   a lead given to another BDE: its bookings' open
+                         tasks become theirs, the unsent messages checked again
     refresh_waiting      every minute (communications.tasks): Waiting messages
                          of bookings still to come checked again -- the
                          fallback for a change no hook sees
@@ -186,6 +188,28 @@ def sender_contact_changed(bde, now):
         ).select_related('template', f'{field}__slot', f'{field}__lead__owner_bde', f'{field}__assigned_tutor')
         for message in messages.order_by('pk'):
             refresh_message(message, getattr(message, field), now)
+
+
+def lead_owner_changed(lead, now):
+    """
+    ``lead`` has a new owner BDE (bookings.ownership, which holds the lead's
+    lock): its bookings' open tasks become theirs, and their unsent messages,
+    which sign with the owner, are checked again. Messages are locked before
+    tasks, in id order, as everywhere here.
+    """
+    for model in BOOKING_MODELS:
+        field = 'diagnostic_booking' if model is DiagnosticBooking else 'demo_booking'
+        messages = Message.objects.select_for_update(of=('self',)).filter(
+            **{f'{field}__lead': lead}, status__in=(MessageStatus.WAITING, MessageStatus.PENDING),
+        ).select_related('template', f'{field}__slot', f'{field}__lead__owner_bde', f'{field}__assigned_tutor')
+        for message in messages.order_by('pk'):
+            refresh_message(message, getattr(message, field), now)
+    _update_tasks(
+        CommunicationTask.objects.filter(
+            Q(diagnostic_booking__lead=lead) | Q(demo_booking__lead=lead), status=TaskStatus.OPEN,
+        ),
+        owner_role=OwnerRole.BDE, owner=lead.owner_bde, updated_at=now,
+    )
 
 
 def booking_cancelled(booking, now):

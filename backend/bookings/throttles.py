@@ -1,5 +1,5 @@
 """
-Rate limits for the public booking API, per parent address.
+Rate limits for the public booking and lead APIs, per parent address.
 
 Every call comes from the marketing server, so the address counted is the one
 it forwards (bookings.authentication.client_ip). The counts live in Django's
@@ -24,3 +24,7 @@ class BookingCreateThrottle(_ParentAddressThrottle):
 
 class BookingCalendarThrottle(_ParentAddressThrottle):
     scope = 'public_booking_calendar'
+
+
+class LeadCreateThrottle(_ParentAddressThrottle):
+    scope = 'public_lead'

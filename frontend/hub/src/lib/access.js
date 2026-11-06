@@ -55,6 +55,11 @@ export const PERMISSIONS = {
   addEnquiry: 'accounts.add_enquiry',
   viewOwnLeadReports: 'accounts.view_own_lead_reports',
 
+  // Every lead, for administrators (backend bookings.lead_views): reading, adding by hand, giving a lead to a BDE.
+  viewAllLeads: 'accounts.view_all_leads',
+  addLead: 'accounts.add_lead',
+  assignLeadOwner: 'accounts.assign_lead_owner',
+
   manageBookingSlots: 'accounts.manage_booking_slots',
   viewAllBookings: 'accounts.view_all_bookings',
   assignBookingTutor: 'accounts.assign_booking_tutor',
@@ -96,6 +101,8 @@ export const PAGE_PERMISSIONS = {
   '/team': [P.viewTeam, P.manageTeam],
   '/invitations': [P.viewInvitations],
   '/activity': ACTIVITY_VIEW,
+  // Every lead, whatever brought it in, and the BDE who owns it, for administrators.
+  '/leads': [P.viewAllLeads],
   // Every Demo and Diagnostic booking and the tutor teaching it, for administrators.
   '/bookings': [P.viewAllBookings],
   // The Demo and Diagnostic slots parents book, for administrators.

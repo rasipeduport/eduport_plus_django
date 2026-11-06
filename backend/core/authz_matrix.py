@@ -379,6 +379,12 @@ def _public_booking(w):
             'student_class': 'Class 8', 'syllabus': 'CBSE', 'ref': None}
 
 
+def _public_lead(w):
+    return {'source': 'WEBSITE', 'parent_name': 'Matrix Parent', 'student_name': 'Matrix Form Child',
+            'phone': {'dial_code': '+971', 'number': '0501234567'}, 'school': 'Matrix School', 'grade': 'Class 8',
+            'syllabus': 'CBSE', 'utm': {'utm_source': 'matrix'}}
+
+
 def _create_session(w, stu):
     date, time = w.day(30)
     return {'student_id': w.id(stu), 'base_title': 'Matrix Class', 'series': False, 'timezone': TZ,
@@ -558,9 +564,21 @@ SCENARIOS = [
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
         'student_name': 'Matrix Walk-in', 'grade': 'Class 6', 'source': 'WALK_IN'}),
 
-    # --- public booking API (the marketing site's server key only) ------------
+    # --- Leads (administrators: every lead, adding one, giving it a BDE) -------
+    Scenario('leads.list', 'get', '/api/leads/'),
+    Scenario('leads.bdes', 'get', '/api/leads/bdes/'),
+    Scenario('leads.detail', 'get', '/api/leads/{lead_a}/'),
+    Scenario('leads.create', 'post', '/api/leads/', {
+        'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000002',
+        'student_name': 'Matrix Admin Lead', 'grade': 'Class 6', 'source': 'PHONE_CALL'}),
+    # No caller here is a BDE, so no account may take lead_a: mentor_a is refused as one.
+    Scenario('leads.assign_owner', 'put', '/api/leads/{lead_a}/owner/',
+             lambda w: {'bde_id': w.id('mentor_a'), 'current_owner_id': None}),
+
+    # --- public booking and lead APIs (the marketing site's server key only) --
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
     Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
+    Scenario('public.lead_create', 'post', '/api/public/leads/', _public_lead),
 
     # --- WhatsApp webhook (Meta's servers only, by signature; no session read) --
     Scenario('communications.whatsapp_webhook_verify', 'get',
