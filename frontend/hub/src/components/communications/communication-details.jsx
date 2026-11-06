@@ -29,8 +29,23 @@ const DONE_AS = {
   NOT_NEEDED: 'Not needed',
 };
 
-/** A step's one line: how and when it was done, or when it is due or closed. */
-function stepLine(task) {
+const ACTIVITY_NAMES = { DEMO: 'Demo', DIAGNOSTIC: 'Diagnostic' };
+
+/**
+ * The 15-minute call's reminder while it is on -- from its `active_from` until
+ * the start (`due_at`), when the backend marks it done -- or null. A reminder
+ * only: nothing is recorded on it.
+ */
+function callReminder(task, bookingType, now = Date.now()) {
+  if (task.step !== 'PRE_ACTIVITY_CALL' || !task.active_from || !task.due_at) return null;
+  const left = new Date(task.due_at).getTime() - now;
+  if (now < new Date(task.active_from).getTime() || left <= 0) return null;
+  const minutes = Math.ceil(left / 60000);
+  return `Call parent – ${ACTIVITY_NAMES[bookingType] ?? 'Booking'} starts in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
+/** A step's one line: how and when it was done, the call's reminder, or when it is due or closed. */
+function stepLine(task, bookingType) {
   switch (task.status) {
     case 'DONE':
       return joined(DONE_AS[task.resolution] ?? task.resolution_label, istMoment(task.resolved_at));
@@ -39,7 +54,7 @@ function stepLine(task) {
     case 'CANCELLED':
       return joined(task.resolution_label, istMoment(task.resolved_at));
     default:
-      return task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class';
+      return callReminder(task, bookingType) ?? (task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class');
   }
 }
 
@@ -194,7 +209,9 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
                     <span className="font-medium">{stepLabel(task)}</span>
                     <TaskStateBadge task={task} />
                   </div>
-                  {stepLine(task) ? <p className="text-muted-foreground mt-0.5 text-xs">{stepLine(task)}</p> : null}
+                  {stepLine(task, booking.booking_type) ? (
+                    <p className="text-muted-foreground mt-0.5 text-xs">{stepLine(task, booking.booking_type)}</p>
+                  ) : null}
                 </li>
               ))}
             </ol>

@@ -2187,6 +2187,35 @@ test("BDE: each booking shows the parent's answer and opens its communication in
   assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
 });
 
+test('BDE: the pre-activity call reminds from 15 minutes before the start, then reads Done, with nothing to record on it', async () => {
+  const at = (minutes) => new Date(Date.now() + minutes * 60000).toISOString();
+  const withCall = (booking, call) => {
+    const data = communication(booking);
+    return { ...data, tasks: data.tasks.map((task) => (task.step === 'PRE_ACTIVITY_CALL' ? { ...task, ...call } : task)) };
+  };
+  const diagnostic = { ...BDE_BOOKED, id: 'b-3', booking_type: 'DIAGNOSTIC' };
+  const cases = [
+    // 15 minutes before, for a Demo and a Diagnostic alike.
+    [BDE_BOOKED, { active_from: at(0), due_at: at(15) }, 'Pre-activity BDE callOpenCall parent – Demo starts in 15 minutes.'],
+    [diagnostic, { active_from: at(-14), due_at: at(1) }, 'Pre-activity BDE callOpenCall parent – Diagnostic starts in 1 minute.'],
+    // Not yet: its time only.
+    [BDE_BOOKED, { active_from: at(5), due_at: at(20) }, /^Pre-activity BDE callOpenDue \d{1,2} \w{3} \d{4}, .+ IST$/],
+    // Done at the start, by the backend: never Missed, never Overdue.
+    [BDE_BOOKED, { active_from: at(-30), due_at: at(-15), status: 'DONE', status_label: 'Done', resolution: 'REMINDED',
+      resolution_label: 'Reminder complete', resolved_at: '2026-10-31T14:00:00+00:00' },
+    'Pre-activity BDE callDoneReminder complete · 31 Oct 2026, 7:30 PM IST'],
+  ];
+  for (const [booking, call, line] of cases) {
+    serve({ [`GET ${ENQUIRY_URL}`]: enquiry([booking]), [`GET ${commsUrl(booking)}`]: withCall(booking, call) });
+    const page = await open(`/enquiries/lead-1?booking=${booking.id}&booking_type=${booking.booking_type}`, BDE_COMMS);
+    const [steps] = topDialog().querySelectorAll('ol');
+    if (line instanceof RegExp) assert.match(listItems(steps)[3], line);
+    else assert.equal(listItems(steps)[3], line);
+    assert.equal(steps.querySelectorAll('button').length, 0, 'nothing to act on in the steps');
+    await page.unmount();
+  }
+});
+
 test('BDE: no Confirmation column, Communication or request for one without accounts.view_own_lead_communications', async () => {
   serve({
     [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, parent_confirmation: null }]),
