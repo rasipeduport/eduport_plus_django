@@ -10,10 +10,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { CommunicationSection } from '@/components/communications/communication-section';
 import { AdminReportSection } from '@/components/reports/admin-report-section';
-import { bookingError, bookingTutorUrl, bookingUrl, referralLabel, tutorChangeable } from '@/lib/bookings';
+import { bookingDemoInviteUrl, bookingError, bookingTutorUrl, bookingUrl, cameInLabel, tutorChangeable } from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { BookingHistory } from './booking-history';
 import { BookingStateBadge, StartInfo, TutorName } from './booking-badges';
+import { DemoInviteButton } from './demo-invite-button';
 import { MeetLink } from './meet-link';
 import { MeetLinkDialog } from './meet-link-dialog';
 
@@ -79,6 +80,9 @@ function DetailSkeleton() {
  * accounts.view_all_communications (`canViewCommunication`), with asking for
  * the parent's confirmation and recording their answer where the API offers
  * them -- after which the page reads everything again (`onCommunicationChanged`).
+ * A Diagnostic whose report is in offers Send Demo Invitation when the API
+ * does (actions.demo_invite); a Demo booked with one says so, who sent it and
+ * the Diagnostic it came from.
  */
 export function BookingDetailSheet({
   bookingType,
@@ -212,8 +216,8 @@ export function BookingDetailSheet({
         <Section
           title="Booking"
           action={
-            shown.actions?.reschedule || shown.actions?.cancel ? (
-              <div className="flex gap-2">
+            shown.actions?.reschedule || shown.actions?.cancel || shown.actions?.demo_invite ? (
+              <div className="flex flex-wrap items-start justify-end gap-2">
                 {shown.actions?.reschedule ? (
                   <Button variant="outline" size="sm" onClick={() => onReschedule?.(shown)}>
                     Reschedule
@@ -223,6 +227,14 @@ export function BookingDetailSheet({
                   <Button variant="destructive" size="sm" onClick={() => onCancel?.(shown)}>
                     Cancel booking
                   </Button>
+                ) : null}
+                {/* The parent's invitation to book a Demo, from a Diagnostic whose report is in. */}
+                {shown.actions?.demo_invite ? (
+                  <DemoInviteButton
+                    inviteUrl={bookingDemoInviteUrl(bookingType, shown.id)}
+                    recipient={{ dialCode: lead.phone_dial_code, number: lead.phone_number }}
+                    onRefused={() => setRetryKey((key) => key + 1)}
+                  />
                 ) : null}
               </div>
             ) : null
@@ -242,8 +254,15 @@ export function BookingDetailSheet({
           ) : null}
           <Detail label="Seat">{shown.seat ? String(shown.seat) : null}</Detail>
           <Detail label="Booked on">{formatDay(shown.booked_at)}</Detail>
-          <Detail label="Came in">{referralLabel(shown.referral_status)}</Detail>
-          <Detail label="Credited BDE">{shown.bde?.full_name}</Detail>
+          <Detail label="Came in">{cameInLabel(shown)}</Detail>
+          {shown.channel === 'BDE_HANDOFF' ? (
+            <>
+              <Detail label="Invited by">{shown.created_by?.full_name}</Detail>
+              <Detail label="From Diagnostic">{shown.invited_from ? slotLabel(shown.invited_from.slot) : null}</Detail>
+            </>
+          ) : (
+            <Detail label="Credited BDE">{shown.bde?.full_name}</Detail>
+          )}
         </Section>
 
         {/* Its parent communication (Phase 3.1), and the parent's confirmation (3.2). */}

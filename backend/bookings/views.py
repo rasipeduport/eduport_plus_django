@@ -14,9 +14,10 @@ from core.timezones import DATE_PATTERN
 
 from . import enquiries
 from .booking_service import BookingBusy, BookingError, cancel_booking, set_slots_closed
+from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
-from .models import SLOT_CAPACITY, SLOT_MINUTES, SlotTime, booking_model
+from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, SlotTime, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
 from .serializers import BookingLinkSerializer, CancelSerializer, EnquiryCreateSerializer, SlotChangeSerializer
@@ -24,6 +25,7 @@ from .services import links_for, owns_booking_links
 
 VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
 CANCEL_BOOKING = 'accounts.cancel_booking'
+CREATE_DEMO_BOOKING = 'accounts.create_demo_booking'
 VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
 VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications'
 
@@ -201,6 +203,7 @@ def _enquiry(request, lead, now):
     return enquiries.enquiry_detail(
         lead, now, can_cancel=_can_cancel(request),
         show_confirmation=has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request),
+        can_invite=has_app_permission(request.user, CREATE_DEMO_BOOKING, request),
     )
 
 
@@ -246,6 +249,45 @@ class BdeBookingCancelView(BdeWorkspaceView):
         now = timezone.now()
         lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
         return Response({**_enquiry(request, lead, now), 'changed': changed}, status=status.HTTP_200_OK)
+
+
+class BdeDemoInviteView(BdeWorkspaceView):
+    """
+    POST /api/bde/bookings/diagnostic/<id>/demo-invite/
+    The invitation for the parent of one of the caller's own leads to book a
+    Demo from its Diagnostic (bookings.demo_invites.issue_invite): 201 with a
+    new one, 200 with the active one -- the same link every time until it
+    expires. 409 NO_REPORT, DEMO_NOT_OFFERED or DEMO_ALREADY_BOOKED when the
+    child may not be invited now.
+
+    Ownership is enforced here and again under the lead's lock, as for a
+    cancellation: another BDE's lead, one nobody owns (only an administrator
+    invites for it), a Demo booking and one that does not exist are all 404
+    "No such booking". Needs accounts.view_own_enquiries and
+    accounts.create_demo_booking, the BDE's Demo handoff; an account that is
+    not a BDE is answered NOT_A_BDE.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CREATE_DEMO_BOOKING)]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        if PATH_TYPES.get(booking_type) != BookingType.DIAGNOSTIC:
+            return _no_booking()
+        booking = booking_model(BookingType.DIAGNOSTIC).objects.filter(
+            pk=pk, lead__in=enquiries.own_leads(request.user),
+        ).first()
+        if booking is None:
+            return _no_booking()
+        try:
+            invite, created = issue_invite(booking, request.user, owner_bde=request.user, request=request)
+        except BookingError as exc:
+            return _bde_error(exc.code, exc.message, exc.http_status)
+        return Response(
+            {'invite': invite_body(invite), 'created': created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 def _no_booking():

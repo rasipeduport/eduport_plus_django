@@ -37,12 +37,25 @@ from .booking_service import (
     tutor_commitments,
     tutor_conflicts,
 )
+from .demo_invites import invitable
 from .lifecycle import activity_state
-from .models import BookingEvent, BookingSlot, BookingStatus, CancelReason, Lead, NotConfirmedReason, RescheduleReason
+from .models import (
+    BookingChannel,
+    BookingEvent,
+    BookingSlot,
+    BookingStatus,
+    CancelReason,
+    DemoBooking,
+    DemoInvite,
+    Lead,
+    NotConfirmedReason,
+    RescheduleReason,
+)
 from .scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME, bookable_window, slot_instants
 
 CANCEL_BOOKING = 'accounts.cancel_booking'
 RESCHEDULE_BOOKING = 'accounts.reschedule_booking'
+SEND_LEAD_COMMUNICATIONS = 'accounts.send_lead_communications'
 
 
 AVAILABLE, UNAVAILABLE = 'AVAILABLE', 'UNAVAILABLE'
@@ -143,7 +156,7 @@ def listed(model):
     """Every booking of ``model``'s type (a booking table), with what its rows show."""
     return model.objects.select_related(
         'slot', 'lead', 'lead__owner_bde', 'assigned_tutor', 'attributed_bde', 'tutor_assigned_by', 'cancelled_by',
-        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot', 'report', 'started_by',
+        'rescheduled_by', 'rescheduled_from__slot', 'rescheduled_to__slot', 'report', 'started_by', 'created_by',
     )
 
 
@@ -308,6 +321,12 @@ def booking_detail(booking, now, user=None, request=None):
             'owner_bde': _person(lead.owner_bde),
         },
         'referral_status': booking.referral_status,
+        # How it was made: on a public booking page (referral_status says through
+        # which link), or as a BDE handoff -- a Demo booked with a Demo invitation --
+        # made by whoever sent the invitation, from the Diagnostic it names.
+        'channel': booking.channel,
+        'created_by': _person(booking.created_by),
+        'invited_from': invited_from(booking, now),
         'tutor_assigned_at': _when(booking.tutor_assigned_at),
         'tutor_assigned_by': _person(booking.tutor_assigned_by),
         # Who started it -- its tutor, by their own Start -- with the row's started_at.
@@ -356,7 +375,8 @@ def booking_actions(booking, now, user=None, request=None):
     What ``user`` may do with ``booking`` now, by the permissions they hold and
     the rules the service applies: cancel a booked booking, mark it No-show
     once its scheduled time has passed (D12), move it while its tutor has not
-    started it (Q23, move_refusal).
+    started it (Q23, move_refusal), and send the parent a Demo invitation from
+    a Diagnostic whose report is in (bookings.demo_invites).
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
@@ -367,7 +387,23 @@ def booking_actions(booking, now, user=None, request=None):
         'cancel': cancel,
         'no_show': cancel and booking.slot.starts_at <= now,
         'reschedule': booked and holds(RESCHEDULE_BOOKING) and move_refusal(booking, now) is None,
+        'demo_invite': holds(SEND_LEAD_COMMUNICATIONS) and invitable(booking, now),
     }
+
+
+def invited_from(booking, now):
+    """
+    The Diagnostic booking whose Demo invitation booked ``booking`` -- or the
+    first booking of its reschedule chain, which the invitation names -- as a
+    chain link, or None for a booking no invitation made.
+    """
+    if booking.channel != BookingChannel.BDE_HANDOFF or not isinstance(booking, DemoBooking):
+        return None
+    first = booking
+    while first.rescheduled_from_id:
+        first = DemoBooking.objects.only('id', 'rescheduled_from_id').get(pk=first.rescheduled_from_id)
+    invite = DemoInvite.objects.select_related('diagnostic_booking__slot').filter(demo_booking_id=first.pk).first()
+    return _chain_link(invite.diagnostic_booking, now) if invite is not None else None
 
 
 def move_refusal(booking, now):

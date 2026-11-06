@@ -41,6 +41,7 @@ const ENTITY_NOUN = {
   profile: 'User',
   booking_link: 'Booking link',
   booking: 'Booking',
+  demo_invite: 'Demo invitation',
   report: 'Report',
   booking_slot: 'Slot',
   booking_schedule: 'Schedule',
@@ -201,7 +202,13 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">
-                          {row.actor_name ?? row.actor_email ?? (row.context?.via === 'public_booking' ? 'Booking page' : 'Unknown')}
+                          {row.actor_name ??
+                            row.actor_email ??
+                            (row.context?.via === 'public_booking'
+                              ? 'Booking page'
+                              : row.context?.via === 'demo_invite'
+                                ? 'Invitation page'
+                                : 'Unknown')}
                         </div>
                         {row.actor_role ? (
                           <div className="text-muted-foreground text-xs capitalize">{row.actor_role.toLowerCase()}</div>

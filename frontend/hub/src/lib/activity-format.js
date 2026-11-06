@@ -74,6 +74,9 @@ export const ACTION_LABELS = {
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
   'booking.parent_confirmation': 'Parent confirmation recorded',
+  // Demo invitations (backend bookings.demo_invites): ids only, never the link.
+  'demo_invite.issue': 'Demo invitation issued',
+  'demo_invite.revoke': 'Demo invitation revoked',
   // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
   'report.submit': 'Report submitted',
   'report.edit': 'Report edited',
@@ -295,9 +298,16 @@ export function describeActivity(row) {
       return row.context?.previous_owner_id ? 'Reassigned a lead to another BDE' : 'Assigned a lead to a BDE';
     case 'booking.create': {
       const type = String(row.context?.booking_type ?? '').toLowerCase();
+      if (row.context?.via === 'demo_invite') return 'Booked a demo slot with a Demo invitation';
       const via = row.context?.referral_status === 'ATTRIBUTED' ? ' through a BDE link' : '';
       return `Booked a ${type || 'demo'} slot${via}`;
     }
+    case 'demo_invite.issue':
+      return row.context?.replaced_invite_id
+        ? 'Issued a new Demo invitation link (the last one had expired)'
+        : 'Issued a Demo invitation link';
+    case 'demo_invite.revoke':
+      return 'Revoked a Demo invitation link';
     case 'booking.cancel': {
       // A reason code since P3; entries from before carry the text they were given.
       const reason = cancelReasonLabel(row.context?.reason_code) || reasonOf(row);

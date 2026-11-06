@@ -125,7 +125,7 @@ class AdminBookingReportFieldTests(AdminReportApiTestCase):
             'submitted_by': {'id': str(self.tutor.id), 'full_name': 'Tutor Anu'}, 'updated_at': after['report']['updated_at'],
         })
         self.assertGreater(after['report']['updated_at'], submitted['submitted_at'])
-        self.assertEqual(after['actions'], {'cancel': False, 'no_show': False, 'reschedule': False})
+        self.assertEqual(after['actions'], {'cancel': False, 'no_show': False, 'reschedule': False, 'demo_invite': False})
 
     def test_the_history_names_the_completion_and_each_edit_as_the_hub_reads_them(self):
         self.as_tutor()

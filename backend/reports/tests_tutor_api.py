@@ -322,7 +322,7 @@ class LegacyCompletedApiTests(TutorReportApiTestCase):
             (detail['status'], detail['activity_state'], detail['started_at'], detail['started_by'], detail['report']['version'],
              detail['report_due'], detail['tutor_change_refusal']['code'], detail['actions']),
             ('COMPLETED', 'COMPLETED', None, None, 1, False, 'BOOKING_COMPLETED',
-             {'cancel': False, 'no_show': False, 'reschedule': False}),
+             {'cancel': False, 'no_show': False, 'reschedule': False, 'demo_invite': False}),
         )
         self.assertEqual(self.client.get(f'/api/bookings/demo/{self.demo.id}/report/').json()['version'], 1)
         pdf = self.client.get(f'/api/bookings/demo/{self.demo.id}/report/pdf/')

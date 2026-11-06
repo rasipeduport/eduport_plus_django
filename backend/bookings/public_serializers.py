@@ -49,6 +49,20 @@ class BookingRequestSerializer(serializers.Serializer):
         return data
 
 
+class DemoInviteBookingSerializer(serializers.Serializer):
+    """
+    A Demo booked with an invitation, as the marketing server sends it: the
+    invitation's token and the slot, nothing about the child or the parent
+    -- the invitation names the lead (booking_service.create_invited_demo_booking).
+    Unknown fields are dropped.
+    """
+    token = serializers.CharField(max_length=64)
+    date = serializers.DateField(input_formats=['%Y-%m-%d'])
+    time = serializers.TimeField(input_formats=['%H:%M'])
+    # The slot as the parent saw it, in their own time zone.
+    display_time = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+
+
 def plain_text(value):
     """Refuse control characters (a typed name or a campaign tag never has one)."""
     if any(unicodedata.category(char) == 'Cc' for char in value):

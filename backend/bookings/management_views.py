@@ -11,6 +11,7 @@ Booking management for the Admin / Coordinator (bookings.coordination):
     GET    /api/bookings/<type>/<id>/reschedule-options/  where it may move, and whether its tutor is free there
     POST   /api/bookings/<type>/<id>/reschedule/ {date, time, reason}  move it
     POST   /api/bookings/<type>/<id>/cancel/ {reason}   cancel it, or mark it No-show
+    POST   /api/bookings/diagnostic/<id>/demo-invite/   the parent's invitation to book a Demo from it
 
 Its report, read-only, is under ``…/report/`` (reports.management_views).
 
@@ -22,7 +23,9 @@ accounts.assign_booking_tutor; only the ADMIN role may hold either (a superuser
 holds both, decision D1). Moving a booking needs accounts.reschedule_booking
 too (the Admin only, Q23) and cancelling accounts.cancel_booking: a BDE holds
 that one for their own leads' bookings (Q22), but never reaches these
-Admin routes, which also need view_all_bookings. Reasons are codes from a
+Admin routes, which also need view_all_bookings. Sending a Demo invitation
+needs accounts.send_lead_communications too: the link goes to the parent
+(bookings.demo_invites). Reasons are codes from a
 fixed list (Q9), never free text (decision M1). Nothing in a request widens what is shown: every
 caller holding the permission sees every booking, and nobody else sees any.
 The tutor is changed only by bookings.booking_service, which checks the tutor
@@ -51,6 +54,7 @@ from .booking_service import (
     reschedule_booking,
     unassign_tutor,
 )
+from .demo_invites import invite_body, issue_invite
 from .models import BookingSlot, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME
@@ -62,6 +66,7 @@ VIEW_ALL_BOOKINGS = HasAppPermission('accounts.view_all_bookings')
 ASSIGN_BOOKING_TUTOR = HasAppPermission('accounts.assign_booking_tutor')
 CANCEL_BOOKING = HasAppPermission('accounts.cancel_booking')
 RESCHEDULE_BOOKING = HasAppPermission('accounts.reschedule_booking')
+SEND_LEAD_COMMUNICATIONS = HasAppPermission('accounts.send_lead_communications')
 
 
 def _error(code, message, http_status, **extra):
@@ -320,4 +325,33 @@ class BookingCancelView(APIView):
         return Response(
             {**coordination.booking_detail(rows.get(pk=booking.pk), timezone.now(), request.user, request), 'changed': changed},
             status=status.HTTP_200_OK,
+        )
+
+
+class BookingDemoInviteView(APIView):
+    """
+    POST /api/bookings/diagnostic/<id>/demo-invite/
+    The Diagnostic's invitation for its parent to book a Demo
+    (bookings.demo_invites.issue_invite), for any lead -- one nobody owns
+    included: 201 with a new one, 200 with the active one, so Copy, WhatsApp
+    and Preview all pass on the same link until it expires. Answers
+    ``{"invite": {"url", "status", "expires_at", ...}, "created"}``; 409
+    NO_REPORT, DEMO_NOT_OFFERED or DEMO_ALREADY_BOOKED when the child may not
+    be invited now. Only a Diagnostic sends one: any other type is 404.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, SEND_LEAD_COMMUNICATIONS]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        if booking_type != 'diagnostic':
+            return _no_booking()
+        booking = _bookings(booking_type).filter(pk=pk).first()
+        if booking is None:
+            return _no_booking()
+        try:
+            invite, created = issue_invite(booking, request.user, request=request)
+        except BookingError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return Response(
+            {'invite': invite_body(invite), 'created': created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )

@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from activity.utils import log_activity
 
+from .demo_invites import invitable
 from .lead_intake import LeadExists, create_lead
 from .lead_status import status_label, with_status
 from .leads import InvalidLeadDetails
@@ -154,13 +155,15 @@ def _row(lead, next_booking):
     }
 
 
-def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
+def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False, can_invite=False):
     """
     One enquiry in full (``lead`` from ``listed``), with every booking it has
     made -- each with its tutor and Meet link (_teaching) and what its owner
     BDE may do with it now (``actions``): cancel it while it is booked when
     ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its
-    scheduled time has passed (D12) -- and where it stands as a class, started
+    scheduled time has passed (D12), send the parent a Demo invitation from a
+    Diagnostic whose report is in when ``can_invite``
+    (accounts.create_demo_booking, bookings.demo_invites) -- and where it stands as a class, started
     by its tutor and when, or not (``activity_state``, ``started_at``), to read
     only. Each booking's parent confirmation (a ParentConfirmation
     code) is shown to whoever may see the lead's communication
@@ -168,7 +171,7 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
     """
     bookings = sorted(
         [
-            *lead.diagnostic_bookings.select_related('slot', 'assigned_tutor'),
+            *lead.diagnostic_bookings.select_related('slot', 'assigned_tutor', 'report'),
             *lead.demo_bookings.select_related('slot', 'assigned_tutor'),
         ],
         key=_soonest,
@@ -199,7 +202,7 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
                 'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
                 **_teaching(booking),
                 'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
-                'actions': _booking_actions(booking, now, can_cancel),
+                'actions': _booking_actions(booking, now, can_cancel, can_invite),
             }
             for booking in bookings
         ],
@@ -219,9 +222,13 @@ def _teaching(booking):
     return {'tutor': {'full_name': tutor.full_name or tutor.username}, 'tutor_meet_link': booking.tutor_meet_link}
 
 
-def _booking_actions(booking, now, can_cancel):
+def _booking_actions(booking, now, can_cancel, can_invite=False):
     cancel = can_cancel and booking.status == BookingStatus.BOOKED
-    return {'cancel': cancel, 'no_show': cancel and booking.slot.starts_at <= now}
+    return {
+        'cancel': cancel,
+        'no_show': cancel and booking.slot.starts_at <= now,
+        'demo_invite': can_invite and invitable(booking, now),
+    }
 
 
 def dashboard(bde, now=None):

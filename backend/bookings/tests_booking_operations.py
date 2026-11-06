@@ -74,7 +74,7 @@ class CancelTests(OperationsTestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual((res.data['status'], res.data['cancel_reason'], res.data['cancel_reason_code'], res.data['changed']),
                          ('CANCELLED', 'Parent asked to cancel', 'PARENT_REQUEST', True))
-        self.assertEqual(res.data['actions'], {'cancel': False, 'no_show': False, 'reschedule': False})
+        self.assertEqual(res.data['actions'], {'cancel': False, 'no_show': False, 'reschedule': False, 'demo_invite': False})
         booking.refresh_from_db()
         self.assertEqual((booking.cancel_reason_code, booking.cancel_reason, booking.cancelled_by), ('PARENT_REQUEST', '', self.admin))
         self.assertEqual(booking.events.last().data, {'from_status': 'BOOKED', 'to_status': 'CANCELLED', 'reason_code': 'PARENT_REQUEST'})
@@ -100,11 +100,11 @@ class CancelTests(OperationsTestCase):
         res = self.cancel(ahead, reason='NO_SHOW')
         self.assertEqual((res.status_code, res.data['error']), (409, 'NO_SHOW_BEFORE_START'))
         detail = self.client.get(detail_url(ahead)).data
-        self.assertEqual(detail['actions'], {'cancel': True, 'no_show': False, 'reschedule': True})
+        self.assertEqual(detail['actions'], {'cancel': True, 'no_show': False, 'reschedule': True, 'demo_invite': False})
 
         # Last week's, never started: a No-show, and still movable (D3).
         past = self.last_week('Old Kid')
-        self.assertEqual(self.client.get(detail_url(past)).data['actions'], {'cancel': True, 'no_show': True, 'reschedule': True})
+        self.assertEqual(self.client.get(detail_url(past)).data['actions'], {'cancel': True, 'no_show': True, 'reschedule': True, 'demo_invite': False})
         res = self.cancel(past, reason='NO_SHOW')
         self.assertEqual((res.status_code, res.data['cancel_reason']), (200, 'No-show'))
 
@@ -395,7 +395,7 @@ class OperationPermissionTests(OperationsTestCase):
         group.permissions.remove(Permission.objects.get(codename='reschedule_booking'))
         client = APIClient()
         client.force_authenticate(user=type(self.admin).objects.get(pk=self.admin.pk))
-        self.assertEqual(client.get(detail_url(booking)).data['actions'], {'cancel': True, 'no_show': False, 'reschedule': False})
+        self.assertEqual(client.get(detail_url(booking)).data['actions'], {'cancel': True, 'no_show': False, 'reschedule': False, 'demo_invite': False})
         self.assertEqual(self.move(booking, self.day + timedelta(days=1), client=client).status_code, 403)
         self.assertEqual(client.get(ops_url(booking, 'reschedule-options')).status_code, 403)
         self.assertEqual(self.cancel(booking, client=client).status_code, 200)

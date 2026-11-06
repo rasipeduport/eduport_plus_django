@@ -18,6 +18,7 @@ from .models import BookingEvent, DiagnosticBooking
 # What an event's data may hold: ids, statuses and codes.
 DATA_KEYS = frozenset({
     'slot_id', 'seat', 'referral_status', 'via',  # CREATED
+    'invite_id',  # CREATED through a Demo invitation (bookings.demo_invites): the invitation used, never its token
     'old_tutor_id', 'new_tutor_id',  # TUTOR_ASSIGNED / TUTOR_UNASSIGNED
     'from_status', 'to_status',  # a change of status
     # CANCELLED / RESCHEDULED / PARENT_NOT_CONFIRMED: a CancelReason, RescheduleReason or NotConfirmedReason, never text

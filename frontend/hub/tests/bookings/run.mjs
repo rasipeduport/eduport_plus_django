@@ -2483,6 +2483,209 @@ test('Activity feed: a confirmation request is labelled and described by its typ
   assert.equal(describeActivity(entry({})), 'Asked the parent to confirm a booking');
 });
 
+// ------------------------------------------- Demo invitations (Diagnostic -> Demo)
+// The API decides who may send one, and when (backend bookings.demo_invites): the page shows Send Demo
+// Invitation where actions.demo_invite says so, and asks for the link only when its menu opens.
+const INVITE = { id: 'inv-1', url: 'https://plus.eduport.app/demo-invite#TokenFromTheApi', status: 'ACTIVE',
+  created_at: '2026-11-02T06:00:00+00:00', expires_at: '2026-11-09T06:00:00+00:00', created_by: { id: 'admin', full_name: 'Admin One' } };
+const INVITE_TEXT = "Book your child's demo class with Eduport Plus. Just pick a date and time:";
+const ALI_DONE = { ...ALI, id: 'b-ali-done', status: 'COMPLETED', slot: { ...ALI.slot, started: true, ended: true },
+  activity_state: 'COMPLETED', started_at: '2026-11-01T04:31:00+00:00', ...reportFields({ has_report: true, report_version: 1 }) };
+const aliReport = { id: 'r-ali', booking_id: ALI_DONE.id, booking_type: 'DIAGNOSTIC', version: 1, student_name: 'Ali', grade: '9',
+  tutor_name: 'Tutor A', submitted_at: '2026-11-01T05:20:00+00:00', updated_at: '2026-11-01T05:20:00+00:00',
+  fields: { score: 18, max_score: 25, performance_level: 'GOOD', strength_areas: ['Fractions'], skills_to_strengthen: ['Word problems'],
+    teacher_remarks: 'Works carefully.', suggested_plan: 'Two sessions a week.' } };
+const INVITABLE = { cancel: false, no_show: false, reschedule: false, demo_invite: true };
+const inviteUrl = at(ALI_DONE, 'demo-invite/');
+const menuItems = () => [...document.querySelectorAll('[role="menuitem"]')];
+const menuItem = (label) => menuItems().find((item) => clean(item.textContent) === label);
+
+async function openMenu(trigger) {
+  trigger.focus();
+  await keyDown(trigger, 'Enter');
+}
+
+/** A browser whose clipboard records what is written to it (or refuses); removed afterwards. */
+async function withClipboard(run, refuse = false) {
+  const written = [];
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => {
+    if (refuse) throw new Error('blocked');
+    written.push(text);
+  } } });
+  try {
+    await run(written);
+  } finally {
+    delete navigator.clipboard;
+  }
+}
+
+function serveInvitable(post) {
+  serve({
+    [`GET ${DIAGNOSTIC_LIST}`]: list([ALI_DONE]),
+    [`GET ${at(ALI_DONE)}`]: detail(ALI_DONE, { actions: INVITABLE }),
+    [`GET ${at(ALI_DONE, 'report/')}`]: aliReport,
+    [`POST ${inviteUrl}`]: post,
+  });
+}
+
+test('Demo invitation: a Diagnostic whose report is in offers it; the menu copies, sends to the parent and previews one link', async () => {
+  await withClipboard(async (written) => {
+    let pendingAnswer = null;
+    serveInvitable(() => (pendingAnswer ? pendingAnswer.promise : ok({ invite: INVITE, created: true })));
+    await open(`/bookings?type=DIAGNOSTIC&booking=${ALI_DONE.id}`, ADMIN);
+    const trigger = button('Send Demo Invitation', topDialog());
+    assert.ok(trigger, 'the Booking section offers it');
+    assert.equal(calls('POST', inviteUrl).length, 0, 'opening the booking issues nothing');
+
+    await openMenu(trigger);
+    assert.equal(calls('POST', inviteUrl).length, 1, 'the link is asked for when the menu opens');
+    assert.deepEqual(menuItems().map((item) => clean(item.textContent)), ['Copy Link', 'Send to the parent on WhatsApp', 'Preview Link']);
+    assert.match(bodyText(), /Link valid until 9 Nov 2026/);
+    assert.equal(menuItem('Send to the parent on WhatsApp').getAttribute('href'),
+      `https://wa.me/971501234567?text=${encodeURIComponent(`${INVITE_TEXT} ${INVITE.url}`)}`);
+    assert.equal(menuItem('Preview Link').getAttribute('href'), INVITE.url);
+    assert.equal(menuItem('Preview Link').getAttribute('target'), '_blank');
+
+    await click(menuItem('Copy Link'));
+    assert.deepEqual(written, [INVITE.url]);
+    assert.ok(button('Copied', topDialog()), 'the button says it was copied');
+    assert.match(clean(topDialog().querySelector('[role="status"]')?.textContent), /Invitation link copied\./);
+
+    // Every open asks again -- the link may have been used meanwhile -- and offers nothing until the API answers:
+    // then the same active link, until it expires.
+    pendingAnswer = deferred();
+    await openMenu(button('Copied', topDialog()) ?? button('Send Demo Invitation', topDialog()));
+    assert.equal(calls('POST', inviteUrl).length, 2);
+    assert.ok(menuItems().some((item) => /Preparing the link/.test(item.textContent)), 'preparing again');
+    assert.ok(!menuItem('Copy Link') && !menuItem('Preview Link'), "the earlier open's link is not offered meanwhile");
+    pendingAnswer.resolve(ok({ invite: INVITE, created: false }));
+    await settle();
+    assert.equal(menuItem('Preview Link').getAttribute('href'), INVITE.url);
+    assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bde/')), "a BDE's routes are never called");
+  });
+});
+
+test('Demo invitation: the link is prepared, a refusal is shown in the menu, and the booking is read again once it closes', async () => {
+  const answer = deferred();
+  serveInvitable(() => answer.promise);
+  await open(`/bookings?type=DIAGNOSTIC&booking=${ALI_DONE.id}`, ADMIN);
+  await openMenu(button('Send Demo Invitation', topDialog()));
+  const preparing = menuItems().find((item) => /Preparing the link/.test(item.textContent));
+  assert.ok(preparing, 'preparing the link');
+  assert.equal(preparing.getAttribute('aria-disabled'), 'true');
+  assert.ok(!menuItem('Copy Link'), 'nothing to pass on yet');
+
+  answer.resolve(fail(409, { error: 'DEMO_ALREADY_BOOKED', message: 'This student already has a Demo booked or completed.' }));
+  await settle();
+  assert.match(clean(document.querySelector('[role="alert"]')?.textContent), /already has a Demo booked or completed/);
+  assert.ok(!menuItem('Try again') && !menuItem('Copy Link'), 'a refusal that asking again will not change');
+  const reads = calls('GET', at(ALI_DONE)).length;
+  await keyDown(document.querySelector('[role="menu"]'), 'Escape');
+  assert.equal(calls('GET', at(ALI_DONE)).length, reads + 1, 'the booking is read again');
+});
+
+test('Demo invitation: a failure that may pass offers Try again, and the copy falls back to a selected link', async () => {
+  let attempts = 0;
+  serveInvitable(() => {
+    attempts += 1;
+    return attempts === 1 ? fail(503, { error: 'CAPACITY_CHECK_UNAVAILABLE', message: 'Could not check this slot right now.' })
+      : ok({ invite: INVITE, created: false });
+  });
+  await withClipboard(async (written) => {
+    await open(`/bookings?type=DIAGNOSTIC&booking=${ALI_DONE.id}`, ADMIN);
+    await openMenu(button('Send Demo Invitation', topDialog()));
+    assert.match(clean(document.querySelector('[role="alert"]')?.textContent), /Could not check this slot right now\./);
+    await click(menuItem('Try again'));
+    assert.equal(attempts, 2);
+    assert.ok(menuItem('Copy Link'), 'the link, once it came');
+    await click(menuItem('Copy Link'));
+    assert.deepEqual(written, []);
+    assert.match(bodyText(), /Copying is blocked here, so the link is selected/);
+    assert.ok(bodyText().includes(INVITE.url), 'the link is shown to copy by hand');
+  }, true);
+});
+
+test('Demo invitation: nothing to send unless the API offers it', async () => {
+  serve({
+    [`GET ${DIAGNOSTIC_LIST}`]: list([ALI_DONE]),
+    [`GET ${at(ALI_DONE)}`]: detail(ALI_DONE, { actions: { ...INVITABLE, demo_invite: false } }),
+    [`GET ${at(ALI_DONE, 'report/')}`]: aliReport,
+  });
+  await open(`/bookings?type=DIAGNOSTIC&booking=${ALI_DONE.id}`, ADMIN);
+  assert.ok(topDialog() && clean(topDialog().textContent).includes('Ali'));
+  assert.ok(!button('Send Demo Invitation', topDialog()));
+});
+
+test('Demo invitation: a Demo booked with one says so, who sent it, the Diagnostic it came from, and its timeline', async () => {
+  const INVITED = { ...RIYA, id: 'b-invited' };
+  serve({
+    [`GET ${LIST}`]: list([INVITED]),
+    [`GET ${at(INVITED)}`]: detail(INVITED, { channel: 'BDE_HANDOFF', referral_status: null,
+      created_by: { id: 'bde-1', full_name: 'Bde One' }, invited_from: { id: ALI_DONE.id, status: 'COMPLETED', slot: ALI.slot } }),
+    [`GET ${at(INVITED, 'history/')}`]: { booking_id: INVITED.id, timezone: 'Asia/Kolkata',
+      chain: [{ id: INVITED.id, status: 'BOOKED', slot: INVITED.slot, current: true }],
+      events: [{ id: 'e1', booking_id: INVITED.id, kind: 'CREATED', kind_label: 'Created', at: '2026-11-02T09:00:00+00:00',
+        actor: null, details: { slot: INVITED.slot, seat: 1, via: 'demo_invite', invite_id: 'inv-1' } }] },
+  });
+  await open(`/bookings?booking=${INVITED.id}`, ADMIN);
+  const text = clean(topDialog().textContent);
+  assert.match(text, /Came inDemo invitation/);
+  assert.match(text, /Invited byBde One/);
+  assert.match(text, /From DiagnosticSun, 1 Nov · 10:00 AM IST/);
+  assert.ok(!text.includes('Credited BDE'));
+  await click(button('Show history', topDialog()));
+  const items = [...topDialog().querySelectorAll('[aria-label="History"] li')].map((li) => clean(li.textContent));
+  assert.match(items[0], /^Booked with a Demo invitation for Sat, 31 Oct · 7:30 PM IST.* · by the invitation page$/);
+});
+
+const BDE_DIAGNOSTIC = { id: 'b-diag', booking_type: 'DIAGNOSTIC', date: '2026-10-29', time: '10:00', starts_at: '2026-10-29T04:30:00+00:00',
+  status: 'COMPLETED', ended: true, activity_state: 'COMPLETED', started_at: '2026-10-29T04:31:00+00:00',
+  booked_at: '2026-10-27T09:00:00+00:00', cancelled_at: null, actions: { cancel: false, no_show: false, demo_invite: true } };
+const BDE_INVITE_URL = `/api/bde/bookings/diagnostic/${BDE_DIAGNOSTIC.id}/demo-invite/`;
+
+test("BDE: a Diagnostic of their own lead offers Send Demo Invitation through the BDE's route, to this parent's WhatsApp", async () => {
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, actions: { cancel: true, no_show: false, demo_invite: false } }, BDE_DIAGNOSTIC]),
+    [`POST ${BDE_INVITE_URL}`]: () => ok({ invite: { ...INVITE, created_by: { id: 'bde', full_name: 'Bde' } }, created: true }),
+  });
+  await open('/enquiries/lead-1', BDE);
+  const [demoRow, diagnosticRow] = [...document.querySelectorAll('tbody tr')];
+  assert.ok(!button('Send Demo Invitation', demoRow), 'never from a Demo');
+  await openMenu(button('Send Demo Invitation', diagnosticRow));
+  assert.equal(calls('POST', BDE_INVITE_URL).length, 1);
+  assert.equal(menuItem('Send to the parent on WhatsApp').getAttribute('href'),
+    `https://wa.me/971501234567?text=${encodeURIComponent(`${INVITE_TEXT} ${INVITE.url}`)}`);
+  assert.equal(menuItem('Preview Link').getAttribute('href'), INVITE.url);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
+});
+
+test('BDE: a refused invitation reads the enquiry again once the menu closes', async () => {
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([BDE_DIAGNOSTIC]),
+    [`POST ${BDE_INVITE_URL}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
+  });
+  await open('/enquiries/lead-1', BDE);
+  await openMenu(button('Send Demo Invitation'));
+  assert.match(clean(document.querySelector('[role="alert"]')?.textContent), /No such booking\./);
+  await keyDown(document.querySelector('[role="menu"]'), 'Escape');
+  assert.equal(calls('GET', ENQUIRY_URL).length, 2);
+});
+
+test('Activity feed: Demo invitations and the Demos they book are labelled and described, naming nobody', () => {
+  assert.equal(actionLabel('demo_invite.issue'), 'Demo invitation issued');
+  assert.equal(actionLabel('demo_invite.revoke'), 'Demo invitation revoked');
+  const entry = (action, context) => ({ action, context, changes: {} });
+  assert.equal(describeActivity(entry('demo_invite.issue', { diagnostic_booking_id: 'b-1', replaced_invite_id: null })),
+    'Issued a Demo invitation link');
+  assert.equal(describeActivity(entry('demo_invite.issue', { replaced_invite_id: 'inv-0' })),
+    'Issued a new Demo invitation link (the last one had expired)');
+  assert.equal(describeActivity(entry('demo_invite.revoke', {})), 'Revoked a Demo invitation link');
+  assert.equal(describeActivity(entry('booking.create', { booking_type: 'DEMO', via: 'demo_invite', referral_status: null })),
+    'Booked a demo slot with a Demo invitation');
+  assert.equal(describeActivity(entry('booking.create', { booking_type: 'DEMO', via: 'public_booking', referral_status: 'ATTRIBUTED' })),
+    'Booked a demo slot through a BDE link');
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {
