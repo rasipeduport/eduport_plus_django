@@ -119,7 +119,11 @@ def _task(task, now):
         'due_at': _when(task.due_at),
         'expires_at': _when(task.expires_at),
         # Still open past its target (the PRD's deadline); its window, expires_at, is what closes it as Missed.
-        'overdue': task.status == TaskStatus.OPEN and task.due_at is not None and task.due_at < now,
+        # Never the call: a reminder only, done at its due_at (planner.close_expired).
+        'overdue': (
+            task.status == TaskStatus.OPEN and task.step != Step.PRE_ACTIVITY_CALL
+            and task.due_at is not None and task.due_at < now
+        ),
         'resolved_at': _when(task.resolved_at),
         'resolved_by': _person(task.resolved_by),
     }

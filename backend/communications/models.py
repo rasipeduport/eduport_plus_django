@@ -8,7 +8,8 @@ five steps, owned by the lead's BDE (the Admin when the lead has none):
     2 CONFIRMATION_REQUEST   message the BDE sends when they choose (target: 12 h before)
     3 PARENT_CONFIRMATION    the BDE records Confirmed / Not Confirmed; the
                              confirmed message waits until it has everything it needs
-    4 PRE_ACTIVITY_CALL      a call for the BDE from 15 minutes before; no message
+    4 PRE_ACTIVITY_CALL      a reminder for the BDE to call, from 15 minutes before
+                             until the start, then done; no message
     5 AFTER_ACTIVITY         automatic message once the booking is completed
 
 Each step is a CommunicationTask (one per booking and step), so its deadline,
@@ -193,6 +194,9 @@ class TaskResolution(models.TextChoices):
     CALLED = 'CALLED', 'Called'
     MESSAGED = 'MESSAGED', 'Messaged'
     NO_ANSWER = 'NO_ANSWER', 'No answer'
+    # The 15-minute call is a reminder only: done when its booking's scheduled
+    # start comes, whether anyone called or not -- and never a sign it started.
+    REMINDED = 'REMINDED', 'Reminder complete'
     BOOKING_CANCELLED = 'BOOKING_CANCELLED', 'Booking cancelled'
     BOOKING_RESCHEDULED = 'BOOKING_RESCHEDULED', 'Booking rescheduled'
 
@@ -203,7 +207,8 @@ MESSAGE_RESOLUTIONS = (
     TaskResolution.NOT_NEEDED,
 )
 CALL_OUTCOMES = (TaskResolution.CALLED, TaskResolution.MESSAGED, TaskResolution.NO_ANSWER)
-DONE_RESOLUTIONS = (*MESSAGE_RESOLUTIONS, *CALL_OUTCOMES)
+CALL_RESOLUTIONS = (*CALL_OUTCOMES, TaskResolution.REMINDED)
+DONE_RESOLUTIONS = (*MESSAGE_RESOLUTIONS, *CALL_RESOLUTIONS)
 CANCELLED_RESOLUTIONS = (TaskResolution.BOOKING_CANCELLED, TaskResolution.BOOKING_RESCHEDULED)
 
 
@@ -287,11 +292,11 @@ class CommunicationTask(models.Model):
                 ),
                 name='communication_tasks_resolution_matches_status',
             ),
-            # Call outcomes belong to the call, and only they close it as done.
+            # Call outcomes and the finished reminder belong to the call, and only they close it as done.
             models.CheckConstraint(
                 condition=(
                     (Q(step=Step.PRE_ACTIVITY_CALL) & ~Q(resolution__in=MESSAGE_RESOLUTIONS))
-                    | (~Q(step=Step.PRE_ACTIVITY_CALL) & ~Q(resolution__in=CALL_OUTCOMES))
+                    | (~Q(step=Step.PRE_ACTIVITY_CALL) & ~Q(resolution__in=CALL_RESOLUTIONS))
                 ),
                 name='communication_tasks_call_outcomes_for_calls',
             ),

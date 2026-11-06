@@ -189,6 +189,11 @@ class TableRuleTests(CommunicationTestCase):
             status=TaskStatus.DONE, resolution=TaskResolution.SENT, resolved_at=NOW))
         self.refused(lambda: CommunicationTask.objects.filter(pk=ack.pk).update(
             status=TaskStatus.DONE, resolution=TaskResolution.CALLED, resolved_at=NOW))
+        # The finished reminder is the call's alone, and only ever Done.
+        self.refused(lambda: CommunicationTask.objects.filter(pk=ack.pk).update(
+            status=TaskStatus.DONE, resolution=TaskResolution.REMINDED, resolved_at=NOW))
+        self.refused(lambda: CommunicationTask.objects.filter(pk=call.pk).update(
+            status=TaskStatus.MISSED, resolution=TaskResolution.REMINDED, resolved_at=NOW))
         self.refused(lambda: CommunicationTask.objects.filter(pk=ack.pk).update(status=TaskStatus.DONE))
         self.refused(lambda: CommunicationTask.objects.filter(pk=ack.pk).update(owner_role=OwnerRole.ADMIN))
         self.refused(lambda: CommunicationTask.objects.create(demo_booking=booking, step=Step.ACKNOWLEDGEMENT,

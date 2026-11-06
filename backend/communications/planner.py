@@ -46,7 +46,7 @@ import logging
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 
 from bookings.models import BOOKING_MODELS, BookingStatus, DiagnosticBooking, Lead
 
@@ -104,8 +104,8 @@ def plan_booking(booking, now):
     booking.lead = lead
     slot = booking.slot
     owner = lead.owner_bde
-    # (active from, due, expires): the call is only actionable from 15 minutes
-    # before and stays open until the slot ends; the after-activity step's are
+    # (active from, due, expires): the call reminds the BDE from 15 minutes
+    # before and is done at the start (close_expired); the after-activity step's are
     # set on completion. A booking made within 12 hours of its start has its
     # confirmation request due now, never at a moment already past.
     times = {
@@ -314,10 +314,17 @@ def close_expired(now, booking=None):
     """
     Tasks whose time ran out are Missed, and unsent messages past their window
     -- a retry left Pending included -- cancelled as expired; for ``booking``,
-    or all. A message being sent, or one whose outcome is unknown, is left as
-    it is (_cancel_messages). Returns (tasks missed, messages expired).
+    or all. The 15-minute call is only a reminder: it is done, never Missed,
+    once the booking's scheduled start (its due_at) comes -- as of that
+    moment, however late this runs -- and the booking itself is not touched:
+    only its tutor's Start starts it. A message being sent, or one whose
+    outcome is unknown, is left as it is (_cancel_messages). Returns (tasks
+    missed, messages expired).
     """
-    tasks = CommunicationTask.objects.filter(status=TaskStatus.OPEN, expires_at__lte=now)
+    call = Q(step=Step.PRE_ACTIVITY_CALL)
+    tasks = CommunicationTask.objects.filter(
+        (call & Q(due_at__lte=now)) | (~call & Q(expires_at__lte=now)), status=TaskStatus.OPEN,
+    )
     messages = Message.objects.filter(send_before__lte=now)
     if booking is not None:
         tasks = tasks.filter(**booking_field(booking))
@@ -325,7 +332,11 @@ def close_expired(now, booking=None):
     # Its own transaction when the scheduled job calls it; part of the booking's when completion does.
     with transaction.atomic():
         expired = _cancel_messages(messages, MessageCancelReason.EXPIRED, now)
-        return _update_tasks(tasks, status=TaskStatus.MISSED, resolved_at=now, updated_at=now), expired
+        # Both kinds locked together, in id order, before either is written.
+        list(tasks.select_for_update(of=('self',)).order_by('pk').values_list('pk', flat=True))
+        _update_tasks(tasks.filter(call), status=TaskStatus.DONE, resolution=TaskResolution.REMINDED,
+                      resolved_at=F('due_at'), updated_at=now)
+        return _update_tasks(tasks.exclude(call), status=TaskStatus.MISSED, resolved_at=now, updated_at=now), expired
 
 
 def refresh_message(message, booking, now, save=True):

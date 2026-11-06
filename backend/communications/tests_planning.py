@@ -13,7 +13,16 @@ from unittest import mock
 from django.test import TestCase, override_settings
 
 from bookings.booking_service import assign_tutor, cancel_booking, create_booking, reschedule_booking
-from bookings.models import CancelReason, DemoBooking, DiagnosticBooking, ParentConfirmation, RescheduleReason
+from bookings.lifecycle import ActivityState, activity_state
+from bookings.models import (
+    BookingEventKind,
+    BookingStatus,
+    CancelReason,
+    DemoBooking,
+    DiagnosticBooking,
+    ParentConfirmation,
+    RescheduleReason,
+)
 from bookings.scheduling import BOOKING_TIMEZONE
 from bookings.tests_booking import DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, account, link, request, schedule, start
 from reports.services import edit_report, submit_report
@@ -262,9 +271,10 @@ class CompletionTests(CommunicationTestCase):
         tasks = self.tasks(booking)
         for step in (Step.ACKNOWLEDGEMENT, Step.CONFIRMATION_REQUEST, Step.PARENT_CONFIRMATION):
             self.assertEqual(tasks[step].status, TaskStatus.MISSED, step)
-        # The call stays open until the slot ends; the after-activity step is open with its message.
-        self.assertEqual((tasks[Step.PRE_ACTIVITY_CALL].status, tasks[Step.AFTER_ACTIVITY].status),
-                         (TaskStatus.OPEN, TaskStatus.OPEN))
+        # The call's reminder ended at the start; the after-activity step is open with its message.
+        call = tasks[Step.PRE_ACTIVITY_CALL]
+        self.assertEqual((call.status, call.resolution, call.resolved_at, tasks[Step.AFTER_ACTIVITY].status),
+                         (TaskStatus.DONE, TaskResolution.REMINDED, booking.slot.starts_at, TaskStatus.OPEN))
         messages = self.messages(booking)
         self.assertEqual((messages['DEMO_ACKNOWLEDGEMENT'].status, messages['DEMO_ACKNOWLEDGEMENT'].cancel_reason),
                          (MessageStatus.CANCELLED, MessageCancelReason.EXPIRED))
@@ -277,13 +287,71 @@ class ExpiryTests(CommunicationTestCase):
         planner.close_expired(starts - timedelta(minutes=1))
         self.assertTrue(all(t.status == TaskStatus.OPEN for t in self.tasks(booking).values()))
 
-        planner.close_expired(starts)
+        # The three steps before the start are Missed (the call is no longer counted among them).
+        self.assertEqual(planner.close_expired(starts), (3, 2))
         tasks = self.tasks(booking)
         self.assertEqual({step for step, task in tasks.items() if task.status == TaskStatus.MISSED},
                          {Step.ACKNOWLEDGEMENT, Step.CONFIRMATION_REQUEST, Step.PARENT_CONFIRMATION})
         self.assertEqual({m.cancel_reason for m in self.messages(booking).values()}, {MessageCancelReason.EXPIRED})
 
-        # The call is never done by itself: open until the slot ends, then Missed.
-        self.assertEqual(tasks[Step.PRE_ACTIVITY_CALL].status, TaskStatus.OPEN)
-        planner.close_expired(ends)
-        self.assertEqual(self.tasks(booking)[Step.PRE_ACTIVITY_CALL].status, TaskStatus.MISSED)
+        # Nothing else is Missed, at the slot's end or later; the after-activity step waits for completion.
+        planner.close_expired(ends + timedelta(days=3))
+        tasks = self.tasks(booking)
+        self.assertEqual(tasks[Step.PRE_ACTIVITY_CALL].status, TaskStatus.DONE)
+        self.assertEqual(tasks[Step.AFTER_ACTIVITY].status, TaskStatus.OPEN)
+
+
+class CallReminderTests(CommunicationTestCase):
+    """The 15-minute call is a reminder only: from 15 minutes before the start, done at it, never Missed."""
+
+    @staticmethod
+    def call(booking):
+        return booking.communication_tasks.get(step=Step.PRE_ACTIVITY_CALL)
+
+    def closed(self, booking):
+        call = self.call(booking)
+        return call.status, call.resolution, call.resolved_at, call.resolved_by
+
+    def test_it_reminds_from_fifteen_minutes_before_and_is_done_at_the_start(self):
+        for booking_type in (DEMO, DIAGNOSTIC):
+            with self.subTest(booking_type=booking_type):
+                booking = self.book(booking_type)
+                starts = booking.slot.starts_at
+                call = self.call(booking)
+                self.assertEqual((call.active_from, call.due_at), (starts - timedelta(minutes=15), starts))
+                # Open while it reminds, to the last second before the start.
+                for moment in (starts - timedelta(minutes=15), starts - timedelta(seconds=1)):
+                    planner.close_expired(moment)
+                    self.assertEqual(self.call(booking).status, TaskStatus.OPEN)
+                planner.close_expired(starts)
+                self.assertEqual(self.closed(booking), (TaskStatus.DONE, TaskResolution.REMINDED, starts, None))
+
+    def test_done_as_of_the_start_however_late_the_sweep_runs_and_never_missed(self):
+        booking = self.book()
+        starts, ends = booking.slot.starts_at, booking.slot.ends_at
+        planner.close_expired(starts + timedelta(minutes=4))  # the sweep runs every 5 minutes
+        done = (TaskStatus.DONE, TaskResolution.REMINDED, starts, None)
+        self.assertEqual(self.closed(booking), done)
+        for moment in (ends, ends + timedelta(days=3)):
+            planner.close_expired(moment)
+            self.assertEqual(self.closed(booking), done)
+
+    def test_it_never_starts_the_booking(self):
+        booking = self.ready(self.book())
+        starts = booking.slot.starts_at
+        planner.close_expired(starts + timedelta(minutes=2))
+        self.assertEqual(self.call(booking).status, TaskStatus.DONE)
+        booking.refresh_from_db()
+        self.assertEqual((booking.status, booking.started_at, booking.started_by), (BookingStatus.BOOKED, None, None))
+        self.assertFalse(booking.events.filter(kind=BookingEventKind.STARTED).exists())
+        self.assertEqual(activity_state(booking, starts + timedelta(minutes=2)), ActivityState.LATE)
+        # Only its tutor's Start starts it, and that leaves the reminder as it was.
+        started = start(booking, minutes=3)
+        self.assertEqual((started.started_at, started.started_by), (starts + timedelta(minutes=3), self.tutor))
+        self.assertEqual(self.closed(booking), (TaskStatus.DONE, TaskResolution.REMINDED, starts, None))
+
+    def test_a_booking_cancelled_before_the_start_keeps_its_reminder_cancelled(self):
+        booking = self.book()
+        cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
+        planner.close_expired(booking.slot.starts_at)
+        self.assertEqual(self.call(booking).status, TaskStatus.CANCELLED)

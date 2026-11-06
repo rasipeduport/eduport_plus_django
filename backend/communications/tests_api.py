@@ -20,6 +20,7 @@ from bookings.models import NotConfirmedReason, ParentConfirmation
 from bookings.scheduling import indian_today
 from bookings.tests_booking import DEMO, DIAGNOSTIC, EVENING, MORNING, account, link, request
 
+from . import planner
 from .formatting import whatsapp_message
 from .models import OUTCOME_UNKNOWN, Message, MessageStatus, Step, TaskResolution, TaskStatus
 from .providers.base import SendResult, StatusUpdate
@@ -203,6 +204,22 @@ class ContentTests(CommunicationApiTestCase):
         overdue = {step: task['overdue'] for step, task in self.by_step(self.ok(self.admin, booking)['tasks']).items()}
         self.assertEqual(overdue, {'ACKNOWLEDGEMENT': True, 'CONFIRMATION_REQUEST': False, 'PARENT_CONFIRMATION': False,
                                    'PRE_ACTIVITY_CALL': False, 'AFTER_ACTIVITY': False})
+
+    def test_the_call_is_a_reminder_never_overdue_and_done_at_the_start(self):
+        booking = self.book()  # at NOW, days ago by the real clock: its start has passed, the sweep not yet run
+        call = self.by_step(self.ok(self.admin, booking)['tasks'])['PRE_ACTIVITY_CALL']
+        self.assertEqual((call['status'], call['overdue']), ('OPEN', False))
+        planner.close_expired(timezone.now())
+        data = self.ok(self.bde, booking)
+        call = self.by_step(data['tasks'])['PRE_ACTIVITY_CALL']
+        self.assertEqual(
+            (call['status'], call['resolution'], call['resolution_label'], call['resolved_at'], call['resolved_by'],
+             call['overdue']),
+            ('DONE', 'REMINDED', 'Reminder complete', when(booking.slot.starts_at), None, False),
+        )
+        # The booking as it was: never started, which only its tutor's Start does.
+        self.assertEqual((data['booking']['status'], data['booking']['started_at'], data['booking']['activity_state']),
+                         ('BOOKED', None, 'NOT_STARTED'))
 
     def test_a_booking_made_before_communications_has_no_plan(self):
         booking = self.live()
