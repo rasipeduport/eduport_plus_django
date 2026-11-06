@@ -25,6 +25,11 @@ gspread==6.1.4
 # (students.tasks + config/celery.py). Redis is the broker.
 celery==5.4.0
 redis==5.2.1
+# Celery's own dependencies, pinned to the set the worker last ran with:
+# celery 5.4.0 accepts any kombu below 6, and kombu 5.7 (3 Nov 2026) needs redis-py 6.1+.
+kombu==5.6.2
+amqp==5.4.1
+billiard==4.3.1
 
 # Serving
 gunicorn==23.0.0
