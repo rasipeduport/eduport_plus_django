@@ -309,8 +309,9 @@ OPEN_VIEWS = {
     'AdminListView', 'UserDetailView', 'StaffStatusView',
 }
 # Views no account may call: only the marketing site's server, with its service
-# key (bookings.authentication). Sessions are not read there at all.
-SERVICE_VIEWS = {'PublicBookingCalendarView', 'PublicBookingCreateView'}
+# key (bookings.authentication) -- its booking pages and its lead forms.
+# Sessions are not read there at all.
+SERVICE_VIEWS = {'PublicBookingCalendarView', 'PublicBookingCreateView', 'PublicLeadCreateView'}
 # Views only Meta's servers may call: the WhatsApp webhook, guarded by the verify
 # token or the callback signature (communications.webhooks). No session is read.
 WEBHOOK_VIEWS = {'WhatsAppWebhookView'}

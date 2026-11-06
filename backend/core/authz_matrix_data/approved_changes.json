@@ -697,12 +697,13 @@
    }
   },
   "auth.me @ admin": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
+      "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
       "accounts.assign_lead_owner",
@@ -737,6 +738,7 @@
       "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
+      "accounts.view_all_leads",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_conversion_tracker",
@@ -884,13 +886,14 @@
    }
   },
   "auth.me @ su_mentor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
       "accounts.add_enquiry",
+      "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
       "accounts.assign_lead_owner",
@@ -930,6 +933,7 @@
       "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
+      "accounts.view_all_leads",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
@@ -982,13 +986,14 @@
    }
   },
   "auth.me @ su_tutor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
       "accounts.add_enquiry",
+      "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
       "accounts.assign_lead_owner",
@@ -1028,6 +1033,7 @@
       "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
+      "accounts.view_all_leads",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
@@ -1080,13 +1086,14 @@
    }
   },
   "auth.me @ superuser": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
       "accounts.add_enquiry",
+      "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
       "accounts.assign_lead_owner",
@@ -1126,6 +1133,7 @@
       "accounts.view_all_communications",
       "accounts.view_all_exams",
       "accounts.view_all_homework",
+      "accounts.view_all_leads",
       "accounts.view_all_sessions",
       "accounts.view_all_students",
       "accounts.view_assigned_bookings",
@@ -8956,6 +8964,962 @@
     "status": 403
    }
   },
+  "leads.assign_owner @ admin": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "No caller here is a BDE: mentor_a is refused as the new owner (NOT_AN_ACTIVE_BDE) and lead_a stays nobody's.",
+   "result": {
+    "error": "NOT_AN_ACTIVE_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Leads can only be assigned to an active BDE account.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "leads.assign_owner @ anon": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ mentor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ mentor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ parent_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ su_mentor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "No caller here is a BDE: mentor_a is refused as the new owner (NOT_AN_ACTIVE_BDE) and lead_a stays nobody's.",
+   "result": {
+    "error": "NOT_AN_ACTIVE_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Leads can only be assigned to an active BDE account.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "leads.assign_owner @ su_tutor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "No caller here is a BDE: mentor_a is refused as the new owner (NOT_AN_ACTIVE_BDE) and lead_a stays nobody's.",
+   "result": {
+    "error": "NOT_AN_ACTIVE_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Leads can only be assigned to an active BDE account.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "leads.assign_owner @ superuser": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "No caller here is a BDE: mentor_a is refused as the new owner (NOT_AN_ACTIVE_BDE) and lead_a stays nobody's.",
+   "result": {
+    "error": "NOT_AN_ACTIVE_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Leads can only be assigned to an active BDE account.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "leads.assign_owner @ tutor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ tutor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.assign_owner @ unknown": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ admin": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "The BDE accounts to filter by and assign to: none in this world.",
+   "result": {
+    "fields": [
+     "results"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "leads.bdes @ anon": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ mentor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ mentor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ parent_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ su_mentor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "The BDE accounts to filter by and assign to: none in this world.",
+   "result": {
+    "fields": [
+     "results"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "leads.bdes @ su_tutor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "The BDE accounts to filter by and assign to: none in this world.",
+   "result": {
+    "fields": [
+     "results"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "leads.bdes @ superuser": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "The BDE accounts to filter by and assign to: none in this world.",
+   "result": {
+    "fields": [
+     "results"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "leads.bdes @ tutor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ tutor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.bdes @ unknown": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ admin": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "added_by.full_name",
+     "added_by.id",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "admin",
+     "new"
+    ],
+    "status": 201
+   }
+  },
+  "leads.create @ anon": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ mentor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ mentor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ parent_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ su_mentor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "added_by.full_name",
+     "added_by.id",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "new",
+     "su_mentor"
+    ],
+    "status": 201
+   }
+  },
+  "leads.create @ su_tutor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "added_by.full_name",
+     "added_by.id",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "new",
+     "su_tutor"
+    ],
+    "status": 201
+   }
+  },
+  "leads.create @ superuser": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "added_by.full_name",
+     "added_by.id",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "new",
+     "superuser"
+    ],
+    "status": 201
+   }
+  },
+  "leads.create @ tutor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ tutor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.create @ unknown": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ admin": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.detail @ anon": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ mentor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ mentor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ parent_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ su_mentor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.detail @ su_tutor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.detail @ superuser": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.detail @ tutor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ tutor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.detail @ unknown": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ admin": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].added_at",
+     "results[].created_at",
+     "results[].grade",
+     "results[].id",
+     "results[].next_booking",
+     "results[].next_booking.booking_type",
+     "results[].next_booking.date",
+     "results[].next_booking.id",
+     "results[].next_booking.starts_at",
+     "results[].next_booking.time",
+     "results[].owner",
+     "results[].parent_name",
+     "results[].phone",
+     "results[].source",
+     "results[].source_label",
+     "results[].status",
+     "results[].status_label",
+     "results[].student_name"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "leads.list @ anon": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ mentor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ mentor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ parent_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ su_mentor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].added_at",
+     "results[].created_at",
+     "results[].grade",
+     "results[].id",
+     "results[].next_booking",
+     "results[].next_booking.booking_type",
+     "results[].next_booking.date",
+     "results[].next_booking.id",
+     "results[].next_booking.starts_at",
+     "results[].next_booking.time",
+     "results[].owner",
+     "results[].parent_name",
+     "results[].phone",
+     "results[].source",
+     "results[].source_label",
+     "results[].status",
+     "results[].status_label",
+     "results[].student_name"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "leads.list @ su_tutor": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].added_at",
+     "results[].created_at",
+     "results[].grade",
+     "results[].id",
+     "results[].next_booking",
+     "results[].next_booking.booking_type",
+     "results[].next_booking.date",
+     "results[].next_booking.id",
+     "results[].next_booking.starts_at",
+     "results[].next_booking.time",
+     "results[].owner",
+     "results[].parent_name",
+     "results[].phone",
+     "results[].source",
+     "results[].source_label",
+     "results[].status",
+     "results[].status_label",
+     "results[].student_name"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "leads.list @ superuser": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].added_at",
+     "results[].created_at",
+     "results[].grade",
+     "results[].id",
+     "results[].next_booking",
+     "results[].next_booking.booking_type",
+     "results[].next_booking.date",
+     "results[].next_booking.id",
+     "results[].next_booking.starts_at",
+     "results[].next_booking.time",
+     "results[].owner",
+     "results[].parent_name",
+     "results[].phone",
+     "results[].source",
+     "results[].source_label",
+     "results[].status",
+     "results[].status_label",
+     "results[].student_name"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "leads.list @ tutor_a": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ tutor_b": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.list @ unknown": {
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "public.booking_calendar @ admin": {
    "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
    "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
@@ -9211,6 +10175,138 @@
   "public.booking_create @ unknown": {
    "decision": "DEVT-5935 (public booking API): /api/public/ answers only the marketing site's server, which presents a booking service key; no session is read there.",
    "note": "A signed-in account, whatever its role or permissions, is not the booking service: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ admin": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ anon": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 401
+   }
+  },
+  "public.lead_create @ mentor_a": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ mentor_b": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ parent_a": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ su_mentor": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ su_tutor": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ superuser": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ tutor_a": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ tutor_b": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "public.lead_create @ unknown": {
+   "decision": "Lead forms (bookings.public_views.PublicLeadCreateView): POST /api/public/leads/ answers only the marketing site's server, by its service key (bookings.authentication), as the public booking API does; no session is read, so every signed-in account is refused and an anonymous call is asked for the key.",
+   "note": "A session never opens the lead forms' API: 403 signed in, 401 (asked for the service key) anonymous.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

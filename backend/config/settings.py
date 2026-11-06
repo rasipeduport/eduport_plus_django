@@ -252,6 +252,8 @@ REST_FRAMEWORK = {
         # The pages poll the calendar every 8 seconds while a parent picks a time.
         'public_booking': env('PUBLIC_BOOKING_THROTTLE_RATE', default='10/hour'),
         'public_booking_calendar': env('PUBLIC_BOOKING_CALENDAR_THROTTLE_RATE', default='120/min'),
+        # The marketing site's lead forms, per parent address (bookings.throttles).
+        'public_lead': env('PUBLIC_LEAD_THROTTLE_RATE', default='10/hour'),
         # Report PDF downloads, per signed-in account (reports.downloads): each is rendered afresh.
         'report_pdf': env('REPORT_PDF_THROTTLE_RATE', default='30/min'),
     },
@@ -524,9 +526,13 @@ MARKETING_SITE_URL = env('MARKETING_SITE_URL', default='https://plus.eduport.app
 # in the database so it holds across workers.
 BOOKING_PHONE_DAILY_LIMIT = env.int('BOOKING_PHONE_DAILY_LIMIT', default=5)
 
-# Keys the marketing site's server presents to the public booking API
-# (bookings.authentication), comma-separated so one can be rotated. None set
-# means the API answers nobody.
+# New leads one phone number may make through the marketing site's lead forms
+# in 24 hours (siblings share it); a child who already has a lead never counts.
+LEAD_PHONE_DAILY_LIMIT = env.int('LEAD_PHONE_DAILY_LIMIT', default=5)
+
+# Keys the marketing site's server presents to the public booking and lead
+# APIs (bookings.authentication), comma-separated so one can be rotated. None
+# set means the APIs answer nobody.
 BOOKING_SERVICE_API_KEYS = env.list('BOOKING_SERVICE_API_KEYS', default=[])
 
 # Parent communication (communications app). Messages for a lead with no BDE --

@@ -14,6 +14,7 @@ from core.timezones import DATE_PATTERN
 
 from . import enquiries
 from .booking_service import BookingBusy, BookingError, cancel_booking, set_slots_closed
+from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
 from .models import SLOT_CAPACITY, SLOT_MINUTES, SlotTime, booking_model
 from .public_views import PATH_TYPES
@@ -97,8 +98,9 @@ class BdeEnquiriesView(BdeWorkspaceView):
     GET  /api/bde/enquiries/?q=&status=&source=&page=&page_size=
          The caller's enquiries, newest to them first, always paged:
          {"results", "count", "page", "page_size"}. ``q`` matches the parent's
-         or student's name or the phone number; ``status`` is an
-         EnquiryStatus, ``source`` one of enquiries.SOURCE_FILTERS.
+         or student's name, the parent's email or the phone number;
+         ``status`` is a LeadStatus or a stage of either type
+         (lead_status.STAGES), ``source`` one of enquiries.SOURCE_FILTERS.
     POST /api/bde/enquiries/
          Add an enquiry by hand (EnquiryCreateSerializer); 201 with the
          enquiry, or 409 ENQUIRY_EXISTS when the phone number and student
@@ -117,7 +119,8 @@ class BdeEnquiriesView(BdeWorkspaceView):
         params = request.query_params
         state = (params.get('status') or '').strip().upper()
         source = (params.get('source') or '').strip().upper()
-        if state and state not in enquiries.EnquiryStatus.values:
+        statuses = statuses_for(state)
+        if state and statuses is None:
             return _bde_error('INVALID_INPUT', 'Unknown enquiry status.', status.HTTP_400_BAD_REQUEST, fields=['status'])
         if source and source not in enquiries.SOURCE_FILTERS:
             return _bde_error('INVALID_INPUT', 'Unknown enquiry source.', status.HTTP_400_BAD_REQUEST, fields=['source'])
@@ -128,7 +131,7 @@ class BdeEnquiriesView(BdeWorkspaceView):
             leads = enquiries.filter_source(leads, source)
         leads = enquiries.listed(leads, now)
         if state:
-            leads = leads.filter(enquiry_status=state)
+            leads = leads.filter(lead_status__in=statuses)
 
         page, page_size = page_params(request)
         offset = (page - 1) * page_size

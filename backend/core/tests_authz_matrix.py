@@ -61,7 +61,8 @@ ENQUIRY_ROW_FIELDS = [
     'status_label', 'student_name',
 ]
 ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
-    'bookings', 'country', 'created_at', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus', 'timezone',
+    'bookings', 'country', 'created_at', 'parent_email', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus',
+    'timezone',
 ])
 BDE_WORKSPACE = {
     'bde.booking_links': BDE_OWN_LINKS,

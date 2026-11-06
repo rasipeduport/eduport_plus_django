@@ -1,44 +1,33 @@
 """
-A BDE's enquiries: the leads (bookings.models.Lead) the BDE owns, as the BDE
-workspace reads and adds them (/api/bde/dashboard/, /api/bde/enquiries/).
+A BDE's enquiries -- their My Leads: the leads (bookings.models.Lead) the
+BDE owns, as the BDE workspace reads and adds them (/api/bde/dashboard/,
+/api/bde/enquiries/). The administrators' Leads page reads every lead with
+the same rows and status (bookings.lead_admin).
 
 A BDE owns the leads their booking links brought in (the first valid
-attribution wins, bookings.booking_service) and the ones they add by hand
-here. Everything below starts from ``own_leads``: a BDE never sees another
-BDE's leads, nor leads nobody owns.
+attribution wins, bookings.booking_service), the ones they add by hand here,
+and the ones an administrator gives them (bookings.ownership) -- for as long
+as they own them: a lead given to another BDE leaves this BDE's list at once.
+Everything below starts from ``own_leads``: a BDE never sees another BDE's
+leads, nor leads nobody owns.
 
-An enquiry's status is not stored. It follows the lead's bookings, so it is
-always what the booking pages last did:
-
-    NEW          no booking yet
-    BOOKED       a booking whose slot has not ended
-    DONE         none still to come, and one at least completed, or started by
-                 its tutor (bookings.lifecycle) -- one that happened
-    NOT_STARTED  none still to come or done: a slot ended with no start, so
-                 the class never happened (its scheduled time alone is never DONE)
-    CANCELLED    no booking holds a seat, and one at least was cancelled
-
-A rescheduled booking never decides the status: the booking it moved to
-does. (A lead left with rescheduled bookings only -- which a reschedule never
-leaves, since it books the replacement in the same step -- holds no booking,
-so it reads NEW.)
-
-A lead's bookings are its Diagnostic and its Demo bookings together, read from
-both booking tables.
+A lead's status is not stored: it follows its bookings, Diagnostic and Demo
+together (bookings.lead_status).
 """
-import operator
 from datetime import timedelta
-from functools import reduce
 
-from django.db import IntegrityError, transaction
-from django.db.models import Case, CharField, Count, Exists, OuterRef, Q, TextChoices, Value, When
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from activity.utils import log_activity
 
-from .leads import InvalidLeadDetails, normalize_phone, student_name_key
+from .lead_intake import LeadExists, create_lead
+from .lead_status import status_label, with_status
+from .leads import InvalidLeadDetails
 from .lifecycle import activity_state
-from .models import BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, BookingStatus, BookingType, Lead, LeadSource
+from .models import (
+    BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, Lead, LeadSource,
+)
 from .scheduling import BOOKING_TIMEZONE_NAME
 
 # Rows on the dashboard's upcoming bookings table and recent enquiries list.
@@ -48,26 +37,20 @@ RECENT_ROWS = 5
 MIN_PHONE_SEARCH_DIGITS = 3
 
 
-class EnquiryStatus(TextChoices):
-    NEW = 'NEW', 'New'
-    BOOKED = 'BOOKED', 'Booked'
-    DONE = 'DONE', 'Booking done'
-    NOT_STARTED = 'NOT_STARTED', 'Not started'
-    CANCELLED = 'CANCELLED', 'Cancelled'
-
-
 # A lead from the booking pages is shown by the link that brought it to its
-# BDE; one added by hand by the source the BDE picked.
+# owner, when one did, else as a booking page's; one from a lead form by the
+# form; one added by hand by the source picked.
 LINK_SOURCES = {BookingType.DEMO: 'DEMO_LINK', BookingType.DIAGNOSTIC: 'DIAGNOSTIC_LINK'}
 SOURCE_LABELS = {'DEMO_LINK': 'Demo link', 'DIAGNOSTIC_LINK': 'Diagnostic link', **dict(LeadSource.choices)}
-SOURCE_FILTERS = [*LINK_SOURCES.values(), *MANUAL_LEAD_SOURCES]
+SOURCE_FILTERS = [*LINK_SOURCES.values(), LeadSource.BOOKING_PAGE, *PUBLIC_FORM_SOURCES, *MANUAL_LEAD_SOURCES]
 
 
 class EnquiryExists(Exception):
     """
     A lead for this phone number and student already exists. ``lead`` is it
     when the caller owns it, and None otherwise: another BDE's lead (or one
-    nobody owns) is never named, let alone handed over.
+    nobody owns) is never named, let alone handed over -- only an
+    administrator gives a lead to a BDE.
     """
 
     def __init__(self, lead=None):
@@ -81,33 +64,12 @@ def own_leads(bde):
     return Lead.objects.filter(owner_bde=bde)
 
 
-def _has_booking(**filters):
-    """Whether the lead has a booking of either type matching ``filters``, as an expression on leads."""
-    return reduce(operator.or_, (Exists(model.objects.filter(lead=OuterRef('pk'), **filters)) for model in BOOKING_MODELS))
-
-
-def with_status(leads, now):
-    """``leads`` annotated with ``enquiry_status`` (EnquiryStatus) as of ``now``."""
-    return leads.annotate(enquiry_status=Case(
-        When(_has_booking(status=BookingStatus.BOOKED, slot__ends_at__gt=now), then=Value(EnquiryStatus.BOOKED)),
-        # Past this point every booked booking's slot has ended.
-        When(
-            _has_booking(status=BookingStatus.COMPLETED) | _has_booking(status=BookingStatus.BOOKED, started_at__isnull=False),
-            then=Value(EnquiryStatus.DONE),
-        ),
-        When(_has_booking(status=BookingStatus.BOOKED), then=Value(EnquiryStatus.NOT_STARTED)),
-        When(_has_booking(status=BookingStatus.CANCELLED), then=Value(EnquiryStatus.CANCELLED)),
-        default=Value(EnquiryStatus.NEW),
-        output_field=CharField(),
-    ))
-
-
 def search(leads, text):
-    """Leads whose parent or student name contains ``text``, or whose phone number contains its digits."""
+    """Leads whose parent's or student's name or parent's email contains ``text``, or whose phone number contains its digits."""
     text = (text or '').strip()
     if not text:
         return leads
-    match = Q(parent_name__icontains=text) | Q(student_name__icontains=text)
+    match = Q(parent_name__icontains=text) | Q(student_name__icontains=text) | Q(parent_email__icontains=text)
     # Stored numbers drop the domestic leading 0 (bookings.leads), so a search does too.
     digits = ''.join(char for char in text if char in '0123456789').lstrip('0')
     if len(digits) >= MIN_PHONE_SEARCH_DIGITS:
@@ -120,6 +82,9 @@ def filter_source(leads, key):
     for booking_type, link_key in LINK_SOURCES.items():
         if key == link_key:
             return leads.filter(source=LeadSource.BOOKING_PAGE, owner_link__booking_type=booking_type)
+    if key == LeadSource.BOOKING_PAGE:
+        # As source_of shows it: a booking page's lead no link of its owner's brought.
+        return leads.filter(source=LeadSource.BOOKING_PAGE, owner_link__isnull=True)
     return leads.filter(source=key)
 
 
@@ -152,12 +117,6 @@ def source_of(lead):
     return lead.source
 
 
-def status_label(status, next_booking):
-    if status == EnquiryStatus.BOOKED and next_booking is not None:
-        return f'{next_booking.get_booking_type_display()} booked'
-    return EnquiryStatus(status).label
-
-
 def booking_brief(booking):
     """When and what a booking is. Slot dates and times are Indian time (bookings.scheduling)."""
     slot = booking.slot
@@ -170,11 +129,11 @@ def booking_brief(booking):
     }
 
 
-def enquiry_rows(leads, now):
-    """The list rows of ``leads`` (from ``listed``, already sliced to a page)."""
+def enquiry_rows(leads, now, extra=None):
+    """The list rows of ``leads`` (from ``listed``, already sliced to a page), each with ``extra(lead)`` beside it."""
     leads = list(leads)
     upcoming = next_bookings([lead.pk for lead in leads], now)
-    return [_row(lead, upcoming.get(lead.pk)) for lead in leads]
+    return [{**_row(lead, upcoming.get(lead.pk)), **(extra(lead) if extra else {})} for lead in leads]
 
 
 def _row(lead, next_booking):
@@ -187,8 +146,8 @@ def _row(lead, next_booking):
         'grade': lead.grade,
         'source': source,
         'source_label': SOURCE_LABELS.get(source, source),
-        'status': lead.enquiry_status,
-        'status_label': status_label(lead.enquiry_status, next_booking),
+        'status': lead.lead_status,
+        'status_label': status_label(lead.lead_status),
         'next_booking': booking_brief(next_booking) if next_booking else None,
         # When the lead became this BDE's: added by hand, or first booked through their link.
         'added_at': lead.owner_assigned_at.isoformat() if lead.owner_assigned_at else None,
@@ -221,6 +180,7 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False):
         **_row(lead, next_booking),
         'phone_dial_code': lead.phone_dial_code,
         'phone_number': lead.phone_number,
+        'parent_email': lead.parent_email,
         'school_name': lead.school_name,
         'syllabus': lead.syllabus,
         'country': lead.country,
@@ -318,42 +278,14 @@ def add_enquiry(bde, details, request=None):
     InvalidLeadDetails, or EnquiryExists when the phone number and student
     already make a lead -- whoever owns it. A parent who later books through
     the pages lands on this lead (bookings.leads.match_lead) and it stays this
-    BDE's: ownership is never overwritten.
+    BDE's: a booking never changes the owner, only an administrator does.
     """
-    dial, national, phone_key = normalize_phone(details['phone_dial_code'], details['phone_number'])
-    student_key = student_name_key(details['student_name'])
     if details['source'] not in MANUAL_LEAD_SOURCES:
         raise InvalidLeadDetails('source', 'Choose how this enquiry reached you.')
-
-    existing = _existing(phone_key, student_key)
-    if existing is not None:
-        raise EnquiryExists(existing if existing.owner_bde_id == bde.pk else None)
-
-    lead = Lead(
-        parent_name=details['parent_name'],
-        phone_dial_code=dial,
-        phone_number=national,
-        phone_key=phone_key,
-        student_name=details['student_name'],
-        student_name_key=student_key,
-        school_name=details.get('school_name') or '',
-        grade=details['grade'],
-        syllabus=details.get('syllabus') or '',
-        country=details.get('country') or '',
-        source=details['source'],
-        owner_bde=bde,
-        owner_assigned_at=timezone.now(),
-    )
     try:
-        # A savepoint of its own: a booking for the same child committing
-        # first fails this insert on the unique index, and the request stays usable.
-        with transaction.atomic():
-            lead.save(force_insert=True)
-    except IntegrityError:
-        existing = _existing(phone_key, student_key)
-        if existing is None:
-            raise
-        raise EnquiryExists(existing if existing.owner_bde_id == bde.pk else None)
+        lead = create_lead(details, source=details['source'], created_by=bde, owner=bde)
+    except LeadExists as exc:
+        raise EnquiryExists(exc.lead if exc.lead.owner_bde_id == bde.pk else None)
 
     # Ids and choices only, as for bookings: no names or phone numbers in a log
     # every administrator reads.
@@ -367,7 +299,3 @@ def add_enquiry(bde, details, request=None):
         actor=bde,
     )
     return lead
-
-
-def _existing(phone_key, student_key):
-    return Lead.objects.filter(phone_key=phone_key, student_name_key=student_key).only('pk', 'owner_bde_id').first()

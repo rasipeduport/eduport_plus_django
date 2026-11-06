@@ -1,0 +1,188 @@
+"""
+The administrators' Leads API (bookings.lead_admin):
+
+    GET  /api/leads/                 every lead, paged and filtered
+    POST /api/leads/                 add a lead by hand
+    GET  /api/leads/bdes/            the BDE accounts to filter by and assign to
+    GET  /api/leads/<id>/            one lead in full
+    PUT  /api/leads/<id>/owner/      give the lead to a BDE (bookings.ownership)
+
+Reading needs accounts.view_all_leads, adding accounts.add_lead and
+assigning accounts.assign_lead_owner -- all three the ADMIN role's alone (a
+superuser holds them too, D1). A BDE reads their own leads in the BDE
+workspace (/api/bde/enquiries/) and nothing here. Errors answer
+``{"error": CODE, "message": ..., "fields"?}``, as the BDE workspace does.
+"""
+import uuid
+
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from accounts.authz import has_app_permission
+from core.pagination import page_params
+from core.permissions import ByMethod, HasAppPermission
+
+from . import enquiries, lead_admin
+from .booking_service import BookingBusy
+from .lead_intake import LeadExists
+from .lead_status import statuses_for
+from .leads import InvalidLeadDetails
+from .models import Lead
+from .ownership import OwnershipError, assign_owner
+from .serializers import LeadCreateSerializer, LeadOwnerSerializer
+
+VIEW_ALL_LEADS = 'accounts.view_all_leads'
+ADD_LEAD = 'accounts.add_lead'
+ASSIGN_LEAD_OWNER = 'accounts.assign_lead_owner'
+VIEW_ALL_COMMUNICATIONS = 'accounts.view_all_communications'
+
+
+def _error(code, message, http_status, **extra):
+    return Response({'error': code, 'message': message, **extra}, status=http_status)
+
+
+def _invalid(field, message):
+    return _error('INVALID_INPUT', message, status.HTTP_400_BAD_REQUEST, fields=[field])
+
+
+def _no_lead():
+    return _error('NOT_FOUND', 'No such lead.', status.HTTP_404_NOT_FOUND)
+
+
+def _detail(request, lead, now):
+    return lead_admin.lead_detail(
+        lead, now, show_confirmation=has_app_permission(request.user, VIEW_ALL_COMMUNICATIONS, request),
+    )
+
+
+def _read(request, pk, now):
+    lead = lead_admin.listed(Lead.objects.filter(pk=pk), now).first()
+    return _detail(request, lead, now) if lead is not None else None
+
+
+class LeadsView(APIView):
+    """
+    GET  /api/leads/?q=&source=&status=&owner=&page=&page_size=
+         Every lead, the latest received first, always paged:
+         {"results", "count", "page", "page_size"}. ``q`` matches the
+         parent's or student's name, the parent's email or the phone number;
+         ``source`` is one of enquiries.SOURCE_FILTERS, ``status`` a
+         LeadStatus or a stage of either type (lead_status.STAGES), ``owner``
+         a BDE account's id or "unassigned".
+    POST /api/leads/
+         Add a lead by hand (LeadCreateSerializer), owned by nobody: 201 with
+         the lead, or 409 LEAD_EXISTS with ``lead_id`` when the phone number
+         and student already make one.
+    """
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=HasAppPermission(VIEW_ALL_LEADS),
+        POST=HasAppPermission(ADD_LEAD),
+    )]
+
+    def get(self, request, *args, **kwargs):
+        params = request.query_params
+        state = (params.get('status') or '').strip().upper()
+        source = (params.get('source') or '').strip().upper()
+        owner = (params.get('owner') or '').strip().lower()
+        statuses = statuses_for(state)
+        if state and statuses is None:
+            return _invalid('status', 'Unknown lead status.')
+        if source and source not in enquiries.SOURCE_FILTERS:
+            return _invalid('source', 'Unknown lead source.')
+        if owner and owner != lead_admin.UNASSIGNED:
+            try:
+                owner = uuid.UUID(owner)
+            except ValueError:
+                return _invalid('owner', 'Unknown owner.')
+
+        now = timezone.now()
+        leads = enquiries.search(Lead.objects.all(), params.get('q'))
+        if source:
+            leads = enquiries.filter_source(leads, source)
+        if owner:
+            leads = lead_admin.filter_owner(leads, owner)
+        leads = lead_admin.listed(leads, now)
+        if state:
+            leads = leads.filter(lead_status__in=statuses)
+
+        page, page_size = page_params(request)
+        offset = (page - 1) * page_size
+        return Response(
+            {
+                'results': lead_admin.lead_rows(leads[offset:offset + page_size], now),
+                'count': leads.count(),
+                'page': page,
+                'page_size': page_size,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, *args, **kwargs):
+        serializer = LeadCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', 'Check the lead details.', status.HTTP_400_BAD_REQUEST,
+                          fields=serializer.errors)
+        try:
+            lead = lead_admin.add_lead(request.user, serializer.validated_data, request=request)
+        except InvalidLeadDetails as exc:
+            return _error('VALIDATION_ERROR', exc.message, status.HTTP_400_BAD_REQUEST, fields={exc.field: [exc.message]})
+        except LeadExists as exc:
+            return _error('LEAD_EXISTS', 'A lead for this child and phone number already exists.',
+                          status.HTTP_409_CONFLICT, lead_id=str(exc.lead.pk))
+        return Response(_read(request, lead.pk, timezone.now()), status=status.HTTP_201_CREATED)
+
+
+class LeadBdesView(APIView):
+    """
+    GET /api/leads/bdes/
+    The accounts the owner filter offers, and which of them a lead may be
+    given to (``assignable``: active BDEs) -- names only.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS)]
+
+    def get(self, request, *args, **kwargs):
+        return Response({'results': lead_admin.bde_options()}, status=status.HTTP_200_OK)
+
+
+class LeadDetailView(APIView):
+    """GET /api/leads/<id>/: one lead in full, with its bookings, its owner and who added it."""
+    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS)]
+
+    def get(self, request, pk, *args, **kwargs):
+        lead = _read(request, pk, timezone.now())
+        return Response(lead, status=status.HTTP_200_OK) if lead is not None else _no_lead()
+
+
+class LeadOwnerView(APIView):
+    """
+    PUT /api/leads/<id>/owner/ {"bde_id": <id>, "current_owner_id": <id> | null}
+    Give the lead to an active BDE: it leaves its previous owner's My Leads and
+    joins theirs. ``current_owner_id`` is the owner the caller saw (null:
+    nobody); when someone changed it meanwhile the answer is 409
+    OWNER_CHANGED and nothing changes. Answers the lead in full with
+    ``changed`` (false when it already was theirs).
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(ASSIGN_LEAD_OWNER)]
+
+    def put(self, request, pk, *args, **kwargs):
+        serializer = LeadOwnerSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', 'Choose the BDE to assign.', status.HTTP_400_BAD_REQUEST,
+                          fields=serializer.errors)
+        data = serializer.validated_data
+        try:
+            _lead, changed = assign_owner(
+                pk, data['bde_id'], actor=request.user, via='admin_leads',
+                expected_owner_id=data['current_owner_id'], request=request,
+            )
+        except Lead.DoesNotExist:
+            return _no_lead()
+        except OwnershipError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        except BookingBusy:
+            return _error('LEAD_BUSY', 'This lead is being changed right now. Try again in a moment.',
+                          status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({**_read(request, pk, timezone.now()), 'changed': changed}, status=status.HTTP_200_OK)

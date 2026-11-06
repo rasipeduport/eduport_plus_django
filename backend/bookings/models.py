@@ -22,7 +22,9 @@ and student name, shared by both types. A booking is taught one-to-one by the
 tutor assigned to it, who starts it explicitly (bookings.lifecycle), and every
 change to it is kept in its history
 (BookingEvent). bookings.booking_service is the only writer of bookings; the
-leads a BDE adds by hand (their enquiries) are written by bookings.enquiries.
+leads the lead forms send and the ones added by hand (a BDE's enquiries, an
+administrator's leads) are written by bookings.lead_intake, and a lead's
+owner is changed by bookings.ownership alone.
 """
 import secrets
 import uuid
@@ -295,6 +297,9 @@ class BookingSlot(models.Model):
 class LeadSource(models.TextChoices):
     """How an enquiry first reached Eduport Plus."""
     BOOKING_PAGE = 'BOOKING_PAGE', 'Booking page'
+    # The marketing site's lead forms: the main website's demo form and the landing page's.
+    WEBSITE = 'WEBSITE', 'Website'
+    LANDING_PAGE = 'LANDING_PAGE', 'Landing page'
     PHONE_CALL = 'PHONE_CALL', 'Phone call'
     WHATSAPP = 'WHATSAPP', 'WhatsApp'
     WALK_IN = 'WALK_IN', 'Walk-in'
@@ -303,17 +308,22 @@ class LeadSource(models.TextChoices):
     OTHER = 'OTHER', 'Other'
 
 
-# What a BDE may pick when adding an enquiry by hand; BOOKING_PAGE is set only
-# by a public booking.
-MANUAL_LEAD_SOURCES = [value for value in LeadSource.values if value != LeadSource.BOOKING_PAGE]
+# The sources only the public pages set: a booking, or a lead form (bookings.lead_intake).
+PUBLIC_LEAD_SOURCES = (LeadSource.BOOKING_PAGE, LeadSource.WEBSITE, LeadSource.LANDING_PAGE)
+PUBLIC_FORM_SOURCES = (LeadSource.WEBSITE, LeadSource.LANDING_PAGE)
+# What a BDE or an administrator may pick when adding a lead by hand.
+MANUAL_LEAD_SOURCES = [value for value in LeadSource.values if value not in PUBLIC_LEAD_SOURCES]
 
 
 class Lead(models.Model):
     """
     One parent's enquiry for one child: matched by phone and student name, so
-    siblings sharing a parent's phone stay separate leads. The owner is the
-    first BDE whose valid link brought a booking, or the BDE who added it by
-    hand, and is never overwritten by a later one.
+    siblings sharing a parent's phone stay separate leads. It comes from a
+    booking page, a lead form on the marketing site, or by hand (a BDE's
+    enquiry, an administrator's lead). The owner is the first BDE whose valid
+    link brought a booking, or the BDE who added it by hand; a later booking
+    never overwrites it -- only an administrator assigning another BDE does
+    (bookings.ownership).
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     parent_name = models.CharField(max_length=255)
@@ -327,9 +337,23 @@ class Lead(models.Model):
     grade = models.CharField(max_length=50)
     syllabus = models.CharField(max_length=100)
     country = models.CharField(max_length=100, blank=True, default='')
-    # A lead the booking pages create came from them; a BDE adding one by hand
-    # names how it reached them (bookings.enquiries).
+    # Optional: no public page asks for it; an administrator may record it.
+    parent_email = models.EmailField(max_length=254, blank=True, default='')
+    # A lead the booking pages or lead forms create came from them; a BDE or
+    # an administrator adding one by hand names how it reached them.
     source = models.CharField(max_length=20, choices=LeadSource.choices, default=LeadSource.BOOKING_PAGE)
+    # Where a lead form's lead came from, as the form's page URL told it: its
+    # utm_* campaign parameters, written once with the lead (bookings.lead_intake).
+    source_details = models.JSONField(default=dict, blank=True)
+    # Who added it by hand: a BDE (their enquiry) or an administrator. NULL
+    # for a lead a public page made, and for enquiries from before the column.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_leads'
+    )
     owner_bde = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -337,6 +361,8 @@ class Lead(models.Model):
         blank=True,
         related_name='owned_leads'
     )
+    # The owner's link that brought the lead to them; cleared when an
+    # administrator gives the lead to another BDE.
     owner_link = models.ForeignKey(
         BookingLink,
         on_delete=models.PROTECT,
@@ -344,6 +370,7 @@ class Lead(models.Model):
         blank=True,
         related_name='owned_leads'
     )
+    # When the lead became its current owner's.
     owner_assigned_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
