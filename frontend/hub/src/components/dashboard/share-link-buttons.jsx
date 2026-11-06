@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon, MessageCircleIcon } from 'lucide-react';
 
 import api from '@/lib/api';
+import { whatsAppUrl } from '@/lib/enquiries';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group';
 import {
@@ -53,10 +54,16 @@ function selectContents(element) {
   selection.addRange(range);
 }
 
-/** One link: the main button copies it; the arrow's menu copies, shares on WhatsApp or previews it. */
-function ShareLinkButton({ link, copied, onCopy }) {
+/**
+ * One link: the main button copies it; the arrow's menu copies, shares on
+ * WhatsApp or previews it. With a `recipient` the WhatsApp chat is that
+ * parent's, the message filled in; without one WhatsApp asks whom to send it to.
+ */
+function ShareLinkButton({ link, copied, onCopy, recipient }) {
   const copy = linkCopy(link);
-  const whatsAppUrl = `https://wa.me/?text=${encodeURIComponent(`${copy.message} ${link.url}`)}`;
+  const text = `${copy.message} ${link.url}`;
+  const toParent = recipient ? whatsAppUrl(recipient.dialCode, recipient.number, text) : null;
+  const whatsApp = toParent ?? `https://wa.me/?text=${encodeURIComponent(text)}`;
 
   return (
     <ButtonGroup>
@@ -77,9 +84,9 @@ function ShareLinkButton({ link, copied, onCopy }) {
             Copy Link
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer">
+            <a href={whatsApp} target="_blank" rel="noopener noreferrer">
               <MessageCircleIcon />
-              Share on WhatsApp
+              {toParent ? 'Send to the parent on WhatsApp' : 'Share on WhatsApp'}
             </a>
           </DropdownMenuItem>
           {/* The public booking page itself, the BDE's ref token in its URL. */}
@@ -96,12 +103,13 @@ function ShareLinkButton({ link, copied, onCopy }) {
 }
 
 /**
- * The BDE dashboard's quick sharing, beside its My Enquiries and Add enquiry
- * buttons: the BDE's own Demo and Diagnostic booking links, each copied in
- * one click or shared on WhatsApp or previewed from its menu. The API serves
- * each BDE only their own links.
+ * The BDE's quick sharing -- on their dashboard and My Leads, and on one of
+ * their leads for that lead's parent (`recipient`: `{ dialCode, number }`):
+ * the BDE's own Demo and Diagnostic booking links, each copied in one click or
+ * shared on WhatsApp or previewed from its menu. The API serves each BDE only
+ * their own links.
  */
-export function ShareLinkButtons() {
+export function ShareLinkButtons({ recipient = null }) {
   const [links, setLinks] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -185,7 +193,13 @@ export function ShareLinkButtons() {
     <div className="flex min-w-0 flex-col gap-1.5 sm:items-end">
       <div className="flex flex-wrap gap-2">
         {links.map((link) => (
-          <ShareLinkButton key={link.booking_type} link={link} copied={copied === link.booking_type} onCopy={copyLink} />
+          <ShareLinkButton
+            key={link.booking_type}
+            link={link}
+            copied={copied === link.booking_type}
+            onCopy={copyLink}
+            recipient={recipient}
+          />
         ))}
       </div>
       {manual ? (

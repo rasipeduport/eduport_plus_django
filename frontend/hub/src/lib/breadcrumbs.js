@@ -13,7 +13,8 @@ const breadcrumbConfig = {
   '/exams': [{ label: 'Exams' }],
   '/homework': [{ label: 'Homework' }],
   '/invitations': [{ label: 'Invitations' }],
-  '/enquiries': [{ label: 'My Enquiries' }],
+  '/enquiries': [{ label: 'My Leads' }],
+  '/leads': [{ label: 'Leads' }],
   '/bookings': [{ label: 'Bookings' }],
   '/my-bookings': [{ label: 'My Bookings' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
@@ -27,7 +28,8 @@ const breadcrumbConfig = {
 const breadcrumbPatterns = [
   { pattern: /^\/students\/[^/]+$/, trail: [{ label: 'Students', href: '/students' }, { label: 'Profile' }] },
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
-  { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
+  { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Leads', href: '/enquiries' }, { label: 'Lead' }] },
+  { pattern: /^\/leads\/[^/]+$/, trail: [{ label: 'Leads', href: '/leads' }, { label: 'Lead' }] },
   {
     pattern: /^\/my-bookings\/(demo|diagnostic)\/[^/]+\/report$/,
     trail: [{ label: 'My Bookings', href: '/my-bookings' }, { label: 'Report' }],

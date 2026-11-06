@@ -2029,9 +2029,17 @@ test('Activity feed: tutor changes on bookings are labelled and described, namin
     "Edited the report on a diagnostic booking, now version 3 — Score, Teacher's remarks, Grade");
   assert.equal(describeActivity(entry('report.edit', {})), 'Edited the report on a booking');
   // The action filter offers every label: only actions something logs today.
-  for (const later of ['conversion.stage', 'conversion.enrol', 'lead.assign_owner']) {
+  for (const later of ['conversion.stage', 'conversion.enrol']) {
     assert.ok(!(later in ACTION_LABELS), `${later} is labelled once something logs it`);
   }
+  // Leads are logged since lead management (backend bookings.lead_intake, bookings.ownership).
+  assert.equal(actionLabel('lead.create'), 'Lead added');
+  assert.equal(actionLabel('lead.assign_owner'), 'Lead assigned');
+  assert.equal(describeActivity(entry('lead.create', { source: 'WEBSITE', via: 'lead_form' })), 'Received a lead from the website');
+  assert.equal(describeActivity(entry('lead.create', { source: 'PHONE_CALL', via: 'admin_leads' })), 'Added a lead (phone call)');
+  assert.equal(describeActivity(entry('lead.assign_owner', { previous_owner_id: null, owner_id: 'bde-1' })), 'Assigned a lead to a BDE');
+  assert.equal(describeActivity(entry('lead.assign_owner', { previous_owner_id: 'bde-1', owner_id: 'bde-2' })),
+    'Reassigned a lead to another BDE');
 });
 
 // ------------------------------------------------ parent communication (Phase 3.1)

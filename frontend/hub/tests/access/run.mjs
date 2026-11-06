@@ -300,12 +300,43 @@ function withCommunications(answers, permissions) {
 }
 const SUPERUSER_COMMUNICATIONS = [...ADMIN_COMMUNICATIONS, VIEW_OWN_LEAD_COMMUNICATIONS];
 
+// Lead management (accounts.0018, on the Leads API), laid over the same
+// recorded answers: accounts.view_all_leads, accounts.add_lead and
+// accounts.assign_lead_owner, which the administrator's role group carries
+// and a superuser holds (D1). They are served two leads -- one from the
+// website that nobody owns yet, one a BDE owns -- the BDE accounts to assign
+// to, and the first lead in full, on fixed dates.
+const LEAD_PERMISSIONS = ['accounts.add_lead', 'accounts.assign_lead_owner', 'accounts.view_all_leads'];
+const LEAD_ID = '2c4e6a8b-0d1f-4a3b-8c5d-7e9f0a1b2c3d';
+const LEAD_BDE_ID = '8f7e6d5c-4b3a-4291-8f0e-1d2c3b4a5f6e';
+const LEADS_PATH = '/api/leads/';
+const WEBSITE_LEAD = { id: LEAD_ID, parent_name: 'Meera Menon', phone: '+91 9876543210', student_name: 'Kavya', grade: 'Class 7',
+  source: 'WEBSITE', source_label: 'Website', status: 'NEW', status_label: 'New', next_booking: null, added_at: null,
+  owner: null, created_at: '2026-11-06T09:00:00+05:30' };
+const OWNED_LEAD = { ...ENQUIRY_ROW, owner: { id: LEAD_BDE_ID, full_name: 'Bde One' }, created_at: '2026-10-27T09:00:00+05:30' };
+const LEADS_LIST = { status: 200, body: { results: [WEBSITE_LEAD, OWNED_LEAD], count: 2, page: 1, page_size: 25 } };
+const LEAD_BDES = { status: 200, body: { results: [{ id: LEAD_BDE_ID, full_name: 'Bde One', assignable: true }] } };
+const LEAD_DETAIL = { status: 200, body: { ...WEBSITE_LEAD, phone_dial_code: '+91', phone_number: '9876543210',
+  parent_email: 'meera@example.com', school_name: 'Kendriya Vidyalaya', syllabus: 'CBSE', country: 'India',
+  timezone: 'Asia/Kolkata', bookings: [], added_by: null, source_details: { utm_source: 'instagram' } } };
+function withLeads(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...new Set([...me.body.user.permissions, ...LEAD_PERMISSIONS])].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    [LEADS_PATH]: LEADS_LIST,
+    [`${LEADS_PATH}bdes/`]: LEAD_BDES,
+    [`${LEADS_PATH}${LEAD_ID}/`]: LEAD_DETAIL,
+  };
+}
+
 const CALLERS = {
-  admin: { answers: withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS) },
-  superuser: { answers: withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS) },
-  su_mentor: { answers: withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS) },
+  admin: { answers: withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS)) },
+  superuser: { answers: withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS)) },
+  su_mentor: { answers: withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS)) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS) },
   tutor_b: { answers: withAssignedBookings(fixtures.callers.tutor_b) },
@@ -329,10 +360,10 @@ const PATHS = [
   '/invitations', '/activity', '/team', `/team/${ids.mentor_c}`, `/team/${ids.mentor_c}?tab=activity`, '/booking-links',
   `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/enquiries', `/enquiries/${ENQUIRY_ID}`, '/admins', '/nowhere',
   '/bookings', `/bookings?booking=${BOOKING_ID}`, '/my-bookings', `/my-bookings?booking=${MY_BOOKING_ID}&booking_type=DEMO`,
-  `/my-bookings/demo/${MY_BOOKING_ID}/report`,
+  `/my-bookings/demo/${MY_BOOKING_ID}/report`, '/leads', `/leads/${LEAD_ID}`,
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
-  [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a' };
+  [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };
 const symbolic = (value) => JSON.parse(JSON.stringify(value).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => `{${labelOf[id] || 'id'}}`));
 // Activity rows name the moment the fixture world was recorded ("26 Oct, 12:27 PM");
 // a re-recorded fixtures.json moves it, so it never counts as a difference.

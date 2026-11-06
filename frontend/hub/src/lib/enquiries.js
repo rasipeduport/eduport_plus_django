@@ -1,28 +1,41 @@
-// The BDE workspace's enquiries: the /api/bde/ contract (backend
-// bookings/enquiries.py) as the Hub uses it. The API scopes every answer to
-// the signed-in BDE and enforces every rule; this only labels what it returns.
+// The BDE workspace's enquiries -- their My Leads: the /api/bde/ contract
+// (backend bookings/enquiries.py) as the Hub uses it, and the labels the
+// administrators' Leads page shares (lib/leads.js). The API scopes every answer
+// to the signed-in BDE and enforces every rule; this only labels what it returns.
 
 export const BDE_DASHBOARD_URL = '/api/bde/dashboard/';
 export const ENQUIRIES_URL = '/api/bde/enquiries/';
 export const enquiryUrl = (id) => `${ENQUIRIES_URL}${id}/`;
 
-// Statuses follow the bookings (backend EnquiryStatus); a BDE does not set them.
-export const ENQUIRY_STATUSES = [
+// A lead's status follows its bookings (backend bookings.lead_status): nobody
+// sets it. A booking to come shows first, then a class that happened, then a
+// slot that ended with no start (the class never happened), then a cancellation.
+// The status filter also takes each stage of either type (backend STAGES):
+// the dashboard's Upcoming Bookings opens My Leads at ?status=BOOKED.
+export const LEAD_STATUSES = [
   { value: 'NEW', label: 'New' },
-  { value: 'BOOKED', label: 'Booked' },
-  { value: 'DONE', label: 'Booking done' },
-  // A slot that ended without its tutor starting it: the class never happened, so never Booking done.
-  { value: 'NOT_STARTED', label: 'Not started' },
-  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'BOOKED', label: 'Booked (any type)' },
+  { value: 'DIAGNOSTIC_BOOKED', label: 'Diagnostic booked' },
+  { value: 'DEMO_BOOKED', label: 'Demo booked' },
+  { value: 'COMPLETED', label: 'Completed (any type)' },
+  { value: 'DIAGNOSTIC_COMPLETED', label: 'Diagnostic completed' },
+  { value: 'DEMO_COMPLETED', label: 'Demo completed' },
+  { value: 'NOT_STARTED', label: 'Not started (any type)' },
+  { value: 'DIAGNOSTIC_NOT_STARTED', label: 'Diagnostic not started' },
+  { value: 'DEMO_NOT_STARTED', label: 'Demo not started' },
+  { value: 'CANCELLED', label: 'Cancelled (any type)' },
+  { value: 'DIAGNOSTIC_CANCELLED', label: 'Diagnostic cancelled' },
+  { value: 'DEMO_CANCELLED', label: 'Demo cancelled' },
 ];
 
-const STATUS_VARIANT = { NEW: 'info', BOOKED: 'success', DONE: 'secondary', NOT_STARTED: 'warning', CANCELLED: 'outline' };
+const STATUS_VARIANT = { BOOKED: 'success', COMPLETED: 'secondary', NOT_STARTED: 'warning', CANCELLED: 'outline' };
 
 export function statusVariant(status) {
-  return STATUS_VARIANT[status] ?? 'outline';
+  if (status === 'NEW') return 'info';
+  return STATUS_VARIANT[String(status ?? '').replace(/^(DEMO|DIAGNOSTIC)_/, '')] ?? 'outline';
 }
 
-// What a BDE picks when adding an enquiry by hand (backend MANUAL_LEAD_SOURCES).
+// What a BDE or an administrator picks when adding a lead by hand (backend MANUAL_LEAD_SOURCES).
 export const MANUAL_SOURCES = [
   { value: 'PHONE_CALL', label: 'Phone call' },
   { value: 'WHATSAPP', label: 'WhatsApp' },
@@ -32,10 +45,14 @@ export const MANUAL_SOURCES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-// The list filter also offers the two booking links (backend SOURCE_FILTERS).
+// The list filters also offer the two booking links, a booking page's lead no
+// link brought, and the marketing site's two lead forms (backend SOURCE_FILTERS).
 export const SOURCE_FILTERS = [
   { value: 'DEMO_LINK', label: 'Demo link' },
   { value: 'DIAGNOSTIC_LINK', label: 'Diagnostic link' },
+  { value: 'BOOKING_PAGE', label: 'Booking page' },
+  { value: 'WEBSITE', label: 'Website' },
+  { value: 'LANDING_PAGE', label: 'Landing page' },
   ...MANUAL_SOURCES,
 ];
 
@@ -103,8 +120,9 @@ export function whatsAppUrl(dialCode, number, text) {
 
 /**
  * `{ status, code, message, fields, enquiryId }` from an axios error. The
- * workspace answers `{ error: CODE, message, fields? }`; a duplicate of the
- * BDE's own enquiry also carries `enquiry_id`.
+ * workspace and the Leads API answer `{ error: CODE, message, fields? }`; a
+ * duplicate of the BDE's own enquiry also carries `enquiry_id`, and any
+ * duplicate an administrator adds `lead_id`.
  */
 export function enquiryError(err, fallback) {
   const response = err?.response;
@@ -116,6 +134,6 @@ export function enquiryError(err, fallback) {
       ? data.message || data.detail || fallback
       : 'Could not reach the server. Check your connection and try again.',
     fields: data.fields && typeof data.fields === 'object' && !Array.isArray(data.fields) ? data.fields : {},
-    enquiryId: typeof data.enquiry_id === 'string' ? data.enquiry_id : null,
+    enquiryId: [data.enquiry_id, data.lead_id].find((id) => typeof id === 'string') ?? null,
   };
 }

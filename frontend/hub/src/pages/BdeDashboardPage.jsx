@@ -249,13 +249,13 @@ export default function BdeDashboardPage({ user }) {
           <Button asChild>
             <Link to="/enquiries">
               <Inbox />
-              My Enquiries
+              My Leads
             </Link>
           </Button>
           {canAdd ? (
             <Button variant="outline" onClick={() => setAddOpen(true)}>
               <PlusIcon />
-              Add enquiry
+              Add lead
             </Button>
           ) : null}
         </div>

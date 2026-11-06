@@ -29,6 +29,7 @@ import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enq
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { MeetLink } from '@/components/bookings/meet-link';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
+import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { BookingCommunicationSheet } from '@/components/communications/communication-sheet';
 import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
 
@@ -180,20 +181,21 @@ function Unavailable({ failure }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
       <Icon className="text-muted-foreground size-8" />
-      <p className="font-medium">{missing ? 'Enquiry not found' : "You don't have access to this enquiry."}</p>
+      <p className="font-medium">{missing ? 'Lead not found' : "You don't have access to this lead."}</p>
       <p className="text-muted-foreground max-w-md text-sm">
-        {missing ? 'It may have been removed, or it is not one of your enquiries.' : failure.message}
+        {missing ? 'It may have been removed, assigned to another BDE, or it is not one of your leads.' : failure.message}
       </p>
     </div>
   );
 }
 
 /**
- * One of the BDE's enquiries in full: the parent, the child, every booking
- * made for them and the reports on those bookings, to send to the parent
- * (P9, for holders of accounts.view_own_lead_reports). Follow-ups come with
- * their own module. The API answers another BDE's enquiry exactly as one that
- * does not exist. Each booking's parent communication opens in a side sheet
+ * One of the BDE's leads in full: the parent, the child, every booking made
+ * for them and the reports on those bookings, to send to the parent (P9, for
+ * holders of accounts.view_own_lead_reports); the parent is called or messaged
+ * from here, and sent the BDE's own Demo or Diagnostic booking link on
+ * WhatsApp. The API answers another BDE's lead -- one reassigned away from
+ * this BDE included -- exactly as one that does not exist. Each booking's parent communication opens in a side sheet
  * (?booking=<id>&booking_type=<type>) for holders of
  * accounts.view_own_lead_communications (Phase 3.1), where the BDE asks the
  * parent to confirm and records their answer when the API offers it (3.2).
@@ -207,6 +209,7 @@ export default function EnquiryPage({ user }) {
   const [cancelling, setCancelling] = useState(null);
   const [notice, setNotice] = useState(null);
   const canSeeCommunication = can(user, PERMISSIONS.viewOwnLeadCommunications);
+  const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const openId = searchParams.get('booking');
   const openType = readBookingType(searchParams.get('booking_type'));
 
@@ -215,7 +218,7 @@ export default function EnquiryPage({ user }) {
     api
       .get(enquiryUrl(enquiryId))
       .then((response) => setEnquiry(response.data))
-      .catch((err) => setFailure(enquiryError(err, 'Could not load this enquiry.')));
+      .catch((err) => setFailure(enquiryError(err, 'Could not load this lead.')));
   };
 
   /** Open `booking`'s communication sheet, or close it (null). */
@@ -241,7 +244,7 @@ export default function EnquiryPage({ user }) {
         if (active) setEnquiry(response.data);
       })
       .catch((err) => {
-        if (active) setFailure(enquiryError(err, 'Could not load this enquiry.'));
+        if (active) setFailure(enquiryError(err, 'Could not load this lead.'));
       });
     return () => {
       active = false;
@@ -282,22 +285,28 @@ export default function EnquiryPage({ user }) {
               </div>
             </div>
           </div>
-          {links ? (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild>
-                <a href={links.tel}>
-                  <PhoneIcon />
-                  Call
-                </a>
-              </Button>
-              <Button asChild>
-                <a href={links.whatsapp} target="_blank" rel="noopener noreferrer">
-                  <MessageCircleIcon />
-                  WhatsApp
-                </a>
-              </Button>
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-2 sm:items-end">
+            {links ? (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" asChild>
+                  <a href={links.tel}>
+                    <PhoneIcon />
+                    Call
+                  </a>
+                </Button>
+                <Button asChild>
+                  <a href={links.whatsapp} target="_blank" rel="noopener noreferrer">
+                    <MessageCircleIcon />
+                    WhatsApp
+                  </a>
+                </Button>
+              </div>
+            ) : null}
+            {/* The BDE's own booking links, sent to this parent's WhatsApp from their menus. */}
+            {canShareLinks ? (
+              <ShareLinkButtons recipient={{ dialCode: enquiry.phone_dial_code, number: enquiry.phone_number }} />
+            ) : null}
+          </div>
         </div>
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-3">
@@ -307,6 +316,7 @@ export default function EnquiryPage({ user }) {
               <Field label="Phone">
                 <span className="tabular-nums">{enquiry.phone}</span>
               </Field>
+              <Field label="Email">{enquiry.parent_email}</Field>
               <Field label="Country">{enquiry.country}</Field>
             </dl>
           </Panel>
@@ -318,7 +328,7 @@ export default function EnquiryPage({ user }) {
               <Field label="Syllabus">{enquiry.syllabus}</Field>
             </dl>
           </Panel>
-          <Panel icon={ClipboardListIcon} title="Enquiry">
+          <Panel icon={ClipboardListIcon} title="Lead">
             <dl className="divide-y">
               <Field label="Source">{enquiry.source_label}</Field>
               <Field label="Status">{enquiry.status_label}</Field>
@@ -347,7 +357,7 @@ export default function EnquiryPage({ user }) {
       <Button variant="ghost" size="sm" className="text-muted-foreground mb-4 -ml-2" asChild>
         <Link to="/enquiries">
           <ArrowLeftIcon className="size-4" />
-          My Enquiries
+          My Leads
         </Link>
       </Button>
       {notice ? (

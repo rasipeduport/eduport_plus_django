@@ -6,17 +6,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ENQUIRY_STATUSES, SOURCE_FILTERS, slotLabel } from '@/lib/enquiries';
+import { LEAD_STATUSES, SOURCE_FILTERS, formatDay, slotLabel } from '@/lib/enquiries';
 import { EnquiryStatusBadge } from './enquiry-badges';
 
 const ALL = '__all__';
 
 /**
- * The BDE's enquiries: search, status and source filters, and paging, all
- * kept in the URL (like the team directory) and applied by the API. Each row
- * opens the enquiry's page (/enquiries/:enquiryId).
+ * A list of leads: search, status and source filters, and paging, all kept in
+ * the URL (like the team directory) and applied by the API. Each row opens
+ * the lead's page (`basePath`/:id) -- a BDE's own (/enquiries, My Leads), or
+ * any for an administrator (/leads). Given `owners` (the owner filter's
+ * options) it is the administrators' list: when each lead came in, who owns
+ * it, an owner filter and, with `onAssign`, giving a lead to a BDE.
  */
-export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
+export function EnquiryList({
+  rows,
+  total,
+  page,
+  pageSize,
+  filters,
+  pending,
+  basePath = '/enquiries',
+  owners = null,
+  onAssign = null,
+  emptyMessage = 'No leads yet. Share your booking links, or add a lead that reached you another way.',
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [q, setQ] = useState(filters.q);
 
@@ -41,7 +55,9 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endRow = Math.min(page * pageSize, total);
-  const hasFilters = Boolean(filters.q || filters.status || filters.source);
+  const hasFilters = Boolean(filters.q || filters.status || filters.source || filters.owner);
+  const admin = Boolean(owners);
+  const columns = 8 + (admin ? 2 : 0) + (onAssign ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -58,7 +74,7 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
             value={q}
             onChange={(event) => setQ(event.target.value)}
             className="w-full sm:w-72"
-            aria-label="Search enquiries"
+            aria-label="Search leads"
           />
         </form>
         <FilterSelect
@@ -66,7 +82,7 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
           label="Filter by status"
           value={filters.status || ALL}
           onChange={(value) => navigate({ status: value === ALL ? null : value })}
-          options={ENQUIRY_STATUSES}
+          options={LEAD_STATUSES}
         />
         <FilterSelect
           placeholder="All sources"
@@ -75,6 +91,15 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
           onChange={(value) => navigate({ source: value === ALL ? null : value })}
           options={SOURCE_FILTERS}
         />
+        {admin ? (
+          <FilterSelect
+            placeholder="All owners"
+            label="Filter by owner"
+            value={filters.owner || ALL}
+            onChange={(value) => navigate({ owner: value === ALL ? null : value })}
+            options={owners}
+          />
+        ) : null}
         {hasFilters ? (
           <Button
             variant="ghost"
@@ -92,6 +117,7 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
         <Table>
           <TableHeader>
             <TableRow>
+              {admin ? <TableHead>Received</TableHead> : null}
               <TableHead>Parent</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Student</TableHead>
@@ -99,6 +125,12 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
               <TableHead>Source</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Next booking</TableHead>
+              {admin ? <TableHead>Owner</TableHead> : null}
+              {onAssign ? (
+                <TableHead className="w-px">
+                  <span className="sr-only">Assign</span>
+                </TableHead>
+              ) : null}
               <TableHead className="w-10">
                 <span className="sr-only">Open</span>
               </TableHead>
@@ -107,17 +139,18 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
           <TableBody className={pending ? 'opacity-60' : undefined}>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  {hasFilters
-                    ? 'No enquiries match these filters.'
-                    : 'No enquiries yet. Share your booking links, or add an enquiry that reached you another way.'}
+                <TableCell colSpan={columns} className="h-24 text-center">
+                  {hasFilters ? 'No leads match these filters.' : emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((enquiry) => (
                 <TableRow key={enquiry.id}>
+                  {admin ? (
+                    <TableCell className="text-muted-foreground whitespace-nowrap">{formatDay(enquiry.created_at)}</TableCell>
+                  ) : null}
                   <TableCell>
-                    <Link to={`/enquiries/${enquiry.id}`} className="font-medium hover:underline">
+                    <Link to={`${basePath}/${enquiry.id}`} className="font-medium hover:underline">
                       {enquiry.parent_name}
                     </Link>
                   </TableCell>
@@ -131,12 +164,26 @@ export function EnquiryList({ rows, total, page, pageSize, filters, pending }) {
                   <TableCell className="text-muted-foreground">
                     {enquiry.next_booking ? slotLabel(enquiry.next_booking) : '—'}
                   </TableCell>
+                  {admin ? (
+                    <TableCell>
+                      {enquiry.owner ? enquiry.owner.full_name : <span className="text-muted-foreground">Unassigned</span>}
+                    </TableCell>
+                  ) : null}
+                  {onAssign ? (
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onAssign(enquiry)}
+                        aria-label={`${enquiry.owner ? 'Reassign' : 'Assign'} the lead for ${enquiry.student_name}`}
+                      >
+                        {enquiry.owner ? 'Reassign' : 'Assign'}
+                      </Button>
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <Button variant="ghost" size="icon" className="size-8" asChild>
-                      <Link
-                        to={`/enquiries/${enquiry.id}`}
-                        aria-label={`Open the enquiry for ${enquiry.student_name}`}
-                      >
+                      <Link to={`${basePath}/${enquiry.id}`} aria-label={`Open the lead for ${enquiry.student_name}`}>
                         <ChevronRightIcon className="size-4" />
                       </Link>
                     </Button>

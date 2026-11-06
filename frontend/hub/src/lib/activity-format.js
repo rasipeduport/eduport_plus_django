@@ -60,6 +60,9 @@ export const ACTION_LABELS = {
   // BDE workspace.
   'booking_link.issue': 'Booking link issued',
   'enquiry.create': 'Enquiry added',
+  // Leads (backend bookings.lead_intake, bookings.ownership): ids and choices only, never a name.
+  'lead.create': 'Lead added',
+  'lead.assign_owner': 'Lead assigned',
   // Demo/Diagnostic bookings. An action is labelled once something logs it:
   // the action filter offers every label here.
   'booking.create': 'Booking received',
@@ -282,6 +285,14 @@ export function describeActivity(row) {
       const source = row.context?.source ? sourceLabel(row.context.source) : null;
       return source ? `Added an enquiry (${source.toLowerCase()})` : 'Added an enquiry';
     }
+    case 'lead.create': {
+      // From a lead form on the website or landing page, or added by an administrator.
+      const source = row.context?.source ? sourceLabel(row.context.source) : null;
+      if (row.context?.via === 'lead_form') return source ? `Received a lead from the ${source.toLowerCase()}` : 'Received a lead';
+      return source ? `Added a lead (${source.toLowerCase()})` : 'Added a lead';
+    }
+    case 'lead.assign_owner':
+      return row.context?.previous_owner_id ? 'Reassigned a lead to another BDE' : 'Assigned a lead to a BDE';
     case 'booking.create': {
       const type = String(row.context?.booking_type ?? '').toLowerCase();
       const via = row.context?.referral_status === 'ATTRIBUTED' ? ' through a BDE link' : '';

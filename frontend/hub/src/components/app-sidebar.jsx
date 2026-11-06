@@ -10,6 +10,7 @@ import {
   Inbox,
   LayoutDashboard,
   Mail,
+  Users,
   UsersRound,
 } from 'lucide-react';
 
@@ -20,8 +21,10 @@ import { canOpenPage } from '@/lib/access';
 
 const navMain = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  // The BDE workspace: a BDE's own enquiries.
-  { title: 'My Enquiries', url: '/enquiries', icon: Inbox },
+  // The BDE workspace: a BDE's own leads.
+  { title: 'My Leads', url: '/enquiries', icon: Inbox },
+  // Every lead, for administrators.
+  { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Students', url: '/students', icon: GraduationCap },
   { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
   { title: 'Exams', url: '/exams', icon: ClipboardList },

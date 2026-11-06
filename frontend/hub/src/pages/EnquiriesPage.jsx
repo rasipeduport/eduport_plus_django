@@ -4,14 +4,15 @@ import { CheckCircle2Icon, PlusIcon, ShieldAlertIcon, XIcon } from 'lucide-react
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
-import { ENQUIRIES_URL, ENQUIRY_STATUSES, SOURCE_FILTERS, enquiryError } from '@/lib/enquiries';
+import { ENQUIRIES_URL, LEAD_STATUSES, SOURCE_FILTERS, enquiryError } from '@/lib/enquiries';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
+import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { EnquiryList } from '@/components/enquiries/enquiry-list';
 
 const PAGE_SIZE = 25;
-const STATUS_VALUES = new Set(ENQUIRY_STATUSES.map((status) => status.value));
+const STATUS_VALUES = new Set(LEAD_STATUSES.map((status) => status.value));
 const SOURCE_VALUES = new Set(SOURCE_FILTERS.map((source) => source.value));
 
 function AccessDenied({ failure }) {
@@ -19,7 +20,7 @@ function AccessDenied({ failure }) {
     <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
       <ShieldAlertIcon className="text-muted-foreground size-8" />
       <p className="font-medium">
-        {failure.code === 'NOT_A_BDE' ? 'Enquiries belong to BDE accounts.' : "You don't have access to enquiries."}
+        {failure.code === 'NOT_A_BDE' ? 'Leads belong to BDE accounts.' : "You don't have access to leads."}
       </p>
       <p className="text-muted-foreground max-w-md text-sm">{failure.message}</p>
     </div>
@@ -27,11 +28,14 @@ function AccessDenied({ failure }) {
 }
 
 /**
- * My Enquiries: the BDE's own leads -- the ones their booking links brought in
- * and the ones they added by hand. The API serves each BDE only theirs.
+ * My Leads: the BDE's own leads -- the ones their booking links brought in,
+ * the ones they added by hand and the ones an administrator assigned them --
+ * with their booking links to share. The API serves each BDE only the leads
+ * they own now: one reassigned to another BDE is gone from here.
  */
 export default function EnquiriesPage({ user }) {
   const canAdd = can(user, PERMISSIONS.addEnquiry);
+  const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -62,7 +66,7 @@ export default function EnquiriesPage({ user }) {
         setFailure(null);
       })
       .catch((err) => {
-        if (active) setFailure(enquiryError(err, 'Could not load your enquiries.'));
+        if (active) setFailure(enquiryError(err, 'Could not load your leads.'));
       })
       .finally(() => {
         if (active) setPending(false);
@@ -120,24 +124,29 @@ export default function EnquiriesPage({ user }) {
     <div className="container mx-auto px-4 py-16">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">My Enquiries</h1>
+          <h1 className="text-2xl font-semibold">My Leads</h1>
           <p className="text-muted-foreground text-sm">
-            Parents who reached you through your booking links, and the enquiries you added yourself.
+            Parents who reached you through your booking links, the leads you added yourself, and the leads assigned
+            to you.
           </p>
         </div>
-        {canAdd ? (
-          <Button onClick={() => setAddOpen(true)}>
-            <PlusIcon />
-            Add enquiry
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-start gap-2 sm:justify-end">
+          {/* The BDE's own booking links, to share with any parent. */}
+          {canShareLinks ? <ShareLinkButtons /> : null}
+          {canAdd ? (
+            <Button variant="outline" onClick={() => setAddOpen(true)}>
+              <PlusIcon />
+              Add lead
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {added ? (
         <div role="status" className="bg-success/10 text-success mb-4 flex items-start gap-2 rounded-md px-3 py-2 text-sm">
           <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
           <p className="flex-1">
-            Added the enquiry for {added.student_name}.{' '}
+            Added the lead for {added.student_name}.{' '}
             <Link to={`/enquiries/${added.id}`} className="font-medium underline">
               Open it
             </Link>
