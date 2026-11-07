@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { RefreshCwIcon } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -9,10 +9,8 @@ import {
   REDEMOS_URL,
   REDEMO_VIEW,
   bookingError,
-  bookingRedemoUrl,
-  bookingsPagePath,
+  bookingPagePath,
   bookingsUrl,
-  cancelReasonLabel,
   listParams,
   readRedemoStatus,
 } from '@/lib/bookings';
@@ -21,14 +19,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
-import { BookingDetailSheet } from '@/components/bookings/booking-detail-sheet';
 import { AdminBookingFilters, BookingList } from '@/components/bookings/booking-list';
-import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { RedemoDetailSheet } from '@/components/bookings/redemo-detail-sheet';
 import { RedemoList } from '@/components/bookings/redemo-list';
 import { RedemoScheduleDialog } from '@/components/bookings/redemo-schedule-dialog';
-import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
-import { RescheduleBookingDialog } from '@/components/bookings/reschedule-booking-dialog';
 import { Page, PageHeader } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
@@ -96,24 +90,39 @@ function Loaded({ data, failure, pending, onRetry, children }) {
   );
 }
 
-/** The page's URL with `updates` applied; any change but paging or the open item starts again at page 1. */
+/** The page's URL with `updates` applied; any change but paging or the open Re-Demo request starts again at page 1. */
 function nextParams(searchParams, updates) {
   const params = new URLSearchParams(searchParams);
   for (const [key, value] of Object.entries(updates)) {
     if (value === null || value === '') params.delete(key);
     else params.set(key, value);
   }
-  if (!('page' in updates) && !('booking' in updates) && !('redemo' in updates)) params.delete('page');
+  if (!('page' in updates) && !('redemo' in updates)) params.delete('page');
   return params;
+}
+
+/** A booking's workspace, with the list it is opened from (`back`, that list's URL) as its way back. */
+function workspaceLink(type, id, back) {
+  return { to: bookingPagePath(type, id), state: { from: { to: back, label: TYPES[type].title } } };
 }
 
 /**
  * The Demo or Diagnostic Bookings page (`type`) for the Admin / Coordinator:
  * the type's bookings (BookingsView) and, for Demo in its Re-Demo tab
- * (?tab=redemo), the Re-Demo requests (RedemosView).
+ * (?tab=redemo), the Re-Demo requests (RedemosView). A link that opened a
+ * booking on this page (?booking=<id>, from before bookings had a workspace)
+ * opens its workspace instead, the list it named as the way back.
  */
 export default function BookingsPage({ user, type }) {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const openId = searchParams.get('booking');
+  if (openId) {
+    const params = new URLSearchParams(searchParams);
+    params.delete('booking');
+    const { to, state } = workspaceLink(type, openId, `${location.pathname}${params.size ? `?${params}` : ''}`);
+    return <Navigate to={to} replace state={state} />;
+  }
   return type === 'DEMO' && searchParams.get('tab') === REDEMO_VIEW ? (
     <RedemosView user={user} />
   ) : (
@@ -125,38 +134,28 @@ export default function BookingsPage({ user, type }) {
  * One type's bookings for the Admin / Coordinator: every booking of `type`
  * parents made (GET /api/bookings/<demo|diagnostic>/), filtered by class date,
  * search, status, tutor, report and schedule (lib/admin-booking-filters) and
- * paged by the API. A completed Demo may be sent for a Re-Demo from its sheet
- * (actions.request_redemo, a reason required and shown back first), which the
- * Re-Demo tab then lists. A booking opens in a side sheet (?booking=<id>, of the
- * page's type), is given its tutor in a dialog that shows who is free for the
- * slot, and may be moved to another slot or cancelled with a reason from the
- * list -- each offered only when the booking's `actions` from the API say so
- * (accounts.reschedule_booking, accounts.cancel_booking). Opens for holders of
+ * paged by the API. Each booking opens in its own workspace
+ * (pages/BookingWorkspacePage: /bookings/<type>/<id>), where it is moved,
+ * cancelled or sent for a Re-Demo; from the list its tutor is given in a
+ * dialog that shows who is free for the slot. Opens for holders of
  * accounts.view_all_bookings (lib/access); assigning needs
  * accounts.assign_booking_tutor. The API enforces both, and checks the tutor
  * again on every assignment.
  */
 function BookingsView({ user, type }) {
   const canAssign = can(user, PERMISSIONS.assignBookingTutor);
-  // A tutor's permanent Meet link belongs to their account: team managers set it (backend accounts.team).
-  const canEditMeetLink = can(user, PERMISSIONS.manageTeam);
-  // Each booking's parent communication, in its sheet (Phase 3.1).
-  const canViewCommunication = can(user, PERMISSIONS.viewAllCommunications);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [assigning, setAssigning] = useState(null);
-  const [cancelling, setCancelling] = useState(null);
-  const [rescheduling, setRescheduling] = useState(null);
-  const [requestingRedemo, setRequestingRedemo] = useState(null);
   const [notice, setNotice] = useState(null);
 
   const filters = readAdminBookingFilters(searchParams, type);
   const { page, q, status, assigned, report, from, to, when } = filters;
-  const openId = searchParams.get('booking');
 
   useEffect(() => {
     let active = true;
@@ -181,27 +180,17 @@ function BookingsView({ user, type }) {
 
   const reload = () => setReloadKey((key) => key + 1);
 
-  // Any filter change (anything but paging or the open booking) starts again at page 1.
+  // Any filter change (anything but paging) starts again at page 1.
   const update = (updates) => setSearchParams(nextParams(searchParams, updates));
-  // Clearing the filters keeps the booking open, if one is.
   const clear = () => update(CLEARED_ADMIN_FILTERS);
 
-  // After a change: say what happened, and read the list (and the open booking) again.
+  // After a change: say what happened, and read the list again.
   const changed = (message) => {
     setNotice(message);
     reload();
   };
 
   const typeOf = (booking) => bookingTypeLabel(booking.booking_type).toLowerCase();
-
-  // A move answers the replacement booking, which the sheet then shows (Q24: whether the tutor came too).
-  const moved = ({ booking, tutor }) => {
-    let tutorNote = '';
-    if (tutor?.carried_over) tutorNote = ` ${tutor.tutor.full_name} still teaches it.`;
-    else if (tutor?.tutor) tutorNote = ` ${tutor.tutor.full_name} isn't free then, so it needs a tutor.`;
-    changed(`Moved ${booking.student_name}'s ${typeOf(booking)} to ${slotLabel(booking.slot)}.${tutorNote}`);
-    update({ booking: booking.id });
-  };
 
   let content;
   if (failure?.status === 403) {
@@ -223,7 +212,10 @@ function BookingsView({ user, type }) {
             noun={TYPES[type].noun}
             onChange={update}
             onClear={clear}
-            onOpen={(id) => update({ booking: id })}
+            onOpen={(id) => {
+              const { to, state } = workspaceLink(type, id, `${location.pathname}${location.search}`);
+              navigate(to, { state });
+            }}
             onAssign={setAssigning}
           />
         </Loaded>
@@ -237,62 +229,6 @@ function BookingsView({ user, type }) {
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
 
       {content}
-
-      <BookingDetailSheet
-        bookingType={type}
-        bookingId={openId}
-        open={Boolean(openId)}
-        onOpenChange={(open) => {
-          if (!open) update({ booking: null });
-        }}
-        canAssign={canAssign}
-        canEditMeetLink={canEditMeetLink}
-        canViewCommunication={canViewCommunication}
-        reloadKey={reloadKey}
-        // The parent's answer may cancel the booking: the list, the booking and its timeline are read again.
-        onCommunicationChanged={() => setReloadKey((key) => key + 1)}
-        onAssign={setAssigning}
-        onChanged={(booking) => changed(`Unassigned the tutor from ${booking.student_name}'s booking.`)}
-        onReschedule={setRescheduling}
-        onCancel={setCancelling}
-        onOpenBooking={(id) => update({ booking: id })}
-        onRequestRedemo={setRequestingRedemo}
-        onOpenRedemo={(id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ tab: REDEMO_VIEW, redemo: id })}`)}
-      />
-
-      <RequestRedemoDialog
-        booking={requestingRedemo}
-        open={Boolean(requestingRedemo)}
-        onOpenChange={(open) => {
-          if (!open) setRequestingRedemo(null);
-        }}
-        requestUrl={requestingRedemo ? bookingRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
-        onRequested={() =>
-          changed(
-            `Asked for a Re-Demo of ${requestingRedemo.student_name}'s demo. It is now Re-Demo required; schedule it in the Re-Demo requests tab.`
-          )
-        }
-      />
-
-      <CancelBookingDialog
-        booking={cancelling}
-        open={Boolean(cancelling)}
-        onOpenChange={(open) => {
-          if (!open) setCancelling(null);
-        }}
-        onCancelled={(booking) =>
-          changed(`Cancelled ${booking.student_name}'s ${typeOf(booking)} (${cancelReasonLabel(booking.cancel_reason_code)}).`)
-        }
-      />
-
-      <RescheduleBookingDialog
-        booking={rescheduling}
-        open={Boolean(rescheduling)}
-        onOpenChange={(open) => {
-          if (!open) setRescheduling(null);
-        }}
-        onRescheduled={moved}
-      />
 
       {canAssign ? (
         <AssignTutorDialog
@@ -313,7 +249,7 @@ function BookingsView({ user, type }) {
  * (GET /api/bookings/redemos/), searched (?q=), filtered by where it stands
  * (?status=) and paged by the API. A request opens in a side sheet
  * (?redemo=<id>) with its original Demo, its reason and the Re-Demo
- * scheduled for it -- each Demo opening in Demo Bookings with its own report
+ * scheduled for it -- each Demo opening in its own workspace with its report
  * -- and, for holders of accounts.assign_booking_tutor, Schedule Re-Demo (a
  * dialog of the tutor, the date and time they are free, and remarks for
  * them, which books it at once) and those remarks. Nothing is sent to the
@@ -330,6 +266,7 @@ function RedemosView({ user }) {
   const [notice, setNotice] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const q = (searchParams.get('q') ?? '').trim();
   const status = readRedemoStatus(searchParams.get('status'));
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -400,8 +337,12 @@ function RedemosView({ user }) {
         }}
         reloadKey={reloadKey}
         onSchedule={setScheduling}
-        // A Demo of the chain opens in Demo Bookings, with its own report.
-        onOpenBooking={(id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ when: 'all', booking: id })}`)}
+        // A Demo of the chain opens in its own workspace, with its own report.
+        onOpenBooking={(id) =>
+          navigate(bookingPagePath('DEMO', id), {
+            state: { from: { to: `${location.pathname}${location.search}`, label: 'Re-Demo requests' } },
+          })
+        }
         onOpenRedemo={(id) => update({ redemo: id })}
       />
 

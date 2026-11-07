@@ -119,9 +119,10 @@ const ADMIN_WORKSPACE = {
         {
           title: 'Bookings',
           icon: CalendarCheck2,
+          // Each stays highlighted on its bookings' own pages (/bookings/<type>/<id>).
           children: [
-            { title: 'Demo', url: '/bookings/demo' },
-            { title: 'Diagnostic', url: '/bookings/diagnostic' },
+            { title: 'Demo', url: '/bookings/demo', nested: true },
+            { title: 'Diagnostic', url: '/bookings/diagnostic', nested: true },
           ],
         },
         { title: 'Booking Slots', url: '/booking-slots', icon: CalendarClock },

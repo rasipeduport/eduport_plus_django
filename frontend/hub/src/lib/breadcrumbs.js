@@ -46,6 +46,11 @@ const breadcrumbPatterns = [
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
   { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
   { pattern: /^\/leads\/[^/]+$/, trail: [{ label: 'Leads', href: '/leads' }, { label: 'Lead' }] },
+  { pattern: /^\/bookings\/demo\/[^/]+$/, trail: [{ label: 'Demo Bookings', href: '/bookings/demo' }, { label: 'Booking' }] },
+  {
+    pattern: /^\/bookings\/diagnostic\/[^/]+$/,
+    trail: [{ label: 'Diagnostic Bookings', href: '/bookings/diagnostic' }, { label: 'Booking' }],
+  },
   {
     pattern: /^\/my-bookings\/(demo|diagnostic)\/[^/]+\/report$/,
     trail: [{ label: 'My Bookings', href: '/my-bookings' }, { label: 'Report' }],

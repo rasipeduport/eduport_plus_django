@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 
 import api from '@/lib/api';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/page/states';
 import { bookingError, bookingHistoryUrl } from '@/lib/bookings';
+import { istMoment } from '@/lib/communications';
 import { slotLabel } from '@/lib/enquiries';
 import { reportFieldsText } from '@/lib/reports';
+import { cn } from '@/lib/utils';
 
 /** One event of the timeline in words, from the names and labels the API reads back (never a child's or parent's). */
 function describeBookingEvent(event) {
@@ -64,28 +65,30 @@ function who(event) {
   return event.details?.via === 'demo_invite' ? 'the invitation page' : 'the booking page';
 }
 
+// Each kind of event's mark on the timeline.
+const TONE = {
+  CREATED: 'bg-primary',
+  COMPLETED: 'bg-success',
+  PARENT_CONFIRMED: 'bg-success',
+  CANCELLED: 'bg-destructive',
+  PARENT_NOT_CONFIRMED: 'bg-destructive',
+  RESCHEDULED: 'bg-warning',
+  REDEMO_REQUESTED: 'bg-warning',
+};
+
 /**
- * A booking's timeline (GET /api/bookings/<type>/<id>/history/), loaded when
- * asked for: every change to it and to the bookings before and after it in
- * its reschedule chain, oldest first, each with who made it and when.
+ * A booking's timeline (GET /api/bookings/<type>/<id>/history/), read while
+ * `bookingType` and `bookingId` are set and again when `reloadKey` changes:
+ * `{ history, failure, retry }`. Nothing of another booking shows while this
+ * one loads.
  */
-export function BookingHistory({ bookingType, bookingId, reloadKey }) {
-  const [shown, setShown] = useState(false);
+export function useBookingHistory(bookingType, bookingId, reloadKey) {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Another booking starts closed again.
-  const [prevId, setPrevId] = useState(bookingId);
-  if (bookingId !== prevId) {
-    setPrevId(bookingId);
-    setShown(false);
-    setData(null);
-    setFailure(null);
-  }
-
   useEffect(() => {
-    if (!shown || !bookingId || !bookingType) return undefined;
+    if (!bookingId || !bookingType) return undefined;
     let active = true;
     setFailure(null);
     api
@@ -99,48 +102,49 @@ export function BookingHistory({ bookingType, bookingId, reloadKey }) {
     return () => {
       active = false;
     };
-  }, [shown, bookingType, bookingId, reloadKey, retryKey]);
+  }, [bookingType, bookingId, reloadKey, retryKey]);
 
-  if (!shown) {
-    return (
-      <Button variant="outline" size="sm" className="self-start" onClick={() => setShown(true)}>
-        Show history
-      </Button>
-    );
-  }
-  if (failure) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={() => setRetryKey((key) => key + 1)}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
-  if (!data) return <Skeleton className="h-24" aria-busy="true" />;
+  const shown = data && data.booking_id === bookingId ? data : null;
+  return { history: shown, failure, retry: () => setRetryKey((key) => key + 1) };
+}
+
+/**
+ * The events of a booking's timeline (useBookingHistory), oldest first: every
+ * change to it and to the bookings before and after it in its reschedule
+ * chain, each with who made it and when (Indian time) -- or only the events
+ * of `kinds` (e.g. its tutor's). `emptyMessage` says when there are none.
+ */
+export function BookingEvents({ state, bookingId, kinds, emptyMessage = 'Nothing recorded yet.' }) {
+  const { history, failure, retry } = state;
+  if (failure && !history) return <ErrorState message={failure.message} onRetry={retry} />;
+  if (!history) return <Skeleton className="h-24" aria-busy="true" />;
   // Which booking of the chain an event belongs to, told against this one's place in it.
-  const order = data.chain.map((link) => link.id);
+  const order = history.chain.map((link) => link.id);
   const here = order.indexOf(bookingId);
   const whose = (event) => {
     const at = order.indexOf(event.booking_id);
     if (at === here || at < 0) return '';
     return at < here ? ' · on the booking it replaced' : ' · on its replacement';
   };
+  const events = kinds ? history.events.filter((event) => kinds.includes(event.kind)) : history.events;
+  if (!events.length) return <p className="text-muted-foreground text-sm">{emptyMessage}</p>;
   return (
-    <section className="rounded-lg border p-4" aria-label="History">
-      <h3 className="mb-2 text-sm font-semibold">History</h3>
-      <ol className="flex flex-col gap-3">
-        {data.events.map((event) => (
-          <li key={event.id} className="text-sm">
-            <p className="font-medium">{describeBookingEvent(event)}</p>
+    <ol aria-label="Booking history">
+      {events.map((event) => (
+        <li key={event.id} className="group flex gap-3">
+          <span className="flex flex-col items-center" aria-hidden="true">
+            <span className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', TONE[event.kind] ?? 'bg-muted-foreground')} />
+            <span className="bg-border mt-1.5 w-px flex-1 group-last:hidden" />
+          </span>
+          <div className="min-w-0 flex-1 pb-4 group-last:pb-0">
+            <p className="text-sm font-medium">{describeBookingEvent(event)}</p>
             <p className="text-muted-foreground text-xs">
-              {format(new Date(event.at), 'd MMM yyyy, h:mm a')} · by {who(event)}
+              {istMoment(event.at)} · by {who(event)}
               {whose(event)}
             </p>
-          </li>
-        ))}
-      </ol>
-    </section>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

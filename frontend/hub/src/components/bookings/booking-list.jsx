@@ -1,4 +1,4 @@
-import { CalendarCheck, ClipboardCheck, SearchXIcon, XIcon } from 'lucide-react';
+import { CalendarCheck, ChevronRightIcon, ClipboardCheck, SearchXIcon, UserRoundPlusIcon, XIcon } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,9 +86,27 @@ function Report({ booking }) {
   return report ? <Badge variant={report.variant}>{report.label}</Badge> : <span className="text-muted-foreground">—</span>;
 }
 
+/**
+ * A row's actions, in the BDE booking lists' outline buttons: Assign, for a
+ * booking with no tutor that may still take one (holders of
+ * accounts.assign_booking_tutor), and View, which opens the booking's
+ * workspace -- where a tutor already assigned is changed.
+ */
 function Actions({ booking, canAssign, onOpen, onAssign, className }) {
+  const assignable = canAssign && !booking.tutor && tutorChangeable(booking);
   return (
-    <div className={className ?? 'flex justify-end gap-1'}>
+    <div className={className ?? 'flex justify-end gap-2'}>
+      {assignable ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onAssign(booking)}
+          aria-label={`Assign the tutor for ${booking.student_name}`}
+        >
+          <UserRoundPlusIcon />
+          Assign
+        </Button>
+      ) : null}
       <Button
         variant="outline"
         size="sm"
@@ -96,17 +114,8 @@ function Actions({ booking, canAssign, onOpen, onAssign, className }) {
         aria-label={`View the booking for ${booking.student_name}`}
       >
         View
+        <ChevronRightIcon />
       </Button>
-      {canAssign && tutorChangeable(booking) ? (
-        <Button
-          variant={booking.tutor ? 'ghost' : 'default'}
-          size="sm"
-          onClick={() => onAssign(booking)}
-          aria-label={`${booking.tutor ? 'Change' : 'Assign'} the tutor for ${booking.student_name}`}
-        >
-          {booking.tutor ? 'Change' : 'Assign'}
-        </Button>
-      ) : null}
     </div>
   );
 }
@@ -115,7 +124,8 @@ function Actions({ booking, canAssign, onOpen, onAssign, className }) {
  * Every booking of one type, as administrators manage them: when, the child
  * and parent, who teaches it, where it stands and its report (the version
  * submitted, or Report due), with a way to open it and, for holders of
- * accounts.assign_booking_tutor, to assign or change its tutor -- a table
+ * accounts.assign_booking_tutor, to assign a tutor to one that has none (a
+ * tutor already assigned is changed in the booking's workspace) -- a table
  * where it fits, a card per booking on a phone or a narrow screen. Empty, it
  * says why and offers the way on; the API pages it. `noun` names the type's
  * bookings ("demo classes"); `onChange` receives what changed in the URL.

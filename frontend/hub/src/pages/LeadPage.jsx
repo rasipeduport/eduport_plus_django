@@ -40,8 +40,8 @@ function Field({ label, children }) {
 }
 
 /**
- * The lead's bookings, to read: they are managed on the Bookings page, which
- * each opens on for holders of accounts.view_all_bookings.
+ * The lead's bookings, to read: each is managed in its own workspace, which
+ * it opens for holders of accounts.view_all_bookings.
  */
 function BookingsPanel({ bookings, canOpen }) {
   return (

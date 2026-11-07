@@ -86,9 +86,9 @@ export function shownDayOf(dates, day) {
 export const bookingsPagePath = (type) => `/bookings/${typePath(type)}`;
 export const REDEMO_VIEW = 'redemo';
 
-/** The type's Bookings page with one booking open in its detail sheet (?booking=<id>). */
+/** One booking's workspace, the administrators' page for it in full: /bookings/<type>/<id>. */
 export function bookingPagePath(type, id) {
-  return `${bookingsPagePath(type)}?booking=${id}`;
+  return `${bookingsPagePath(type)}/${id}`;
 }
 
 /**

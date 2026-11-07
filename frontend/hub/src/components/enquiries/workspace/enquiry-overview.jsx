@@ -23,13 +23,15 @@ const CONDUCTED = new Set(['COMPLETED', 'REDEMO_REQUIRED']);
  * carries: when it reached Eduport Plus and when it became the BDE's, then
  * each booking -- booked, started, completed, cancelled or moved, and any
  * Re-Demo asked for -- and the booking still to come. A step the API gives no
- * moment for (a completion, a move) is shown without one.
+ * moment for (a completion, a move) is shown without one. `ownerTitle` names
+ * the step where a BDE took it ("Became yours", for that BDE). The
+ * administrators' booking workspace draws the same steps on its own timeline.
  */
-function enquiryJourney(enquiry) {
+export function enquiryJourney(enquiry, ownerTitle = 'Became yours') {
   const steps = [{ key: 'received', at: enquiry.created_at, title: 'Enquiry received', detail: `Source: ${enquiry.source_label}` }];
   const received = new Date(enquiry.created_at).getTime();
   if (enquiry.added_at && Math.abs(new Date(enquiry.added_at).getTime() - received) > 60_000) {
-    steps.push({ key: 'yours', at: enquiry.added_at, title: 'Became yours' });
+    steps.push({ key: 'yours', at: enquiry.added_at, title: ownerTitle });
   }
   const bookings = [...(enquiry.bookings ?? [])].sort((a, b) => new Date(a.booked_at) - new Date(b.booked_at));
   for (const booking of bookings) {

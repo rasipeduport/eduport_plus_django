@@ -16,6 +16,7 @@ import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
+import BookingWorkspacePage from './pages/BookingWorkspacePage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
 import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
@@ -104,7 +105,8 @@ function HubRoutes({ user, logout }) {
         />
         {/* Demo and Diagnostic bookings for administrators: every booking and
             the tutor teaching it, a page per type (Demo's with its Re-Demo
-            requests at ?tab=redemo), one opened at ?booking=<id>. Each is
+            requests at ?tab=redemo), each booking opening in its own workspace
+            (/bookings/<type>/<id>, below). Each is
             keyed by its type, so moving between them never shows the other's
             rows; the former single page's links (/bookings?type=...) land on
             their type's. The API enforces accounts.view_all_bookings, and
@@ -117,6 +119,16 @@ function HubRoutes({ user, logout }) {
         <Route
           path="/bookings/diagnostic"
           element={page('/bookings/diagnostic', <BookingsPage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" />)}
+        />
+        {/* One booking in full, its workspace: opened from its type's list (a
+            former ?booking=<id> link lands here too), on the same permission. */}
+        <Route
+          path="/bookings/demo/:bookingId"
+          element={page('/bookings/demo', <BookingWorkspacePage key="DEMO" user={user} type="DEMO" />)}
+        />
+        <Route
+          path="/bookings/diagnostic/:bookingId"
+          element={page('/bookings/diagnostic', <BookingWorkspacePage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" />)}
         />
         {/* Booking slots for administrators: close or reopen the Demo and
             Diagnostic slots parents book. The API enforces the same permission

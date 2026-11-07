@@ -188,7 +188,7 @@ function StatusSelect({ slot, disabled, onChoose }) {
 
 /**
  * The bookings holding a slot's seats, in seat order, each a link to its
- * detail on the Bookings page. The API lists them only for those who may see
+ * workspace (pages/BookingWorkspacePage). The API lists them only for those who may see
  * every booking (null otherwise), so the count stands alone for anyone else.
  */
 function SeatHolders({ slot }) {

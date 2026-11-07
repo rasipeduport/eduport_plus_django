@@ -3,7 +3,7 @@
 // where each of its counts opens. Every date is an Indian date, worked out
 // from today's date in India whatever zone this device is in, as the booking
 // lists' class dates are (lib/bde-booking-filters).
-import { bookingsPagePath } from '@/lib/bookings';
+import { bookingPagePath, bookingsPagePath } from '@/lib/bookings';
 import { classDateSpan, indianToday } from '@/lib/bde-booking-filters';
 
 export const ADMISSIONS_DASHBOARD_URL = '/api/admissions/dashboard/';
@@ -65,9 +65,8 @@ export function bookingsInRangePath(type, range) {
 /** A booking type's page filtered by `params` (the list's own URL values). */
 export const bookingsListPath = (type, params) => withQuery(bookingsPagePath(type), params);
 
-/** One of today's bookings, open in its sheet over its type's classes for today. */
-export const todaysBookingPath = (booking) =>
-  withQuery(bookingsPagePath(booking.booking_type), { dates: 'today', when: 'all', booking: booking.id });
+/** One of today's bookings, in its workspace. */
+export const todaysBookingPath = (booking) => bookingPagePath(booking.booking_type, booking.id);
 
 /** The type of `counts` ({ DEMO, DIAGNOSTIC }) whose list to open: Demo, unless only Diagnostic has any. */
 export function busierType(counts) {
