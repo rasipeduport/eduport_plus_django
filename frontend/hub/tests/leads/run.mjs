@@ -222,7 +222,8 @@ test('Leads: the filters -- status, source and owner, Unassigned included -- go 
   assert.deepEqual(await optionsOf('Filter by owner'), ['All owners', 'Unassigned', 'Anil Kumar', 'Bina Das', 'Old Hand (inactive)']);
   const statuses = await optionsOf('Filter by status');
   assert.deepEqual(statuses, ['All statuses', 'New', 'Booked (any type)', 'Diagnostic booked', 'Demo booked',
-    'Completed (any type)', 'Diagnostic completed', 'Demo completed', 'Not started (any type)', 'Diagnostic not started',
+    'Completed (any type)', 'Diagnostic completed', 'Demo completed', 'Re-Demo required', 'Not started (any type)',
+    'Diagnostic not started',
     'Demo not started', 'Cancelled (any type)', 'Diagnostic cancelled', 'Demo cancelled']);
   assert.ok((await optionsOf('Filter by source')).includes('Website'));
   assert.ok((await optionsOf('Filter by source')).includes('Landing page'));

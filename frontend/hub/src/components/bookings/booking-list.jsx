@@ -14,8 +14,10 @@ import {
   ASSIGNMENT_FILTERS,
   BOOKING_STATUSES,
   BOOKING_TYPES,
+  CLEARED_FILTERS,
   DEFAULT_TYPE,
   DEFAULT_WHEN,
+  REDEMO_TAB,
   REPORT_DUE,
   REPORT_FILTERS,
   WHEN_FILTERS,
@@ -23,7 +25,7 @@ import {
 } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
 import { reportBadge } from '@/lib/reports';
-import { BookingStateBadge, TutorName } from './booking-badges';
+import { BookingStateBadge, RedemoBadge, TutorName } from './booking-badges';
 
 const ALL = '__all__';
 const pad = (value) => String(value).padStart(2, '0');
@@ -44,6 +46,38 @@ function rangeLabel(from, to) {
   const label = (iso) => format(toPickerDate(iso), 'd MMM yyyy');
   if (from && to) return from === to ? label(from) : `${label(from)} – ${label(to)}`;
   return from ? `From ${label(from)}` : `Until ${label(to)}`;
+}
+
+// The Bookings page's tabs: each booking type's own list, and the Re-Demo requests (lib/bookings REDEMO_TAB).
+const TABS = [...BOOKING_TYPES, { value: REDEMO_TAB, label: 'Re-Demo' }];
+
+/**
+ * The tabs above the Bookings page's lists: Demo, Diagnostic and Re-Demo.
+ * Moving between the two booking types keeps the filters; moving to or from
+ * Re-Demo, a list of its own, clears them. `onChange` receives what changed.
+ */
+export function BookingTabs({ value, onChange }) {
+  return (
+    <Tabs
+      value={value}
+      onValueChange={(next) => {
+        const type = next === DEFAULT_TYPE ? null : next;
+        if (next === REDEMO_TAB || value === REDEMO_TAB) {
+          onChange({ ...CLEARED_FILTERS, type, booking: null, redemo: null });
+        } else {
+          onChange({ type, booking: null, page: null });
+        }
+      }}
+    >
+      <TabsList>
+        {TABS.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
 }
 
 /**
@@ -91,18 +125,7 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
 
   return (
     <div className="flex flex-col gap-3">
-      <Tabs
-        value={filters.type}
-        onValueChange={(value) => onChange({ type: value === DEFAULT_TYPE ? null : value, booking: null, page: null })}
-      >
-        <TabsList>
-          {BOOKING_TYPES.map((type) => (
-            <TabsTrigger key={type.value} value={type.value}>
-              {type.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <BookingTabs value={filters.type} onChange={onChange} />
 
       <div className="flex flex-wrap items-center gap-2">
         <form
@@ -262,6 +285,7 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
                     <TableCell className="min-w-28 whitespace-normal">
                       <p className="font-medium break-words">{booking.student_name}</p>
                       {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
+                      {booking.redemo_for_id ? <RedemoBadge /> : null}
                     </TableCell>
                     <TableCell className="hidden min-w-32 whitespace-normal xl:table-cell">
                       <p className="break-words">{booking.parent_name}</p>

@@ -24,7 +24,7 @@ from django.conf import settings
 from django.db.models import TextChoices
 from django.utils import timezone
 
-from bookings.models import BookingStatus, BookingType, ParentConfirmation
+from bookings.models import CONDUCTED, BookingStatus, BookingType, ParentConfirmation
 
 from .chain import EarlierAcknowledgement, earlier_acknowledgement
 from .models import Step
@@ -177,7 +177,8 @@ def requirements(booking, step, body, now=None):
         Requirement.BOOKING_ACTIVE: (
             booking.status == BookingStatus.BOOKED and booking.started_at is None and booking.slot.starts_at > now
         ),
-        Requirement.BOOKING_COMPLETED: booking.status == BookingStatus.COMPLETED,
+        # A Demo sent for a Re-Demo was still taught: its after-activity message stands.
+        Requirement.BOOKING_COMPLETED: booking.status in CONDUCTED,
     }
     result = [] if not unknown_placeholders(booking.booking_type, body) else [(Requirement.TEMPLATE_VALID, False)]
     result += [(gate, gates[gate]) for gate in _STEP_GATES[step]]

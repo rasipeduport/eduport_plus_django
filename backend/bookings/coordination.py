@@ -19,7 +19,7 @@ from accounts.authz import has_app_permission
 from accounts.models import User
 from core.timezones import DATE_PATTERN
 
-from . import enquiries
+from . import enquiries, redemo_chain
 from .booking_service import (
     CONFLICT_SESSION,
     BookingCancelled,
@@ -49,6 +49,7 @@ from .models import (
     DemoInvite,
     Lead,
     NotConfirmedReason,
+    ReDemoStatus,
     RescheduleReason,
 )
 from .scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME, bookable_window, slot_instants
@@ -75,7 +76,7 @@ def parse_filters(params):
     is guessed for it. Unset parameters are left out of ``filters``. The
     booking type is the list's own (its URL), never a parameter.
 
-        status    BOOKED | COMPLETED | CANCELLED | RESCHEDULED
+        status    BOOKED | COMPLETED | REDEMO_REQUIRED | CANCELLED | RESCHEDULED
         assigned  true | false             (whether a tutor is assigned)
         tutor     <account id>             (the assigned tutor)
         slot      <slot id>
@@ -231,6 +232,7 @@ def tutor_change_refusal(booking, now):
     if booking.status != BookingStatus.BOOKED:
         refusal = {
             BookingStatus.COMPLETED: BookingCompleted,
+            BookingStatus.REDEMO_REQUIRED: BookingCompleted,
             BookingStatus.RESCHEDULED: BookingRescheduled,
         }.get(booking.status, BookingCancelled)
         return {'code': refusal.code, 'message': refusal.message}
@@ -256,6 +258,8 @@ def booking_row(booking, now):
         'tutor': _person(booking.assigned_tutor),
         # The BDE whose link brought this booking, if one did.
         'bde': _person(booking.attributed_bde),
+        # The Re-Demo request it teaches (bookings.redemos), or null for an ordinary booking.
+        'redemo_for_id': str(booking.redemo_for_id) if getattr(booking, 'redemo_for_id', None) else None,
         'booked_at': booking.created_at.isoformat(),
         # Whether its tutor has started it, and when (bookings.lifecycle): read-only here.
         'activity_state': activity_state(booking, now),
@@ -327,6 +331,9 @@ def booking_detail(booking, now, user=None, request=None):
         'channel': booking.channel,
         'created_by': _person(booking.created_by),
         'invited_from': invited_from(booking, now),
+        # Its Re-Demo (bookings.redemos): the request it was sent for, or the one it was scheduled for.
+        'redemo_request': redemo_request(booking, now),
+        'redemo_from': redemo_from(booking, now),
         'tutor_assigned_at': _when(booking.tutor_assigned_at),
         'tutor_assigned_by': _person(booking.tutor_assigned_by),
         # Who started it -- its tutor, by their own Start -- with the row's started_at.
@@ -375,8 +382,10 @@ def booking_actions(booking, now, user=None, request=None):
     What ``user`` may do with ``booking`` now, by the permissions they hold and
     the rules the service applies: cancel a booked booking, mark it No-show
     once its scheduled time has passed (D12), move it while its tutor has not
-    started it (Q23, move_refusal), and send the parent a Demo invitation from
-    a Diagnostic whose report is in (bookings.demo_invites).
+    started it (Q23, move_refusal), send the parent a Demo invitation from
+    a Diagnostic whose report is in (bookings.demo_invites), and ask for a
+    completed Demo to be taught again (bookings.redemos) -- with the reschedule
+    permission: a Re-Demo, like a move, gives the child's Demo a new slot.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
@@ -388,6 +397,41 @@ def booking_actions(booking, now, user=None, request=None):
         'no_show': cancel and booking.slot.starts_at <= now,
         'reschedule': booked and holds(RESCHEDULE_BOOKING) and move_refusal(booking, now) is None,
         'demo_invite': holds(SEND_LEAD_COMMUNICATIONS) and invitable(booking, now),
+        'request_redemo': (
+            isinstance(booking, DemoBooking) and booking.status == BookingStatus.COMPLETED and holds(RESCHEDULE_BOOKING)
+        ),
+    }
+
+
+def redemo_request(booking, now):
+    """The Re-Demo request ``booking`` was sent for (it is RE-DEMO REQUIRED): where it stands, who asked and when -- or None."""
+    redemo = redemo_chain.request_of(booking)
+    if redemo is None:
+        return None
+    current = redemo_chain.state(redemo, now)
+    return {
+        'id': str(redemo.id),
+        'status': current.status,
+        'status_label': ReDemoStatus(current.status).label,
+        'requested_at': redemo.requested_at.isoformat(),
+        'requested_by': _person(redemo.requested_by),
+    }
+
+
+def redemo_from(booking, now):
+    """
+    The Re-Demo request ``booking`` was scheduled for -- with the Demo it
+    teaches again, as a chain link -- or None for an ordinary booking.
+    """
+    redemo = getattr(booking, 'redemo_for', None)
+    if redemo is None:
+        return None
+    current = redemo_chain.state(redemo, now)
+    return {
+        'id': str(redemo.id),
+        'status': current.status,
+        'status_label': ReDemoStatus(current.status).label,
+        'original': _chain_link(redemo.demo_booking, now),
     }
 
 
@@ -415,6 +459,7 @@ def move_refusal(booking, now):
     if booking.status != BookingStatus.BOOKED:
         refusal = {
             BookingStatus.COMPLETED: BookingCompleted,
+            BookingStatus.REDEMO_REQUIRED: BookingCompleted,
             BookingStatus.RESCHEDULED: BookingRescheduled,
         }.get(booking.status, CancelledNotMovable)
         return {'code': refusal.code, 'message': refusal.message}
@@ -523,8 +568,31 @@ def reschedule_options(booking, now):
     if so). What the Admin's picker shows; reschedule_booking checks it all
     again under its locks.
     """
-    window = bookable_window(booking.booking_type, now)
     tutor = booking.assigned_tutor
+    refusal = move_refusal(booking, now)
+    return {
+        'booking_id': str(booking.id),
+        'booking_type': booking.booking_type,
+        'timezone': BOOKING_TIMEZONE_NAME,
+        'slot': slot_brief(booking.slot, now),
+        'tutor': _person(tutor),
+        'reschedulable': refusal is None,
+        'refusal': refusal,
+        'dates': slot_options(booking.booking_type, booking.lead, tutor, now, booking=booking),
+    }
+
+
+def slot_options(booking_type, lead, tutor, now, booking=None):
+    """
+    Every slot of ``booking_type`` the public pages offer, by date, as a
+    staff picker shows them: its seats, whether ``lead`` could be booked
+    there and why not -- full, closed, ``booking``'s own slot, or the lead
+    already booked then (Q26) -- and, with a ``tutor``, whether they are
+    free there. ``booking`` is the one being moved, whose own slot and
+    commitments are left out. reschedule_options' dates, and the Re-Demo
+    picker's (bookings.redemos.slot_options).
+    """
+    window = bookable_window(booking_type, now)
     tutor_assignable = is_assignable_tutor(tutor)
     # Read the tutor's and the lead's commitments once, over the whole window.
     instants = [slot_instants(day, entry['time']) for day, entries in window for entry in entries]
@@ -533,13 +601,13 @@ def reschedule_options(booking, now):
         first, last = min(start for start, _end in instants), max(end for _start, end in instants)
         if tutor is not None and tutor_assignable:
             tutor_busy = tutor_commitments(tutor, first, last, exclude_booking=booking)
-        lead_busy = lead_commitments(booking.lead, first, last, exclude_booking=booking)
+        lead_busy = lead_commitments(lead, first, last, exclude_booking=booking)
     dates = []
     for day, entries in window:
         slots = []
         for entry in entries:
             starts_at, ends_at = slot_instants(day, entry['time'])
-            current = day == booking.slot.local_date and entry['time'] == booking.slot.local_time
+            current = booking is not None and day == booking.slot.local_date and entry['time'] == booking.slot.local_time
             clash = next((b for b in lead_busy if b.slot.starts_at < ends_at and b.slot.ends_at > starts_at), None)
             seats_left = 0 if entry['closed'] else max(entry['capacity'] - entry['booked'], 0)
             if current:
@@ -573,17 +641,7 @@ def reschedule_options(booking, now):
                 'tutor_reason': tutor_reason,
             })
         dates.append({'date': day.isoformat(), 'slots': slots})
-    refusal = move_refusal(booking, now)
-    return {
-        'booking_id': str(booking.id),
-        'booking_type': booking.booking_type,
-        'timezone': BOOKING_TIMEZONE_NAME,
-        'slot': slot_brief(booking.slot, now),
-        'tutor': _person(tutor),
-        'reschedulable': refusal is None,
-        'refusal': refusal,
-        'dates': dates,
-    }
+    return dates
 
 
 # --------------------------------------------------------------- history

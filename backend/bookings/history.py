@@ -19,6 +19,8 @@ from .models import BookingEvent, DiagnosticBooking
 DATA_KEYS = frozenset({
     'slot_id', 'seat', 'referral_status', 'via',  # CREATED
     'invite_id',  # CREATED through a Demo invitation (bookings.demo_invites): the invitation used, never its token
+    # REDEMO_REQUESTED, and CREATED as a scheduled Re-Demo (bookings.redemos): the request -- never its reason
+    'redemo_request_id',
     'old_tutor_id', 'new_tutor_id',  # TUTOR_ASSIGNED / TUTOR_UNASSIGNED
     'from_status', 'to_status',  # a change of status
     # CANCELLED / RESCHEDULED / PARENT_NOT_CONFIRMED: a CancelReason, RescheduleReason or NotConfirmedReason, never text

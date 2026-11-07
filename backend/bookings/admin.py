@@ -2,7 +2,17 @@ from django.contrib import admin, messages
 
 from .booking_service import BookingError, cancel_booking
 from .demo_invites import revoke_invite
-from .models import BookingEvent, BookingSlot, CancelReason, DemoBooking, DemoInvite, DiagnosticBooking, Lead, SlotTime
+from .models import (
+    BookingEvent,
+    BookingSlot,
+    CancelReason,
+    DemoBooking,
+    DemoInvite,
+    DiagnosticBooking,
+    Lead,
+    ReDemoRequest,
+    SlotTime,
+)
 
 
 class ReadOnlyAdmin(admin.ModelAdmin):
@@ -118,6 +128,13 @@ class DemoInviteAdmin(ReadOnlyAdmin):
         if revoked < len(queryset):
             message += f' Skipped {len(queryset) - revoked} that were not active.'
         self.message_user(request, message, messages.SUCCESS)
+
+
+@admin.register(ReDemoRequest)
+class ReDemoRequestAdmin(ReadOnlyAdmin):
+    """Re-Demo requests (bookings.redemos), shown only: they are made and managed from the Hub."""
+    list_display = ('requested_at', 'demo_booking', 'lead', 'requested_by')
+    list_select_related = ('demo_booking__slot', 'lead', 'requested_by')
 
 
 @admin.register(BookingEvent)

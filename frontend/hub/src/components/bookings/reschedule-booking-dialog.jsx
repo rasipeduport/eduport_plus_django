@@ -2,19 +2,18 @@ import { useEffect, useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RESCHEDULE_REASONS, bookingError, bookingRescheduleOptionsUrl, bookingRescheduleUrl } from '@/lib/bookings';
-import { bookingTypeLabel, slotLabel, slotParts } from '@/lib/enquiries';
+import {
+  RESCHEDULE_REASONS,
+  bookingError,
+  bookingRescheduleOptionsUrl,
+  bookingRescheduleUrl,
+  shownDayOf,
+} from '@/lib/bookings';
+import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
-
-// Why a slot cannot take the booking (backend coordination.reschedule_options).
-const UNAVAILABLE = {
-  CURRENT: 'Its current slot',
-  FULL: 'Fully booked',
-  CLOSED: 'Closed',
-};
+import { SlotPicker } from './slot-picker';
 
 function OptionsSkeleton() {
   return (
@@ -81,7 +80,7 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
   }, [open, bookingType, bookingId, reloadKey]);
 
   const dates = data?.dates ?? [];
-  const shownDay = day || dates.find((entry) => entry.slots.some((slot) => slot.bookable))?.date || dates[0]?.date || '';
+  const shownDay = shownDayOf(dates, day);
   const slots = dates.find((entry) => entry.date === shownDay)?.slots ?? [];
   const chosen = slots.find((slot) => slot.time === time && slot.bookable);
   const tutor = data?.tutor;
@@ -127,75 +126,19 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
   } else {
     body = (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Dates">
-          {dates.map((entry) => {
-            const openCount = entry.slots.filter((slot) => slot.bookable).length;
-            return (
-              <Button
-                key={entry.date}
-                type="button"
-                size="sm"
-                variant={entry.date === shownDay ? 'default' : 'outline'}
-                aria-pressed={entry.date === shownDay}
-                onClick={() => {
-                  setDay(entry.date);
-                  setTime('');
-                }}
-              >
-                {slotParts(entry.date, '00:00').day}
-                <span className="text-xs opacity-70">{openCount ? `(${openCount})` : '(full)'}</span>
-              </Button>
-            );
-          })}
-        </div>
-
-        <fieldset className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto pr-1" disabled={pending}>
-          <legend className="sr-only">Times</legend>
-          {slots.map((slot) => {
-            const why = slot.lead_conflict?.message ?? UNAVAILABLE[slot.unavailable_reason];
-            return (
-              <label
-                key={slot.time}
-                className={cn(
-                  'flex items-start gap-3 rounded-md border p-3 text-sm',
-                  slot.bookable ? 'hover:bg-muted/40 cursor-pointer' : 'cursor-not-allowed opacity-60',
-                  time === slot.time && slot.bookable && 'border-primary bg-muted/40'
-                )}
-              >
-                <input
-                  type="radio"
-                  name="reschedule-time"
-                  value={slot.time}
-                  checked={time === slot.time}
-                  onChange={() => setTime(slot.time)}
-                  disabled={!slot.bookable}
-                  className="mt-0.5"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{slotParts(shownDay, slot.time).time}</span>
-                    {slot.bookable ? (
-                      <span className="text-muted-foreground text-xs">
-                        {slot.seats_left} {slot.seats_left === 1 ? 'seat' : 'seats'} left
-                      </span>
-                    ) : null}
-                    {slot.bookable && tutor ? (
-                      slot.tutor_free ? (
-                        <Badge variant="success">Tutor free</Badge>
-                      ) : (
-                        <Badge variant="warning">Tutor busy</Badge>
-                      )
-                    ) : null}
-                  </span>
-                  {!slot.bookable && why ? <span className="text-muted-foreground block text-xs">{why}</span> : null}
-                  {slot.bookable && tutor && !slot.tutor_free && slot.tutor_reason ? (
-                    <span className="text-muted-foreground block text-xs">{slot.tutor_reason.message}</span>
-                  ) : null}
-                </span>
-              </label>
-            );
-          })}
-        </fieldset>
+        <SlotPicker
+          dates={dates}
+          day={shownDay}
+          time={time}
+          onDayChange={(value) => {
+            setDay(value);
+            setTime('');
+          }}
+          onTimeChange={setTime}
+          tutor={tutor}
+          disabled={pending}
+          name="reschedule-time"
+        />
 
         {chosen && tutor && !chosen.tutor_free ? (
           <p role="note" className="bg-warning/10 text-warning rounded-md px-3 py-2 text-sm">

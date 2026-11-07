@@ -20,6 +20,8 @@ export const LEAD_STATUSES = [
   { value: 'COMPLETED', label: 'Completed (any type)' },
   { value: 'DIAGNOSTIC_COMPLETED', label: 'Diagnostic completed' },
   { value: 'DEMO_COMPLETED', label: 'Demo completed' },
+  // A completed Demo sent for a Re-Demo (backend bookings.redemos); Completed (any type) includes it.
+  { value: 'DEMO_REDEMO_REQUIRED', label: 'Re-Demo required' },
   { value: 'NOT_STARTED', label: 'Not started (any type)' },
   { value: 'DIAGNOSTIC_NOT_STARTED', label: 'Diagnostic not started' },
   { value: 'DEMO_NOT_STARTED', label: 'Demo not started' },
@@ -28,7 +30,13 @@ export const LEAD_STATUSES = [
   { value: 'DEMO_CANCELLED', label: 'Demo cancelled' },
 ];
 
-const STATUS_VARIANT = { BOOKED: 'success', COMPLETED: 'secondary', NOT_STARTED: 'warning', CANCELLED: 'outline' };
+const STATUS_VARIANT = {
+  BOOKED: 'success',
+  COMPLETED: 'secondary',
+  REDEMO_REQUIRED: 'warning',
+  NOT_STARTED: 'warning',
+  CANCELLED: 'outline',
+};
 
 export function statusVariant(status) {
   if (status === 'NEW') return 'info';

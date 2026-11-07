@@ -21,13 +21,15 @@ from django.utils import timezone
 
 from activity.utils import log_activity
 
+from . import redemo_chain
 from .demo_invites import invitable
 from .lead_intake import LeadExists, create_lead
 from .lead_status import status_label, with_status
 from .leads import InvalidLeadDetails
 from .lifecycle import activity_state
 from .models import (
-    BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, Lead, LeadSource,
+    BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, DemoBooking, Lead,
+    LeadSource, ReDemoStatus,
 )
 from .scheduling import BOOKING_TIMEZONE_NAME
 
@@ -163,7 +165,9 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False, can_inv
     ``can_cancel`` (accounts.cancel_booking, Q22), No-show only once its
     scheduled time has passed (D12), send the parent a Demo invitation from a
     Diagnostic whose report is in when ``can_invite``
-    (accounts.create_demo_booking, bookings.demo_invites) -- and where it stands as a class, started
+    (accounts.create_demo_booking, bookings.demo_invites), and with the same
+    permission ask for a completed Demo to be taught again (bookings.redemos)
+    -- and where it stands as a class, started
     by its tutor and when, or not (``activity_state``, ``started_at``), to read
     only. Each booking's parent confirmation (a ParentConfirmation
     code) is shown to whoever may see the lead's communication
@@ -191,22 +195,59 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False, can_inv
         'timezone': BOOKING_TIMEZONE_NAME,
         # What the parent booked and when; who cancelled a booking, and why,
         # stays with the administrators.
-        'bookings': [
-            {
-                **booking_brief(booking),
-                'status': booking.status,
-                'ended': booking.slot.ends_at <= now,
-                'activity_state': activity_state(booking, now),
-                'started_at': booking.started_at.isoformat() if booking.started_at else None,
-                'booked_at': booking.created_at.isoformat(),
-                'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
-                **_teaching(booking),
-                'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
-                'actions': _booking_actions(booking, now, can_cancel, can_invite),
-            }
-            for booking in bookings
-        ],
+        'bookings': [_booking_entry(booking, now, can_cancel, show_confirmation, can_invite) for booking in bookings],
     }
+
+
+def _booking_entry(booking, now, can_cancel, show_confirmation, can_invite):
+    redemo = redemo_chain.request_of(booking)
+    redemo_state = redemo_chain.state(redemo, now) if redemo is not None else None
+    return {
+        **booking_brief(booking),
+        'status': booking.status,
+        'ended': booking.slot.ends_at <= now,
+        'activity_state': activity_state(booking, now),
+        'started_at': booking.started_at.isoformat() if booking.started_at else None,
+        'booked_at': booking.created_at.isoformat(),
+        'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+        **_teaching(booking),
+        'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
+        # The Re-Demo it was sent for, or the one it was scheduled for (bookings.redemos).
+        'redemo': _redemo(redemo_state),
+        'redemo_from': _redemo_from(booking),
+        'actions': _booking_actions(booking, now, can_cancel, can_invite),
+    }
+
+
+def _redemo(redemo_state):
+    """
+    A Demo's Re-Demo request as its owner BDE sees it: where it stands, why
+    and by whom it was asked for, and the Demo an administrator scheduled for
+    it, with its tutor -- what the BDE tells the parent. Never the
+    administrators' remarks.
+    """
+    if redemo_state is None:
+        return None
+    redemo, booking = redemo_state.redemo, redemo_state.booking
+    tutor = booking.assigned_tutor if booking is not None else None
+    return {
+        'id': str(redemo.id),
+        'status': redemo_state.status,
+        'status_label': ReDemoStatus(redemo_state.status).label,
+        'requested_at': redemo.requested_at.isoformat(),
+        'requested_by': {'full_name': redemo.requested_by.full_name or redemo.requested_by.email},
+        'reason': redemo.reason,
+        'tutor': {'full_name': tutor.full_name or tutor.email} if tutor is not None else None,
+        'booking': booking_brief(booking) if booking is not None else None,
+    }
+
+
+def _redemo_from(booking):
+    """The Re-Demo request ``booking`` was scheduled for, named by its id and the Demo it teaches again, or None."""
+    redemo = getattr(booking, 'redemo_for', None)
+    if redemo is None:
+        return None
+    return {'id': str(redemo.id), 'demo_booking_id': str(redemo.demo_booking_id)}
 
 
 def _teaching(booking):
@@ -228,6 +269,8 @@ def _booking_actions(booking, now, can_cancel, can_invite=False):
         'cancel': cancel,
         'no_show': cancel and booking.slot.starts_at <= now,
         'demo_invite': can_invite and invitable(booking, now),
+        # A completed Demo of their own lead, to be taught again: an administrator then schedules it.
+        'request_redemo': can_invite and isinstance(booking, DemoBooking) and booking.status == BookingStatus.COMPLETED,
     }
 
 

@@ -10,10 +10,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { CommunicationSection } from '@/components/communications/communication-section';
 import { AdminReportSection } from '@/components/reports/admin-report-section';
-import { bookingDemoInviteUrl, bookingError, bookingTutorUrl, bookingUrl, cameInLabel, tutorChangeable } from '@/lib/bookings';
+import {
+  bookingDemoInviteUrl,
+  bookingError,
+  bookingTutorUrl,
+  bookingUrl,
+  cameInLabel,
+  conducted,
+  tutorChangeable,
+} from '@/lib/bookings';
 import { bookingTypeLabel, formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { BookingHistory } from './booking-history';
-import { BookingStateBadge, StartInfo, TutorName } from './booking-badges';
+import { BookingStateBadge, RedemoBadge, RedemoStatusBadge, StartInfo, TutorName } from './booking-badges';
 import { DemoInviteButton } from './demo-invite-button';
 import { MeetLink } from './meet-link';
 import { MeetLinkDialog } from './meet-link-dialog';
@@ -82,7 +90,12 @@ function DetailSkeleton() {
  * them -- after which the page reads everything again (`onCommunicationChanged`).
  * A Diagnostic whose report is in offers Send Demo Invitation when the API
  * does (actions.demo_invite); a Demo booked with one says so, who sent it and
- * the Diagnostic it came from.
+ * the Diagnostic it came from. A completed Demo offers Request Re-Demo
+ * (actions.request_redemo, the page's dialog `onRequestRedemo`); one sent for
+ * a Re-Demo keeps its report and says where the Re-Demo stands, and a
+ * Re-Demo an administrator scheduled is marked one and names the Demo it
+ * teaches again -- each opening the request in the Re-Demo tab
+ * (`onOpenRedemo`).
  */
 export function BookingDetailSheet({
   bookingType,
@@ -99,6 +112,8 @@ export function BookingDetailSheet({
   onReschedule,
   onCancel,
   onOpenBooking,
+  onRequestRedemo,
+  onOpenRedemo,
 }) {
   const [booking, setBooking] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -216,7 +231,10 @@ export function BookingDetailSheet({
         <Section
           title="Booking"
           action={
-            shown.actions?.reschedule || shown.actions?.cancel || shown.actions?.demo_invite ? (
+            shown.actions?.reschedule ||
+            shown.actions?.cancel ||
+            shown.actions?.demo_invite ||
+            shown.actions?.request_redemo ? (
               <div className="flex flex-wrap items-start justify-end gap-2">
                 {shown.actions?.reschedule ? (
                   <Button variant="outline" size="sm" onClick={() => onReschedule?.(shown)}>
@@ -235,6 +253,12 @@ export function BookingDetailSheet({
                     recipient={{ dialCode: lead.phone_dial_code, number: lead.phone_number }}
                     onRefused={() => setRetryKey((key) => key + 1)}
                   />
+                ) : null}
+                {/* A completed Demo, to be taught again: a reason, shown back, then the request. */}
+                {shown.actions?.request_redemo ? (
+                  <Button variant="outline" size="sm" onClick={() => onRequestRedemo?.(shown)}>
+                    Request Re-Demo
+                  </Button>
                 ) : null}
               </div>
             ) : null
@@ -255,7 +279,31 @@ export function BookingDetailSheet({
           <Detail label="Seat">{shown.seat ? String(shown.seat) : null}</Detail>
           <Detail label="Booked on">{formatDay(shown.booked_at)}</Detail>
           <Detail label="Came in">{cameInLabel(shown)}</Detail>
-          {shown.channel === 'BDE_HANDOFF' ? (
+          {shown.channel === 'BDE_HANDOFF' && shown.redemo_from ? (
+            <>
+              <Detail label="Scheduled by">{shown.created_by?.full_name}</Detail>
+              <Detail label="Re-Demo of">
+                <ChainLink
+                  link={shown.redemo_from.original}
+                  onOpen={onOpenBooking}
+                  label="Open the Demo this one teaches again"
+                />
+              </Detail>
+              <Detail label="Re-Demo request">
+                <span className="flex flex-wrap items-center gap-2">
+                  <RedemoStatusBadge status={shown.redemo_from.status} />
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    onClick={() => onOpenRedemo?.(shown.redemo_from.id)}
+                  >
+                    Open request
+                  </Button>
+                </span>
+              </Detail>
+            </>
+          ) : shown.channel === 'BDE_HANDOFF' ? (
             <>
               <Detail label="Invited by">{shown.created_by?.full_name}</Detail>
               <Detail label="From Diagnostic">{shown.invited_from ? slotLabel(shown.invited_from.slot) : null}</Detail>
@@ -264,6 +312,24 @@ export function BookingDetailSheet({
             <Detail label="Credited BDE">{shown.bde?.full_name}</Detail>
           )}
         </Section>
+
+        {/* The Re-Demo this Demo was sent for: its report and history stay, the new Demo is booked separately. */}
+        {shown.redemo_request ? (
+          <Section
+            title="Re-Demo"
+            action={
+              <Button variant="outline" size="sm" onClick={() => onOpenRedemo?.(shown.redemo_request.id)}>
+                Open request
+              </Button>
+            }
+          >
+            <Detail label="Status">
+              <RedemoStatusBadge status={shown.redemo_request.status} />
+            </Detail>
+            <Detail label="Requested by">{shown.redemo_request.requested_by?.full_name}</Detail>
+            <Detail label="Requested on">{formatDay(shown.redemo_request.requested_at)}</Detail>
+          </Section>
+        ) : null}
 
         {/* Its parent communication (Phase 3.1), and the parent's confirmation (3.2). */}
         {canViewCommunication ? (
@@ -277,7 +343,7 @@ export function BookingDetailSheet({
         ) : null}
 
         {/* Its report, read-only (P8): only a booked or completed booking has one to write or read. */}
-        {shown.status === 'BOOKED' || shown.status === 'COMPLETED' ? (
+        {shown.status === 'BOOKED' || conducted(shown) ? (
           <AdminReportSection booking={shown} reloadKey={reloadKey} />
         ) : null}
 
@@ -334,6 +400,7 @@ export function BookingDetailSheet({
             {shown ? (
               <div className="flex flex-wrap gap-2 pt-1">
                 <BookingTypeBadge type={shown.booking_type} />
+                {shown.redemo_from ? <RedemoBadge /> : null}
                 <BookingStateBadge booking={shown} />
                 {!shown.tutor && shown.status === 'BOOKED' && !shown.slot?.ended ? (
                   <Badge variant="warning">Needs a tutor</Badge>

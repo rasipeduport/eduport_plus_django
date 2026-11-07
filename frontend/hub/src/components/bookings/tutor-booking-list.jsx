@@ -8,7 +8,7 @@ import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { BOOKING_TYPES, DEFAULT_WHEN, WHEN_FILTERS } from '@/lib/bookings';
 import { slotParts } from '@/lib/enquiries';
-import { ReportStateBadge } from './booking-badges';
+import { RedemoBadge, ReportStateBadge } from './booking-badges';
 import { MeetLink } from './meet-link';
 import { StartBookingButton } from './start-booking-button';
 
@@ -18,8 +18,8 @@ const ALL = '__all__';
  * The bookings a tutor is assigned to teach (GET /api/tutor/bookings/): the
  * type tabs, the Upcoming / Past / All filter and paging the API applies
  * (lib/bookings), and per row a way to open the booking. A tutor never
- * assigns or changes a tutor. Each row shows the slot in Indian time, the
- * child it is for, its Google Meet link (from lg) and where the booking
+ * assigns or changes a tutor. Each row shows the slot in Indian time, its
+ * type -- a Re-Demo (the API's `redemo`) marked as one -- the child it is for, its Google Meet link (from lg) and where the booking
  * stands with its report (lib/reports
  * reportState), with Start Demo / Start Diagnostic while the API offers it,
  * then Write report or Edit report once the report can be written or has
@@ -109,7 +109,11 @@ export function TutorBookingList({ rows, total, page, pageSize, filters, pending
                       <p className="text-muted-foreground text-xs">{when.time}</p>
                     </TableCell>
                     <TableCell>
-                      <BookingTypeBadge type={booking.booking_type} />
+                      {booking.redemo ? (
+                        <RedemoBadge number={booking.redemo.number} />
+                      ) : (
+                        <BookingTypeBadge type={booking.booking_type} />
+                      )}
                     </TableCell>
                     <TableCell className="min-w-28 whitespace-normal">
                       <p className="font-medium break-words">{booking.student_name}</p>

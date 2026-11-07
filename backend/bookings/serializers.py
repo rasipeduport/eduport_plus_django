@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .booking_service import REDEMO_REASON_MAX_LENGTH, REDEMO_REMARKS_MAX_LENGTH
 from .leads import InvalidLeadDetails, normalize_phone
 from .models import MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
 from .public_serializers import CLASSES, SYLLABI
@@ -83,3 +84,29 @@ class LeadOwnerSerializer(serializers.Serializer):
     """Giving a lead to a BDE (bookings.lead_views.LeadOwnerView): who, and who the caller saw owning it (null: nobody)."""
     bde_id = serializers.UUIDField()
     current_owner_id = serializers.UUIDField(allow_null=True)
+
+
+class RedemoRequestSerializer(serializers.Serializer):
+    """
+    Asking for a Re-Demo (bookings.booking_service.request_redemo): why, in
+    staff's own words -- required, kept on the request only, never in a
+    booking's history or the activity log.
+    """
+    reason = serializers.CharField(max_length=REDEMO_REASON_MAX_LENGTH)
+
+
+class RedemoRemarksSerializer(serializers.Serializer):
+    """The administrators' remarks for a Re-Demo's tutor (bookings.redemos.set_remarks); '' clears them."""
+    remarks = serializers.CharField(max_length=REDEMO_REMARKS_MAX_LENGTH, allow_blank=True)
+
+
+class RedemoScheduleSerializer(serializers.Serializer):
+    """
+    Scheduling a Re-Demo (booking_service.schedule_redemo): the tutor, the
+    Demo slot's Indian date and time, and -- optionally -- the remarks for
+    the tutor ('' clears them; left out, they stay as they are).
+    """
+    tutor_id = serializers.UUIDField()
+    date = serializers.DateField(input_formats=['%Y-%m-%d'])
+    time = serializers.TimeField(input_formats=['%H:%M'])
+    remarks = serializers.CharField(max_length=REDEMO_REMARKS_MAX_LENGTH, allow_blank=True, required=False)

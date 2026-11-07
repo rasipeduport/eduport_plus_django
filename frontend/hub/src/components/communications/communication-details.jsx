@@ -229,6 +229,11 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
             )}
           </div>
         </>
+      ) : communication.redemo ? (
+        // A Re-Demo (backend bookings.redemos) has no plan: nothing is ever sent to its parent.
+        <p className="text-muted-foreground text-sm">
+          No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor.
+        </p>
       ) : (
         <p className="text-muted-foreground text-sm">
           No messages were planned for this booking: it was made before parent communication began.

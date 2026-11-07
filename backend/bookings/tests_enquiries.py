@@ -124,7 +124,7 @@ class ScopeTests(EnquiryTestCase):
             # whether its tutor started it, read-only -- but never who cancelled it or why.
             self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'ended',
                                         'activity_state', 'started_at', 'booked_at', 'cancelled_at', 'tutor',
-                                        'tutor_meet_link', 'parent_confirmation', 'actions'})
+                                        'tutor_meet_link', 'parent_confirmation', 'redemo', 'redemo_from', 'actions'})
         self.assertNotIn('Parent asked', response.content.decode())
         self.assertNotIn('owner_bde', data)
 

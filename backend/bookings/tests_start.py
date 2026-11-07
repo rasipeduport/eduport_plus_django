@@ -572,7 +572,8 @@ class ReadOnlyStartTests(StartApiTestCase):
         )
         self.assertEqual((detail['tutor_changeable'], detail['tutor_change_refusal']['code']), (False, 'BOOKING_STARTED'))
         # Read-only: the Admin has no Start; a started booking cannot move.
-        self.assertEqual(detail['actions'], {'cancel': True, 'no_show': True, 'reschedule': False, 'demo_invite': False})
+        self.assertEqual(detail['actions'], {'cancel': True, 'no_show': True, 'reschedule': False, 'demo_invite': False,
+                                             'request_redemo': False})
         row = self.client.get('/api/bookings/demo/').json()['results'][0]
         self.assertEqual((row['activity_state'], row['started_at']), ('IN_PROGRESS', detail['started_at']))
         events = self.client.get(f'/api/bookings/demo/{live.id}/history/').json()['events']
