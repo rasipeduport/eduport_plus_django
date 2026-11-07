@@ -96,6 +96,9 @@ export const PAGE_PERMISSIONS = {
   // The staff dashboard, or a BDE's own (App.jsx picks by isBde). A BDE's
   // booking links are shared from it, so holding them opens it too.
   '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries, P.viewOwnBookingLinks],
+  // The staff dashboard under its Admin Hub name, Academics Dashboard (administrators only:
+  // the Admin Hub's /dashboard is its common dashboard, still to come).
+  '/academics-dashboard': [P.viewStaffDashboard],
   '/students': STUDENT_VIEW,
   '/sessions': SESSION_VIEW,
   '/exams': EXAM_VIEW,
@@ -142,9 +145,17 @@ export const PAGE_PERMISSIONS = {
 // but owns no links or enquiries, so these pages read the role as well.
 const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
 
-// Pages for administrators only: the Admin Hub's modules still to come. A
-// mentor or tutor holds view_staff_dashboard too, so these read the role as well.
-const ADMIN_PAGES = new Set(['/sales-dashboard', '/sales-module', '/sales-punching', '/sales-syllabus', '/tutor-earnings']);
+// Pages for administrators only: the Admin Hub's Academics Dashboard and its
+// modules still to come. A mentor or tutor holds view_staff_dashboard too, so
+// these read the role as well.
+const ADMIN_PAGES = new Set([
+  '/academics-dashboard',
+  '/sales-dashboard',
+  '/sales-module',
+  '/sales-punching',
+  '/sales-syllabus',
+  '/tutor-earnings',
+]);
 
 // Pages for tutors only. A superuser holds accounts.view_assigned_bookings too
 // (D1) but is assigned no booking unless they are a tutor, so My Bookings reads

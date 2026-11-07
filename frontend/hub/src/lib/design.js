@@ -10,12 +10,12 @@ export const REFRESHED_ROLES = new Set(['BDE', 'ADMIN']);
 export const REFRESH_ATTRIBUTE_VALUE = 'refresh';
 
 // Pages a refreshed role still sees in the current look, because their own
-// redesign has not come yet: the Admin's Dashboard (the academics dashboard)
-// and Academics & Learning -- each page and everything under it, such as one
-// student's profile under /students. The sidebar and header look the same
-// either way: the refreshed tokens leave the sidebar's alone.
+// redesign has not come yet: the Admin's Academics & Learning -- its Academics
+// Dashboard (the staff dashboard) and each page with everything under it, such
+// as one student's profile under /students. The sidebar and header look the
+// same either way: the refreshed tokens leave the sidebar's alone.
 const CURRENT_LOOK_PAGES = {
-  ADMIN: ['/dashboard', '/students', '/sessions', '/exams', '/homework'],
+  ADMIN: ['/academics-dashboard', '/students', '/sessions', '/exams', '/homework'],
 };
 
 /** Whether `user` works in the refreshed design (its sidebar and pages), whichever page is open. */

@@ -28,7 +28,7 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
-import { canOpenPage, homePage, isBde } from './lib/access';
+import { canOpenPage, homePage, isAdmin, isBde } from './lib/access';
 import { legacyBookingsPath } from './lib/bookings';
 
 /** A link to the former single Bookings page, sent on to its type's page (lib/bookings legacyBookingsPath). */
@@ -58,11 +58,24 @@ function HubRoutes({ user, logout }) {
   return (
     <SidebarLayout user={user} logout={logout}>
       <Routes>
-        {/* A BDE's dashboard is their own enquiries and bookings; everyone else's the staff one. */}
+        {/* A BDE's dashboard is their own enquiries and bookings; an administrator's
+            the Admin Hub's common dashboard, still to come (their academics
+            dashboard is /academics-dashboard); everyone else's the staff one. */}
         <Route
           path="/dashboard"
-          element={page('/dashboard', isBde(user) ? <BdeDashboardPage user={user} /> : <DashboardPage user={user} />)}
+          element={page(
+            '/dashboard',
+            isBde(user) ? (
+              <BdeDashboardPage user={user} />
+            ) : isAdmin(user) ? (
+              <ComingSoonPage module="dashboard" />
+            ) : (
+              <DashboardPage user={user} />
+            )
+          )}
         />
+        {/* The staff dashboard as it is, for administrators: the Admin Hub's Academics Dashboard. */}
+        <Route path="/academics-dashboard" element={page('/academics-dashboard', <DashboardPage user={user} />)} />
         <Route path="/students" element={page('/students', <StudentsPage user={user} />)} />
         {/* One student's full record. Scoped by the API: a mentor or tutor
             opening someone else's student gets a 404. */}

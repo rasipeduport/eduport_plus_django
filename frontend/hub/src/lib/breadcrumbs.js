@@ -8,6 +8,7 @@
  */
 const breadcrumbConfig = {
   '/dashboard': [{ label: 'Dashboard' }],
+  '/academics-dashboard': [{ label: 'Academics Dashboard' }],
   '/students': [{ label: 'Students' }],
   '/sessions': [{ label: 'Sessions' }],
   '/exams': [{ label: 'Exams' }],

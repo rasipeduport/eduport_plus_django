@@ -19,6 +19,7 @@ import {
   Mail,
   PhoneCall,
   ReceiptIndianRupee,
+  School,
   Users,
   UsersRound,
   Wallet,
@@ -98,10 +99,11 @@ const STAFF_WORKSPACE = {
   ],
 };
 
-// The Admin Hub: the academics Dashboard on top, then the admissions pipeline
-// (its dashboard, every lead, the Demo and Diagnostic bookings and their
-// slots), the Sales & Finance modules still to come, the academic modules,
-// the staff and invitations, and the activity log.
+// The Admin Hub: its common Dashboard (still to come) on top, then the
+// admissions pipeline (its dashboard, every lead, the Demo and Diagnostic
+// bookings and their slots), the Sales & Finance modules still to come, the
+// academic modules with their dashboard, the staff and invitations, and the
+// activity log.
 const ADMIN_WORKSPACE = {
   name: 'Admin Hub',
   collapsible: true,
@@ -138,6 +140,7 @@ const ADMIN_WORKSPACE = {
     {
       label: 'Academics & Learning',
       items: [
+        { title: 'Academics Dashboard', url: '/academics-dashboard', icon: School },
         { title: 'Enrolled Students', url: '/students', icon: GraduationCap, nested: true },
         { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
         { title: 'Exams', url: '/exams', icon: ClipboardList },
