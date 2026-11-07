@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { bookingTypeLabel, formatDay, slotLabel, whatsAppUrl } from '@/lib/enquiries';
 import {
   bdeReportPdfUrl,
+  bdeReportShareUrl,
   bdeReportsUrl,
   canSharePdf,
   reportError,
@@ -60,7 +61,7 @@ function ReportDialog({ row, onOpenChange }) {
   );
 }
 
-function ReportRow({ row, enquiry, shareable, onView }) {
+function ReportRow({ row, enquiry, shareable, onView, onShared }) {
   const { booking, report } = row;
   const kind = bookingTypeLabel(booking.booking_type).toLowerCase();
   const pdfUrl = bdeReportPdfUrl(booking.booking_type, booking.id);
@@ -87,7 +88,13 @@ function ReportRow({ row, enquiry, shareable, onView }) {
         <PdfDownloadButton url={pdfUrl} fallbackName={fallbackName} label={`Download the ${kind} report as a PDF`} />
         {whatsApp ? (
           <Button size="sm" asChild>
-            <a href={whatsApp} target="_blank" rel="noopener noreferrer" aria-label={`Send the ${kind} report via WhatsApp`}>
+            <a
+              href={whatsApp}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onShared}
+              aria-label={`Send the ${kind} report via WhatsApp`}
+            >
               <MessageCircleIcon className="size-4" />
               Send via WhatsApp
             </a>
@@ -99,6 +106,7 @@ function ReportRow({ row, enquiry, shareable, onView }) {
             fallbackName={fallbackName}
             title={`${bookingTypeLabel(booking.booking_type)} report: ${student}`}
             label={`Share the ${kind} report PDF`}
+            onShared={onShared}
           />
         ) : null}
       </div>
@@ -134,7 +142,9 @@ function SendingNote({ shareable }) {
  * (their registered number) with the message filled in (design A11); a link
  * carries no file, so the BDE attaches the downloaded PDF there. Where the
  * browser can share files, Share PDF hands the PDF to the share sheet
- * instead. Nothing here records a send, or says a report was sent.
+ * instead. Either tells the API, which keeps the send (POST …/report/share/)
+ * and so ends the BDE's reminder to share the report; nothing here says the
+ * parent got it.
  */
 export function LeadReportsPanel({ enquiry }) {
   const [reports, setReports] = useState(null);
@@ -142,6 +152,10 @@ export function LeadReportsPanel({ enquiry }) {
   const [retryKey, setRetryKey] = useState(0);
   const [viewing, setViewing] = useState(null);
   const shareable = useMemo(() => canSharePdf(), []);
+  // A report sent from here ends the BDE's reminder to share it; one that cannot be told leaves it to its 24 hours.
+  const recordShare = (row) => {
+    api.post(bdeReportShareUrl(row.booking.booking_type, row.booking.id)).catch(() => {});
+  };
 
   useEffect(() => {
     let active = true;
@@ -191,6 +205,7 @@ export function LeadReportsPanel({ enquiry }) {
               enquiry={enquiry}
               shareable={shareable}
               onView={() => setViewing(row)}
+              onShared={() => recordShare(row)}
             />
           ))}
         </ul>

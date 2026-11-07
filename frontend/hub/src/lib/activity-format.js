@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
-import { NEW_ENQUIRY_OUTCOMES } from './follow-ups';
 import { reportFieldsText } from './reports';
 
 // Short, human label per action — used for badges and the action filter.
@@ -75,7 +74,7 @@ export const ACTION_LABELS = {
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
   'booking.parent_confirmation': 'Parent confirmation recorded',
-  // A BDE's own follow-ups (backend communications.followups): the kind and the outcome's code only.
+  // A BDE's reminder done (backend communications.followups): codes only.
   'follow_up.complete': 'Follow-up completed',
   // Demo invitations (backend bookings.demo_invites): ids only, never the link.
   'demo_invite.issue': 'Demo invitation issued',
@@ -86,6 +85,7 @@ export const ACTION_LABELS = {
   // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
   'report.submit': 'Report submitted',
   'report.edit': 'Report edited',
+  'report.share': 'Report shared',
   'booking_slot.close': 'Slot closed',
   'booking_slot.reopen': 'Slot reopened',
   'booking_schedule.update': 'Booking times changed',
@@ -114,9 +114,6 @@ export function formatValue(value) {
   }
   return String(value);
 }
-
-// How a new enquiry's call went, as its follow-up's log entry names it by code.
-const FOLLOW_UP_OUTCOME_LABELS = Object.fromEntries(NEW_ENQUIRY_OUTCOMES.map((option) => [option.value, option.label]));
 
 function humanize(action) {
   const text = action.replace(/[._]/g, ' ').trim();
@@ -356,14 +353,18 @@ export function describeActivity(row) {
       const reason = notConfirmedReasonLabel(row.context?.reason_code);
       return `Recorded that the parent did not confirm ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}`;
     }
-    // A new enquiry's call or a report's discussion, completed by its BDE: codes only.
+    // The reminder to call a new enquiry, done when its BDE sent the parent a booking link: codes only.
     case 'follow_up.complete': {
-      if (row.context?.kind === 'REPORT_DISCUSSION') return "Completed the discussion of a tutor's report with the parent";
-      const outcome = FOLLOW_UP_OUTCOME_LABELS[row.context?.outcome];
-      return `Completed the call to a new enquiry${outcome ? ` — ${outcome}` : ''}`;
+      const type = String(row.context?.booking_type ?? '').toLowerCase();
+      return `Sent a new enquiry's parent the ${type ? `${type} ` : ''}booking link`;
     }
     case 'report.submit':
       return `Submitted the report on ${bookingOfType(row)}`;
+    // The owner BDE sent it to the parent from the enquiry page: ids and the version only.
+    case 'report.share': {
+      const version = row.context?.version ? ` (version ${row.context.version})` : '';
+      return `Sent the parent the report on ${bookingOfType(row)}${version}`;
+    }
     case 'report.edit': {
       const version = row.context?.version ? `, now version ${row.context.version}` : '';
       const fields = reportFieldsText(row.context?.changed_fields);

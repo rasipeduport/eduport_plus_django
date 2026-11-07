@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
-import { CompleteReportDialog, RecordOutcomeDialog } from '@/components/enquiries/follow-up-dialogs';
+import { RecordOutcomeDialog } from '@/components/enquiries/follow-up-dialogs';
 import { ConfirmationRequestDialog } from '@/components/communications/confirmation-request-dialog';
 import { ParentAnswerDialog } from '@/components/communications/parent-answer-dialog';
 import { confirmationRequestNotice, istMoment, istParts, joined, parentAnswerNotice } from '@/lib/communications';
@@ -26,7 +26,7 @@ const TYPE_ICONS = {
   NEW_ENQUIRY_CALL: UserPlusIcon,
   PARENT_CONFIRMATION: ClipboardCheckIcon,
   PRE_ACTIVITY_CALL: PhoneCallIcon,
-  REPORT_DISCUSSION: FileTextIcon,
+  TUTOR_REPORT: FileTextIcon,
   REDEMO_CONFIRMATION: RotateCcwIcon,
 };
 
@@ -42,9 +42,9 @@ export function FollowUpStateBadge({ followUp }) {
   return <Badge variant={FOLLOW_UP_STATE_VARIANTS[followUp.state] ?? 'outline'}>{followUp.state_label}</Badge>;
 }
 
-function FollowUpName({ followUp, showTask = true }) {
+function FollowUpName({ followUp }) {
   const Icon = TYPE_ICONS[followUp.type] ?? ClipboardCheckIcon;
-  const task = showTask ? followUpTask(followUp) : null;
+  const task = followUpTask(followUp);
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -84,16 +84,17 @@ function Due({ value }) {
 }
 
 /**
- * What the BDE does on a follow-up -- each action offered only when the API
- * says the caller may take it -- with calling or messaging the parent and the
- * way to where it is looked into.
+ * What the BDE does on a reminder -- each action offered only when the API
+ * says the caller may take it, or the page where it is done: the enquiry,
+ * whose booking links go to the parent from its header, or its tutor
+ * feedback, where the report is sent -- with calling or messaging the parent.
  */
 function Actions({ followUp, from, inEnquiry, onAct, className }) {
   const { actions, enquiry } = followUp;
   const links = phoneLinks(enquiry.phone_dial_code, enquiry.phone_number);
   const who = enquiry.parent_name;
   const whose = `${enquiry.student_name}’s ${followUp.type_label.toLowerCase()}`;
-  const report = followUp.type === 'REPORT_DISCUSSION';
+  const report = followUp.type === 'TUTOR_REPORT';
   const act = (kind) => () => onAct(kind, followUp);
 
   const buttons = [];
@@ -126,11 +127,11 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
   }
   if (report) {
     buttons.push(
-      <Button key="report" size="sm" variant="outline" asChild>
+      <Button key="report" size="sm" asChild>
         <Link
           to={followUpPath(followUp)}
           state={from ? { from } : undefined}
-          aria-label={`Open ${enquiry.student_name}’s tutor report`}
+          aria-label={`Open ${enquiry.student_name}’s tutor report to share it`}
         >
           <FileTextIcon />
           Open report
@@ -138,17 +139,23 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
       </Button>
     );
   }
-  if (actions.complete) {
+  // A new enquiry's booking link goes to the parent from the enquiry's header -- already in view inside it.
+  if (followUp.type === 'NEW_ENQUIRY_CALL' && !inEnquiry) {
     buttons.push(
-      <Button key="complete" size="sm" onClick={act('report')} aria-label={`Mark ${whose} as completed`}>
-        Mark as completed
+      <Button key="enquiry" size="sm" asChild>
+        <Link
+          to={followUpPath(followUp)}
+          state={from ? { from } : undefined}
+          aria-label={`Open ${enquiry.student_name}’s enquiry to send a booking link`}
+        >
+          Open enquiry
+        </Link>
       </Button>
     );
   }
-  // Inside the enquiry's own workspace a new enquiry's call has nowhere further to open.
-  const openable = !report && !(inEnquiry && !followUp.booking);
-
-  const openLabel = followUp.booking ? `Open the communication for ${whose}` : `Open ${enquiry.student_name}’s enquiry`;
+  // A booking's reminder also opens its communication.
+  const openable = Boolean(followUp.booking) && !report;
+  const openLabel = `Open the communication for ${whose}`;
 
   return (
     <div className={className ?? 'flex flex-wrap items-center justify-end gap-2'}>
@@ -182,13 +189,13 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
 }
 
 /**
- * Open follow-ups as a list: a table where it fits, cards elsewhere. Each says
- * what is to be done and by when, for which booking and (unless `inEnquiry`,
- * inside the enquiry's own workspace) whose, with the action that does it --
- * recording a call, asking for or recording the parent's confirmation,
- * completing a report's discussion -- in a dialog here. `onChanged` hears of
- * each action taken, with what to tell the BDE; `from` is the way back from
- * where a follow-up opens.
+ * Reminders as a list: a table where it fits, cards elsewhere. Each says what
+ * is to be done and by when, for which booking and (unless `inEnquiry`, inside
+ * the enquiry's own workspace) whose, with the action that does it -- asking
+ * for or recording the parent's confirmation, or recording the call before a
+ * class, in a dialog here; opening the enquiry or its report to send the
+ * parent a booking link or the report. `onChanged` hears of each action taken
+ * here, with what to tell the BDE; `from` is the way back from where one opens.
  */
 export function FollowUpList({ rows, pending, inEnquiry = false, from = null, onChanged }) {
   // The dialog open now, and the follow-up it is for -- kept while it closes.
@@ -268,7 +275,6 @@ export function FollowUpList({ rows, pending, inEnquiry = false, from = null, on
         renderCard={renderCard}
       />
       <RecordOutcomeDialog followUp={dialog.followUp} onRecorded={changed} {...dialogProps('outcome')} />
-      <CompleteReportDialog followUp={dialog.followUp} onCompleted={changed} {...dialogProps('report')} />
       <ConfirmationRequestDialog
         booking={dialogBooking(dialog.followUp)}
         onRequested={(data) => changed(confirmationRequestNotice(data))}
@@ -280,35 +286,5 @@ export function FollowUpList({ rows, pending, inEnquiry = false, from = null, on
         {...dialogProps('answer')}
       />
     </>
-  );
-}
-
-/**
- * Follow-ups that are over, newest first: Completed, with what the BDE
- * recorded, or Missed, the class having started first.
- */
-export function FollowUpHistory({ rows }) {
-  return (
-    <ul aria-label="Follow-up history" className="divide-y rounded-xl border">
-      {rows.map((followUp) => (
-        <li key={rowKey(followUp)} className="flex flex-col gap-1.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <FollowUpName followUp={followUp} showTask={false} />
-            <p className="text-muted-foreground text-xs">
-              {joined(
-                followUp.outcome?.label,
-                istMoment(followUp.closed_at),
-                followUp.by_you ? 'by you' : null
-              )}
-            </p>
-          </div>
-          {followUp.booking ? (
-            <span className="text-muted-foreground shrink-0 text-xs">
-              <FollowUpBooking booking={followUp.booking} />
-            </span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
   );
 }

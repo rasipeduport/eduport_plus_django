@@ -2,8 +2,9 @@
 The lead's owner BDE's report APIs (reports.bde_views, P9, design F.4 and
 E.1): the reports on their own leads as they print, and each one's current
 PDF; that nobody else reaches them -- another BDE, a lead nobody owns, any
-other role -- and that no changed id or type reaches another report; and that
-reading and downloading write nothing, so no send is ever recorded.
+other role -- and that no changed id or type reaches another report; that
+reading and downloading write nothing; and that a send from the enquiry page
+is kept, at the version sent, only for the owner BDE.
 """
 import uuid
 from datetime import timedelta
@@ -33,6 +34,10 @@ def reports_url(lead_id):
 
 def bde_pdf_url(booking, booking_type=None):
     return f'/api/bde/bookings/{booking_type or path_type(booking)}/{booking.id}/report/pdf/'
+
+
+def share_url(booking, booking_type=None):
+    return f'/api/bde/bookings/{booking_type or path_type(booking)}/{booking.id}/report/share/'
 
 
 class BdeReportApiTestCase(PdfApiTestCase):
@@ -224,3 +229,50 @@ class BdeReportAccessTests(BdeReportApiTestCase):
                 with self.subTest(url=url, method=method):
                     self.assertEqual(getattr(self.client, method)(url, {}, format='json').status_code, 405)
         self.assertEqual(type(self.diagnostic).objects.get(pk=self.diagnostic.pk).report.version, 1)
+
+
+class BdeReportShareTests(BdeReportApiTestCase):
+    def test_the_owner_bde_keeps_each_send_at_the_version_sent(self):
+        self.as_tutor()
+        self.submit(self.demo)
+        self.as_bde()
+        response = self.client.post(share_url(self.demo))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()['report_version'], 1)
+        self.as_tutor()
+        self.edit(self.demo, 1, suggested_strategy='Revised after the session.')
+        self.as_bde()
+        self.assertEqual(self.client.post(share_url(self.demo)).json()['report_version'], 2)
+        shares = list(ReportShare.objects.order_by('shared_at').values_list(
+            'demo_report__booking_id', 'report_version', 'channel', 'shared_by_id'))
+        self.assertEqual(shares, [(self.demo.id, 1, 'WHATSAPP_MANUAL', self.bde.id),
+                                  (self.demo.id, 2, 'WHATSAPP_MANUAL', self.bde.id)])
+        entry = ActivityLog.objects.filter(action='report.share').latest('created_at')
+        self.assertEqual(entry.context, {'booking_type': 'DEMO', 'booking_id': str(self.demo.id),
+                                         'lead_id': str(self.lead.id), 'version': 2})
+
+    def test_only_the_owner_bde_and_only_a_report_there_is(self):
+        self.as_bde()
+        none_yet = self.client.post(share_url(self.diagnostic))
+        self.assertEqual((none_yet.status_code, none_yet.json()['error']), (404, 'NO_REPORT'))
+        self.as_tutor()
+        self.submit(self.diagnostic)
+        self.as_bde(self.other_bde)
+        for url in (share_url(self.diagnostic), share_url(self.diagnostic, 'demo'), share_url(self.diagnostic, 'exam')):
+            with self.subTest(url=url):
+                response = self.client.post(url)
+                self.assertEqual((response.status_code, response.json()['error']), (404, 'NOT_FOUND'))
+        callers = {
+            'admin': (self.admin, None),
+            'assigned tutor': (self.tutor, None),
+            'anonymous': (None, None),
+            'superuser': (account('root', role='ADMIN', is_superuser=True, is_staff=True), 'NOT_A_BDE'),
+        }
+        for name, (caller, error) in callers.items():
+            with self.subTest(caller=name):
+                self.client.force_authenticate(caller)
+                response = self.client.post(share_url(self.diagnostic))
+                self.assertEqual((response.status_code, response.json().get('error')), (403, error))
+        self.assertFalse(ReportShare.objects.exists())
+        self.as_bde()
+        self.assertEqual(self.client.get(share_url(self.diagnostic)).status_code, 405)

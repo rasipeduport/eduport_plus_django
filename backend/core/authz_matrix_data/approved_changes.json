@@ -2246,6 +2246,144 @@
     "status": 403
    }
   },
+  "bde.bookings.report_share @ admin": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Holds accounts.share_booking_report but not accounts.view_own_lead_reports, which only the BDE role may hold: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ anon": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ mentor_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ mentor_b": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ parent_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ su_mentor": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ su_tutor": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ superuser": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ tutor_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ tutor_b": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.report_share @ unknown": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/bookings/<type>/<id>/report/share/ keeps that the owner BDE sent the report to the parent from the enquiry's tutor feedback (a report_shares row at the version sent, reports.services.record_share), which ends their reminder to share it -- on accounts.view_own_lead_reports, which only the BDE role may hold, and accounts.share_booking_report (a superuser holds both under D1 and is answered NOT_A_BDE). Another BDE's booking and one of a lead nobody owns are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.dashboard @ admin": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
@@ -2420,6 +2558,144 @@
      "enquiries": null,
      "upcoming": null
     },
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ admin": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ anon": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ mentor_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ mentor_b": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ parent_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ su_mentor": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ su_tutor": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ superuser": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ tutor_a": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ tutor_b": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.booking_link_shared @ unknown": {
+   "decision": "BDE follow-ups as reminders (2026-11-07): POST /api/bde/enquiries/<id>/booking-link-shared/ is told by the enquiry page when the BDE copies one of their booking links there or opens the parent's WhatsApp chat with it, and ends the reminder to call that new enquiry (communications.followups.link_shared) -- on accounts.view_own_enquiries and accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds them under D1 and is answered NOT_A_BDE). Another BDE's lead and one that does not exist are answered alike, 404 NOT_FOUND. It replaces POST /api/bde/follow-ups/<id>/complete/, which is gone.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
      "detail"
@@ -2971,144 +3247,6 @@
   "bde.enquiries.reports @ unknown": {
    "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
    "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ admin": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ anon": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Not signed in: refused before anything is read.",
-   "result": {
-    "detail": "Authentication credentials were not provided.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ mentor_a": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ mentor_b": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ parent_a": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ su_mentor": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
-   "result": {
-    "error": "NOT_A_BDE",
-    "fields": [
-     "error",
-     "message"
-    ],
-    "message": "Enquiries belong to BDE accounts, and this account is not one.",
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ su_tutor": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
-   "result": {
-    "error": "NOT_A_BDE",
-    "fields": [
-     "error",
-     "message"
-    ],
-    "message": "Enquiries belong to BDE accounts, and this account is not one.",
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ superuser": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
-   "result": {
-    "error": "NOT_A_BDE",
-    "fields": [
-     "error",
-     "message"
-    ],
-    "message": "Enquiries belong to BDE accounts, and this account is not one.",
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ tutor_a": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ tutor_b": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
-   "result": {
-    "detail": "You do not have permission to perform this action.",
-    "fields": [
-     "detail"
-    ],
-    "records": [],
-    "status": 403
-   }
-  },
-  "bde.follow_ups.complete @ unknown": {
-   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
-   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

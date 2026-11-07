@@ -11,10 +11,8 @@ Under the locks: only the booking's assigned tutor (anyone else is told the
 booking does not exist), only a booked booking its tutor has started --
 their own Start, never the slot's time alone (bookings.lifecycle) -- and only
 once. It saves the report as version 1 with its first revision,
-completes the booking, records COMPLETED in the booking's history, writes
-its after-activity message (communications.planner) and gives the lead's BDE
-the report to discuss with the parent (communications.followups) -- all of it
-or none.
+completes the booking, records COMPLETED in the booking's history and writes
+its after-activity message (communications.planner) -- all of it or none.
 The tutor's scheduling lock is not taken: nothing about the tutor's time
 changes.
 
@@ -27,6 +25,11 @@ touched -- and records REPORT_EDITED. Editing stays open at any time (D6).
 
 Both log to the activity log after the transaction commits, with ids, the
 version and field names only: never report text or anyone's name.
+
+record_share keeps that the lead's BDE sent the report to the parent from
+the Hub (a ReportShare, append-only), at the version it then had -- which
+ends their reminder to share it (communications.followups). Nothing can tell
+whether the parent got it.
 
 A lock wait past booking_service.LOCK_TIMEOUT, or a deadlock, answers
 ReportBusy instead of holding the request.
@@ -41,7 +44,7 @@ from bookings import history
 # The booking locks every booking write takes, in the order they take them.
 from bookings.booking_service import BUSY_SQLSTATES, _locked_booking, _set_lock_timeout, slot_label
 from bookings.models import CONDUCTED, BookingEventKind, BookingStatus
-from communications import followups, planner
+from communications import planner
 
 from .models import (
     DEMO_FIELD_CHARS,
@@ -51,6 +54,8 @@ from .models import (
     SUGGESTED_PLAN_CHARS,
     TEACHER_REMARKS_CHARS,
     PerformanceLevel,
+    ReportShare,
+    ShareChannel,
     report_model,
 )
 
@@ -187,8 +192,6 @@ def submit_report(booking, tutor, fields, now=None):
             )
             # The after-activity message, written once with the completion.
             planner.booking_completed(booking, now)
-            # The BDE's follow-up: share the report with the parent and discuss it.
-            followups.report_submitted(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise ReportBusy() from exc
@@ -261,6 +264,28 @@ def edit_report(booking, tutor, fields, version):
     # Field names only, never what they now say.
     _log_report('report.edit', booking, report, tutor, changed_fields=changed)
     return report, True
+
+
+def record_share(booking, actor, now=None):
+    """
+    Keep that ``actor`` sent ``booking``'s report to the parent -- WhatsApp
+    opened with it, or the PDF handed to the device's share sheet -- at its
+    current version; returns the ReportShare. NoReport when it has none yet.
+    Every send is kept: one more never replaces one before. Whose lead it is
+    is the caller's check (reports.bde_views).
+    """
+    report = getattr(booking, 'report', None)
+    if report is None:
+        raise NoReport()
+    share = ReportShare.objects.create(
+        **{f'{booking.booking_type.lower()}_report': report},
+        report_version=report.version,
+        channel=ShareChannel.WHATSAPP_MANUAL,
+        shared_by=actor,
+        shared_at=now or timezone.now(),
+    )
+    _log_report('report.share', booking, report, actor)
+    return share
 
 
 def preview_content(booking, tutor, fields):

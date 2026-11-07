@@ -23,9 +23,9 @@ changes apply, and the BDE's My Leads reads the result.
 - The lead's bookings' open communication tasks become the new owner's, and
   the unsent parent messages, which sign with the owner, are checked again
   (communications.planner.lead_owner_changed), in the same transaction.
-- A new enquiry -- no booking yet -- gets its call, the new owner's first
-  follow-up (communications.followups.enquiry_assigned); every follow-up the
-  lead has goes with it, and the BDE before sees none of them.
+- A new enquiry -- no booking yet -- gets the new owner's reminder to call
+  the parent, shown for 24 hours (communications.followups.enquiry_assigned);
+  every reminder the lead has goes with it, and the BDE before sees none.
 - The change is logged (lead.assign_owner): ids only.
 
 Locks, in order: the lead, the BDE's account, then the lead's messages and

@@ -143,20 +143,17 @@ function AgendaItem({ booking }) {
   );
 }
 
-/** How many follow-ups are due today and overdue, opening Follow-ups on the ones that need doing first. */
+/** How many follow-up reminders are due today, opening Follow-ups on them. */
 function FollowUpsLine({ followUps }) {
   const plural = (count) => (count === 1 ? 'follow-up' : 'follow-ups');
   const due = followUps.today ? `${followUps.today} ${plural(followUps.today)} due today` : 'No follow-ups due today';
   return (
     <Link
-      to={followUps.overdue ? '/follow-ups?due=overdue' : '/follow-ups?due=today'}
+      to="/follow-ups?due=today"
       className="hover:bg-muted/40 mt-4 flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors"
     >
       <PhoneCall className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        {due}
-        {followUps.overdue ? <span className="text-warning"> · {followUps.overdue} overdue</span> : null}
-      </span>
+      <span className="min-w-0 flex-1">{due}</span>
       <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
     </Link>
   );
@@ -166,7 +163,7 @@ function FollowUpsLine({ followUps }) {
  * Today's Demo classes and diagnostic tests for the BDE's enquiries, on a
  * timeline. "Today" is the API's Indian date (agenda.date), the day the slots
  * are booked in -- never this device's -- so it is named, not assumed. With
- * the BDE's follow-ups to see (`followUps`), how many are due today and overdue.
+ * the BDE's follow-ups to see (`followUps`), how many reminders are due today.
  */
 function TodaysAgenda({ agenda, followUps, className }) {
   const rows = agenda?.rows ?? [];

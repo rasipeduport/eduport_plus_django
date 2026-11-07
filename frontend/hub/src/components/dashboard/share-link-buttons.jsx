@@ -73,11 +73,11 @@ export function CopyStatus({ manual, urlRef, copiedLabel }) {
 /**
  * The ways to pass a link on, as menu items: copy it (`onCopy`), send it on
  * WhatsApp with `message` before it -- to `recipient`'s chat when given, else
- * to whoever WhatsApp asks -- or preview the public page it opens. The BDE's
- * booking links share them, and so does a Diagnostic's Demo invitation
- * (components/bookings/demo-invite-button.jsx).
+ * to whoever WhatsApp asks; `onSend` hears of it -- or preview the public page
+ * it opens. The BDE's booking links share them, and so does a Diagnostic's
+ * Demo invitation (components/bookings/demo-invite-button.jsx).
  */
-export function ShareLinkMenuItems({ url, message, recipient = null, onCopy }) {
+export function ShareLinkMenuItems({ url, message, recipient = null, onCopy, onSend }) {
   const text = `${message} ${url}`;
   const toParent = recipient ? whatsAppUrl(recipient.dialCode, recipient.number, text) : null;
   const whatsApp = toParent ?? `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -87,7 +87,7 @@ export function ShareLinkMenuItems({ url, message, recipient = null, onCopy }) {
         <CopyIcon />
         Copy Link
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
+      <DropdownMenuItem asChild onSelect={onSend}>
         <a href={whatsApp} target="_blank" rel="noopener noreferrer">
           <MessageCircleIcon />
           {toParent ? 'Send to the parent on WhatsApp' : 'Share on WhatsApp'}
@@ -108,13 +108,19 @@ export function ShareLinkMenuItems({ url, message, recipient = null, onCopy }) {
  * One link: the main button copies it; the arrow's menu copies, shares on
  * WhatsApp or previews it. With a `recipient` the WhatsApp chat is that
  * parent's, the message filled in; without one WhatsApp asks whom to send it to.
+ * `onShare` hears of each copy and each WhatsApp send.
  */
-function ShareLinkButton({ link, copied, onCopy, recipient }) {
+function ShareLinkButton({ link, copied, onCopy, recipient, onShare }) {
   const copy = linkCopy(link);
+  const shared = () => onShare?.(link.booking_type);
+  const copyLink = () => {
+    onCopy(link);
+    shared();
+  };
 
   return (
     <ButtonGroup>
-      <Button type="button" className={copy.button} onClick={() => onCopy(link)} aria-label={`Copy ${copy.label}`}>
+      <Button type="button" className={copy.button} onClick={copyLink} aria-label={`Copy ${copy.label}`}>
         {copied ? <CheckIcon /> : <CopyIcon />}
         {copied ? 'Copied' : copy.label}
       </Button>
@@ -126,7 +132,13 @@ function ShareLinkButton({ link, copied, onCopy, recipient }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <ShareLinkMenuItems url={link.url} message={copy.message} recipient={recipient} onCopy={() => onCopy(link)} />
+          <ShareLinkMenuItems
+            url={link.url}
+            message={copy.message}
+            recipient={recipient}
+            onCopy={copyLink}
+            onSend={shared}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </ButtonGroup>
@@ -137,10 +149,12 @@ function ShareLinkButton({ link, copied, onCopy, recipient }) {
  * The BDE's quick sharing -- on their dashboard and My Enquiries, and on one of
  * their leads for that lead's parent (`recipient`: `{ dialCode, number }`):
  * the BDE's own Demo and Diagnostic booking links, each copied in one click or
- * shared on WhatsApp or previewed from its menu. The API serves each BDE only
- * their own links.
+ * shared on WhatsApp or previewed from its menu. `onShare(bookingType)` hears
+ * of each link copied or sent on WhatsApp -- on a lead, the page tells the API,
+ * which ends the reminder to call that new enquiry. The API serves each BDE
+ * only their own links.
  */
-export function ShareLinkButtons({ recipient = null }) {
+export function ShareLinkButtons({ recipient = null, onShare = null }) {
   const [links, setLinks] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -208,6 +222,7 @@ export function ShareLinkButtons({ recipient = null }) {
             copied={copied === link.booking_type}
             onCopy={copyLink}
             recipient={recipient}
+            onShare={onShare}
           />
         ))}
       </div>

@@ -1,44 +1,48 @@
 """
-A BDE's follow-ups (GET /api/bde/follow-ups/, communications.bde_views): what
-the BDE must do next on their own leads -- and nothing the system does by
-itself. Five kinds, each read from where its work is recorded, never copied:
+A BDE's follow-ups (GET /api/bde/follow-ups/, communications.bde_views): a
+list of reminders -- what needs the BDE's attention now, and nothing the
+system does by itself. Five reminders, each read from where its work is
+recorded, never copied, and each gone from the list once it is resolved or
+its time is up:
 
     NEW_ENQUIRY_CALL     an administrator gave them an enquiry with no booking
-                         yet (bookings.ownership): call the parent, then record
-                         how it went -- a FollowUp, due within 3 hours
+                         yet (bookings.ownership): call the parent. Shown for
+                         24 hours (a FollowUp), until the BDE sends the parent
+                         one of their booking links from the enquiry
+                         (link_shared) or the enquiry has a booking -- its
+                         progress is then its status's and its bookings'
     PARENT_CONFIRMATION  a Demo or Diagnostic whose parent has not answered,
-                         from its confirmation request's due time (12 hours
-                         before it, planner.plan_booking): ask the parent, then
-                         record the answer -- the booking itself, due by its
-                         start and Missed if that comes first
+                         from its confirmation request's due time -- 12 hours
+                         before it, or at once for one booked later than that
+                         (planner.plan_booking) -- until the answer is
+                         recorded or the class starts
     PRE_ACTIVITY_CALL    from 15 minutes before a Demo or Diagnostic until it
-                         starts: call the parent, then record how it went --
-                         its communication step, Missed at the start
-                         (planner.close_expired)
-    REPORT_DISCUSSION    the tutor submitted the booking's report
-                         (reports.services): share it with the parent and
-                         discuss it, then mark it done -- a FollowUp, due
-                         within a day
+                         starts, or until the BDE records how the call went
+                         (its communication step; a call nobody recorded is
+                         Missed, never done: planner.close_expired)
+    TUTOR_REPORT         the tutor submitted the booking's report: share it
+                         with the parent. Shown for 24 hours, until the BDE
+                         sends it from the enquiry's tutor feedback (a
+                         reports.ReportShare)
     REDEMO_CONFIRMATION  an administrator scheduled a Re-Demo, its date, time
-                         and tutor chosen (bookings.redemos): tell the parent,
-                         then record their answer -- the booking, due by its
-                         start and Missed if that comes first
+                         and tutor chosen (bookings.redemos): confirm it with
+                         the parent, until their answer is recorded or it starts
 
 The acknowledgement, the confirmed and after-activity messages and what
 WhatsApp reports about them, a report being submitted, a tutor being assigned
-and a booking being completed are never follow-ups: they are the system's,
-and stay in the booking's communication and history -- a failed message
-included. Nor is a Re-Demo request, until the Re-Demo is scheduled.
+and a booking being completed are never reminders: they are the system's,
+and stay in the booking's communication and history. Nor is a Re-Demo
+request, until the Re-Demo is scheduled. A reminder that is over is not kept
+here: what happened stays where it belongs -- the enquiry's status and
+bookings, the booking's communication, the report's shares.
 
-Whose a follow-up is follows the lead's owner now, never who owned it when it
-began: a lead given to another BDE takes its follow-ups with it, as its
+Whose a reminder is follows the lead's owner now, never who owned it when it
+began: a lead given to another BDE takes its reminders with it, as its
 communication goes (communications.views), and the BDE before sees none of
-them. An open one is Overdue (past due: only a call or a report can be),
-Due today or Pending (due on a later day), in Indian days, the days the slots
-are booked in; one that is over is Completed or Missed. Acting on one stays
-with the API that owns its record: the booking's communication for the
-confirmations and the call (communications.views), complete() here for a
-FollowUp.
+them. A reminder is Due today when the moment it is due by -- the class's
+start, or the end of its 24 hours -- falls on today's Indian date, and
+Pending when later; none outlives that moment, so none is ever overdue.
+Acting on one stays with the API that owns its record.
 
 Each row is written out field by field, so nothing reaches the BDE by being
 added elsewhere: what is due and when, the booking it is for, and whose it is
@@ -49,7 +53,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 
 from django.db import OperationalError, transaction
-from django.db.models import Q, TextChoices
+from django.db.models import Exists, OuterRef, Q, TextChoices
 from django.utils import timezone
 
 from accounts.authz import has_app_permission
@@ -59,96 +63,49 @@ from bookings.enquiries import booking_brief, enquiry_brief
 from bookings.lifecycle import activity_state
 from bookings.models import BOOKING_MODELS, BookingStatus, DemoBooking, DiagnosticBooking, Lead, ParentConfirmation
 from bookings.scheduling import BOOKING_TIMEZONE, indian_today
+from reports.models import REPORT_MODELS
 
-from .models import (
-    CALL_OUTCOMES,
-    FOLLOW_UP_OUTCOMES,
-    CommunicationTask,
-    FollowUp,
-    FollowUpKind,
-    FollowUpStatus,
-    Message,
-    Step,
-    TaskStatus,
-)
-from .planner import booking_field
+from .models import CommunicationTask, FollowUp, FollowUpKind, FollowUpStatus, Message, Step, TaskStatus
 
 
 class FollowUpType(TextChoices):
-    """The five things a BDE follows up, in the order a lead meets them."""
+    """The five reminders, in the order an enquiry meets them."""
     NEW_ENQUIRY_CALL = 'NEW_ENQUIRY_CALL', 'Call new enquiry'
     PARENT_CONFIRMATION = 'PARENT_CONFIRMATION', 'Parent confirmation'
     PRE_ACTIVITY_CALL = 'PRE_ACTIVITY_CALL', 'Pre-activity call'
-    REPORT_DISCUSSION = 'REPORT_DISCUSSION', 'Discuss tutor report'
+    TUTOR_REPORT = 'TUTOR_REPORT', 'Share tutor report'
     REDEMO_CONFIRMATION = 'REDEMO_CONFIRMATION', 'Re-Demo confirmation'
 
 
 class FollowUpState(TextChoices):
-    OVERDUE = 'OVERDUE', 'Overdue'
     DUE_TODAY = 'DUE_TODAY', 'Due today'
     PENDING = 'PENDING', 'Pending'
-    COMPLETED = 'COMPLETED', 'Completed'
-    MISSED = 'MISSED', 'Missed'
 
 
-OPEN, CLOSED = 'open', 'closed'
-STATES = (OPEN, CLOSED)
-OVERDUE, TODAY, UPCOMING = 'overdue', 'today', 'upcoming'
-DUE_FILTERS = (OVERDUE, TODAY, UPCOMING)
-_DUE_STATES = {OVERDUE: FollowUpState.OVERDUE, TODAY: FollowUpState.DUE_TODAY, UPCOMING: FollowUpState.PENDING}
+TODAY, UPCOMING = 'today', 'upcoming'
+DUE_FILTERS = (TODAY, UPCOMING)
+_DUE_STATES = {TODAY: FollowUpState.DUE_TODAY, UPCOMING: FollowUpState.PENDING}
 _TYPE_ORDER = {value: index for index, value in enumerate(FollowUpType.values)}
 
-# A new enquiry is called within 3 hours of reaching the BDE -- the PRD's
-# first-contact target, as for the acknowledgement -- and a report discussed
-# within a day of being submitted.
-NEW_ENQUIRY_CALL_TARGET = timedelta(hours=3)
-REPORT_DISCUSSION_TARGET = timedelta(days=1)
+# How long the reminders an event starts are shown: a new enquiry's call from
+# its assignment, a report's sharing from its submission.
+REMINDER_WINDOW = timedelta(hours=24)
 
 SEND_COMMUNICATIONS = 'accounts.send_lead_communications'
 RECORD_CONFIRMATION = 'accounts.record_parent_confirmation'
 VIEW_OWN_LEAD_REPORTS = 'accounts.view_own_lead_reports'
-SHARE_BOOKING_REPORT = 'accounts.share_booking_report'
-# What completing each FollowUp kind needs, beside seeing the follow-ups: a
-# call is following up with the parent; a report's is seeing it and recording
-# that it reached them.
-COMPLETE_PERMISSIONS = {
-    FollowUpKind.NEW_ENQUIRY_CALL: (SEND_COMMUNICATIONS,),
-    FollowUpKind.REPORT_DISCUSSION: (VIEW_OWN_LEAD_REPORTS, SHARE_BOOKING_REPORT),
-}
-# What the parent answered, as a completed confirmation shows it.
-_ANSWERS = {
-    ParentConfirmation.CONFIRMED: 'Parent confirmed',
-    ParentConfirmation.NOT_CONFIRMED: 'Parent did not confirm (booking cancelled)',
-}
 
 
-class FollowUpError(Exception):
-    code = 'FOLLOW_UP_FAILED'
-    http_status = 400
-    message = 'That could not be done.'
-
-
-class FollowUpNotFound(FollowUpError):
-    """Not one of the caller's own leads' -- or none at all: answered alike."""
+class EnquiryNotOwned(Exception):
+    """Not one of the caller's own leads -- or none at all: answered alike."""
     code = 'NOT_FOUND'
     http_status = 404
-    message = 'No such follow-up.'
-
-
-class FollowUpDone(FollowUpError):
-    code = 'FOLLOW_UP_DONE'
-    http_status = 409
-    message = 'This follow-up is already completed.'
-
-
-class InvalidFollowUpOutcome(FollowUpError):
-    code = 'INVALID_OUTCOME'
-    message = 'Choose one of the outcomes listed.'
+    message = 'No such enquiry.'
 
 
 @dataclass
 class Item:
-    """One follow-up, open or over, as read -- before it is written out (row)."""
+    """One reminder as read, before it is written out (row)."""
     type: str
     id: object
     lead: Lead
@@ -157,109 +114,75 @@ class Item:
     state: str = ''
     # When the call can be recorded from (its 15 minutes before the start).
     opens_at: datetime = None
-    closed_at: datetime = None
-    # (code, label) of what was recorded, once Completed.
-    outcome: tuple = None
-    # Who completed it (a user id), once Completed.
-    by_id: object = None
     # The parent confirmation's request message, once the parent was asked.
     request: Message = None
     actions: dict = field(default_factory=dict)
 
 
-# ---------------------------------------------------------------- triggers
+# ---------------------------------------------------------------- the new enquiry's call
+
+def _has_booking(lead):
+    return DemoBooking.objects.filter(lead=lead).exists() or DiagnosticBooking.objects.filter(lead=lead).exists()
+
 
 def enquiry_assigned(lead, now):
     """
     ``lead`` has just been given to a BDE (bookings.ownership, which holds its
-    lock). A new enquiry -- no booking of either type yet -- gets its call,
-    due within NEW_ENQUIRY_CALL_TARGET; one still open from an owner before
-    goes with the lead and is due as soon from now; one already done is
-    history, and the lead is not called again. At most one per lead, however
-    often this runs. Returns the call, or None.
+    lock). A new enquiry -- no booking of either type yet -- gets the reminder
+    to call it, shown for REMINDER_WINDOW from now: set going again when it
+    had one, done or not, since its new BDE has not spoken to the parent.
+    One per lead, however often this runs. Returns it, or None.
     """
-    if lead.owner_bde_id is None:
+    if lead.owner_bde_id is None or _has_booking(lead):
         return None
-    if DemoBooking.objects.filter(lead=lead).exists() or DiagnosticBooking.objects.filter(lead=lead).exists():
-        return None
-    due_at = now + NEW_ENQUIRY_CALL_TARGET
-    call, created = FollowUp.objects.get_or_create(
-        lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL, defaults={'due_at': due_at, 'created_at': now},
+    reminder, _created = FollowUp.objects.update_or_create(
+        lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL,
+        defaults={'status': FollowUpStatus.OPEN, 'due_at': now + REMINDER_WINDOW, 'resolved_at': None,
+                  'resolved_by': None},
+        create_defaults={'status': FollowUpStatus.OPEN, 'due_at': now + REMINDER_WINDOW, 'created_at': now},
     )
-    if not created and call.status == FollowUpStatus.OPEN:
-        call.due_at = due_at
-        call.save(update_fields=['due_at', 'updated_at'])
-    return call
+    return reminder
 
 
-def report_submitted(booking, now):
+def link_shared(lead_id, booking_type, *, actor, now=None):
     """
-    The tutor has just submitted ``booking``'s report (reports.services, which
-    holds the booking's lock): the lead's BDE is to share it with the parent
-    and discuss it, within REPORT_DISCUSSION_TARGET -- whoever owns the lead
-    now or later. Once per booking: an edit of the report adds none.
-    """
-    discussion, _created = FollowUp.objects.get_or_create(
-        **booking_field(booking), kind=FollowUpKind.REPORT_DISCUSSION,
-        defaults={'lead_id': booking.lead_id, 'due_at': now + REPORT_DISCUSSION_TARGET, 'created_at': now},
-    )
-    return discussion
-
-
-# ---------------------------------------------------------------- completing
-
-def own_follow_ups(user):
-    """The FollowUps of the leads ``user`` owns now."""
-    return FollowUp.objects.filter(lead__owner_bde=user)
-
-
-def complete(follow_up, outcome, *, actor, owner_bde, now=None):
-    """
-    Record ``outcome`` on ``follow_up`` (a FollowUp), which completes it: how
-    a new enquiry's call went, or that the report was discussed
-    (FOLLOW_UP_OUTCOMES, else InvalidFollowUpOutcome). Only on ``owner_bde``'s
-    own lead's, checked under the lead's lock -- a lead given to another BDE
-    meanwhile answers as one that does not exist (FollowUpNotFound) -- and
-    only once (FollowUpDone). Logged with ids and codes only.
+    ``actor``, a BDE, has just sent the parent of their lead ``lead_id`` one of
+    their booking links (``booking_type``) from the enquiry -- copied it there,
+    or opened the parent's WhatsApp chat with it: the reminder to call the new
+    enquiry is done. Only on the actor's own lead, checked under the lead's
+    lock (EnquiryNotOwned); nothing left to do -- no reminder, or one done or
+    past its 24 hours -- is no error. Returns whether a reminder was done now,
+    which is logged with ids only.
     """
     now = now or timezone.now()
     try:
         with transaction.atomic():
             _set_lock_timeout()
-            # The lead first, as an assignment takes it (bookings.ownership), then the follow-up.
-            lead = Lead.objects.select_for_update(no_key=True).filter(pk=follow_up.lead_id).first()
-            if lead is None or lead.owner_bde_id != owner_bde.pk:
-                raise FollowUpNotFound()
-            follow_up = FollowUp.objects.select_for_update().get(pk=follow_up.pk)
-            if outcome not in FOLLOW_UP_OUTCOMES[follow_up.kind]:
-                raise InvalidFollowUpOutcome()
-            if follow_up.status != FollowUpStatus.OPEN:
-                raise FollowUpDone()
-            follow_up.status = FollowUpStatus.DONE
-            follow_up.outcome = outcome
-            follow_up.resolved_at = now
-            follow_up.resolved_by = actor
-            follow_up.save(update_fields=['status', 'outcome', 'resolved_at', 'resolved_by', 'updated_at'])
+            # The lead first, as an assignment takes it (bookings.ownership), then its reminder.
+            lead = Lead.objects.select_for_update(no_key=True).filter(pk=lead_id).first()
+            if lead is None or lead.owner_bde_id != actor.pk:
+                raise EnquiryNotOwned()
+            reminder = FollowUp.objects.select_for_update().filter(
+                lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL, status=FollowUpStatus.OPEN, due_at__gt=now,
+            ).first()
+            if reminder is None:
+                return False
+            reminder.status, reminder.resolved_at, reminder.resolved_by = FollowUpStatus.DONE, now, actor
+            reminder.save(update_fields=['status', 'resolved_at', 'resolved_by', 'updated_at'])
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
         raise
-    booking_id = follow_up.demo_booking_id or follow_up.diagnostic_booking_id
     log_activity(
         action='follow_up.complete',
         entity_type='follow_up',
-        entity_id=follow_up.id,
-        entity_label=follow_up.get_kind_display(),
-        # Ids and codes only: no names, phone numbers or text.
-        context={
-            'kind': follow_up.kind,
-            'outcome': outcome,
-            'lead_id': str(follow_up.lead_id),
-            'booking_id': str(booking_id) if booking_id else None,
-        },
+        entity_id=reminder.id,
+        entity_label=reminder.get_kind_display(),
+        # Ids and codes only: no names, phone numbers or links.
+        context={'kind': reminder.kind, 'lead_id': str(lead.pk), 'booking_type': booking_type},
         actor=actor,
     )
-    return follow_up
+    return True
 
 
 # ---------------------------------------------------------------- reading
@@ -271,57 +194,49 @@ def _today_bounds(now):
 
 
 def _permissions(user, request):
-    names = (SEND_COMMUNICATIONS, RECORD_CONFIRMATION, VIEW_OWN_LEAD_REPORTS, SHARE_BOOKING_REPORT)
+    names = (SEND_COMMUNICATIONS, RECORD_CONFIRMATION, VIEW_OWN_LEAD_REPORTS)
     return {name: has_app_permission(user, name, request) for name in names}
 
 
-def _actions(record_outcome=False, request_confirmation=False, record_answer=False, complete=False):
-    """What the caller may do on a follow-up now: each action the API that owns it checks again."""
+def _actions(record_outcome=False, request_confirmation=False, record_answer=False):
+    """What the caller may do on a reminder from the list: each action the API that owns it checks again."""
     return {
         'record_outcome': record_outcome,
         'request_confirmation': request_confirmation,
         'record_answer': record_answer,
-        'complete': complete,
     }
 
 
 def open_items(user, now, request=None, enquiry=None):
     """
-    Every open follow-up of the leads ``user`` owns now -- one lead's with
+    The reminders of the leads ``user`` owns now -- one lead's with
     ``enquiry`` -- soonest due first, each with its state and what ``user``
     may do on it. A report's only for one who may see the reports.
     """
     can = _permissions(user, request)
     items = [
-        *_enquiry_calls(user, enquiry, can),
+        *_enquiry_calls(user, now, enquiry),
         *_confirmations(user, now, enquiry, can),
         *_calls(user, now, enquiry, can),
     ]
     if can[VIEW_OWN_LEAD_REPORTS]:
-        items += _report_discussions(user, enquiry, can)
+        items += _reports(user, now, enquiry)
     end_of_today = _today_bounds(now)[1]
     for item in items:
-        if item.due_at < now:
-            item.state = FollowUpState.OVERDUE
-        elif item.due_at < end_of_today:
-            item.state = FollowUpState.DUE_TODAY
-        else:
-            item.state = FollowUpState.PENDING
+        item.state = FollowUpState.DUE_TODAY if item.due_at < end_of_today else FollowUpState.PENDING
     return sorted(items, key=lambda item: (item.due_at, _TYPE_ORDER[item.type], str(item.id)))
 
 
-def _own_follow_ups(user, enquiry):
-    follow_ups = own_follow_ups(user).select_related('lead', 'demo_booking__slot', 'diagnostic_booking__slot')
-    return follow_ups.filter(lead_id=enquiry) if enquiry else follow_ups
-
-
-def _enquiry_calls(user, enquiry, can):
-    follow_ups = _own_follow_ups(user, enquiry).filter(kind=FollowUpKind.NEW_ENQUIRY_CALL, status=FollowUpStatus.OPEN)
-    return [
-        Item(FollowUpType.NEW_ENQUIRY_CALL, call.id, call.lead, call.due_at,
-             actions=_actions(record_outcome=can[SEND_COMMUNICATIONS]))
-        for call in follow_ups
-    ]
+def _enquiry_calls(user, now, enquiry):
+    """New enquiries to call: within their 24 hours, not yet sent a booking link, and still without a booking."""
+    reminders = FollowUp.objects.filter(
+        ~Exists(DemoBooking.objects.filter(lead=OuterRef('lead'))),
+        ~Exists(DiagnosticBooking.objects.filter(lead=OuterRef('lead'))),
+        lead__owner_bde=user, kind=FollowUpKind.NEW_ENQUIRY_CALL, status=FollowUpStatus.OPEN, due_at__gt=now,
+    ).select_related('lead')
+    if enquiry:
+        reminders = reminders.filter(lead_id=enquiry)
+    return [Item(FollowUpType.NEW_ENQUIRY_CALL, reminder.id, reminder.lead, reminder.due_at) for reminder in reminders]
 
 
 def _awaiting(model, user, now, enquiry):
@@ -395,101 +310,31 @@ def _calls(user, now, enquiry, can):
     ]
 
 
-def _report_discussions(user, enquiry, can):
-    follow_ups = _own_follow_ups(user, enquiry).filter(kind=FollowUpKind.REPORT_DISCUSSION, status=FollowUpStatus.OPEN)
-    return [
-        Item(FollowUpType.REPORT_DISCUSSION, discussion.id, discussion.lead, discussion.due_at,
-             booking=discussion.booking, actions=_actions(complete=can[SHARE_BOOKING_REPORT]))
-        for discussion in follow_ups
-    ]
-
-
-def closed_items(user, now, enquiry, request=None):
-    """
-    The follow-ups that are over on ``enquiry``, one of ``user``'s own leads,
-    newest first: Completed -- the BDE recorded what it asked for -- or Missed,
-    its booking having started first. A booking cancelled or moved before its
-    parent answered takes its confirmation with it: the booking's history says
-    what happened (bookings.history).
-    """
-    can = _permissions(user, request)
-    lead = Lead.objects.filter(pk=enquiry, owner_bde=user).first()
-    if lead is None:
-        return []
-    follow_ups = FollowUp.objects.filter(lead=lead, status=FollowUpStatus.DONE).select_related(
-        'lead', 'demo_booking__slot', 'diagnostic_booking__slot',
-    )
-    items = [
-        done_item(follow_up) for follow_up in follow_ups
-        if follow_up.kind != FollowUpKind.REPORT_DISCUSSION or can[VIEW_OWN_LEAD_REPORTS]
-    ]
-    for model in BOOKING_MODELS:
-        column = _column(model)
-        # Planned bookings have the step; one made before parent communication never had this follow-up.
-        asked = set(CommunicationTask.objects.filter(
-            **{f'{column}__lead': lead}, step=Step.CONFIRMATION_REQUEST,
-        ).values_list(f'{column}_id', flat=True))
-        for booking in model.objects.filter(lead=lead).exclude(status=BookingStatus.RESCHEDULED).select_related('slot'):
-            redemo = getattr(booking, 'redemo_for_id', None) is not None
-            if not redemo and booking.pk not in asked:
-                continue
-            item = Item(FollowUpType.REDEMO_CONFIRMATION if redemo else FollowUpType.PARENT_CONFIRMATION, booking.id,
-                        lead, booking.slot.starts_at, booking=booking)
-            answer = booking.parent_confirmation
-            if answer != ParentConfirmation.AWAITING:
-                items.append(_completed(item, booking.parent_confirmation_at, (answer, _ANSWERS[answer]),
-                                        booking.parent_confirmation_by_id))
-            elif booking.status != BookingStatus.CANCELLED and (booking.started_at or booking.slot.starts_at <= now):
-                started = [moment for moment in (booking.started_at, booking.slot.starts_at) if moment]
-                items.append(_missed(item, min(started)))
-    calls = CommunicationTask.objects.filter(
-        Q(demo_booking__lead=lead) | Q(diagnostic_booking__lead=lead),
-        step=Step.PRE_ACTIVITY_CALL, status__in=(TaskStatus.DONE, TaskStatus.MISSED),
-    ).select_related('demo_booking__slot', 'diagnostic_booking__slot')
-    for task in calls:
-        item = Item(FollowUpType.PRE_ACTIVITY_CALL, task.id, lead, task.due_at, booking=task.booking,
-                    opens_at=task.active_from)
-        if task.status == TaskStatus.DONE and task.resolution in CALL_OUTCOMES:
-            items.append(_completed(item, task.resolved_at, (task.resolution, task.get_resolution_display()),
-                                    task.resolved_by_id))
-        else:
-            items.append(_missed(item, task.resolved_at))
-    return sorted(items, key=lambda item: (item.closed_at, _TYPE_ORDER[item.type], str(item.id)), reverse=True)
-
-
-def done_item(follow_up):
-    """A completed FollowUp as an item: in closed_items, and as completing one answers."""
-    return _completed(
-        Item(follow_up.kind, follow_up.id, follow_up.lead, follow_up.due_at, booking=follow_up.booking),
-        follow_up.resolved_at, (follow_up.outcome, follow_up.get_outcome_display()), follow_up.resolved_by_id,
-    )
-
-
-def _completed(item, at, outcome, by_id):
-    item.state, item.closed_at, item.outcome, item.by_id = FollowUpState.COMPLETED, at, outcome, by_id
-    item.actions = _actions()
-    return item
-
-
-def _missed(item, at):
-    item.state, item.closed_at = FollowUpState.MISSED, at
-    item.actions = _actions()
-    return item
+def _reports(user, now, enquiry):
+    """The reports on ``user``'s leads' bookings submitted in the last 24 hours that nobody has sent the parent yet."""
+    items = []
+    for model in REPORT_MODELS:
+        reports = model.objects.filter(
+            booking__lead__owner_bde=user, submitted_at__gt=now - REMINDER_WINDOW, shares__isnull=True,
+        ).select_related('booking__slot', 'booking__lead')
+        if enquiry:
+            reports = reports.filter(booking__lead_id=enquiry)
+        items.extend(
+            Item(FollowUpType.TUTOR_REPORT, report.id, report.booking.lead, report.submitted_at + REMINDER_WINDOW,
+                 booking=report.booking)
+            for report in reports
+        )
+    return items
 
 
 def summary(items):
-    """How many of the open ``items`` are overdue, due today and upcoming, and how many in all."""
+    """How many of ``items`` are due today and later, and how many in all."""
     states = Counter(item.state for item in items)
-    return {
-        'total': len(items),
-        OVERDUE: states[FollowUpState.OVERDUE],
-        TODAY: states[FollowUpState.DUE_TODAY],
-        UPCOMING: states[FollowUpState.PENDING],
-    }
+    return {'total': len(items), TODAY: states[FollowUpState.DUE_TODAY], UPCOMING: states[FollowUpState.PENDING]}
 
 
 def filtered(items, due=None, follow_up_type=None):
-    """``items`` narrowed to one due filter (open ones) and one type."""
+    """``items`` narrowed to one due filter and one type."""
     if due:
         items = [item for item in items if item.state == _DUE_STATES[due]]
     if follow_up_type:
@@ -501,8 +346,8 @@ def _when(value):
     return value.isoformat() if value else None
 
 
-def row(item, now, user):
-    """One follow-up as the BDE's lists show it."""
+def row(item, now):
+    """One reminder as the BDE's lists show it."""
     lead = item.lead
     booking = item.booking
     return {
@@ -513,9 +358,6 @@ def row(item, now, user):
         'state_label': FollowUpState(item.state).label,
         'due_at': _when(item.due_at),
         'opens_at': _when(item.opens_at),
-        'closed_at': _when(item.closed_at),
-        'outcome': {'code': item.outcome[0], 'label': item.outcome[1]} if item.outcome else None,
-        'by_you': item.by_id == user.pk if item.state == FollowUpState.COMPLETED else None,
         # Whether the parent was asked to confirm, and where that message stands.
         'request': (
             {'status': item.request.status, 'status_label': item.request.get_status_display()} if item.request else None

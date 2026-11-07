@@ -22,14 +22,15 @@ const DUE_VALUES = new Set(FOLLOW_UP_DUE.map((option) => option.value));
 const TYPE_VALUES = new Set(FOLLOW_UP_TYPES.map((option) => option.value));
 
 /**
- * A BDE's follow-ups: what they must do next on their own enquiries -- call a
- * new enquiry, get a parent's confirmation, make the call before a class,
- * discuss a tutor's report, confirm a scheduled Re-Demo -- soonest due first,
- * from GET /api/bde/follow-ups/; never the automatic WhatsApp messages, which
- * stay in each booking's communication. Overdue, Due today and Upcoming (Indian
- * days) and the type are kept in the URL (due, type, page). Each is done here,
- * in a dialog, or opens where it is looked into; the way back returns here.
- * A follow-up done leaves the list, which is read again with its counts.
+ * A BDE's follow-ups: the reminders that need them now on their own
+ * enquiries -- call a new enquiry, get a parent's confirmation, make the call
+ * before a class, share a tutor's report, confirm a scheduled Re-Demo --
+ * soonest due first, from GET /api/bde/follow-ups/; never the automatic
+ * WhatsApp messages, which stay in each booking's communication. Due today and
+ * Upcoming (Indian days) and the type are kept in the URL (due, type, page).
+ * Each is done here, in a dialog, or opens where it is done; the way back
+ * returns here. A reminder leaves the list once done or once its time is up,
+ * and the list is read again with its counts after each action.
  */
 export default function FollowUpsPage() {
   const location = useLocation();
@@ -128,7 +129,7 @@ export default function FollowUpsPage() {
             <EmptyState
               icon={CheckCircle2Icon}
               title="You're all caught up"
-              description="Follow-ups appear here when an enquiry is assigned to you, a class is coming up, a tutor submits a report or a Re-Demo is scheduled."
+              description="Reminders appear here when an enquiry is assigned to you, a class is coming up, a tutor submits a report or a Re-Demo is scheduled."
             />
           )}
           {total > 0 ? (
@@ -182,7 +183,7 @@ export default function FollowUpsPage() {
     <Page>
       <PageHeader
         title="Follow-ups"
-        description="What you need to do next on your enquiries, soonest first, in Indian time (IST). Automatic WhatsApp messages stay in each booking's communication."
+        description="Reminders for what needs your attention now, soonest first, in Indian time (IST). Each leaves once it is done or its time is up."
       />
       {content}
     </Page>

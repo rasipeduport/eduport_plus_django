@@ -9,15 +9,15 @@ import { filenameFromDisposition, reportPdfError } from '@/lib/reports';
  * Hands a report's PDF to the device's share sheet (the Web Share API with
  * files), where the BDE picks WhatsApp -- or another app -- and then the
  * parent's chat: the sheet cannot choose the chat itself. Offered only where
- * the browser can share files (lib/reports canSharePdf). Nothing is recorded
- * about a share, and nothing here can tell whether the PDF was sent.
+ * the browser can share files (lib/reports canSharePdf). `onShared` hears when
+ * the sheet took the PDF; nothing here can tell whether it reached the parent.
  *
  * A browser shares only straight after a tap, and the PDF is fetched first,
  * from ``url`` (named as the server names it, else ``fallbackName``). When the
  * fetch took too long for the browser, the file is kept and the next tap
  * shares it at once.
  */
-export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label }) {
+export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label, onShared }) {
   const [file, setFile] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -44,6 +44,7 @@ export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label 
     setSharing(true);
     try {
       await navigator.share({ files: [ready], title });
+      onShared?.();
     } catch (err) {
       if (err?.name === 'AbortError') return; // the share sheet was closed without sharing
       setNotice(

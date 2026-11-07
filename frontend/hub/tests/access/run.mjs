@@ -162,16 +162,16 @@ const BDE_DEMO_BOOKINGS = { status: 200, body: { count: 1, page: 1, page_size: 2
   tutor: { full_name: 'Tutor A' }, parent_confirmation: 'AWAITING', redemo: false,
   enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] } };
 const BDE_DIAGNOSTIC_BOOKINGS = { status: 200, body: { count: 0, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [] } };
-// Their follow-ups (BDE follow-ups aligned with BDE responsibilities) and activity (Phase 6): that demo's
-// parent's confirmation, not yet asked for.
+// Their follow-up reminders (BDE follow-ups as reminders) and activity (Phase 6): that demo's parent's
+// confirmation, not yet asked for.
 const BDE_FOLLOW_UPS = { status: 200, body: { count: 1, page: 1, page_size: 25, timezone: 'Asia/Kolkata',
-  summary: { total: 1, overdue: 0, today: 1, upcoming: 0 }, results: [{
+  summary: { total: 1, today: 1, upcoming: 0 }, results: [{
     id: NEXT_DEMO.id, type: 'PARENT_CONFIRMATION', type_label: 'Parent confirmation', state: 'DUE_TODAY',
-    state_label: 'Due today', due_at: NEXT_DEMO.starts_at, opens_at: null, closed_at: null, outcome: null, by_you: null,
-    request: null, booking: { ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
+    state_label: 'Due today', due_at: NEXT_DEMO.starts_at, opens_at: null, request: null,
+    booking: { ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
     enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8', phone: '+971 501234567',
       phone_dial_code: '+971', phone_number: '501234567' },
-    actions: { record_outcome: false, request_confirmation: true, record_answer: true, complete: false } }] } };
+    actions: { record_outcome: false, request_confirmation: true, record_answer: true } }] } };
 const BDE_ACTIVITY = { status: 200, body: { count: 1, page: 1, page_size: 30, timezone: 'Asia/Kolkata', results: [{
   id: '4f6a8b0c-2d3e-4f5a-9b0c-1d2e3f4a5b6c', kind: 'CREATED', kind_label: 'Created', at: '2026-10-27T09:00:00+05:30',
   by_you: false, detail: { origin: 'public_booking' }, booking: NEXT_DEMO,

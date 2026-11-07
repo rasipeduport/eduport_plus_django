@@ -1,20 +1,27 @@
 import { MessageCircleIcon, PhoneIcon } from 'lucide-react';
 
+import api from '@/lib/api';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { phoneLinks } from '@/lib/enquiries';
+import { bookingLinkSharedUrl } from '@/lib/follow-ups';
 import { getInitials } from '@/lib/utils';
 
 /**
  * Who the enquiry is about and how to reach them: the student, where the
  * enquiry stands, the parent and their number, where it came from -- with
  * Call and WhatsApp, and the BDE's own booking links (`canShareLinks`) sent to
- * this parent's WhatsApp from their menus.
+ * this parent's WhatsApp from their menus. A link copied or sent here tells
+ * the API, which ends the reminder to call a new enquiry; one that cannot be
+ * told leaves the reminder to its 24 hours.
  */
 export function EnquiryHeader({ enquiry, canShareLinks }) {
   const links = phoneLinks(enquiry.phone_dial_code, enquiry.phone_number);
+  const linkShared = (bookingType) => {
+    api.post(bookingLinkSharedUrl(enquiry.id), { booking_type: bookingType }).catch(() => {});
+  };
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-center gap-4">
@@ -52,7 +59,10 @@ export function EnquiryHeader({ enquiry, canShareLinks }) {
           </div>
         ) : null}
         {canShareLinks ? (
-          <ShareLinkButtons recipient={{ dialCode: enquiry.phone_dial_code, number: enquiry.phone_number }} />
+          <ShareLinkButtons
+            recipient={{ dialCode: enquiry.phone_dial_code, number: enquiry.phone_number }}
+            onShare={linkShared}
+          />
         ) : null}
       </div>
     </div>

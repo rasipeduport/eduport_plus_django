@@ -89,12 +89,11 @@ BDE_WORKSPACE = {
     'bde.follow_ups.list': {
         'status': 200,
         'records': [],
-        'fields': ['count', 'page', 'page_size', 'results', 'summary', 'summary.overdue', 'summary.today', 'summary.total',
-                   'summary.upcoming', 'timezone'],
+        'fields': ['count', 'page', 'page_size', 'results', 'summary', 'summary.today', 'summary.total', 'summary.upcoming',
+                   'timezone'],
     },
-    # ... and completes only their own: this follow-up is nobody's, answered as one that does not exist.
-    'bde.follow_ups.complete': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such follow-up.', 'records': [],
-                                'fields': ['error', 'message']},
+    # ... and ends the reminder to call their own enquiry when a booking link goes to its parent: lead_a has none.
+    'bde.enquiries.booking_link_shared': {'status': 200, 'records': [], 'fields': ['resolved']},
     'bde.activity.list': {
         'status': 200,
         'records': [],
@@ -116,6 +115,8 @@ BDE_WORKSPACE = {
     # booking_a's lead is not the BDE's own: its report is answered as a booking that does not exist (P9).
     'bde.bookings.report_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                 'fields': ['error', 'message']},
+    'bde.bookings.report_share': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                  'fields': ['error', 'message']},
     # ... and sends a Demo invitation only from their own leads' Diagnostics: booking_a is a Demo of a lead nobody owns.
     'bde.bookings.demo_invite': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                  'fields': ['error', 'message']},

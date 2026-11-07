@@ -569,9 +569,9 @@ SCENARIOS = [
     Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
     Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
-    # Completing one of their own follow-ups (a new enquiry's call, a report's discussion): this one is nobody's.
-    Scenario('bde.follow_ups.complete', 'post', '/api/bde/follow-ups/00000000-0000-4000-8000-00000000f011/complete/',
-             {'outcome': 'SPOKE'}),
+    # The enquiry page telling them a booking link went to the parent, ending the new enquiry's reminder.
+    Scenario('bde.enquiries.booking_link_shared', 'post', '/api/bde/enquiries/{lead_a}/booking-link-shared/',
+             {'booking_type': 'DEMO'}),
     Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
     Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
@@ -645,6 +645,8 @@ SCENARIOS = [
     # world gives lead_a, which has no report, to its BDE.
     Scenario('bde.enquiries.reports', 'get', '/api/bde/enquiries/{lead_a}/reports/'),
     Scenario('bde.bookings.report_pdf', 'get', '/api/bde/bookings/demo/{booking_a}/report/pdf/'),
+    # ... and keeps a send of their own leads' reports only: booking_a's lead is nobody's.
+    Scenario('bde.bookings.report_share', 'post', '/api/bde/bookings/demo/{booking_a}/report/share/'),
     # A Diagnostic's Demo invitation for its parent (bookings.demo_invites): the Admin for any lead, a BDE for
     # their own. booking_a is a Demo, never a Diagnostic, so whoever may send one is told it does not exist.
     Scenario('bookings.demo_invite', 'post', '/api/bookings/diagnostic/{booking_a}/demo-invite/'),

@@ -401,6 +401,9 @@ test('My Enquiries: a BDE sees their own enquiries with the status their booking
   assert.match(clean(given.textContent), /Kavya.*Website.*New/);
   assert.equal(given.querySelector('a').getAttribute('href'), '/enquiries/lead-given');
   assert.ok(button('Copy Demo Link') && button('Copy Diagnostic Link'), 'the booking links are shared from My Enquiries');
+  // Shared for nobody in particular, a copy here ends no enquiry's reminder.
+  await click(button('Copy Demo Link'));
+  assert.ok(!globalThis.__leadsApi.calls.some((entry) => entry.method === 'POST'), 'nothing is told');
   assert.ok(button('Add Enquiry') && !button('Add lead'), 'a BDE adds enquiries');
   assert.ok(!button('Assign') && !button('Reassign'));
   assert.ok(!globalThis.__leadsApi.calls.some((entry) => entry.url.startsWith('/api/leads/')), "the administrators' API is never called");
@@ -413,9 +416,11 @@ test('My Enquiries: a BDE sees their own enquiries with the status their booking
 });
 
 test("My Enquiries: an enquiry's page calls or messages the parent, and sends the BDE's booking link to the parent's WhatsApp", async () => {
+  const SHARED = '/api/bde/enquiries/lead-given/booking-link-shared/';
   serve({
     [`GET /api/bde/enquiries/lead-given/`]: detailOf({ ...WEBSITE, id: 'lead-given', owner: undefined }, { parent_email: 'meera@example.com' }),
     [`GET /api/bde/booking-links/`]: LINKS,
+    [`POST ${SHARED}`]: { resolved: true },
   });
   await open('/enquiries/lead-given', BDE);
   assert.equal(fields().Email, 'meera@example.com');
@@ -428,6 +433,10 @@ test("My Enquiries: an enquiry's page calls or messages the parent, and sends th
   assert.ok(send, 'the menu sends the link to this parent');
   assert.equal(send.getAttribute('href'),
     `https://wa.me/919876543210?text=${encodeURIComponent('Book a demo class with Eduport Plus: https://plus.eduport.app/demo?ref=DemoToken')}`);
+  // Sending a link to this parent -- on WhatsApp or copied -- tells the API, which ends the reminder to call the new enquiry.
+  await click(send);
+  await click(button('Copy Diagnostic Link'));
+  assert.deepEqual(calls('POST', SHARED).map((entry) => entry.data), [{ booking_type: 'DEMO' }, { booking_type: 'DIAGNOSTIC' }]);
 });
 
 test('My Enquiries: an enquiry reassigned to another BDE is answered as one that does not exist', async () => {

@@ -33,10 +33,9 @@ sending engine is a later phase. Unlike the booking's history, these rows do
 hold the parent's phone number and what each message says, so only the lead's
 BDE and the Admin may read them.
 
-A FollowUp is a BDE's own action that no step stands for: calling a new
-enquiry an administrator gave them, and discussing a tutor's report with the
-parent (communications.followups, which reads the other follow-ups from the
-steps and the bookings themselves).
+A FollowUp is the one BDE reminder no other record holds: calling a new
+enquiry an administrator gave them (communications.followups, which reads
+the other reminders from the steps, the bookings and the reports themselves).
 """
 import uuid
 
@@ -704,64 +703,30 @@ class UnmatchedStatusEvent(models.Model):
 # ---------------------------------------------------------------- BDE follow-ups
 
 class FollowUpKind(models.TextChoices):
-    """The BDE follow-ups no communication step stands for (communications.followups reads the rest)."""
+    """The BDE reminders no other record holds (communications.followups reads the rest)."""
     NEW_ENQUIRY_CALL = 'NEW_ENQUIRY_CALL', 'Call new enquiry'
-    REPORT_DISCUSSION = 'REPORT_DISCUSSION', 'Discuss tutor report'
 
 
 class FollowUpStatus(models.TextChoices):
     OPEN = 'OPEN', 'Open'
-    DONE = 'DONE', 'Completed'
-
-
-class FollowUpOutcome(models.TextChoices):
-    """How a follow-up was completed: a code, never free text (as for every reason, M1)."""
-    SPOKE = 'SPOKE', 'Spoke to the parent'
-    MESSAGED = 'MESSAGED', 'Messaged the parent'
-    NOT_INTERESTED = 'NOT_INTERESTED', 'Not interested'
-    WRONG_NUMBER = 'WRONG_NUMBER', 'Wrong number'
-    DISCUSSED = 'DISCUSSED', 'Report discussed'
-
-
-# What the BDE may record for each kind; recording it completes the follow-up.
-FOLLOW_UP_OUTCOMES = {
-    FollowUpKind.NEW_ENQUIRY_CALL: (
-        FollowUpOutcome.SPOKE, FollowUpOutcome.MESSAGED, FollowUpOutcome.NOT_INTERESTED, FollowUpOutcome.WRONG_NUMBER,
-    ),
-    FollowUpKind.REPORT_DISCUSSION: (FollowUpOutcome.DISCUSSED,),
-}
+    DONE = 'DONE', 'Done'
 
 
 class FollowUp(models.Model):
     """
-    One of a BDE's own follow-ups: the call a new enquiry gets when an
-    administrator gives it to them (bookings.ownership), or the talk with the
-    parent a tutor's report calls for once it is submitted (reports.services).
-    At most one of each per lead or booking, so a trigger handled twice never
-    makes a second. Whose it is follows the lead's owner now, never who owned
-    it when it was made: a lead given to another BDE takes it with them.
+    The reminder to call a new enquiry an administrator gave a BDE
+    (bookings.ownership): shown until ``due_at``, 24 hours from then, and done
+    once the BDE sends the parent one of their booking links from the
+    enquiry. One per lead: given to another BDE while still new, it is set
+    going again for them. Whose it is follows the lead's owner now, never who
+    owned it when it was made.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kind = models.CharField(max_length=30, choices=FollowUpKind.choices)
     lead = models.ForeignKey('bookings.Lead', on_delete=models.PROTECT, related_name='follow_ups')
-    # The booking whose report is to be discussed; neither for a new enquiry's call.
-    diagnostic_booking = models.ForeignKey(
-        'bookings.DiagnosticBooking',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='follow_ups'
-    )
-    demo_booking = models.ForeignKey(
-        'bookings.DemoBooking',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='follow_ups'
-    )
+    # The end of the reminder: it is no longer shown after this, done or not.
     due_at = models.DateTimeField()
     status = models.CharField(max_length=10, choices=FollowUpStatus.choices, default=FollowUpStatus.OPEN)
-    outcome = models.CharField(max_length=20, choices=FollowUpOutcome.choices, blank=True, default='')
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -781,35 +746,18 @@ class FollowUp(models.Model):
         constraints = [
             models.CheckConstraint(condition=Q(kind__in=FollowUpKind.values), name='bde_follow_ups_known_kind'),
             models.CheckConstraint(condition=Q(status__in=FollowUpStatus.values), name='bde_follow_ups_known_status'),
-            # A report's follow-up names its booking; a new enquiry's names none.
+            # An open reminder is unresolved; a done one says when.
             models.CheckConstraint(
                 condition=(
-                    (Q(kind=FollowUpKind.REPORT_DISCUSSION) & _one_booking())
-                    | Q(kind=FollowUpKind.NEW_ENQUIRY_CALL, diagnostic_booking__isnull=True, demo_booking__isnull=True)
+                    Q(status=FollowUpStatus.OPEN, resolved_at__isnull=True, resolved_by__isnull=True)
+                    | Q(status=FollowUpStatus.DONE, resolved_at__isnull=False)
                 ),
-                name='bde_follow_ups_booking_for_reports',
-            ),
-            # An open follow-up has no outcome; a completed one says when, and one its kind allows.
-            models.CheckConstraint(
-                condition=(
-                    Q(status=FollowUpStatus.OPEN, outcome='', resolved_at__isnull=True, resolved_by__isnull=True)
-                    | Q(
-                        status=FollowUpStatus.DONE, resolved_at__isnull=False, kind=FollowUpKind.NEW_ENQUIRY_CALL,
-                        outcome__in=FOLLOW_UP_OUTCOMES[FollowUpKind.NEW_ENQUIRY_CALL],
-                    )
-                    | Q(
-                        status=FollowUpStatus.DONE, resolved_at__isnull=False, kind=FollowUpKind.REPORT_DISCUSSION,
-                        outcome__in=FOLLOW_UP_OUTCOMES[FollowUpKind.REPORT_DISCUSSION],
-                    )
-                ),
-                name='bde_follow_ups_outcome_matches_status',
+                name='bde_follow_ups_resolved_when_done',
             ),
             models.UniqueConstraint(
                 fields=['lead'], condition=Q(kind=FollowUpKind.NEW_ENQUIRY_CALL),
                 name='bde_follow_ups_one_call_per_lead',
             ),
-            models.UniqueConstraint(fields=['diagnostic_booking'], name='bde_follow_ups_one_per_diag_report'),
-            models.UniqueConstraint(fields=['demo_booking'], name='bde_follow_ups_one_per_demo_report'),
         ]
         indexes = [
             models.Index(fields=['status', 'due_at'], name='bde_follow_ups_open_idx'),
@@ -817,7 +765,3 @@ class FollowUp(models.Model):
 
     def __str__(self):
         return f'{self.get_kind_display()} ({self.get_status_display()})'
-
-    @property
-    def booking(self):
-        return self.diagnostic_booking or self.demo_booking
