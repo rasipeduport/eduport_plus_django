@@ -343,7 +343,9 @@ class StartedMigrationTests(TransactionTestCase):
             for table in ('demo_bookings', 'diagnostic_bookings'):
                 self.assertLessEqual(START_COLUMNS, self.columns(table))
             self.assertEqual(self.fingerprint(), before)
-            self.assertIsNotNone(DemoBooking.objects.get(pk=assigned.pk).started_at)
+            # Read by its columns: the later migrations reversed first (bookings.0012's redemo_for among them) stay reversed.
+            started = dict(self.rows('demo_bookings', 'id', 'started_at'))[assigned.pk]
+            self.assertIsNotNone(started)
             self.assertEqual(MigrationExecutor(connection).migration_plan([('bookings', '0009_booking_started')]), [])
         finally:
             self.latest()

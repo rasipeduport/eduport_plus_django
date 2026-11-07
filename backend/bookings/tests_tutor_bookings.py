@@ -25,11 +25,12 @@ LIST_URL = '/api/tutor/bookings/'
 # Everything a tutor is shown of a booking, and of its slot.
 # The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due),
 # and the Meet room it is taught in (Phase 1: tutor_meet_link); where it stands as a class, its
-# Start and why it cannot be started now (activity_state, started_at, start_opens_at, actions, start_refusal).
+# Start and why it cannot be started now (activity_state, started_at, start_opens_at, actions, start_refusal);
+# and, for a Re-Demo, what it follows and why (redemo: null for every other booking, bookings.redemos).
 ROW_FIELDS = {
     'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country',
     'tutor_meet_link', 'has_report', 'report_version', 'report_due',
-    'activity_state', 'started_at', 'start_opens_at', 'actions', 'start_refusal',
+    'activity_state', 'started_at', 'start_opens_at', 'actions', 'start_refusal', 'redemo',
 }
 SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 NOT_FOUND = {'error': 'NOT_FOUND', 'message': 'No such booking.'}
@@ -112,6 +113,8 @@ class ListTests(TutorBookingsTestCase):
             'has_report': False,
             'report_version': None,
             'report_due': False,
+            # An ordinary Demo: no Re-Demo to say anything about (bookings.redemos).
+            'redemo': None,
         })
         self.assertEqual(self.ids(self.get(self.tutor_b, LIST_URL)), [str(theirs.id)])
 

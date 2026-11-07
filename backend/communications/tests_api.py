@@ -85,8 +85,10 @@ class ContentTests(CommunicationApiTestCase):
         booking.refresh_from_db()
 
         data = self.ok(self.admin, booking)
-        self.assertEqual(set(data), {'booking', 'timezone', 'planned', 'parent_confirmation', 'tasks', 'messages', 'actions'})
-        self.assertEqual((data['timezone'], data['planned']), ('Asia/Kolkata', True))
+        self.assertEqual(set(data), {'booking', 'timezone', 'planned', 'redemo', 'parent_confirmation', 'tasks', 'messages',
+                                     'actions'})
+        # An ordinary Demo: planned, and no Re-Demo (bookings.redemos, whose parent the BDE contacts by hand).
+        self.assertEqual((data['timezone'], data['planned'], data['redemo']), ('Asia/Kolkata', True, False))
         self.assertEqual(data['booking'], {
             'id': str(booking.pk), 'booking_type': 'DEMO', 'status': 'BOOKED', 'status_label': 'Booked',
             'slot': data['booking']['slot'], 'activity_state': 'UPCOMING', 'started_at': None,

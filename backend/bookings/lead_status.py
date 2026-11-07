@@ -10,7 +10,8 @@ the first of these that the lead has:
     booked        booked, its slot not ended: still to come or under way --
                   of several, the soonest (the one "Next booking" shows)
     completed     completed, or started by its tutor and its slot over: the
-                  class happened -- of several, the latest
+                  class happened -- of several, the latest; a Demo sent for a
+                  Re-Demo (bookings.redemos) shows as Re-Demo required
     not started   booked, its slot over with no start: the class never
                   happened (bookings.lifecycle) and the booking awaits the
                   Admin -- of several, the latest
@@ -29,7 +30,7 @@ so it is not derived: an enrolment status needs that link first.
 """
 from django.db.models import Case, CharField, DateTimeField, F, IntegerField, OuterRef, Q, Subquery, TextChoices, Value, When
 
-from .models import BookingStatus, BookingType, DemoBooking, DiagnosticBooking
+from .models import CONDUCTED, BookingStatus, BookingType, DemoBooking, DiagnosticBooking
 
 
 class LeadStatus(TextChoices):
@@ -40,6 +41,7 @@ class LeadStatus(TextChoices):
     DIAGNOSTIC_CANCELLED = 'DIAGNOSTIC_CANCELLED', 'Diagnostic cancelled'
     DEMO_BOOKED = 'DEMO_BOOKED', 'Demo booked'
     DEMO_COMPLETED = 'DEMO_COMPLETED', 'Demo completed'
+    DEMO_REDEMO_REQUIRED = 'DEMO_REDEMO_REQUIRED', 'Re-Demo required'
     DEMO_NOT_STARTED = 'DEMO_NOT_STARTED', 'Demo not started'
     DEMO_CANCELLED = 'DEMO_CANCELLED', 'Demo cancelled'
 
@@ -65,16 +67,18 @@ _STATUSES = {
 def _deciding(model, now):
     """The outer lead's bookings in ``model``'s table, the one that decides first: its rank, moment and status."""
     to_come = Q(status=BookingStatus.BOOKED, slot__ends_at__gt=now)
-    happened = Q(status=BookingStatus.COMPLETED) | Q(status=BookingStatus.BOOKED, started_at__isnull=False)
+    happened = Q(status__in=CONDUCTED) | Q(status=BookingStatus.BOOKED, started_at__isnull=False)
     ranks = [(to_come, BOOKED), (happened, COMPLETED), (Q(status=BookingStatus.BOOKED), NOT_STARTED)]
     statuses = _STATUSES[model.BOOKING_TYPE]
+    # A Demo sent for a Re-Demo ranks as completed, and says so.
+    redemo = [When(status=BookingStatus.REDEMO_REQUIRED, then=Value(LeadStatus.DEMO_REDEMO_REQUIRED))]
     return (
         model.objects.filter(lead=OuterRef('pk'))
         .exclude(status=BookingStatus.RESCHEDULED)
         .annotate(
             rank=Case(*(When(when, then=Value(rank)) for when, rank in ranks), default=Value(CANCELLED),
                       output_field=IntegerField()),
-            gives=Case(*(When(when, then=Value(statuses[rank])) for when, rank in ranks),
+            gives=Case(*redemo, *(When(when, then=Value(statuses[rank])) for when, rank in ranks),
                        default=Value(statuses[CANCELLED]), output_field=CharField()),
             # A cancelled booking moved last when it was cancelled; any other is its slot.
             moment=Case(When(status=BookingStatus.CANCELLED, then=F('cancelled_at')), default=F('slot__starts_at'),
@@ -117,7 +121,7 @@ def with_status(leads, now):
 # Diagnostic booked or Demo booked, and so on).
 STAGES = {
     'BOOKED': (LeadStatus.DIAGNOSTIC_BOOKED, LeadStatus.DEMO_BOOKED),
-    'COMPLETED': (LeadStatus.DIAGNOSTIC_COMPLETED, LeadStatus.DEMO_COMPLETED),
+    'COMPLETED': (LeadStatus.DIAGNOSTIC_COMPLETED, LeadStatus.DEMO_COMPLETED, LeadStatus.DEMO_REDEMO_REQUIRED),
     'NOT_STARTED': (LeadStatus.DIAGNOSTIC_NOT_STARTED, LeadStatus.DEMO_NOT_STARTED),
     'CANCELLED': (LeadStatus.DIAGNOSTIC_CANCELLED, LeadStatus.DEMO_CANCELLED),
 }

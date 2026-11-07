@@ -92,6 +92,13 @@ class NotPlanned(CommunicationError):
     message = 'This booking was made before parent communication began, so nothing can be sent for it.'
 
 
+class RedemoManual(CommunicationError):
+    """A Re-Demo (bookings.redemos): the BDE contacts its parent by hand, so nothing is sent for it."""
+    code = 'REDEMO_MANUAL'
+    http_status = 409
+    message = "A Re-Demo's parent is contacted by the BDE directly, so nothing is sent for it."
+
+
 @dataclass(frozen=True)
 class Preview:
     """
@@ -124,7 +131,8 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
 
     Refused once the booking is no longer upcoming (BookingNotUpcoming): no
     longer booked, its scheduled time come, or started by its tutor, however
-    early; once the parent has answered (ConfirmationNotNeeded), for a booking made before
+    early; once the parent has answered (ConfirmationNotNeeded), for a Re-Demo (RedemoManual:
+    the BDE contacts its parent by hand), for a booking made before
     communications existed (NotPlanned: it has no tasks), and while the
     message lacks something it needs, such as the BDE's name (MessageBlocked).
     The message is written Pending; the sending engine sends it. Writing it is
@@ -145,6 +153,8 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
             existing = booking.communication_messages.filter(template__step=Step.CONFIRMATION_REQUEST).first()
             if existing is not None:
                 return existing, False
+            if getattr(booking, 'redemo_for_id', None):
+                raise RedemoManual()
             if not booking.communication_tasks.filter(step=Step.CONFIRMATION_REQUEST).exists():
                 raise NotPlanned()
             version = MessageTemplate.objects.get(

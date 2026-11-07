@@ -51,7 +51,10 @@ def booking_communication(booking, now, user=None, request=None):
     ``booking``'s communication in full (read with its slot, lead, lead's BDE,
     tutor and confirming account). A booking made before communications
     existed has no plan: ``planned`` is false and it has no tasks or messages.
+    Nor has a Re-Demo (``redemo``, bookings.redemos): the BDE contacts its
+    parent by hand, so nothing is ever sent for it.
     """
+    redemo = _is_redemo(booking)
     tasks = sorted(
         booking.communication_tasks.select_related('owner', 'resolved_by'),
         key=lambda task: STEP_ORDER[task.step],
@@ -66,6 +69,7 @@ def booking_communication(booking, now, user=None, request=None):
         'booking': _booking(booking, now),
         'timezone': BOOKING_TIMEZONE_NAME,
         'planned': bool(tasks),
+        'redemo': redemo,
         'parent_confirmation': parent_confirmation(booking),
         'tasks': [_task(task, now) for task in tasks],
         'messages': [_message(message, booking, now) for message in messages],
@@ -241,7 +245,8 @@ def _actions(booking, messages, now, user, request):
     (services.request_confirmation), and record the answer until the slot
     starts or its tutor starts it, whichever comes first
     (booking_service.record_parent_confirmation). The 15-minute call is a task
-    only: nothing is recorded on it.
+    only: nothing is recorded on it. A Re-Demo is never asked for
+    confirmation: the BDE calls its parent, and may record their answer.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
@@ -253,10 +258,15 @@ def _actions(booking, messages, now, user, request):
     return {
         'request_confirmation': (
             upcoming and booking.parent_confirmation == ParentConfirmation.AWAITING and not asked
-            and holds(SEND_COMMUNICATIONS)
+            and not _is_redemo(booking) and holds(SEND_COMMUNICATIONS)
         ),
         'record_confirmation': upcoming and holds(RECORD_CONFIRMATION),
     }
+
+
+def _is_redemo(booking):
+    """Whether ``booking`` is a Re-Demo an administrator scheduled (a Demo naming its request)."""
+    return bool(getattr(booking, 'redemo_for_id', None))
 
 
 def _person(user):

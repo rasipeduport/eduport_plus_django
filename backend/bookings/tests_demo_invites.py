@@ -495,10 +495,12 @@ class StaffApiTests(InviteApiTestCase):
 
     def test_the_button_shows_on_the_diagnostic_whose_report_is_in(self):
         detail = self.as_user(self.admin).get(f'/api/bookings/diagnostic/{self.diagnostic.pk}/').data
-        self.assertEqual(detail['actions'], {'cancel': False, 'no_show': False, 'reschedule': False, 'demo_invite': True})
+        self.assertEqual(detail['actions'], {'cancel': False, 'no_show': False, 'reschedule': False, 'demo_invite': True,
+                                             'request_redemo': False})
         rows = {row['id']: row['actions'] for row in
                 self.as_user(self.bde).get(f'/api/bde/enquiries/{self.lead.pk}/').data['bookings']}
-        self.assertEqual(rows, {str(self.diagnostic.pk): {'cancel': False, 'no_show': False, 'demo_invite': True}})
+        self.assertEqual(rows, {str(self.diagnostic.pk): {'cancel': False, 'no_show': False, 'demo_invite': True,
+                                                   'request_redemo': False}})
 
         invite, _ = issue_invite(self.diagnostic, self.admin)
         day = booking_window(DEMO)[1]
@@ -508,7 +510,8 @@ class StaffApiTests(InviteApiTestCase):
         rows = {row['id']: row['actions'] for row in
                 self.as_user(self.bde).get(f'/api/bde/enquiries/{self.lead.pk}/').data['bookings']}
         self.assertEqual(rows[str(self.diagnostic.pk)]['demo_invite'], False)
-        self.assertEqual(rows[str(demo.pk)], {'cancel': True, 'no_show': False, 'demo_invite': False})
+        self.assertEqual(rows[str(demo.pk)], {'cancel': True, 'no_show': False, 'demo_invite': False,
+                                              'request_redemo': False})
         self.assertEqual(self.as_user(self.bde).get(f'/api/bde/enquiries/{self.lead.pk}/').data['status'], 'DEMO_BOOKED')
 
         # The Demo, in the Admin's Demo list: made with the invitation, from this Diagnostic.

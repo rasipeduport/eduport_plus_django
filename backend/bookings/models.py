@@ -22,7 +22,9 @@ and student name, shared by both types. A booking is taught one-to-one by the
 tutor assigned to it, who starts it explicitly (bookings.lifecycle), and every
 change to it is kept in its history
 (BookingEvent). Once a Diagnostic's report is in, the parent may be sent a
-Demo invitation (DemoInvite) that books a Demo for the same lead.
+Demo invitation (DemoInvite) that books a Demo for the same lead; a completed
+Demo may be sent for a Re-Demo (ReDemoRequest), which an administrator
+schedules as a new Demo with the tutor and slot they choose.
 bookings.booking_service is the only writer of bookings; the
 leads the lead forms send and the ones added by hand (a BDE's enquiries, an
 administrator's leads) are written by bookings.lead_intake, and a lead's
@@ -129,11 +131,18 @@ class BookingStatus(models.TextChoices):
     COMPLETED = 'COMPLETED', 'Completed'
     CANCELLED = 'CANCELLED', 'Cancelled'
     RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
+    # A completed Demo that is to be taught again (bookings.redemos): set only
+    # by a Re-Demo request, never on a Diagnostic. It stays completed in every
+    # other way -- its tutor, report and history are kept as they were.
+    REDEMO_REQUIRED = 'REDEMO_REQUIRED', 'Re-Demo required'
 
 
+# A class that took place and has its report: completed, or completed and
+# then sent for a Re-Demo.
+CONDUCTED = (BookingStatus.COMPLETED, BookingStatus.REDEMO_REQUIRED)
 # A booking still to come and one its tutor has completed keep their seat; a
 # cancelled or rescheduled one frees it.
-HOLDS_SEAT = (BookingStatus.BOOKED, BookingStatus.COMPLETED)
+HOLDS_SEAT = (BookingStatus.BOOKED, *CONDUCTED)
 
 
 class CancelReason(models.TextChoices):
@@ -579,11 +588,12 @@ class BookingBase(models.Model):
                 condition=Q(channel__in=BookingChannel.values),
                 name='%(class)s_known_channel',
             ),
-            # One state at a time: a completed booking is never also cancelled or rescheduled.
+            # One state at a time: a completed booking -- one sent for a
+            # Re-Demo too -- is never also cancelled or rescheduled.
             models.CheckConstraint(
                 condition=(
                     (Q(status=BookingStatus.BOOKED) & _cleared('completed', 'cancelled', 'rescheduled'))
-                    | (Q(status=BookingStatus.COMPLETED, completed_at__isnull=False, assigned_tutor__isnull=False)
+                    | (Q(status__in=CONDUCTED, completed_at__isnull=False, assigned_tutor__isnull=False)
                        & _cleared('cancelled', 'rescheduled'))
                     | (Q(status=BookingStatus.CANCELLED, cancelled_at__isnull=False) & _cleared('completed', 'rescheduled'))
                     | (Q(status=BookingStatus.RESCHEDULED, rescheduled_at__isnull=False) & _cleared('completed', 'cancelled'))
@@ -756,6 +766,11 @@ class DiagnosticBooking(BookingBase):
                 condition=Q(channel=BookingChannel.PUBLIC_PAGE),
                 name='%(class)s_public_page_only',
             ),
+            # ... and only a Demo is taught again (bookings.redemos).
+            models.CheckConstraint(
+                condition=~Q(status=BookingStatus.REDEMO_REQUIRED),
+                name='%(class)s_never_redemo',
+            ),
         ]
 
 
@@ -774,10 +789,32 @@ class DemoBooking(BookingBase):
         related_name='assigned_demo_bookings'
     )
 
+    # The Re-Demo request this Demo teaches (bookings.redemos): set when an
+    # administrator schedules it, and kept by every booking a reschedule
+    # makes of it, so it is a Re-Demo -- to its tutor too -- however often it
+    # moves. NULL = an ordinary Demo.
+    redemo_for = models.ForeignKey(
+        'ReDemoRequest',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='bookings'
+    )
+
     class Meta(BookingBase.Meta):
         db_table = 'demo_bookings'
         verbose_name = 'Demo booking'
         verbose_name_plural = 'Demo bookings'
+        constraints = [
+            *BookingBase.Meta.constraints,
+            # A request is taught once: at most one of its Demos is booked or
+            # completed at a time, and once one is completed no other may be.
+            models.UniqueConstraint(
+                fields=['redemo_for'],
+                condition=Q(status__in=HOLDS_SEAT),
+                name='%(class)s_one_holding_per_redemo',
+            ),
+        ]
 
 
 # Every booking table, and the one holding each booking type.
@@ -804,6 +841,7 @@ class BookingEventKind(models.TextChoices):
     MEET_LINK_UPDATED = 'MEET_LINK_UPDATED', 'Meet link updated'
     PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmed'
     PARENT_NOT_CONFIRMED = 'PARENT_NOT_CONFIRMED', 'Parent did not confirm'
+    REDEMO_REQUESTED = 'REDEMO_REQUESTED', 'Re-Demo requested'
 
 
 class BookingEvent(models.Model):
@@ -997,3 +1035,73 @@ class DemoInvite(models.Model):
 
     def get_status_display(self):
         return DemoInviteStatus(self.status()).label
+
+
+# ---------------------------------------------------------------- re-demos
+
+class ReDemoStatus(models.TextChoices):
+    """Where a Re-Demo request stands (bookings.redemo_chain.state): read from its rows, never stored."""
+    AWAITING_SCHEDULING = 'AWAITING_SCHEDULING', 'Awaiting scheduling'
+    SCHEDULED = 'SCHEDULED', 'Re-Demo scheduled'
+    COMPLETED = 'COMPLETED', 'Re-Demo completed'
+
+
+class ReDemoRequest(models.Model):
+    """
+    A request to teach a lead's completed Demo again (bookings.redemos): made
+    by an administrator, or by the BDE who owns the lead, with the reason. The
+    Demo it names becomes RE-DEMO REQUIRED and is otherwise left as it was --
+    its tutor, slot, report and history included. An administrator then
+    schedules the Re-Demo: a new Demo of the lead, with the tutor and the slot
+    they chose, that names this request (DemoBooking.redemo_for) and is taught
+    and reported on like any other.
+
+    One request per Demo, ever: the Demo it names is RE-DEMO REQUIRED from
+    then on, so it cannot be asked for twice, and the database refuses a
+    second row. The Demo a request schedules, once completed, may have a
+    request of its own, so repeated Re-Demos form a chain: Demo -> request ->
+    Re-Demo -> request -> ... The reason and the administrators' remarks are
+    staff's words: they reach no booking history, activity log or parent, but
+    the tutor teaching the Re-Demo is shown both (bookings.tutor_bookings).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='redemo_requests')
+    # The completed Demo to teach again.
+    demo_booking = models.OneToOneField(DemoBooking, on_delete=models.PROTECT, related_name='redemo_request')
+    reason = models.TextField()
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='requested_redemos'
+    )
+    requested_at = models.DateTimeField(default=timezone.now, editable=False)
+    # The administrators' remarks for the Re-Demo, shown to its tutor; never to the BDE.
+    admin_remarks = models.TextField(blank=True, default='')
+    remarks_updated_at = models.DateTimeField(null=True, blank=True)
+    remarks_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='redemo_remarks_updated'
+    )
+
+    class Meta:
+        db_table = 'redemo_requests'
+        verbose_name = 'Re-Demo request'
+        verbose_name_plural = 'Re-Demo requests'
+        ordering = ['-requested_at']
+        constraints = [
+            models.CheckConstraint(condition=~Q(reason=''), name='redemo_requests_reason_given'),
+            models.CheckConstraint(
+                condition=Q(remarks_updated_by__isnull=True) | Q(remarks_updated_at__isnull=False),
+                name='redemo_requests_remarks_by_needs_at',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['lead', 'requested_at'], name='redemo_requests_lead_idx'),
+        ]
+
+    def __str__(self):
+        # Never the reason: this shows up in the Django admin and in logs.
+        return f"Re-Demo request {self.id}"

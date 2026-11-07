@@ -13,14 +13,20 @@ from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
 from . import enquiries
-from .booking_service import BookingBusy, BookingError, cancel_booking, set_slots_closed
+from .booking_service import BookingBusy, BookingError, cancel_booking, request_redemo, set_slots_closed
 from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
 from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, SlotTime, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
-from .serializers import BookingLinkSerializer, CancelSerializer, EnquiryCreateSerializer, SlotChangeSerializer
+from .serializers import (
+    BookingLinkSerializer,
+    CancelSerializer,
+    EnquiryCreateSerializer,
+    RedemoRequestSerializer,
+    SlotChangeSerializer,
+)
 from .services import links_for, owns_booking_links
 
 VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
@@ -288,6 +294,51 @@ class BdeDemoInviteView(BdeWorkspaceView):
             {'invite': invite_body(invite), 'created': created},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class BdeRedemoView(BdeWorkspaceView):
+    """
+    POST /api/bde/bookings/demo/<id>/redemo/ {"reason": "..."}
+    Ask for a completed Demo of one of the caller's own leads to be taught
+    again (booking_service.request_redemo): the Demo is RE-DEMO REQUIRED at
+    once, with no approval step, and the administrators see the request in
+    their Re-Demo list. Answers the enquiry in full (201). 400
+    VALIDATION_ERROR or REASON_REQUIRED; 409 REDEMO_NOT_ELIGIBLE (not a
+    completed Demo) or REDEMO_ALREADY_REQUESTED.
+
+    Ownership is enforced here and again under the lead's lock: another BDE's
+    lead, one nobody owns, a Diagnostic and a booking that does not exist are
+    all 404 "No such booking". Needs accounts.view_own_enquiries and
+    accounts.create_demo_booking, the BDE's Demo handoff; an account that is
+    not a BDE is answered NOT_A_BDE.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CREATE_DEMO_BOOKING)]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        booking = _own_demo(request, booking_type, pk)
+        if booking is None:
+            return _no_booking()
+        serializer = RedemoRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _bde_error('VALIDATION_ERROR', 'Give the reason for the Re-Demo.', status.HTTP_400_BAD_REQUEST,
+                              fields=serializer.errors)
+        try:
+            request_redemo(booking, serializer.validated_data['reason'], actor=request.user, owner_bde=request.user)
+        except BookingError as exc:
+            return _bde_error(exc.code, exc.message, exc.http_status)
+        now = timezone.now()
+        lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
+        return Response(_enquiry(request, lead, now), status=status.HTTP_201_CREATED)
+
+
+def _own_demo(request, booking_type, pk):
+    """Demo ``pk`` of one of the caller's own leads, or None -- a Diagnostic, another's lead and a missing one alike."""
+    if PATH_TYPES.get(booking_type) != BookingType.DEMO:
+        return None
+    return booking_model(BookingType.DEMO).objects.filter(pk=pk, lead__in=enquiries.own_leads(request.user)).first()
 
 
 def _no_booking():

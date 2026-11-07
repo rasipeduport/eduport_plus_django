@@ -638,6 +638,18 @@ SCENARIOS = [
     # their own. booking_a is a Demo, never a Diagnostic, so whoever may send one is told it does not exist.
     Scenario('bookings.demo_invite', 'post', '/api/bookings/diagnostic/{booking_a}/demo-invite/'),
     Scenario('bde.bookings.demo_invite', 'post', '/api/bde/bookings/diagnostic/{booking_a}/demo-invite/'),
+    # A Re-Demo of a completed Demo (bookings.redemos): asked for by the Admin for any lead (booking_a is booked, not
+    # completed, so the Admin is told it may not be), or by a BDE for their own. The Re-Demo requests are the
+    # Admin's, who schedules them: no request has booking_a's id, so whoever may read them is told it does not exist.
+    Scenario('bookings.redemo_request', 'post', '/api/bookings/demo/{booking_a}/redemo/', {'reason': 'Matrix'}),
+    Scenario('bde.bookings.redemo_request', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/', {'reason': 'Matrix'}),
+    Scenario('bookings.redemos', 'get', '/api/bookings/redemos/'),
+    Scenario('bookings.redemo', 'get', '/api/bookings/redemos/{booking_a}/'),
+    Scenario('bookings.redemo_tutors', 'get', '/api/bookings/redemos/{booking_a}/tutors/'),
+    Scenario('bookings.redemo_slots', 'get', '/api/bookings/redemos/{booking_a}/slots/?tutor_id={tutor_a}'),
+    Scenario('bookings.redemo_schedule', 'post', '/api/bookings/redemos/{booking_a}/schedule/',
+             lambda w: {'tutor_id': w.id('tutor_a'), 'date': '2026-11-20', 'time': '10:00', 'remarks': 'Matrix'}),
+    Scenario('bookings.redemo_remarks', 'put', '/api/bookings/redemos/{booking_a}/remarks/', {'remarks': 'Matrix'}),
 
     # --- My Bookings (tutors: the bookings assigned to them) ----------------------
     # booking_a has no tutor, so a tutor lists none and is not shown it.

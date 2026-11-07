@@ -9,10 +9,21 @@ unassigned only by the Admin / Coordinator (bookings.booking_service).
 
 What a tutor is shown is written out field by field below, never taken from a
 model or from bookings.coordination's rows, so nothing reaches a tutor by
-being added elsewhere: not the parent's name or phone, not a booking's
-``details`` (the submission, which holds both), not the BDE or the referral,
-not who assigned the tutor or when, not the cancellation's reason or author,
-nor the lead's own id.
+being added elsewhere: not the parent's name or phone as the lead or the
+booking holds them, not a booking's ``details`` (the submission, which holds
+both), not the BDE or the referral, not who assigned the tutor or when, not
+the cancellation's reason or author, nor the lead's own id.
+
+The one exception is a Re-Demo's own words. A Re-Demo (bookings.redemos) is
+shown as one, to the tutor teaching it: ``redemo`` says which Re-Demo of the
+child's it is, the reason given when it was requested (the BDE's or an
+administrator's own words, often what the parent said -- shown as written,
+whatever they mention; the request dialog tells whoever writes it that the
+tutor will read it), the administrators' remarks for the tutor, and the
+Demo it follows -- when it was and who taught it -- but not who asked or
+scheduled it, and nothing of that Demo's report. Every other booking's
+``redemo`` is null. A Demo sent for a Re-Demo reads Completed to the tutor
+who taught it: the request is not theirs.
 
 The views guard these with accounts.view_assigned_bookings, which only the
 TUTOR role may hold. Which bookings are read is the caller's alone: always
@@ -27,7 +38,8 @@ from .booking_service import (
 )
 from .coordination import PAST, UPCOMING, filtered, report_summary, slot_brief
 from .lifecycle import activity_state, start_opens_at
-from .models import BOOKING_MODELS, BookingStatus, BookingType, booking_model
+from .models import BOOKING_MODELS, CONDUCTED, BookingStatus, BookingType, DemoBooking, booking_model
+from .redemo_chain import redemo_number
 from .scheduling import BOOKING_TIMEZONE_NAME
 
 ALL = 'all'
@@ -72,7 +84,13 @@ def assigned_to(tutor, model):
     keeps its tutor), and no others: one reassigned or unassigned is no longer
     theirs. Each comes with its report, if it has one (reports app).
     """
-    return model.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead', 'report')
+    bookings = model.objects.filter(assigned_tutor=tutor).select_related('slot', 'lead', 'report')
+    if model is DemoBooking:
+        bookings = bookings.select_related(
+            'redemo_for__demo_booking__slot', 'redemo_for__demo_booking__assigned_tutor',
+            'redemo_for__demo_booking__redemo_for',
+        )
+    return bookings
 
 
 def listed(tutor, now, booking_type=None, when=UPCOMING):
@@ -101,6 +119,7 @@ def start_refusal(booking, now, can_start):
         return NO_START_PERMISSION
     refusal = {
         BookingStatus.COMPLETED: CompletedNotStartable,
+        BookingStatus.REDEMO_REQUIRED: CompletedNotStartable,
         BookingStatus.RESCHEDULED: RescheduledNotStartable,
         BookingStatus.CANCELLED: CancelledNotStartable,
     }.get(booking.status)
@@ -124,7 +143,8 @@ def booking_row(booking, now, can_start=False):
     return {
         'id': str(booking.id),
         'booking_type': booking.booking_type,
-        'status': booking.status,
+        # A Demo sent for a Re-Demo reads Completed: the request is not the tutor's.
+        'status': BookingStatus.COMPLETED if booking.status in CONDUCTED else booking.status,
         'slot': {field: slot[field] for field in SLOT_FIELDS},
         **{field: getattr(booking.lead, field) for field in STUDENT_FIELDS},
         # The Meet room the tutor teaches it in -- their own link, as the booking keeps it -- or null.
@@ -136,6 +156,31 @@ def booking_row(booking, now, can_start=False):
         'actions': {'start': refusal is None},
         'start_refusal': refusal,
         **report_summary(booking, now),
+        'redemo': redemo_brief(booking, now),
+    }
+
+
+def redemo_brief(booking, now):
+    """
+    What the tutor of a Re-Demo is told about it, or None for any other
+    booking: which Re-Demo of the child's it is, the request's reason, the
+    administrators' remarks and the Demo it follows -- its slot and its
+    tutor's name.
+    """
+    redemo = getattr(booking, 'redemo_for', None)
+    if redemo is None:
+        return None
+    original = redemo.demo_booking
+    slot = slot_brief(original.slot, now)
+    tutor = original.assigned_tutor
+    return {
+        'number': redemo_number(redemo),
+        'reason': redemo.reason,
+        'admin_remarks': redemo.admin_remarks,
+        'original': {
+            'slot': {field: slot[field] for field in SLOT_FIELDS},
+            'tutor': {'full_name': tutor.full_name or tutor.email} if tutor is not None else None,
+        },
     }
 
 

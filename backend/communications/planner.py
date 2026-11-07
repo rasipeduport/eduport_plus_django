@@ -7,7 +7,9 @@ leaves no task or message behind.
 
     plan_booking         a new booking: its five tasks, its acknowledgement
                          (unless a booking it replaced had one accepted) and
-                         its confirmed message, Waiting
+                         its confirmed message, Waiting -- none for a Re-Demo
+                         (bookings.redemos), whose parent the BDE contacts by
+                         hand, nor for the booking a move of it makes
     parent_confirmed     the confirmation request no longer needed; the
                          confirmed message checked again
     refresh_messages     a tutor assigned, changed or removed, or a Meet link
@@ -36,7 +38,8 @@ message already handed over is never touched again: it is the history. Nor is
 one a sender is handing over right now (claimed_at): the sender records what
 the provider did and then closes it as the booking now requires
 (communications.sending). A booking made before communications existed has no
-plan, and these leave it without one.
+plan, nor does a Re-Demo, and these leave it without one: nothing is ever
+written to its parent.
 
 Locks: every change here takes a booking's message rows before its task rows,
 each in id order -- the order the sender takes them in -- so no two changes,
@@ -50,7 +53,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.db.models import F, Q
 
-from bookings.models import BOOKING_MODELS, BookingStatus, DiagnosticBooking, Lead
+from bookings.models import BOOKING_MODELS, CONDUCTED, BookingStatus, DiagnosticBooking, Lead
 
 from .chain import EarlierAcknowledgement, earlier_acknowledgement, later_bookings
 from .models import (
@@ -101,6 +104,9 @@ def plan_booking(booking, now):
     it replaced was accepted; while that one is being sent, or its outcome is
     unknown, its own waits (rendering.Requirement.EARLIER_ACKNOWLEDGEMENT).
     """
+    # A Re-Demo's parent hears from the BDE, by hand: no tasks, no messages.
+    if getattr(booking, 'redemo_for_id', None):
+        return {}
     # Read again: a public booking sets the lead's owner with an UPDATE.
     lead = Lead.objects.select_related('owner_bde').get(pk=booking.lead_id)
     booking.lead = lead
@@ -242,7 +248,7 @@ def refresh_waiting(now, limit=1000):
         waiting = Message.objects.filter(
             Q(send_before__isnull=True) | Q(send_before__gt=now),
             status=MessageStatus.WAITING, claimed_at__isnull=True,
-            **{f'{field}__status__in': (BookingStatus.BOOKED, BookingStatus.COMPLETED)},
+            **{f'{field}__status__in': (BookingStatus.BOOKED, *CONDUCTED)},
         )
         ids = list(waiting.order_by('send_before', 'pk').values_list('pk', flat=True)[:limit])
         for start in range(0, len(ids), REFRESH_CHUNK):

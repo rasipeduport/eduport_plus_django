@@ -15,7 +15,8 @@ until the Admin cancels or moves it.
     LATE         booked, the scheduled time passed, not started, the slot not over
     IN_PROGRESS  started by its tutor, its report not in yet
     NOT_STARTED  booked, the slot over with no start
-    COMPLETED, CANCELLED, RESCHEDULED   by its status
+    COMPLETED, CANCELLED, RESCHEDULED   by its status (a Demo sent for a
+                 Re-Demo is COMPLETED: it was taught)
 
 A cancelled booking keeps the start it had (a no-show after the tutor
 started, say); a completed one may have none -- one completed before Start
@@ -44,6 +45,7 @@ class ActivityState(TextChoices):
 
 _BY_STATUS = {
     BookingStatus.COMPLETED: ActivityState.COMPLETED,
+    BookingStatus.REDEMO_REQUIRED: ActivityState.COMPLETED,
     BookingStatus.CANCELLED: ActivityState.CANCELLED,
     BookingStatus.RESCHEDULED: ActivityState.RESCHEDULED,
 }

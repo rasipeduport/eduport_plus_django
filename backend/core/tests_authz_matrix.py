@@ -96,6 +96,9 @@ BDE_WORKSPACE = {
     # ... and sends a Demo invitation only from their own leads' Diagnostics: booking_a is a Demo of a lead nobody owns.
     'bde.bookings.demo_invite': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                  'fields': ['error', 'message']},
+    # ... and asks for a Re-Demo only for their own leads' Demos: booking_a's lead is nobody's.
+    'bde.bookings.redemo_request': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                    'fields': ['error', 'message']},
     # ... and its communication too (Phase 3.1), which the BDE may neither preview, ask about nor answer for (3.2).
     'communications.booking': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                'fields': ['error', 'message']},

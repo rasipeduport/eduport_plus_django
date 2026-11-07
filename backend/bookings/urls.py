@@ -7,6 +7,7 @@ from .views import (
     BdeDemoInviteView,
     BdeEnquiriesView,
     BdeEnquiryDetailView,
+    BdeRedemoView,
 )
 
 app_name = 'bookings'
@@ -20,5 +21,8 @@ urlpatterns = [
     path('bookings/<str:booking_type>/<uuid:pk>/cancel/', BdeBookingCancelView.as_view(), name='bde-booking-cancel'),
     # A Demo invitation from a Diagnostic of the caller's own lead; ownership checked in the view and the service.
     path('bookings/<str:booking_type>/<uuid:pk>/demo-invite/', BdeDemoInviteView.as_view(), name='bde-demo-invite'),
+    # A Re-Demo of a completed Demo of the caller's own lead (bookings.redemos); ownership checked in the
+    # view and the service. An administrator then schedules it.
+    path('bookings/<str:booking_type>/<uuid:pk>/redemo/', BdeRedemoView.as_view(), name='bde-redemo'),
     # The reports on the caller's own leads, and their PDFs, are reports.bde_urls (P9).
 ]

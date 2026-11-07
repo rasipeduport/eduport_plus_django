@@ -38,7 +38,7 @@ from activity.utils import log_activity
 from bookings import history
 # The booking locks every booking write takes, in the order they take them.
 from bookings.booking_service import BUSY_SQLSTATES, _locked_booking, _set_lock_timeout, slot_label
-from bookings.models import BookingEventKind, BookingStatus
+from bookings.models import CONDUCTED, BookingEventKind, BookingStatus
 from communications import planner
 
 from .models import (
@@ -149,7 +149,7 @@ def submit_report(booking, tutor, fields, now=None):
             booking = _locked_booking(booking)
             _check_assigned(booking, tutor)
             existing = model.objects.filter(booking=booking).first()
-            if existing is not None or booking.status == BookingStatus.COMPLETED:
+            if existing is not None or booking.status in CONDUCTED:
                 raise ReportExists(existing.version if existing else None)
             if booking.status == BookingStatus.CANCELLED:
                 raise BookingCancelled()
