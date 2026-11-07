@@ -19,7 +19,9 @@ changes apply, and the BDE's My Leads reads the result.
   longer true, the assignment is refused (OwnerChanged) instead of silently
   undoing the other.
 - The old owner's link no longer stands for the lead (owner_link is cleared),
-  and owner_assigned_at becomes now: the moment it became the new owner's.
+  and owner_assigned_at becomes now: the moment it became the new owner's --
+  from which a new enquiry is the new owner's to call for 24 hours
+  (communications.followups).
 - The lead's bookings' open communication tasks become the new owner's, and
   the unsent parent messages, which sign with the owner, are checked again
   (communications.planner.lead_owner_changed), in the same transaction.

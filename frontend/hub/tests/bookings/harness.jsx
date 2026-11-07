@@ -1,5 +1,6 @@
 // Mounts the real Bookings page (/bookings), the tutor's My Bookings page
-// (/my-bookings), a BDE's enquiry (/enquiries/:enquiryId), the Booking Slots
+// (/my-bookings), a BDE's enquiry (/enquiries/:enquiryId), follow-ups (/follow-ups) or Demo and Diagnostic
+// Bookings (/demo-bookings, /diagnostic-bookings), the Booking Slots
 // page (/booking-slots) or a Team member's page (/team/:memberId, for a
 // tutor's permanent Meet link) at a URL, for a given signed-in account, the
 // way App.jsx routes them -- only the API is a stand-in (api-stub.js).
@@ -8,8 +9,10 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import BookingSlotsPage from '@/pages/BookingSlotsPage';
 import BookingsPage from '@/pages/BookingsPage';
+import BdeBookingsPage from '@/pages/BdeBookingsPage';
 import TutorBookingsPage from '@/pages/TutorBookingsPage';
 import EnquiryPage from '@/pages/EnquiryPage';
+import FollowUpsPage from '@/pages/FollowUpsPage';
 import TeamMemberPage from '@/pages/TeamMemberPage';
 
 export async function mount(path, user) {
@@ -21,6 +24,9 @@ export async function mount(path, user) {
       { path: '/bookings', element: <BookingsPage user={user} /> },
       { path: '/my-bookings', element: <TutorBookingsPage /> },
       { path: '/enquiries/:enquiryId', element: <EnquiryPage user={user} /> },
+      { path: '/follow-ups', element: <FollowUpsPage /> },
+      { path: '/demo-bookings', element: <BdeBookingsPage key="DEMO" user={user} type="DEMO" /> },
+      { path: '/diagnostic-bookings', element: <BdeBookingsPage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" /> },
       { path: '/booking-slots', element: <BookingSlotsPage /> },
       { path: '/team/:memberId', element: <TeamMemberPage user={user} /> },
     ],

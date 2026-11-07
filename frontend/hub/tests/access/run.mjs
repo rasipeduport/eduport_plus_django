@@ -151,8 +151,31 @@ const ENQUIRY_ROW = { id: ENQUIRY_ID, parent_name: 'Asha Nair', phone: '+971 501
 const BDE_DASHBOARD = { status: 200, body: { timezone: 'Asia/Kolkata', enquiries: { total: 1, last_7_days: 1 },
   bookings: { DEMO: { total: 1, upcoming: 1 }, DIAGNOSTIC: { total: 0, upcoming: 0 } },
   upcoming: { total: 1, rows: [{ ...NEXT_DEMO, enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] },
+  // Today's agenda (BDE Hub redesign, Phase 3): the bookings on today's Indian date, here the day of that demo.
+  agenda: { date: NEXT_DEMO.date, total: 1, rows: [{ ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING',
+    tutor: { full_name: 'Tutor A' }, enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] },
   recent_enquiries: [ENQUIRY_ROW] } };
 const BDE_ENQUIRIES = { status: 200, body: { results: [ENQUIRY_ROW], count: 1, page: 1, page_size: 25 } };
+// Their Demo and Diagnostic Bookings (BDE Hub redesign, Phase 5): that demo, and no diagnostic test.
+const BDE_DEMO_BOOKINGS = { status: 200, body: { count: 1, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [{
+  ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING', started_at: null, booked_at: '2026-10-27T09:00:00+05:30',
+  tutor: { full_name: 'Tutor A' }, parent_confirmation: 'AWAITING', redemo: false,
+  enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] } };
+const BDE_DIAGNOSTIC_BOOKINGS = { status: 200, body: { count: 0, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [] } };
+// Their follow-up reminders (BDE follow-ups as reminders) and activity (Phase 6): that demo's parent's
+// confirmation, not yet asked for.
+const BDE_FOLLOW_UPS = { status: 200, body: { count: 1, page: 1, page_size: 25, timezone: 'Asia/Kolkata',
+  summary: { total: 1, today: 1, upcoming: 0 }, results: [{
+    id: NEXT_DEMO.id, type: 'PARENT_CONFIRMATION', type_label: 'Parent confirmation', state: 'DUE_TODAY',
+    state_label: 'Due today', due_at: NEXT_DEMO.starts_at, opens_at: null, request: null,
+    booking: { ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
+    enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8', phone: '+971 501234567',
+      phone_dial_code: '+971', phone_number: '501234567' },
+    actions: { record_outcome: false, request_confirmation: true, record_answer: true } }] } };
+const BDE_ACTIVITY = { status: 200, body: { count: 1, page: 1, page_size: 30, timezone: 'Asia/Kolkata', results: [{
+  id: '4f6a8b0c-2d3e-4f5a-9b0c-1d2e3f4a5b6c', kind: 'CREATED', kind_label: 'Created', at: '2026-10-27T09:00:00+05:30',
+  by_you: false, detail: { origin: 'public_booking' }, booking: NEXT_DEMO,
+  enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] } };
 const BDE_ENQUIRY = { status: 200, body: { ...ENQUIRY_ROW, phone_dial_code: '+971', phone_number: '501234567',
   school_name: 'Delhi Private School', syllabus: 'CBSE', country: 'United Arab Emirates', created_at: '2026-10-27T09:00:00+05:30',
   timezone: 'Asia/Kolkata', bookings: [{ ...NEXT_DEMO, status: 'BOOKED', ended: false, booked_at: '2026-10-27T09:00:00+05:30', cancelled_at: null,
@@ -344,7 +367,9 @@ const CALLERS = {
   unknown: { answers: fixtures.callers.unknown },
   bde: {
     answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS, [BDE_DASHBOARD_PATH]: BDE_DASHBOARD,
-      [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY, [`${ENQUIRY_PATH}reports/`]: BDE_REPORTS },
+      [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY, [`${ENQUIRY_PATH}reports/`]: BDE_REPORTS,
+      '/api/bde/bookings/demo/': BDE_DEMO_BOOKINGS, '/api/bde/bookings/diagnostic/': BDE_DIAGNOSTIC_BOOKINGS,
+      '/api/bde/follow-ups/': BDE_FOLLOW_UPS, '/api/bde/activity/': BDE_ACTIVITY },
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
     me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', 'accounts.create_demo_booking', 'accounts.manage_own_conversion',
       RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS,
@@ -361,6 +386,8 @@ const PATHS = [
   `/booking-slots?type=demo&date=${SLOTS_DATE}`, '/enquiries', `/enquiries/${ENQUIRY_ID}`, '/admins', '/nowhere',
   '/bookings', `/bookings?booking=${BOOKING_ID}`, '/my-bookings', `/my-bookings?booking=${MY_BOOKING_ID}&booking_type=DEMO`,
   `/my-bookings/demo/${MY_BOOKING_ID}/report`, '/leads', `/leads/${LEAD_ID}`,
+  // The BDE workspace's pages beyond My Enquiries (BDE Hub redesign, Phase 2).
+  '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans',
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };

@@ -112,9 +112,9 @@ def plan_booking(booking, now):
     booking.lead = lead
     slot = booking.slot
     owner = lead.owner_bde
-    # (active from, due, expires): the call reminds the BDE from 15 minutes
-    # before and is done at the start (close_expired); the after-activity step's are
-    # set on completion. A booking made within 12 hours of its start has its
+    # (active from, due, expires): the call opens 15 minutes before and is
+    # Missed at the start without an outcome (close_expired); the after-activity
+    # step's are set on completion. A booking made within 12 hours of its start has its
     # confirmation request due now, never at a moment already past.
     times = {
         Step.ACKNOWLEDGEMENT: (now, now + ACKNOWLEDGEMENT_TARGET, slot.starts_at),
@@ -344,9 +344,10 @@ def close_expired(now, booking=None):
     """
     Tasks whose time ran out are Missed, and unsent messages past their window
     -- a retry left Pending included -- cancelled as expired; for ``booking``,
-    or all. The 15-minute call is only a reminder: it is done, never Missed,
-    once the booking's scheduled start (its due_at) comes -- as of that
-    moment, however late this runs -- and the booking itself is not touched:
+    or all. The 15-minute call closes at the booking's scheduled start (its
+    due_at), not at the end of its window: with no outcome recorded by then
+    (services.record_call_outcome) it is Missed, as of that moment however
+    late this runs -- never done -- and the booking itself is not touched:
     only its tutor's Start starts it. A message being sent, or one whose
     outcome is unknown, is left as it is (_cancel_messages). Returns (tasks
     missed, messages expired).
@@ -364,9 +365,9 @@ def close_expired(now, booking=None):
         expired = _cancel_messages(messages, MessageCancelReason.EXPIRED, now)
         # Both kinds locked together, in id order, before either is written.
         list(tasks.select_for_update(of=('self',)).order_by('pk').values_list('pk', flat=True))
-        _update_tasks(tasks.filter(call), status=TaskStatus.DONE, resolution=TaskResolution.REMINDED,
-                      resolved_at=F('due_at'), updated_at=now)
-        return _update_tasks(tasks.exclude(call), status=TaskStatus.MISSED, resolved_at=now, updated_at=now), expired
+        calls = _update_tasks(tasks.filter(call), status=TaskStatus.MISSED, resolved_at=F('due_at'), updated_at=now)
+        others = _update_tasks(tasks.exclude(call), status=TaskStatus.MISSED, resolved_at=now, updated_at=now)
+        return calls + others, expired
 
 
 def refresh_message(message, booking, now, save=True):

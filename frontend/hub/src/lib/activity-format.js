@@ -83,6 +83,7 @@ export const ACTION_LABELS = {
   // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
   'report.submit': 'Report submitted',
   'report.edit': 'Report edited',
+  'report.share': 'Report shared',
   'booking_slot.close': 'Slot closed',
   'booking_slot.reopen': 'Slot reopened',
   'booking_schedule.update': 'Booking times changed',
@@ -352,6 +353,11 @@ export function describeActivity(row) {
     }
     case 'report.submit':
       return `Submitted the report on ${bookingOfType(row)}`;
+    // The owner BDE sent it to the parent from the enquiry page: ids and the version only.
+    case 'report.share': {
+      const version = row.context?.version ? ` (version ${row.context.version})` : '';
+      return `Sent the parent the report on ${bookingOfType(row)}${version}`;
+    }
     case 'report.edit': {
       const version = row.context?.version ? `, now version ${row.context.version}` : '';
       const fields = reportFieldsText(row.context?.changed_fields);

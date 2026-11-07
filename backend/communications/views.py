@@ -5,6 +5,7 @@ The Hub's parent communication endpoints (Phase 3.1 reading, 3.2 the parent's co
     GET  /api/communications/bookings/<type>/<id>/preview/?step=<STEP>   what its message for a step would say now
     POST /api/communications/bookings/<type>/<id>/confirmation-request/  ask the parent to confirm
     POST /api/communications/bookings/<type>/<id>/parent-confirmation/   record the parent's answer
+    POST /api/communications/bookings/<type>/<id>/call-outcome/          the 15-minute call's outcome
 
 ``<type>`` is ``demo`` or ``diagnostic``. Every endpoint works within the
 caller's scope: accounts.view_all_communications -- every booking (the
@@ -15,7 +16,8 @@ BDE's booking, one of a lead nobody owns, one of the other type and one that
 does not exist are all answered alike, 404 "No such booking", and the
 services check the lead is theirs again under the booking's lock. Asking for
 confirmation (and seeing what it would say) also needs
-accounts.send_lead_communications; recording the answer
+accounts.send_lead_communications, as does recording how the 15-minute call
+went (a BDE does it from their follow-ups); recording the answer
 accounts.record_parent_confirmation. Tutors, mentors and the Sales TL hold
 none of these -- the communication carries the parent's phone number and
 every message sent to them.
@@ -39,7 +41,15 @@ from .models import Step
 from .overview import booking_communication
 from .rendering import Requirement
 from .serializers import ParentAnswerSerializer
-from .services import CommunicationError, MessageBlocked, preview, request_confirmation
+from .services import (
+    CommunicationError,
+    MessageBlocked,
+    NotPlanned,
+    RedemoManual,
+    preview,
+    record_call_outcome,
+    request_confirmation,
+)
 
 VIEW_ALL_COMMUNICATIONS = 'accounts.view_all_communications'
 VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications'
@@ -207,3 +217,32 @@ class ParentConfirmationView(APIView):
         except BookingError as exc:
             return _refusal(exc)
         return Response(_communication(request, booking_type, pk, changed=changed), status=status.HTTP_200_OK)
+
+
+class CallOutcomeView(APIView):
+    """
+    POST /api/communications/bookings/<type>/<id>/call-outcome/
+         {"outcome": "CALLED" | "MESSAGED" | "NO_ANSWER"}
+    Record how the 15-minute call went (services.record_call_outcome): every
+    outcome is kept, and the call shows the latest. From 15 minutes before
+    the start until the start -- the moment its tutor starts it, if earlier.
+    Answers the booking's communication in full (201). 400 INVALID_OUTCOME;
+    409 CALL_NOT_OPEN_YET, CALL_CLOSED, TASK_CLOSED, or NOT_PLANNED /
+    REDEMO_MANUAL for a booking that has no call.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(SEND_COMMUNICATIONS), IN_SCOPE]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        booking = _visible(request, booking_type, pk)
+        if booking is None:
+            return _no_booking()
+        outcome = request.data.get('outcome') if hasattr(request.data, 'get') else None
+        outcome = outcome.strip().upper() if isinstance(outcome, str) else ''
+        call = booking.communication_tasks.filter(step=Step.PRE_ACTIVITY_CALL).first()
+        if call is None:
+            return _refusal(RedemoManual() if getattr(booking, 'redemo_for_id', None) else NotPlanned())
+        try:
+            record_call_outcome(call, outcome, actor=request.user, owner_bde=_owner_bde(request))
+        except (CommunicationError, BookingError) as exc:
+            return _refusal(exc)
+        return Response(_communication(request, booking_type, pk), status=status.HTTP_201_CREATED)

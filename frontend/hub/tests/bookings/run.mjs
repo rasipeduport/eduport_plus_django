@@ -24,9 +24,11 @@ const src = path.join(hub, 'src');
 
 // ------------------------------------------------------------------ bundle
 const bundle = path.join(tmpdir(), `hub-bookings-${process.pid}.mjs`);
-await esbuild.build({
-  entryPoints: [path.join(here, 'harness.jsx')],
-  outfile: bundle,
+// The plain helpers some tests check on their own (libs.js), bundled the same way.
+const libsBundle = path.join(tmpdir(), `hub-bookings-libs-${process.pid}.mjs`);
+const build = (entry, outfile) => esbuild.build({
+  entryPoints: [path.join(here, entry)],
+  outfile,
   bundle: true,
   format: 'esm',
   platform: 'browser',
@@ -46,6 +48,8 @@ await esbuild.build({
     },
   }],
 });
+await build('harness.jsx', bundle);
+await build('libs.js', libsBundle);
 
 // ------------------------------------------------------------- browser env
 const virtualConsole = new VirtualConsole();
@@ -75,6 +79,8 @@ process.on('unhandledRejection', () => {});
 
 const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeActivity, meetLinkProblem, planMemberSave } =
   await import(pathToFileURL(bundle).href);
+const { bdeBookingParams, classDateSpan, indianToday, readBdeBookingFilters, rangeLabel } =
+  await import(pathToFileURL(libsBundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -809,7 +815,7 @@ test('BDE: cancels a booking of their own enquiry with a reason from the list; t
       ...enquiry([{ ...BDE_BOOKED, status: 'CANCELLED', cancelled_at: '2026-10-30T09:00:00+00:00', actions: { cancel: false, no_show: false } }, BDE_CANCELLED]),
       changed: true }),
   });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   assert.ok(button('Cancel the demo class on Sat, 31 Oct · 7:30 PM IST'), 'a booked booking offers Cancel');
   assert.equal([...document.querySelectorAll('tbody tr')][1].querySelectorAll('button').length, 0, 'a cancelled one does not');
   await click(button('Cancel the demo class on Sat, 31 Oct · 7:30 PM IST'));
@@ -830,7 +836,7 @@ test("BDE: the API's refusal is shown as it comes -- another BDE's booking is no
     [`GET ${ENQUIRY_URL}`]: enquiry([BDE_BOOKED]),
     [`POST /api/bde/bookings/demo/${BDE_BOOKED.id}/cancel/`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
   });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   await click(button('Cancel the demo class on Sat, 31 Oct · 7:30 PM IST'));
   await click(radio('Other', topDialog()));
   await click(button('Cancel booking', topDialog()));
@@ -840,7 +846,7 @@ test("BDE: the API's refusal is shown as it comes -- another BDE's booking is no
 
 test('BDE: no Cancel unless the API offers it', async () => {
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, actions: { cancel: false, no_show: false } }, { ...BDE_BOOKED, id: 'b-3', actions: undefined }]) });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   assert.equal(document.querySelectorAll('tbody button').length, 0);
 });
 
@@ -1028,13 +1034,15 @@ test('reports: a report that cannot be read says so, and Try again reads it', as
 
 // ------------------------------------------------------ BDE report sharing (P9)
 // The owner BDE's Reports section on the enquiry page (design F.4). The BDE
-// sends a report outside the Hub; nothing here records a send.
+// sends a report outside the Hub; sending it from here keeps the send (…/report/share/),
+// which ends their reminder to share it.
 const BDE_REPORTS = { ...BDE, permissions: [...BDE.permissions, 'accounts.view_own_lead_reports'] };
 const REPORTS_URL = '/api/bde/enquiries/lead-1/reports/';
 const DONE = { status: 'COMPLETED', ended: true, cancelled_at: null, actions: { cancel: false, no_show: false } };
 const DONE_DEMO = { ...BDE_BOOKED, ...DONE, id: 'b-7' };
 const DONE_DIAGNOSTIC = { ...BDE_CANCELLED, ...DONE, id: 'b-8' };
 const DONE_DEMO_PDF = `/api/bde/bookings/demo/${DONE_DEMO.id}/report/pdf/`;
+const DONE_DEMO_SHARE = `/api/bde/bookings/demo/${DONE_DEMO.id}/report/share/`;
 // One report on the lead's list, as the API answers it (backend reports.payloads.lead_report_row).
 const leadReport = (booking, version, fields) => ({
   booking: { id: booking.id, booking_type: booking.booking_type, date: booking.date, time: booking.time,
@@ -1071,7 +1079,7 @@ async function sharingFiles(answer, run) {
 
 test('BDE reports: each submitted report shows its class, version and actions, the WhatsApp message ready', async () => {
   serve(leadWithReports(DEMO_REPORT, DIAGNOSTIC_REPORT));
-  await open('/enquiries/lead-1', BDE_REPORTS);
+  await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
   // Newest class first, as the API lists them, each at its current version.
   const [demo, diagnostic] = reportItems();
   for (const [item, shown] of [[demo, ['Demo class', 'Sat, 31 Oct · 7:30 PM IST', 'Version 2', 'Last saved 31 Oct 2026']],
@@ -1096,7 +1104,7 @@ test('BDE reports: each submitted report shows its class, version and actions, t
 
 test('BDE reports: View report shows the report as it prints, in a dialog, with its PDF', async () => {
   serve(leadWithReports(DEMO_REPORT));
-  await open('/enquiries/lead-1', BDE_REPORTS);
+  await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
   await click(button('View the demo class report'));
   const dialog = topDialog();
   assert.equal(clean(dialog.querySelector('h2').textContent), 'Demo class report');
@@ -1115,7 +1123,7 @@ test('BDE reports: View report shows the report as it prints, in a dialog, with 
 test("BDE reports: Download PDF saves the current version from the BDE's own route under the server's name, or says why not", async () => {
   let answer = pdfAnswer('Demo-Report-Riya-2026-10-31.pdf');
   serve({ ...leadWithReports(DEMO_REPORT), [`GET ${DONE_DEMO_PDF}`]: (entry) => answer(entry) });
-  await open('/enquiries/lead-1', BDE_REPORTS);
+  await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
   await catchingDownloads(async (saved) => {
     await click(button('Download the demo class report as a PDF'));
     assert.deepEqual(saved, ['Demo-Report-Riya-2026-10-31.pdf']);
@@ -1133,7 +1141,7 @@ test("BDE reports: Download PDF saves the current version from the BDE's own rou
 test('BDE reports: none yet says so; a list that cannot be read says why, and Try again reads it again', async () => {
   let answer = () => fail(404, { error: 'NOT_FOUND', message: 'No such enquiry.' });
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([BDE_BOOKED]), [`GET ${REPORTS_URL}`]: (entry) => answer(entry) });
-  await open('/enquiries/lead-1', BDE_REPORTS);
+  await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
   assert.match(bodyText(), /No such enquiry\./);
   answer = () => ok(reportsOf());
   await click(button('Try again'));
@@ -1159,12 +1167,14 @@ test('BDE reports: Share PDF, where the browser shares files, hands the PDF to t
     return Promise.resolve();
   };
   await sharingFiles(answer, async (shared) => {
-    serve({ ...leadWithReports(DEMO_REPORT), [`GET ${DONE_DEMO_PDF}`]: pdfAnswer('Demo-Report-Riya-2026-10-31.pdf') });
-    await open('/enquiries/lead-1', BDE_REPORTS);
+    serve({ ...leadWithReports(DEMO_REPORT), [`GET ${DONE_DEMO_PDF}`]: pdfAnswer('Demo-Report-Riya-2026-10-31.pdf'),
+      [`POST ${DONE_DEMO_SHARE}`]: { report_version: 2, shared_at: '2026-10-31T11:00:00+00:00' } });
+    await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
     assert.match(bodyText(), /Share PDF hands the PDF to WhatsApp or another app on this device\. Pick the parent’s chat there\./);
     // The PDF arrived after the browser stopped counting the tap: kept, and the next tap shares it at once.
     await click(button('Share the demo class report PDF'));
     assert.match(clean(reportItems()[0].textContent), /The PDF is ready\. Tap Share PDF again to share it\./);
+    assert.equal(calls('POST', DONE_DEMO_SHARE).length, 0, 'a share the browser refused is not kept');
     outcome = 'shared';
     await click(button('Share the demo class report PDF'));
     assert.equal(calls('GET', DONE_DEMO_PDF).length, 1, 'fetched once');
@@ -1178,7 +1188,19 @@ test('BDE reports: Share PDF, where the browser shares files, hands the PDF to t
     assert.equal(shared.length, 3);
     assert.equal(reportItems()[0].querySelectorAll('[role="alert"], [role="status"]').length, 0);
   });
-  assert.ok(onlyReads(), 'nothing about a share is recorded');
+  // Only the share the sheet took is kept: never one refused or closed without sharing.
+  assert.equal(calls('POST', DONE_DEMO_SHARE).length, 1);
+});
+
+test('BDE reports: Send via WhatsApp keeps the send, which ends the reminder to share the report', async () => {
+  serve({ ...leadWithReports(DEMO_REPORT, DIAGNOSTIC_REPORT),
+    [`POST ${DONE_DEMO_SHARE}`]: { report_version: 2, shared_at: '2026-10-31T11:00:00+00:00' } });
+  await open('/enquiries/lead-1?tab=feedback', BDE_REPORTS);
+  const [demo] = reportItems();
+  await click(demo.querySelector('a[aria-label="Send the demo class report via WhatsApp"]'));
+  assert.deepEqual(calls('POST', DONE_DEMO_SHARE).map((entry) => entry.data), [null]);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method === 'POST' && entry.url !== DONE_DEMO_SHARE),
+    'only that report');
 });
 
 // ------------------------------------------------------------ My Bookings (tutors)
@@ -1720,7 +1742,7 @@ test('Start: the Admin and the BDE read whether a booking was started, and are n
   const taught = { ...BDE_BOOKED, ended: true, activity_state: 'IN_PROGRESS', started_at: '2026-10-31T14:02:00+00:00' };
   const missed = { ...BDE_BOOKED, id: 'b-5', date: '2026-10-30', ended: true, activity_state: 'NOT_STARTED' };
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([taught, missed]) });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   const [firstRow, secondRow] = bookingRows();
   assert.match(firstRow, /In progressStarted 31 Oct 2026, 7:32 PM IST/);
   assert.match(secondRow, /Not started/);
@@ -1939,7 +1961,7 @@ test("BDE: each booking shows who teaches it and its Meet link to read, or that 
   const noTutor = { ...BDE_BOOKED, id: 'b-4', date: '2026-11-03', tutor: null, tutor_meet_link: null };
   const cancelled = { ...BDE_CANCELLED, tutor: null, tutor_meet_link: null };
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([withLink, noLink, noTutor, cancelled]) });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
     ['When (IST)', 'Type', 'Status', 'Tutor', 'Booked on', 'Actions']);
   const [first, second, third, fourth] = bookingRows();
@@ -2172,7 +2194,7 @@ test("BDE: each booking shows the parent's answer and opens its communication in
     [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, parent_confirmation: 'CONFIRMED' }, { ...BDE_CANCELLED, parent_confirmation: 'AWAITING' }]),
     [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED),
   });
-  const page = await open('/enquiries/lead-1', BDE_COMMS);
+  const page = await open('/enquiries/lead-1?tab=bookings', BDE_COMMS);
   assert.ok([...document.querySelectorAll('thead th')].some((cell) => clean(cell.textContent) === 'Confirmation'));
   assert.match(bookingRows()[0], /Confirmed/);
   // Never confirmed before it was cancelled: said as it is, nothing to follow up (no warning).
@@ -2181,19 +2203,37 @@ test("BDE: each booking shows the parent's answer and opens its communication in
   assert.equal(badge?.getAttribute('data-variant'), 'outline');
 
   await click(button('Communication for the demo class on Sat, 31 Oct · 7:30 PM IST'));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: BDE_BOOKED.id, booking_type: 'DEMO' });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { tab: 'bookings', booking: BDE_BOOKED.id, booking_type: 'DEMO' });
   assert.equal(calls('GET', commsUrl(BDE_BOOKED)).length, 1);
   const sheet = clean(topDialog().textContent);
-  for (const part of ['Communication', 'Riya · Demo class · Sat, 31 Oct · 7:30 PM IST', 'Parent confirmationRecord answerStatusConfirmed',
-    'Pre-activity BDE callOpenDue 31 Oct 2026, 7:30 PM IST', 'Waiting for: Tutor assigned, Tutor Meet link']) {
+  // The booking in the header, the parent's answer first, then the workflow beside the messages.
+  for (const part of ['CommunicationRiya', 'Demo class', 'Sat, 31 Oct · 7:30 PM IST', 'Booked', 'Booking ID B-1',
+    'Parent confirmationConfirmedRecorded 29 Oct 2026, 4:00 PM IST by Bde One', 'Pre-activity BDE callPendingDue 31 Oct 2026, 7:30 PM IST',
+    'Waiting for: Tutor assigned, Tutor Meet link']) {
     assert.ok(sheet.includes(part), `the sheet shows ${part}`);
   }
+  assert.ok(button('Record parent answer', topDialog()) && !button('Request confirmation', topDialog()), 'only what the API offers');
+  // Each step's state on the timeline -- a failed message beats the step it missed -- and the first open step is the current one.
+  const [timeline] = topDialog().querySelectorAll('ol');
+  assert.deepEqual(listItems(timeline), [
+    'Initial acknowledgementSentSent · 28 Oct 2026, 2:31 PM ISTRead · 28 Oct 2026, 2:40 PM IST',
+    'Confirmation requestFailedTime ran out 31 Oct 2026, 7:30 PM ISTMessage failed · 29 Oct 2026, 1:31 PM IST',
+    'Current stepConfirmed messageOverdueDue 31 Oct 2026, 7:30 PM ISTWaiting for: Tutor assigned, Tutor Meet link',
+    'Pre-activity BDE callPendingDue 31 Oct 2026, 7:30 PM IST',
+    'After-activity messageScheduledAfter the class',
+  ]);
+  assert.equal(timeline.querySelector('[aria-current="step"]'), timeline.children[2]);
+  // Messages first, the failed one saying so in its row; the call and the tasks a tab away.
+  assert.deepEqual([...topDialog().querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
+    ['Messages3', 'Call Outcomes', 'Task Details5']);
+  const failedRow = listItems(topDialog().querySelectorAll('ol')[1])[1];
+  assert.match(failedRow, /^Confirmation requestFailedPermanent delivery failure: Message undeliverable \(131026\)WhatsApp · 29 Oct 2026, 1:31 PM IST/);
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'nothing but reads');
 
   await keyDown(topDialog(), 'Escape');
   assert.ok(!topDialog(), 'the sheet closed');
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { tab: 'bookings' }, 'back on the Bookings tab');
 });
 
 test('BDE: the pre-activity call reminds from 15 minutes before the start, then reads Done, with nothing to record on it', async () => {
@@ -2205,14 +2245,14 @@ test('BDE: the pre-activity call reminds from 15 minutes before the start, then 
   const diagnostic = { ...BDE_BOOKED, id: 'b-3', booking_type: 'DIAGNOSTIC' };
   const cases = [
     // 15 minutes before, for a Demo and a Diagnostic alike.
-    [BDE_BOOKED, { active_from: at(0), due_at: at(15) }, 'Pre-activity BDE callOpenCall parent – Demo starts in 15 minutes.'],
-    [diagnostic, { active_from: at(-14), due_at: at(1) }, 'Pre-activity BDE callOpenCall parent – Diagnostic starts in 1 minute.'],
+    [BDE_BOOKED, { active_from: at(0), due_at: at(15) }, 'Pre-activity BDE callPendingCall parent – Demo starts in 15 minutes.'],
+    [diagnostic, { active_from: at(-14), due_at: at(1) }, 'Pre-activity BDE callPendingCall parent – Diagnostic starts in 1 minute.'],
     // Not yet: its time only.
-    [BDE_BOOKED, { active_from: at(5), due_at: at(20) }, /^Pre-activity BDE callOpenDue \d{1,2} \w{3} \d{4}, .+ IST$/],
+    [BDE_BOOKED, { active_from: at(5), due_at: at(20) }, /^Pre-activity BDE callScheduledDue \d{1,2} \w{3} \d{4}, .+ IST$/],
     // Done at the start, by the backend: never Missed, never Overdue.
     [BDE_BOOKED, { active_from: at(-30), due_at: at(-15), status: 'DONE', status_label: 'Done', resolution: 'REMINDED',
       resolution_label: 'Reminder complete', resolved_at: '2026-10-31T14:00:00+00:00' },
-    'Pre-activity BDE callDoneReminder complete · 31 Oct 2026, 7:30 PM IST'],
+    'Pre-activity BDE callCompletedReminder complete · 31 Oct 2026, 7:30 PM IST'],
   ];
   for (const [booking, call, line] of cases) {
     serve({ [`GET ${ENQUIRY_URL}`]: enquiry([booking]), [`GET ${commsUrl(booking)}`]: withCall(booking, call) });
@@ -2457,7 +2497,7 @@ test("BDE: asks the parent to confirm and records the answer in the communicatio
   await click(inSheet('Request confirmation'));
   assert.equal(calls('POST', requestUrl(BDE_BOOKED)).length, 1);
   assert.match(clean(topDialog().textContent), /Confirmation request added\. It is sent to the parent on WhatsApp\./);
-  await click(inSheet('Record answer'));
+  await click(inSheet('Record parent answer'));
   await click(radio('Confirmed', topDialog()));
   await click(inSheet('Record answer'));
   assert.equal(calls('POST', answerUrl(BDE_BOOKED)).length, 1);
@@ -2649,7 +2689,7 @@ test("BDE: a Diagnostic of their own lead offers Send Demo Invitation through th
     [`GET ${ENQUIRY_URL}`]: enquiry([{ ...BDE_BOOKED, actions: { cancel: true, no_show: false, demo_invite: false } }, BDE_DIAGNOSTIC]),
     [`POST ${BDE_INVITE_URL}`]: () => ok({ invite: { ...INVITE, created_by: { id: 'bde', full_name: 'Bde' } }, created: true }),
   });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   const [demoRow, diagnosticRow] = [...document.querySelectorAll('tbody tr')];
   assert.ok(!button('Send Demo Invitation', demoRow), 'never from a Demo');
   await openMenu(button('Send Demo Invitation', diagnosticRow));
@@ -2665,7 +2705,7 @@ test('BDE: a refused invitation reads the enquiry again once the menu closes', a
     [`GET ${ENQUIRY_URL}`]: enquiry([BDE_DIAGNOSTIC]),
     [`POST ${BDE_INVITE_URL}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such booking.' }),
   });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   await openMenu(button('Send Demo Invitation'));
   assert.match(clean(document.querySelector('[role="alert"]')?.textContent), /No such booking\./);
   await keyDown(document.querySelector('[role="menu"]'), 'Escape');
@@ -3042,7 +3082,7 @@ test("BDE: a completed Demo of their own lead is sent for a Re-Demo through the 
     [`POST ${BDE_REDEMO_URL}`]: () => ok(enquiry([{ ...BDE_DONE_DEMO, status: 'REDEMO_REQUIRED', redemo: BDE_REDEMO,
       actions: { ...BDE_DONE_DEMO.actions, request_redemo: false } }])),
   });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   await click(button(`Request a Re-Demo of the demo on ${clean(rows()[0].querySelector('td').textContent)}`));
   await typeText(topDialog().querySelector('textarea'), REASON);
   await click(button('Review request', topDialog()));
@@ -3064,7 +3104,7 @@ test('BDE: once scheduled, the row says when and with whom -- no invitation to s
     redemo: { ...BDE_REDEMO, status: 'SCHEDULED', status_label: 'Re-Demo scheduled', tutor: { full_name: 'Tutor C' },
       booking: { id: 'b-redo', booking_type: 'DEMO', date: '2026-11-01', time: '10:00', starts_at: '2026-11-01T04:30:00+00:00' } } };
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([redo, done]) });
-  await open('/enquiries/lead-1', BDE);
+  await open('/enquiries/lead-1?tab=bookings', BDE);
   const [first, second] = rows().map((element) => clean(element.textContent));
   assert.match(first, /^Sun, 1 Nov · 10:00 AM ISTDemo classUpcomingRe-DemoTutor C/);
   assert.match(second, /Re-Demo:Re-Demo scheduledSun, 1 Nov · 10:00 AM IST with Tutor C/);
@@ -3147,6 +3187,223 @@ test('Communication: a Re-Demo says its parent is contacted by the BDE, with not
   assert.ok(button('Record answer', communicationCard()));
   assert.ok(!button('Request confirmation', communicationCard()), 'nothing to send the parent');
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+});
+
+// ------------------------------------------------------------------ BDE follow-ups
+const FOLLOW_UPS = '/api/bde/follow-ups/';
+const FOLLOW_UP_BDE = { id: 'bde', role: 'BDE', permissions: [
+  'accounts.record_parent_confirmation', 'accounts.send_lead_communications', 'accounts.share_booking_report',
+  'accounts.view_own_enquiries', 'accounts.view_own_lead_communications', 'accounts.view_own_lead_reports'] };
+const NO_ACTIONS = { record_outcome: false, request_confirmation: false, record_answer: false };
+const FOLLOW_UP_TYPES = { NEW_ENQUIRY_CALL: 'Call new enquiry', PARENT_CONFIRMATION: 'Parent confirmation',
+  PRE_ACTIVITY_CALL: 'Pre-activity call', TUTOR_REPORT: 'Share tutor report', REDEMO_CONFIRMATION: 'Re-Demo confirmation' };
+const FU_KIRAN = { id: 'e-kiran', parent_name: 'Ravi Menon', student_name: 'Kiran', grade: 'Class 7', phone: '+91 9876543210',
+  phone_dial_code: '+91', phone_number: '9876543210' };
+const FU_DONA = { id: 'e-dona', parent_name: 'Asha Nair', student_name: 'Dona', grade: 'Class 8', phone: '+971 501234567',
+  phone_dial_code: '+971', phone_number: '501234567' };
+const followUpBooking = (id, booking_type, date, extra = {}) => ({ id, booking_type, date, time: '19:30',
+  starts_at: `${date}T14:00:00+00:00`, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false, ...extra });
+const followUp = (type, id, fields = {}) => ({ id, type, type_label: FOLLOW_UP_TYPES[type], state: 'DUE_TODAY',
+  state_label: 'Due today', due_at: '2026-11-07T14:00:00+00:00', opens_at: null, request: null, booking: null,
+  enquiry: FU_DONA, actions: NO_ACTIONS, ...fields });
+const FU_NEW_CALL = followUp('NEW_ENQUIRY_CALL', 'f-call', { enquiry: FU_KIRAN, due_at: '2026-11-07T16:30:00+00:00' });
+const FU_CONFIRM = followUp('PARENT_CONFIRMATION', 'b-dona', { booking: followUpBooking('b-dona', 'DEMO', '2026-11-07'),
+  actions: { ...NO_ACTIONS, request_confirmation: true, record_answer: true } });
+const FU_PRE_CALL = followUp('PRE_ACTIVITY_CALL', 't-call', { booking: followUpBooking('b-ali', 'DIAGNOSTIC', '2026-11-07'),
+  actions: { ...NO_ACTIONS, record_outcome: true } });
+const FU_REPORT = followUp('TUTOR_REPORT', 'r-done', { state: 'PENDING', state_label: 'Pending',
+  due_at: '2026-11-08T14:40:00+00:00',
+  booking: followUpBooking('b-done', 'DEMO', '2026-11-06', { status: 'COMPLETED', activity_state: 'COMPLETED' }) });
+const FU_REDEMO = followUp('REDEMO_CONFIRMATION', 'b-redo', { state: 'PENDING', state_label: 'Pending',
+  due_at: '2026-11-09T14:00:00+00:00', booking: followUpBooking('b-redo', 'DEMO', '2026-11-09', { redemo: true }),
+  actions: { ...NO_ACTIONS, record_answer: true } });
+
+test('Follow-ups: reminders only, each with what does it; the call is recorded here and the list read again', async () => {
+  let remaining = [FU_NEW_CALL, FU_CONFIRM, FU_PRE_CALL, FU_REPORT, FU_REDEMO];
+  const count = (state) => remaining.filter((row) => row.state === state).length;
+  serve({
+    [`GET ${FOLLOW_UPS}`]: () => ok({ results: remaining, count: remaining.length, page: 1, page_size: 25,
+      timezone: 'Asia/Kolkata', summary: { total: remaining.length, today: count('DUE_TODAY'), upcoming: count('PENDING') } }),
+    ['POST /api/communications/bookings/diagnostic/b-ali/call-outcome/']: () => {
+      remaining = remaining.filter((item) => item !== FU_PRE_CALL);
+      return ok({});
+    },
+  });
+  await open('/follow-ups', FOLLOW_UP_BDE);
+  // Nothing is ever overdue: a reminder leaves once its time is up.
+  assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
+    ['All open5', 'Due today3', 'Upcoming2']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
+    'Call new enquiryDue todayCall the parent and guide them to book a Demo or Diagnostic.',
+    'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',
+    'Pre-activity callDue todayCall the parent before the class starts.',
+    'Share tutor reportPendingReview the report and share it with the parent.',
+    'Re-Demo confirmationPendingTell the parent the Re-Demo’s date and time, then record their answer.',
+  ]);
+  const [call, confirm, preCall, report, redemo] = rows();
+  assert.match(clean(call.textContent), /KiranRavi Menon\+91 9876543210No booking yet/);
+  assert.match(clean(redemo.textContent), /Demo classRe-DemoMon, 9 Nov · 7:30 PM IST/);
+  // A new enquiry opens its own page, and a report its tutor feedback, where it is sent; nothing is recorded here.
+  assert.equal(call.querySelector('a[aria-label="Open Kiran’s enquiry"]').getAttribute('href'), '/enquiries/e-kiran');
+  assert.equal(report.querySelector('a[aria-label="Open Dona’s tutor report to share it"]').getAttribute('href'),
+    '/enquiries/e-dona?tab=feedback');
+  assert.deepEqual([...call.querySelectorAll('button')].length + [...report.querySelectorAll('button')].length, 0);
+  assert.ok(button('Request confirmation', confirm) && button('Record answer', confirm));
+  assert.ok(button('Record outcome', preCall));
+  assert.ok(button('Record answer', redemo) && !button('Request confirmation', redemo), 'a Re-Demo is confirmed by hand');
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'nothing is written by looking');
+
+  // A Re-Demo's answer is recorded in the dialog the communication sheet uses.
+  await click(button('Record answer', redemo));
+  assert.match(clean(topDialog().textContent), /Record parent's answerDona · Demo class · Mon, 9 Nov · 7:30 PM IST/);
+  await click(button('Cancel', topDialog()));
+
+  // The call before a class: how it went, picked from the list, kept on its booking's communication.
+  await click(button('Record outcome', preCall));
+  assert.deepEqual([...topDialog().querySelectorAll('label')].map((element) => clean(element.textContent)),
+    ['Called', 'Messaged', 'No answer']);
+  await click(radio('No answer', topDialog()));
+  await click(button('Record outcome', topDialog()));
+  assert.deepEqual(calls('POST', '/api/communications/bookings/diagnostic/b-ali/call-outcome/').map((entry) => entry.data),
+    [{ outcome: 'NO_ANSWER' }]);
+  assert.match(bodyText(), /Recorded “No answer” for the call to Asha Nair\./);
+  assert.equal(calls('GET', FOLLOW_UPS).length, 2, 'the list and its counts are read again');
+  assert.deepEqual(rows().map((row) => clean(row.querySelector('td span').textContent)),
+    ['Call new enquiryDue today', 'Parent confirmationDue today', 'Share tutor reportPending', 'Re-Demo confirmationPending']);
+});
+
+// ------------------------------------------------------- BDE Demo and Diagnostic Bookings: filters
+const BDE_LISTS = { id: 'bde-lists', role: 'BDE', permissions: ['accounts.view_own_enquiries', 'accounts.view_own_lead_communications'] };
+const BDE_DEMO_LIST = '/api/bde/bookings/demo/';
+const BDE_DIAGNOSTIC_LIST = '/api/bde/bookings/diagnostic/';
+const bdeListOf = (booking_type) => ({ count: 1, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [{
+  id: `b-${booking_type.toLowerCase()}`, booking_type, date: '2026-11-10', time: '19:30', starts_at: '2026-11-10T14:00:00+00:00',
+  status: 'BOOKED', activity_state: 'UPCOMING', started_at: null, booked_at: '2026-11-01T10:00:00+05:30', tutor: null,
+  parent_confirmation: 'AWAITING', redemo: false,
+  enquiry: { id: 'lead-1', parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] });
+const lastParams = (url) => calls('GET', url).at(-1).params;
+const pressed = () => [...document.querySelectorAll('[aria-pressed="true"]')].map((element) => clean(element.textContent));
+const searchBox = () => document.querySelector('input[aria-label="Search bookings"]');
+const LIST_STATUSES = ['BOOKED', 'COMPLETED', 'REDEMO_REQUIRED', 'RESCHEDULED', 'CANCELLED'].map((value) => ({ value }));
+
+/** The options of the Radix Select labelled `label`, read with it open, then closed again. */
+async function optionsOf(label) {
+  const trigger = document.querySelector(`[aria-label="${label}"]`);
+  trigger.focus();
+  await keyDown(trigger, 'Enter');
+  const options = [...document.querySelectorAll('[role="option"]')].map((element) => clean(element.textContent));
+  await keyDown(document.activeElement, 'Escape');
+  return options;
+}
+
+test('BDE booking filters: Today, This Week (Monday to Sunday) and This Month are Indian dates, whatever the device says', () => {
+  const at = (iso) => new Date(iso);
+  // 01:30 IST on Monday 9 Nov is still Sunday 8 Nov in UTC: India's date decides.
+  assert.equal(indianToday(at('2026-11-08T20:00:00Z')), '2026-11-09');
+  assert.deepEqual(classDateSpan('today', at('2026-11-08T20:00:00Z')), { from: '2026-11-09', to: '2026-11-09' });
+  assert.deepEqual(classDateSpan('week', at('2026-11-08T20:00:00Z')), { from: '2026-11-09', to: '2026-11-15' });
+  // A Sunday closes its week; a week and a month run across a new year and a leap day.
+  assert.deepEqual(classDateSpan('week', at('2026-11-08T10:00:00Z')), { from: '2026-11-02', to: '2026-11-08' });
+  assert.deepEqual(classDateSpan('week', at('2027-01-01T06:00:00Z')), { from: '2026-12-28', to: '2027-01-03' });
+  assert.deepEqual(classDateSpan('month', at('2028-02-10T06:00:00Z')), { from: '2028-02-01', to: '2028-02-29' });
+  // 23:59 IST on 31 Dec is December; midnight IST (18:30 UTC) is January.
+  assert.deepEqual(classDateSpan('month', at('2026-12-31T18:29:00Z')), { from: '2026-12-01', to: '2026-12-31' });
+  assert.deepEqual(classDateSpan('month', at('2026-12-31T18:30:00Z')), { from: '2027-01-01', to: '2027-01-31' });
+  assert.equal(classDateSpan('all', at('2026-11-08T10:00:00Z')), null);
+  assert.equal(classDateSpan('custom', at('2026-11-08T10:00:00Z')), null);
+});
+
+test('BDE booking filters: read from the URL, unknown values dropped, a link from before the presets kept as Custom', () => {
+  const read = (query) => readBdeBookingFilters(new URLSearchParams(query), LIST_STATUSES, new Date('2026-11-08T10:00:00Z'));
+  const defaults = { page: 1, q: '', status: '', when: 'upcoming', dates: 'all', from: '', to: '', filtered: false };
+  assert.deepEqual(read(''), defaults);
+  assert.deepEqual(read('dates=week&status=BOOKED&when=past&q=Riya&page=3'),
+    { page: 3, q: 'Riya', status: 'BOOKED', when: 'past', dates: 'week', from: '2026-11-02', to: '2026-11-08', filtered: true });
+  // A preset's own span wins over stray dates; Custom has its own; only from/to is Custom; Custom without them is All Time.
+  assert.deepEqual([read('dates=month&from=2026-01-01').from, read('dates=month&from=2026-01-01').to], ['2026-11-01', '2026-11-30']);
+  assert.deepEqual(read('dates=custom&from=2026-11-01&to=2026-11-15'),
+    { ...defaults, dates: 'custom', from: '2026-11-01', to: '2026-11-15', filtered: true });
+  assert.equal(read('from=2026-11-01&to=2026-11-15').dates, 'custom');
+  assert.deepEqual(read('dates=custom'), defaults);
+  assert.deepEqual(read('dates=yesterday&status=LOST&when=soon&from=2026-1-1'), defaults);
+  assert.deepEqual(read('when=all'), { ...defaults, when: 'all', filtered: true });
+  // What the API is asked: All Schedules asks for neither; All Time for no dates.
+  assert.deepEqual(bdeBookingParams(read(''), 25), { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(bdeBookingParams(read('dates=today&when=all&status=CANCELLED'), 25),
+    { page: 1, page_size: 25, status: 'CANCELLED', from: '2026-11-08', to: '2026-11-08' });
+});
+
+test('BDE Demo Bookings: class date presets and the other filters combine, each change on page 1; Clear all filters puts them back', async () => {
+  serve({ [`GET ${BDE_DEMO_LIST}`]: bdeListOf('DEMO') });
+  const page = await open('/demo-bookings?page=2', BDE_LISTS);
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 2, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(pressed(), ['All Time']);
+  assert.match(bodyText(), /Class dateTodayThis WeekThis MonthAll TimeCustomClasses on any date/);
+  assert.ok(!button('Clear all filters'), 'nothing to clear at the defaults');
+  // The table and its View are as before.
+  assert.equal(rows().length, 1);
+  assert.ok(document.querySelector('a[aria-label="View Riya\'s booking on Tue, 10 Nov · 7:30 PM IST"]'));
+
+  const month = classDateSpan('month', new Date());
+  await click(button('This Month'));
+  assert.equal(page.location().search, '?dates=month');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, when: 'upcoming', ...month });
+  assert.deepEqual(pressed(), ['This Month']);
+  assert.ok(bodyText().includes(`Classes on ${rangeLabel(month.from, month.to)} (IST)`));
+
+  await choose('Filter by booking status', 'Booked');
+  await choose('Filter by schedule', 'Past');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, status: 'BOOKED', when: 'past', ...month });
+  await choose('Filter by schedule', 'All Schedules');
+  await typeInto(searchBox(), 'Riya');
+  await submit(searchBox().closest('form'));
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, q: 'Riya', status: 'BOOKED', ...month });
+  assert.equal(page.location().search, '?dates=month&status=BOOKED&when=all&q=Riya');
+  assert.deepEqual(await optionsOf('Filter by booking status'),
+    ['All statuses', 'Booked', 'Completed', 'Re-Demo required', 'Rescheduled', 'Cancelled']);
+
+  await click(button('Clear all filters'));
+  assert.equal(page.location().search, '');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(pressed(), ['All Time']);
+  assert.equal(searchBox().value, '');
+  assert.ok(!button('Clear all filters'));
+});
+
+test('BDE Diagnostic Bookings: the same filters -- a Custom range from the URL or picked on the calendar, and Today', async () => {
+  serve({ [`GET ${BDE_DIAGNOSTIC_LIST}`]: bdeListOf('DIAGNOSTIC') });
+  const page = await open('/diagnostic-bookings?dates=custom&from=2026-11-01&to=2026-11-15', BDE_LISTS);
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST),
+    { page: 1, page_size: 25, when: 'upcoming', from: '2026-11-01', to: '2026-11-15' });
+  assert.deepEqual(pressed(), ['Custom']);
+  assert.ok(bodyText().includes('Classes on 1 Nov 2026 – 15 Nov 2026 (IST)'));
+  assert.ok(button('Clear all filters'));
+  // A Re-Demo is only ever a Demo's.
+  assert.deepEqual(await optionsOf('Filter by booking status'), ['All statuses', 'Booked', 'Completed', 'Rescheduled', 'Cancelled']);
+  assert.deepEqual(await optionsOf('Filter by schedule'), ['Upcoming', 'Past', 'All Schedules']);
+
+  const today = classDateSpan('today', new Date());
+  await click(button('Today'));
+  assert.equal(page.location().search, '?dates=today');
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST), { page: 1, page_size: 25, when: 'upcoming', ...today });
+
+  // Custom: two clicks on the calendar, in either order, make the range -- here the last day first.
+  const month = today.from.slice(0, 8);
+  await click(button('Custom'));
+  const calendar = () => document.querySelector('[role="dialog"]');
+  assert.match(clean(calendar().textContent), /Pick the first day\./);
+  // Its weeks run Monday to Sunday, as This Week does.
+  assert.deepEqual([...calendar().querySelectorAll('thead th')].map((th) => th.textContent),
+    ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']);
+  await click(calendar().querySelector(`td[data-day="${month}12"] button`));
+  assert.match(clean(calendar().textContent), /Now pick the last day\./);
+  assert.equal(calls('GET', BDE_DIAGNOSTIC_LIST).length, 2, 'nothing is asked for before the range is whole');
+  await click(calendar().querySelector(`td[data-day="${month}10"] button`));
+  assert.equal(page.location().search, `?dates=custom&from=${month}10&to=${month}12`);
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST),
+    { page: 1, page_size: 25, when: 'upcoming', from: `${month}10`, to: `${month}12` });
+  assert.deepEqual(pressed(), ['Custom']);
+  assert.ok(!calendar(), 'the calendar closes once the range is picked');
 });
 
 // ------------------------------------------------------------------ run

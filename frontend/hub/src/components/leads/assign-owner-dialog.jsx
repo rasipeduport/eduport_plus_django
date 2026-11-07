@@ -10,7 +10,7 @@ import { leadOwnerUrl } from '@/lib/leads';
 /**
  * Gives `lead` (a list row or the lead in full: id, student_name, owner) to
  * an active BDE -- the first owner of an unassigned lead, or another BDE for
- * one already owned. The lead leaves its previous BDE's My Leads and joins the
+ * one already owned. The lead leaves its previous BDE's My Enquiries and joins the
  * new one's at once. The owner the page showed is sent with the choice
  * (`current_owner_id`): when someone else changed it meanwhile the API changes
  * nothing and answers OWNER_CHANGED, and the page reads the lead again
@@ -65,8 +65,8 @@ export function AssignOwnerDialog({ lead, bdes, open, onOpenChange, onAssigned, 
       description={
         lead
           ? current
-            ? `${lead.student_name}'s lead is ${current.full_name}'s. The BDE you choose takes it over, with its bookings; it leaves ${current.full_name}'s My Leads.`
-            : `${lead.student_name}'s lead has no BDE yet. The BDE you choose finds it in their My Leads.`
+            ? `${lead.student_name}'s lead is ${current.full_name}'s. The BDE you choose takes it over, with its bookings; it leaves ${current.full_name}'s My Enquiries.`
+            : `${lead.student_name}'s lead has no BDE yet. The BDE you choose finds it in their My Enquiries.`
           : null
       }
       error={error}

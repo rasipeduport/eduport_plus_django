@@ -14,6 +14,8 @@ export const bookingCommunicationUrl = (type, id) => `/api/communications/bookin
 export const messagePreviewUrl = (type, id) => `${bookingCommunicationUrl(type, id)}preview/`;
 export const confirmationRequestUrl = (type, id) => `${bookingCommunicationUrl(type, id)}confirmation-request/`;
 export const parentConfirmationUrl = (type, id) => `${bookingCommunicationUrl(type, id)}parent-confirmation/`;
+// How the 15-minute call went (POST {outcome}), recorded from the BDE's follow-ups.
+export const callOutcomeUrl = (type, id) => `${bookingCommunicationUrl(type, id)}call-outcome/`;
 
 // Errors answer `{ error: CODE, message }`, as the booking API's do.
 export const communicationError = bookingError;
@@ -22,12 +24,18 @@ export const communicationError = bookingError;
 // is in -- as the slots are (lib/enquiries slotLabel).
 const INDIAN_TIME = 'Asia/Kolkata';
 
-/** An API timestamp as "30 Oct 2026, 7:31 PM IST", or null. */
-export function istMoment(value) {
+/** An API timestamp's Indian date and time, as "30 Oct 2026" and "7:31 PM IST", or null. */
+export function istParts(value) {
   if (!value) return null;
   const moment = new Date(value);
   if (Number.isNaN(moment.getTime())) return null;
-  return `${formatShortDateInZone(moment, INDIAN_TIME)}, ${formatTimeInZone(moment, INDIAN_TIME)} IST`;
+  return { date: formatShortDateInZone(moment, INDIAN_TIME), time: `${formatTimeInZone(moment, INDIAN_TIME)} IST` };
+}
+
+/** An API timestamp as "30 Oct 2026, 7:31 PM IST", or null. */
+export function istMoment(value) {
+  const parts = istParts(value);
+  return parts ? `${parts.date}, ${parts.time}` : null;
 }
 
 // What the parent answered when asked to confirm (backend bookings.models.ParentConfirmation).
@@ -112,4 +120,139 @@ const MESSAGE_STATES = {
 
 export function messageState(message) {
   return MESSAGE_STATES[message.status] ?? { label: message.status_label || message.status, variant: 'outline' };
+}
+
+/** The parts that are there, as one line: "Sent · 28 Oct 2026, 2:31 PM IST". */
+export const joined = (...parts) => parts.filter(Boolean).join(' · ');
+
+// How a message step was done, in a word or two (backend communications.models.TaskResolution).
+const DONE_AS = {
+  ACCEPTED: 'Sent',
+  SENT: 'Sent',
+  MARKED_SENT: 'Sent manually',
+  ALREADY_ACKNOWLEDGED: 'Sent for the earlier booking',
+  NOT_NEEDED: 'Not needed',
+};
+
+const ACTIVITY_NAMES = { DEMO: 'Demo', DIAGNOSTIC: 'Diagnostic' };
+
+// What the BDE may record for the 15-minute call (backend communications.models.CALL_OUTCOMES).
+export const CALL_OUTCOME_CHOICES = [
+  { value: 'CALLED', label: 'Called' },
+  { value: 'MESSAGED', label: 'Messaged' },
+  { value: 'NO_ANSWER', label: 'No answer' },
+];
+
+/**
+ * The 15-minute call's reminder while it is on -- from its `active_from` until
+ * the start (`due_at`), when the backend closes it, Missed unless an outcome
+ * was recorded -- or null.
+ */
+export function callReminder(task, bookingType, now = Date.now()) {
+  if (task.step !== 'PRE_ACTIVITY_CALL' || !task.active_from || !task.due_at) return null;
+  const left = new Date(task.due_at).getTime() - now;
+  if (now < new Date(task.active_from).getTime() || left <= 0) return null;
+  const minutes = Math.ceil(left / 60000);
+  return `Call parent – ${ACTIVITY_NAMES[bookingType] ?? 'Booking'} starts in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
+/** A step's one line: how and when it was done, the call's reminder, or when it is due or closed. */
+export function stepLine(task, bookingType) {
+  switch (task.status) {
+    case 'DONE':
+      return joined(DONE_AS[task.resolution] ?? task.resolution_label, istMoment(task.resolved_at));
+    case 'MISSED':
+      return task.resolved_at ? `Time ran out ${istMoment(task.resolved_at)}` : null;
+    case 'CANCELLED':
+      return joined(task.resolution_label, istMoment(task.resolved_at));
+    default:
+      return callReminder(task, bookingType) ?? (task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class');
+  }
+}
+
+/** A message's one line: when it reached its status, what it waits for, or why it was not sent. */
+export function messageLine(message) {
+  switch (message.status) {
+    case 'WAITING':
+      return message.waiting_for.length ? `Waiting for: ${message.waiting_for.map((item) => item.label).join(', ')}` : null;
+    case 'PENDING':
+      return message.next_attempt_at ? `Trying again ${istMoment(message.next_attempt_at)}` : null;
+    case 'QUEUED':
+      return istMoment(message.queued_at);
+    case 'SENT':
+      return istMoment(message.sent_at);
+    case 'DELIVERED':
+      return istMoment(message.delivered_at);
+    case 'READ':
+      return istMoment(message.read_at);
+    case 'FAILED':
+      return istMoment(message.failed_at);
+    case 'CANCELLED':
+      return joined(message.cancel_reason?.label, istMoment(message.cancelled_at));
+    default:
+      return null;
+  }
+}
+
+// What a message has been through, in order, for its details.
+export const MESSAGE_MOMENTS = [
+  ['Sent to WhatsApp', 'queued_at'],
+  ['Sent', 'sent_at'],
+  ['Delivered', 'delivered_at'],
+  ['Read', 'read_at'],
+  ['Failed', 'failed_at'],
+  ['Not sent', 'cancelled_at'],
+];
+
+/** What asking the parent to confirm did, in a sentence (POST …/confirmation-request/ answers `created`). */
+export function confirmationRequestNotice(data) {
+  return data.created
+    ? 'Confirmation request added. It is sent to the parent on WhatsApp.'
+    : 'A confirmation request was already added for this booking.';
+}
+
+/** What recording the parent's answer did, in a sentence (POST …/parent-confirmation/ answers `changed`). */
+export function parentAnswerNotice(data, outcome) {
+  if (!data.changed) return "The parent's answer was already recorded.";
+  return outcome === 'NOT_CONFIRMED'
+    ? 'Recorded that the parent did not confirm. The booking is cancelled.'
+    : 'Recorded that the parent confirmed.';
+}
+
+// How the BDE's 15-minute call went, as they recorded it (backend communications.models.CALL_OUTCOMES);
+// the call's task shows the latest.
+export const CALL_OUTCOMES = new Set(['CALLED', 'MESSAGED', 'NO_ANSWER']);
+
+/** Each step's latest message, by step (the API lists them oldest first). */
+export function latestMessages(messages) {
+  return Object.fromEntries(messages.map((message) => [message.step, message]));
+}
+
+// A message step closes as soon as the provider takes its message (ACCEPTED, SENT), and the message may
+// still fail after; one sent by hand (MARKED_SENT) or no longer needed is done whatever became of it.
+const TAKEN_BY_PROVIDER = new Set(['ACCEPTED', 'SENT']);
+const SENT_AS = new Set(['ACCEPTED', 'SENT', 'MARKED_SENT']);
+const ON_ITS_WAY = new Set(['QUEUED', 'SENT', 'DELIVERED', 'READ']);
+
+/**
+ * Where one step of a booking's communication stands, from its task and the
+ * step's latest message, for the BDE's workflow timeline: 'failed' (its
+ * message failed and nothing else closed the step), 'sent' or 'completed'
+ * (done), 'missed', 'cancelled', 'overdue', 'pending' (open now) or
+ * 'scheduled' (open from a later moment -- after the class, say).
+ */
+export function workflowState(task, message, now = Date.now()) {
+  const failed =
+    message?.status === 'FAILED' &&
+    task.status !== 'CANCELLED' &&
+    (task.status !== 'DONE' || TAKEN_BY_PROVIDER.has(task.resolution));
+  if (failed) return 'failed';
+  if (task.status === 'DONE') return SENT_AS.has(task.resolution) ? 'sent' : 'completed';
+  if (task.status === 'MISSED') return 'missed';
+  if (task.status === 'CANCELLED') return 'cancelled';
+  if (task.overdue) return 'overdue';
+  if (message && ON_ITS_WAY.has(message.status)) return 'sent';
+  const later = (value) => Boolean(value) && new Date(value).getTime() > now;
+  if (!task.active_from || later(task.active_from) || later(message?.scheduled_for)) return 'scheduled';
+  return 'pending';
 }

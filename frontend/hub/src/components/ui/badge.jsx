@@ -14,10 +14,16 @@ const badgeVariants = cva(
           'bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90',
         outline: 'border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 [a&]:hover:underline',
+        link: 'text-link underline-offset-4 [a&]:hover:underline',
         success: 'bg-success/10 text-success dark:bg-success/15 [a&]:hover:bg-success/15',
         warning: 'bg-warning/10 text-warning dark:bg-warning/15 [a&]:hover:bg-warning/15',
         info: 'bg-info/10 text-info dark:bg-info/15 [a&]:hover:bg-info/15',
+        // Each booking type's colour (index.css): the info and warning colours on the
+        // current design, the brand blue and Diagnostic green on the refreshed one.
+        demo: 'bg-demo/10 text-demo-text dark:bg-demo/15 [a&]:hover:bg-demo/15',
+        diagnostic: 'bg-diagnostic/10 text-diagnostic-text dark:bg-diagnostic/15 [a&]:hover:bg-diagnostic/15',
+        // The logo's yellow, for a note that should stand out ("Coming Soon").
+        highlight: 'bg-highlight text-highlight-foreground [a&]:hover:bg-highlight/90',
       },
     },
     defaultVariants: {

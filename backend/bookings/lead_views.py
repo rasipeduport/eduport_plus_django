@@ -6,10 +6,13 @@ The administrators' Leads API (bookings.lead_admin):
     GET  /api/leads/bdes/            the BDE accounts to filter by and assign to
     GET  /api/leads/<id>/            one lead in full
     PUT  /api/leads/<id>/owner/      give the lead to a BDE (bookings.ownership)
+    GET  /api/leads/<id>/notes/      staff's notes on the lead (bookings.notes)
+    POST /api/leads/<id>/notes/      add one, as an administrator
 
 Reading needs accounts.view_all_leads, adding accounts.add_lead and
 assigning accounts.assign_lead_owner -- all three the ADMIN role's alone (a
-superuser holds them too, D1). A BDE reads their own leads in the BDE
+superuser holds them too, D1); whoever may read a lead may read and add its
+notes. A BDE reads their own leads in the BDE
 workspace (/api/bde/enquiries/) and nothing here. Errors answer
 ``{"error": CODE, "message": ..., "fields"?}``, as the BDE workspace does.
 """
@@ -25,14 +28,14 @@ from accounts.authz import has_app_permission
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 
-from . import enquiries, lead_admin
+from . import enquiries, lead_admin, notes
 from .booking_service import BookingBusy
 from .lead_intake import LeadExists
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
-from .models import Lead
+from .models import Lead, LeadNoteRole
 from .ownership import OwnershipError, assign_owner
-from .serializers import LeadCreateSerializer, LeadOwnerSerializer
+from .serializers import LeadCreateSerializer, LeadNoteSerializer, LeadOwnerSerializer
 
 VIEW_ALL_LEADS = 'accounts.view_all_leads'
 ADD_LEAD = 'accounts.add_lead'
@@ -186,3 +189,31 @@ class LeadOwnerView(APIView):
             return _error('LEAD_BUSY', 'This lead is being changed right now. Try again in a moment.',
                           status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({**_read(request, pk, timezone.now()), 'changed': changed}, status=status.HTTP_200_OK)
+
+
+class LeadNotesView(APIView):
+    """
+    GET  /api/leads/<id>/notes/
+         The notes on the lead, oldest first, shared with its owner BDE and its
+         tutors (bookings.notes): {"results", "count", "timezone"}.
+    POST /api/leads/<id>/notes/ {"body": "..."}
+         Add one, as an administrator; answers the notes as they now stand
+         (201), or 400 VALIDATION_ERROR for an empty or overlong note.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS)]
+
+    def get(self, request, pk, *args, **kwargs):
+        lead = Lead.objects.filter(pk=pk).first()
+        if lead is None:
+            return _no_lead()
+        return Response(notes.notes_of(lead), status=status.HTTP_200_OK)
+
+    def post(self, request, pk, *args, **kwargs):
+        lead = Lead.objects.filter(pk=pk).first()
+        if lead is None:
+            return _no_lead()
+        serializer = LeadNoteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', notes.INVALID_NOTE, status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
+        notes.add_note(lead, request.user, LeadNoteRole.ADMIN, serializer.validated_data['body'])
+        return Response(notes.notes_of(lead), status=status.HTTP_201_CREATED)

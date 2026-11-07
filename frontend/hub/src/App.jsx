@@ -23,6 +23,10 @@ import EnquiriesPage from './pages/EnquiriesPage';
 import EnquiryPage from './pages/EnquiryPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadPage from './pages/LeadPage';
+import BdeBookingsPage from './pages/BdeBookingsPage';
+import FollowUpsPage from './pages/FollowUpsPage';
+import BdeActivityPage from './pages/BdeActivityPage';
+import ComingSoonPage from './pages/ComingSoonPage';
 import { canOpenPage, homePage, isBde } from './lib/access';
 
 /**
@@ -71,8 +75,12 @@ function HubRoutes({ user, logout }) {
             directory. The API enforces both. */}
         <Route path="/team" element={page('/team', <TeamPage user={user} />)} />
         <Route path="/team/:memberId" element={page('/team', <TeamMemberPage user={user} />)} />
-        {/* The API pins whoever holds only view_own_activity to their own entries. */}
-        <Route path="/activity" element={page('/activity', <ActivityPage user={user} />)} />
+        {/* The API pins whoever holds only view_own_activity to their own entries.
+            A BDE gets their own Activity instead, built on the BDE workspace's APIs. */}
+        <Route
+          path="/activity"
+          element={page('/activity', isBde(user) ? <BdeActivityPage /> : <ActivityPage user={user} />)}
+        />
         {/* Demo and Diagnostic bookings for administrators: every booking and
             the tutor teaching it, a tab per type (?type=DIAGNOSTIC; Demo by
             default), one opened at ?booking=<id>. The API enforces
@@ -101,10 +109,24 @@ function HubRoutes({ user, logout }) {
         {/* Every lead and its owner BDE, for administrators. */}
         <Route path="/leads" element={page('/leads', <LeadsPage user={user} />)} />
         <Route path="/leads/:leadId" element={page('/leads', <LeadPage user={user} />)} />
-        {/* A BDE's own leads (My Leads). The API serves each BDE only theirs:
-            another BDE's lead is answered as one that does not exist. */}
+        {/* A BDE's own enquiries (My Enquiries). The API serves each BDE only theirs:
+            another BDE's enquiry is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
         <Route path="/enquiries/:enquiryId" element={page('/enquiries', <EnquiryPage user={user} />)} />
+        {/* The rest of the BDE workspace: the Demo and Diagnostic bookings made
+            for their enquiries (each opening in its enquiry's workspace), what to
+            follow up (which sends the BDE to the enquiry pages until its own list
+            arrives), and My Sales and Plans & Pricing, which are still to come.
+            Each booking list is keyed by its type, so moving between them never
+            shows the other's rows. */}
+        <Route path="/demo-bookings" element={page('/demo-bookings', <BdeBookingsPage key="DEMO" user={user} type="DEMO" />)} />
+        <Route
+          path="/diagnostic-bookings"
+          element={page('/diagnostic-bookings', <BdeBookingsPage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" />)}
+        />
+        <Route path="/follow-ups" element={page('/follow-ups', <FollowUpsPage />)} />
+        <Route path="/sales" element={page('/sales', <ComingSoonPage module="sales" />)} />
+        <Route path="/plans" element={page('/plans', <ComingSoonPage module="plans" />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

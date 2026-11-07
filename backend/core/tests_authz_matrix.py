@@ -64,6 +64,13 @@ ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
     'bookings', 'country', 'created_at', 'parent_email', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus',
     'timezone',
 ])
+# A reminder as the BDE's follow-ups list it (communications.followups.row): a new enquiry's has no booking.
+FOLLOW_UP_ROW_FIELDS = [
+    'actions', 'actions.record_answer', 'actions.record_outcome', 'actions.request_confirmation', 'booking', 'due_at',
+    'enquiry', 'enquiry.grade', 'enquiry.id', 'enquiry.parent_name', 'enquiry.phone', 'enquiry.phone_dial_code',
+    'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'request', 'state', 'state_label', 'type',
+    'type_label',
+]
 BDE_WORKSPACE = {
     'bde.booking_links': BDE_OWN_LINKS,
     'bde.dashboard': {
@@ -73,9 +80,36 @@ BDE_WORKSPACE = {
             'bookings', 'bookings.DEMO', 'bookings.DEMO.total', 'bookings.DEMO.upcoming', 'bookings.DIAGNOSTIC',
             'bookings.DIAGNOSTIC.total', 'bookings.DIAGNOSTIC.upcoming', 'enquiries', 'enquiries.last_7_days',
             'enquiries.total', 'recent_enquiries', 'timezone', 'upcoming', 'upcoming.rows', 'upcoming.total',
+            # Today's agenda (BDE Hub redesign, Phase 3): lead_a has no booking today, so no row fields appear.
+            'agenda', 'agenda.date', 'agenda.rows', 'agenda.total',
             *(f'recent_enquiries[].{field}' for field in ENQUIRY_ROW_FIELDS),
         ]),
         'capture': {'enquiries': {'total': 1, 'last_7_days': 1}, 'upcoming': 0},
+    },
+    # Their Demo Bookings: lead_a has no booking, and booking_a's lead is nobody's.
+    'bde.bookings.list': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
+    },
+    # Their follow-ups: lead_a, given to them just now and still New, is their reminder to call it; it has no
+    # booking, so its activity has nothing yet.
+    'bde.follow_ups.list': {
+        'status': 200,
+        'records': ['lead_a'],
+        'fields': ['count', 'page', 'page_size', 'results', *(f'results[].{field}' for field in FOLLOW_UP_ROW_FIELDS),
+                   'summary', 'summary.today', 'summary.total', 'summary.upcoming', 'timezone'],
+    },
+    'bde.activity.list': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
+    },
+    # The notes on their own enquiry, lead_a: none yet.
+    'bde.enquiries.notes': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'results', 'timezone'],
     },
     'bde.enquiries.list': {
         'status': 200,
@@ -93,6 +127,8 @@ BDE_WORKSPACE = {
     # booking_a's lead is not the BDE's own: its report is answered as a booking that does not exist (P9).
     'bde.bookings.report_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                 'fields': ['error', 'message']},
+    'bde.bookings.report_share': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                  'fields': ['error', 'message']},
     # ... and sends a Demo invitation only from their own leads' Diagnostics: booking_a is a Demo of a lead nobody owns.
     'bde.bookings.demo_invite': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                  'fields': ['error', 'message']},
@@ -108,6 +144,8 @@ BDE_WORKSPACE = {
                                             'records': [], 'fields': ['error', 'message']},
     'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
                                            'records': [], 'fields': ['error', 'message']},
+    'communications.call_outcome': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                    'fields': ['error', 'message']},
 }
 
 

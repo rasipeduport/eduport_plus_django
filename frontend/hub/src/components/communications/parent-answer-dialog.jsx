@@ -6,7 +6,8 @@ import { NOT_CONFIRMED_REASONS, PARENT_ANSWERS, communicationError, parentConfir
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
 
-function Choice({ name, option, checked, onChange }) {
+/** One radio choice of a dialog's list (the parent's answer, a reason, an outcome). */
+export function Choice({ name, option, checked, onChange }) {
   return (
     <label
       className={cn(

@@ -1,11 +1,12 @@
 // Mounts the real lead pages at a URL, for a given signed-in account, the way
 // App.jsx routes them -- the administrators' Leads (/leads, /leads/:leadId)
-// and a BDE's My Leads (/enquiries, /enquiries/:enquiryId) -- with only the
-// API a stand-in (api-stub.js); with `layout`, inside the Hub's own
-// SidebarLayout, as App.jsx places every page.
+// and a BDE's dashboard and My Enquiries (/dashboard, /enquiries,
+// /enquiries/:enquiryId) -- with only the API a stand-in (api-stub.js); with
+// `layout`, inside the Hub's own SidebarLayout, as App.jsx places every page.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
+import BdeDashboardPage from '@/pages/BdeDashboardPage';
 import EnquiriesPage from '@/pages/EnquiriesPage';
 import EnquiryPage from '@/pages/EnquiryPage';
 import LeadPage from '@/pages/LeadPage';
@@ -28,6 +29,7 @@ export async function mount(path, user, { layout = false } = {}) {
     [
       { path: '/leads', element: inLayout(<LeadsPage user={user} />) },
       { path: '/leads/:leadId', element: inLayout(<LeadPage user={user} />) },
+      { path: '/dashboard', element: inLayout(<BdeDashboardPage user={user} />) },
       { path: '/enquiries', element: inLayout(<EnquiriesPage user={user} />) },
       { path: '/enquiries/:enquiryId', element: inLayout(<EnquiryPage user={user} />) },
     ],

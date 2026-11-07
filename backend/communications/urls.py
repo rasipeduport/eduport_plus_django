@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .views import BookingCommunicationView, BookingMessagePreviewView, ConfirmationRequestView, ParentConfirmationView
+from .views import (
+    BookingCommunicationView,
+    BookingMessagePreviewView,
+    CallOutcomeView,
+    ConfirmationRequestView,
+    ParentConfirmationView,
+)
 from .webhooks import WhatsAppWebhookView
 
 app_name = 'communications'
@@ -13,6 +19,7 @@ urlpatterns = [
          name='confirmation-request'),
     path('bookings/<str:booking_type>/<uuid:pk>/parent-confirmation/', ParentConfirmationView.as_view(),
          name='parent-confirmation'),
+    path('bookings/<str:booking_type>/<uuid:pk>/call-outcome/', CallOutcomeView.as_view(), name='call-outcome'),
     # Meta's WhatsApp Cloud API callbacks: signed, never a session (communications.webhooks).
     path('webhooks/whatsapp/', WhatsAppWebhookView.as_view(), name='whatsapp-webhook'),
 ]

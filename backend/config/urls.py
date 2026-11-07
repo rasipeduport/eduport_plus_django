@@ -59,6 +59,8 @@ urlpatterns = [
     path('api/bde/', include('bookings.urls', namespace='bookings')),
     # The reports on a BDE's own leads: each as it prints, and its PDF (P9).
     path('api/bde/', include('reports.bde_urls', namespace='bde_reports')),
+    # The BDE workspace's follow-ups: the open steps of their own leads' parent communication.
+    path('api/bde/', include('communications.bde_urls', namespace='bde_communications')),
     # Booking slots for administrators: close or reopen one date's Demo/Diagnostic slots.
     path('api/booking-slots/', include('bookings.slot_urls', namespace='booking_slots')),
     # Every lead, for administrators: list, add by hand, assign to a BDE.

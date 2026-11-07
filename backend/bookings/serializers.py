@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .booking_service import REDEMO_REASON_MAX_LENGTH, REDEMO_REMARKS_MAX_LENGTH
 from .leads import InvalidLeadDetails, normalize_phone
 from .models import MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
+from .notes import NOTE_MAX_LENGTH
 from .public_serializers import CLASSES, SYLLABI
 from .services import link_url
 
@@ -93,6 +94,11 @@ class RedemoRequestSerializer(serializers.Serializer):
     booking's history or the activity log.
     """
     reason = serializers.CharField(max_length=REDEMO_REASON_MAX_LENGTH)
+
+
+class LeadNoteSerializer(serializers.Serializer):
+    """A note on a lead (bookings.notes), in its writer's own words -- required."""
+    body = serializers.CharField(max_length=NOTE_MAX_LENGTH)
 
 
 class RedemoRemarksSerializer(serializers.Serializer):

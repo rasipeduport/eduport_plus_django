@@ -306,6 +306,8 @@ export function reportPdfUrl(reportUrl, version = null) {
 // print, and each one's PDF as last saved -- the current version only.
 export const bdeReportsUrl = (enquiryId) => `${enquiryUrl(enquiryId)}reports/`;
 export const bdeReportPdfUrl = (type, id) => `${bdeBookingUrl(type, id)}report/pdf/`;
+// The enquiry page telling the API it just sent the report to the parent (POST): ends the BDE's reminder to share it.
+export const bdeReportShareUrl = (type, id) => `${bdeBookingUrl(type, id)}report/share/`;
 
 const PAGE_SEGMENTS = { DEMO: 'demo', DIAGNOSTIC: 'diagnostic' };
 

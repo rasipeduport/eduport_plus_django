@@ -1,8 +1,8 @@
 """
 Assessment reports (Phase 5.2, design A.3): the tutor's report on one
-Diagnostic or Demo booking, and every version it has had. report_shares is
-kept but unused since the P9 revision: the owner BDE sends a report from the
-enquiry page, and the Hub records no send (F.4).
+Diagnostic or Demo booking, and every version it has had, and each time the
+owner BDE sent it to the parent from the enquiry page (report_shares) -- which
+ends their reminder to share it; the send itself happens outside the Hub.
 
 Each report type has a table of its own, one-to-one with its booking table:
 diagnostic_reports follows the two-page Academic Report, demo_reports the
@@ -48,7 +48,7 @@ class PerformanceLevel(models.TextChoices):
 
 
 class ShareChannel(models.TextChoices):
-    """How a report reached the parent, for a ReportShare (unused since the P9 revision, F.4)."""
+    """How a report reached the parent, for a ReportShare."""
     WHATSAPP_MANUAL = 'WHATSAPP_MANUAL', 'WhatsApp, attached by hand'
 
 
@@ -257,8 +257,10 @@ class ReportShare(models.Model):
     """
     One time a report was sent to the parent: which version, how, by whom and
     when. Append-only (reports.0002). No phone number is kept: it is always
-    read from the lead. Unused since the P9 revision (F.4): the Hub records no
-    send, so nothing writes this table. It is kept, not removed.
+    read from the lead. Written when the owner BDE sends it from the enquiry's
+    tutor feedback -- WhatsApp opened with it, or the PDF shared from the
+    device (reports.services.record_share); whether the parent got it, nothing
+    can tell.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Exactly one is set. The (report, shared_at) indexes serve the foreign keys.

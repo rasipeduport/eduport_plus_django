@@ -20,19 +20,20 @@ const BOOKING_LINKS_URL = '/api/bde/booking-links/';
 const MANUAL_COPY = 'Copying is blocked here, so the link is selected: press Ctrl+C (⌘C on a Mac).';
 
 // What each link is for, keyed by the API's booking_type, in the order the
-// API returns them (Demo, then Diagnostic): Demo in blue, Diagnostic in green.
+// API returns them (Demo, then Diagnostic), each in its booking type's colour
+// (index.css: the brand blue and the Diagnostic green).
 const LINK_COPY = {
   DEMO: {
     label: 'Demo Link',
     noun: 'demo',
     message: 'Book a demo class with Eduport Plus:',
-    button: 'bg-blue-600 text-white hover:bg-blue-600/90 dark:hover:bg-blue-500',
+    button: 'bg-demo text-demo-foreground hover:bg-demo/90',
   },
   DIAGNOSTIC: {
     label: 'Diagnostic Link',
     noun: 'diagnostic',
     message: 'Book a Maths diagnostic test with Eduport Plus:',
-    button: 'bg-green-600 text-white hover:bg-green-600/90 dark:hover:bg-green-500',
+    button: 'bg-diagnostic text-diagnostic-foreground hover:bg-diagnostic/90',
   },
 };
 
@@ -133,7 +134,7 @@ function ShareLinkButton({ link, copied, onCopy, recipient }) {
 }
 
 /**
- * The BDE's quick sharing -- on their dashboard and My Leads, and on one of
+ * The BDE's quick sharing -- on their dashboard and My Enquiries, and on one of
  * their leads for that lead's parent (`recipient`: `{ dialCode, number }`):
  * the BDE's own Demo and Diagnostic booking links, each copied in one click or
  * shared on WhatsApp or previewed from its menu. The API serves each BDE only

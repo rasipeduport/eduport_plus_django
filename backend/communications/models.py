@@ -8,8 +8,9 @@ five steps, owned by the lead's BDE (the Admin when the lead has none):
     2 CONFIRMATION_REQUEST   message the BDE sends when they choose (target: 12 h before)
     3 PARENT_CONFIRMATION    the BDE records Confirmed / Not Confirmed; the
                              confirmed message waits until it has everything it needs
-    4 PRE_ACTIVITY_CALL      a reminder for the BDE to call, from 15 minutes before
-                             until the start, then done; no message
+    4 PRE_ACTIVITY_CALL      the BDE calls, from 15 minutes before until the
+                             start, and records how it went; Missed at the
+                             start without an outcome; no message
     5 AFTER_ACTIVITY         automatic message once the booking is completed
 
 Each step is a CommunicationTask (one per booking and step), so its deadline,
@@ -194,8 +195,9 @@ class TaskResolution(models.TextChoices):
     CALLED = 'CALLED', 'Called'
     MESSAGED = 'MESSAGED', 'Messaged'
     NO_ANSWER = 'NO_ANSWER', 'No answer'
-    # The 15-minute call is a reminder only: done when its booking's scheduled
-    # start comes, whether anyone called or not -- and never a sign it started.
+    # No longer written: the 15-minute call is Missed when its booking's
+    # scheduled start comes with no outcome recorded (planner.close_expired);
+    # communications.0006 made the calls closed this way before Missed too.
     REMINDED = 'REMINDED', 'Reminder complete'
     BOOKING_CANCELLED = 'BOOKING_CANCELLED', 'Booking cancelled'
     BOOKING_RESCHEDULED = 'BOOKING_RESCHEDULED', 'Booking rescheduled'

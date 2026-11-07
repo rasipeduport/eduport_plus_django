@@ -19,7 +19,7 @@ export function MeetLink({ link, compact = false, label }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="text-primary inline-flex items-center gap-1 font-medium break-all underline-offset-4 hover:underline"
+      className="text-link inline-flex items-center gap-1 font-medium break-all underline-offset-4 hover:underline"
     >
       {compact ? 'Open Meet' : link.replace(/^https:\/\//, '')}
       <ExternalLinkIcon className="size-3.5 shrink-0" aria-hidden="true" />

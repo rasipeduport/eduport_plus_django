@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { istMoment, stepLabel } from '@/lib/communications';
+import { MESSAGE_MOMENTS, istMoment, joined, messageLine, stepLabel, stepLine } from '@/lib/communications';
 import { MessageStateBadge, ParentConfirmationBadge, TaskStateBadge } from './communication-badges';
 
 function Detail({ label, children }) {
@@ -18,87 +18,13 @@ function Heading({ children }) {
   return <h4 className="pt-1 text-sm font-medium">{children}</h4>;
 }
 
-const joined = (...parts) => parts.filter(Boolean).join(' · ');
-
-// How a message step was done, in a word or two (backend communications.models.TaskResolution).
-const DONE_AS = {
-  ACCEPTED: 'Sent',
-  SENT: 'Sent',
-  MARKED_SENT: 'Sent manually',
-  ALREADY_ACKNOWLEDGED: 'Sent for the earlier booking',
-  NOT_NEEDED: 'Not needed',
-};
-
-const ACTIVITY_NAMES = { DEMO: 'Demo', DIAGNOSTIC: 'Diagnostic' };
-
-/**
- * The 15-minute call's reminder while it is on -- from its `active_from` until
- * the start (`due_at`), when the backend marks it done -- or null. A reminder
- * only: nothing is recorded on it.
- */
-function callReminder(task, bookingType, now = Date.now()) {
-  if (task.step !== 'PRE_ACTIVITY_CALL' || !task.active_from || !task.due_at) return null;
-  const left = new Date(task.due_at).getTime() - now;
-  if (now < new Date(task.active_from).getTime() || left <= 0) return null;
-  const minutes = Math.ceil(left / 60000);
-  return `Call parent – ${ACTIVITY_NAMES[bookingType] ?? 'Booking'} starts in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
-}
-
-/** A step's one line: how and when it was done, the call's reminder, or when it is due or closed. */
-function stepLine(task, bookingType) {
-  switch (task.status) {
-    case 'DONE':
-      return joined(DONE_AS[task.resolution] ?? task.resolution_label, istMoment(task.resolved_at));
-    case 'MISSED':
-      return task.resolved_at ? `Time ran out ${istMoment(task.resolved_at)}` : null;
-    case 'CANCELLED':
-      return joined(task.resolution_label, istMoment(task.resolved_at));
-    default:
-      return callReminder(task, bookingType) ?? (task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class');
-  }
-}
-
-/** A message's one line: when it reached its status, what it waits for, or why it was not sent. */
-function messageLine(message) {
-  switch (message.status) {
-    case 'WAITING':
-      return message.waiting_for.length ? `Waiting for: ${message.waiting_for.map((item) => item.label).join(', ')}` : null;
-    case 'PENDING':
-      return message.next_attempt_at ? `Trying again ${istMoment(message.next_attempt_at)}` : null;
-    case 'QUEUED':
-      return istMoment(message.queued_at);
-    case 'SENT':
-      return istMoment(message.sent_at);
-    case 'DELIVERED':
-      return istMoment(message.delivered_at);
-    case 'READ':
-      return istMoment(message.read_at);
-    case 'FAILED':
-      return istMoment(message.failed_at);
-    case 'CANCELLED':
-      return joined(message.cancel_reason?.label, istMoment(message.cancelled_at));
-    default:
-      return null;
-  }
-}
-
-// What a message has been through, in order, for its details.
-const MOMENTS = [
-  ['Sent to WhatsApp', 'queued_at'],
-  ['Sent', 'sent_at'],
-  ['Delivered', 'delivered_at'],
-  ['Read', 'read_at'],
-  ['Failed', 'failed_at'],
-  ['Not sent', 'cancelled_at'],
-];
-
 function MessageItem({ message }) {
   const [open, setOpen] = useState(false);
   const label = stepLabel(message);
   const line = messageLine(message);
   // Why it failed, or why it is being tried again -- inline, never elsewhere.
   const failure = message.status === 'FAILED' || message.next_attempt_at ? message.failure_reason : '';
-  const moments = MOMENTS.filter(([, field]) => message[field]);
+  const moments = MESSAGE_MOMENTS.filter(([, field]) => message[field]);
   return (
     <li className="py-2 text-sm">
       <div className="flex items-start justify-between gap-2">

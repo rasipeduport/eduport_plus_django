@@ -26,6 +26,11 @@ touched -- and records REPORT_EDITED. Editing stays open at any time (D6).
 Both log to the activity log after the transaction commits, with ids, the
 version and field names only: never report text or anyone's name.
 
+record_share keeps that the lead's BDE sent the report to the parent from
+the Hub (a ReportShare, append-only), at the version it then had -- which
+ends their reminder to share it (communications.followups). Nothing can tell
+whether the parent got it.
+
 A lock wait past booking_service.LOCK_TIMEOUT, or a deadlock, answers
 ReportBusy instead of holding the request.
 """
@@ -49,6 +54,8 @@ from .models import (
     SUGGESTED_PLAN_CHARS,
     TEACHER_REMARKS_CHARS,
     PerformanceLevel,
+    ReportShare,
+    ShareChannel,
     report_model,
 )
 
@@ -257,6 +264,28 @@ def edit_report(booking, tutor, fields, version):
     # Field names only, never what they now say.
     _log_report('report.edit', booking, report, tutor, changed_fields=changed)
     return report, True
+
+
+def record_share(booking, actor, now=None):
+    """
+    Keep that ``actor`` sent ``booking``'s report to the parent -- WhatsApp
+    opened with it, or the PDF handed to the device's share sheet -- at its
+    current version; returns the ReportShare. NoReport when it has none yet.
+    Every send is kept: one more never replaces one before. Whose lead it is
+    is the caller's check (reports.bde_views).
+    """
+    report = getattr(booking, 'report', None)
+    if report is None:
+        raise NoReport()
+    share = ReportShare.objects.create(
+        **{f'{booking.booking_type.lower()}_report': report},
+        report_version=report.version,
+        channel=ShareChannel.WHATSAPP_MANUAL,
+        shared_by=actor,
+        shared_at=now or timezone.now(),
+    )
+    _log_report('report.share', booking, report, actor)
+    return share
 
 
 def preview_content(booking, tutor, fields):

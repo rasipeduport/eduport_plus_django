@@ -14,10 +14,11 @@ const ALL = '__all__';
 /**
  * A list of leads: search, status and source filters, and paging, all kept in
  * the URL (like the team directory) and applied by the API. Each row opens
- * the lead's page (`basePath`/:id) -- a BDE's own (/enquiries, My Leads), or
- * any for an administrator (/leads). Given `owners` (the owner filter's
+ * the lead's page (`basePath`/:id). Given `owners` (the owner filter's
  * options) it is the administrators' list: when each lead came in, who owns
- * it, an owner filter and, with `onAssign`, giving a lead to a BDE.
+ * it, an owner filter and, with `onAssign`, giving a lead to a BDE. The
+ * administrators' Leads page (/leads) is its one user now: a BDE's My
+ * Enquiries is built on the shared page kit (my-enquiries-list.jsx).
  */
 export function EnquiryList({
   rows,

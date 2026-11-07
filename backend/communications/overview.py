@@ -244,9 +244,10 @@ def _actions(booking, messages, now, user, request):
     on): ask for confirmation once while the parent has not answered
     (services.request_confirmation), and record the answer until the slot
     starts or its tutor starts it, whichever comes first
-    (booking_service.record_parent_confirmation). The 15-minute call is a task
-    only: nothing is recorded on it. A Re-Demo is never asked for
-    confirmation: the BDE calls its parent, and may record their answer.
+    (booking_service.record_parent_confirmation). The 15-minute call's
+    outcome is recorded from the BDE's follow-ups (communications.followups),
+    never here. A Re-Demo is never asked for confirmation: the BDE calls its
+    parent, and may record their answer.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)

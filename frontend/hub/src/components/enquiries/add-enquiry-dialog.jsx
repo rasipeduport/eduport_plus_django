@@ -62,7 +62,8 @@ function OptionSelect({ id, value, onChange, placeholder, options, disabled, req
  * theirs. An administrator (`admin`, the Leads page) adds one to the same
  * leads, owned by nobody until they assign it, with the parent's email when
  * known. The API refuses a child already registered under the same phone
- * number, pointing to the lead when the caller may open it.
+ * number, pointing to the lead when the caller may open it. A BDE's workspace
+ * calls them enquiries (Add Enquiry); the administrators' Leads page, leads.
  */
 export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false }) {
   const [form, setForm] = useState(EMPTY);
@@ -94,7 +95,7 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
     if (!form.phone_number.trim()) errors.phone_number = 'Enter the phone number.';
     if (!form.student_name.trim()) errors.student_name = "Enter the student's name.";
     if (!form.grade) errors.grade = 'Choose a class.';
-    if (!form.source) errors.source = admin ? 'Choose how this lead reached Eduport Plus.' : 'Choose how this lead reached you.';
+    if (!form.source) errors.source = admin ? 'Choose how this lead reached Eduport Plus.' : 'Choose how this enquiry reached you.';
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
@@ -106,7 +107,7 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
       onCreated?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      const failure = enquiryError(err, 'Could not add the lead.');
+      const failure = enquiryError(err, admin ? 'Could not add the lead.' : 'Could not add the enquiry.');
       if (failure.code === 'ENQUIRY_EXISTS' || failure.code === 'LEAD_EXISTS') {
         setError(
           failure.enquiryId ? (
@@ -144,15 +145,15 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Add lead"
+      title={admin ? 'Add lead' : 'Add Enquiry'}
       description={
         admin
           ? 'A lead that reached Eduport Plus another way -- a call, a walk-in, a referral. It is added unassigned; assign it to a BDE from the list.'
-          : 'A lead that reached you outside your booking links. It is added to your leads straight away.'
+          : 'An enquiry that reached you outside your booking links. It is added to your enquiries straight away.'
       }
       error={error}
       formId={FORM_ID}
-      confirmLabel="Add lead"
+      confirmLabel={admin ? 'Add lead' : 'Add Enquiry'}
       pendingLabel="Adding…"
       pending={pending}
       size="lg"
@@ -284,7 +285,7 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
         </fieldset>
 
         <fieldset className="grid gap-4 sm:grid-cols-2" disabled={pending}>
-          <legend className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">Lead</legend>
+          <legend className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">{admin ? 'Lead' : 'Enquiry'}</legend>
           <div className="grid content-start gap-2">
             <Label htmlFor="enquiry-source" required>
               Source
