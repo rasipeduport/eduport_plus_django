@@ -28,12 +28,14 @@ from .booking_service import (
     BookingStarted,
     CancelledNotMovable,
     LeadAlreadyBooked,
+    RedemoOriginalTutor,
     SlotEnded,
     StartedNotMovable,
     assignable_tutors,
     is_assignable_tutor,
     lead_commitments,
     live_booking,
+    redemo_original_tutor_id,
     tutor_commitments,
     tutor_conflicts,
 )
@@ -60,6 +62,8 @@ SEND_LEAD_COMMUNICATIONS = 'accounts.send_lead_communications'
 
 
 AVAILABLE, UNAVAILABLE = 'AVAILABLE', 'UNAVAILABLE'
+# Why a Re-Demo's pickers offer no tutor who taught the Demo it repeats (booking_service.RedemoOriginalTutor).
+ORIGINAL_TUTOR_REASON = 'Taught the Demo being repeated, so cannot teach its Re-Demo.'
 UPCOMING, PAST = 'upcoming', 'past'
 BOOLEANS = {'true': True, 'false': False}
 REPORT_FILTERS = {'submitted': True, 'missing': False}
@@ -510,20 +514,27 @@ def tutor_availability(slot, booking=None):
     Every active tutor -- the accounts booking_service.assign_tutor accepts --
     each AVAILABLE or UNAVAILABLE for ``slot`` with the reason, and which one
     teaches ``booking`` now (its own assignment does not count against them).
-    What a picker shows; the assignment itself checks again under its locks.
+    For a Re-Demo, the tutor who taught the Demo it repeats is UNAVAILABLE
+    whatever their time (REDEMO_ORIGINAL_TUTOR). What a picker shows; the
+    assignment itself checks again under its locks.
     """
     tutors = list(assignable_tutors().order_by('full_name', 'email', 'id'))
     conflicts = tutor_conflicts(tutors, slot.starts_at, slot.ends_at, exclude_booking=booking)
     current = booking.assigned_tutor_id if booking is not None else None
+    original = redemo_original_tutor_id(booking) if booking is not None else None
     rows = []
     for tutor in tutors:
         conflict = conflicts.get(tutor.pk)
+        if tutor.pk == original:
+            reason = {'code': RedemoOriginalTutor.code, 'message': ORIGINAL_TUTOR_REASON}
+        else:
+            reason = conflict_reason(conflict) if conflict else None
         rows.append({
             'id': str(tutor.pk),
             'full_name': tutor.full_name or tutor.email,
             'email': tutor.email,
-            'status': UNAVAILABLE if conflict else AVAILABLE,
-            'reason': conflict_reason(conflict) if conflict else None,
+            'status': UNAVAILABLE if reason else AVAILABLE,
+            'reason': reason,
             'current': tutor.pk == current,
         })
     return rows

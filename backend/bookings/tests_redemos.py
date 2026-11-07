@@ -38,6 +38,7 @@ from .booking_service import (
     RedemoAlreadyRequested,
     RedemoCompleted,
     RedemoNotEligible,
+    RedemoOriginalTutor,
     RedemoReasonRequired,
     RedemoReasonTooLong,
     RedemoRemarksTooLong,
@@ -271,18 +272,22 @@ class ScheduleTests(RedemoTestCase):
         self.assertEqual((log.actor, log.context['via'], log.context['redemo_request_id']),
                          (self.admin, 'redemo', str(redemo.id)))
 
-    def test_the_original_tutor_or_another_active_one_free_then(self):
+    def test_another_active_tutor_free_then_never_the_original_one(self):
         redemo = self.ask()
         for user in (account('mentor_mo', role='MENTOR'), account('tutor_gone', role='TUTOR', is_active=False), self.bde):
             with self.subTest(user=user.username), self.assertRaises(TutorNotAssignable):
                 self.book(redemo, tutor=user)
+        # The tutor who taught the Demo being repeated, free as they are, never teaches its Re-Demo.
+        with self.assertRaises(RedemoOriginalTutor):
+            self.book(redemo, tutor=self.original_tutor)
         other = create_booking(request(student='Kiran', phone='0507000001', day=REDEMO_DAY), now=AFTER)[0]
         assign_tutor(other, self.tutor, now=AFTER)
         with self.assertRaises(TutorUnavailable):
             self.book(redemo)
         self.assertFalse(DemoBooking.objects.filter(redemo_for=redemo).exists())
         self.assertEqual(ReDemoRequest.objects.get(pk=redemo.pk).admin_remarks, '')
-        self.assertEqual(self.book(redemo, tutor=self.original_tutor).assigned_tutor, self.original_tutor)
+        third = account('tutor_tara', role='TUTOR')
+        self.assertEqual(self.book(redemo, tutor=third).assigned_tutor, third)
 
     def test_a_slot_the_booking_pages_offer_with_a_seat_and_the_child_free(self):
         redemo = self.ask()
@@ -310,8 +315,12 @@ class ScheduleTests(RedemoTestCase):
         self.assertEqual((moved.redemo_for_id, moved.assigned_tutor), (redemo.pk, self.tutor))
         current = state(ReDemoRequest.objects.get(pk=redemo.pk), AFTER)
         self.assertEqual((current.status, current.booking.pk), (ReDemoStatus.SCHEDULED, moved.pk))
-        # Given another tutor, as any booking is.
-        self.assertEqual(assign_tutor(moved, self.original_tutor, now=AFTER)[0].assigned_tutor, self.original_tutor)
+        # Given another tutor, as any booking is -- but never the one who taught the Demo it repeats.
+        with self.assertRaises(RedemoOriginalTutor):
+            assign_tutor(moved, self.original_tutor, now=AFTER)
+        self.assertEqual(DemoBooking.objects.get(pk=moved.pk).assigned_tutor, self.tutor)
+        third = account('tutor_tara', role='TUTOR')
+        self.assertEqual(assign_tutor(moved, third, now=AFTER)[0].assigned_tutor, third)
         # Cancelled, it leaves the request to be scheduled again.
         cancel_booking(moved, reason_code=CancelReason.PARENT_REQUEST, now=AFTER)
         self.assertEqual(self.status(redemo), ReDemoStatus.AWAITING_SCHEDULING)
@@ -328,9 +337,12 @@ class ScheduleTests(RedemoTestCase):
     def test_the_pickers(self):
         redemo = self.ask()
         options = {option['id']: option for option in redemos.tutor_options(redemo, AFTER)}
-        self.assertEqual((options[str(self.tutor.pk)]['free_slots'], options[str(self.tutor.pk)]['tutor_meet_link']),
-                         (14, MEET))
-        self.assertTrue(options[str(self.original_tutor.pk)]['original'])
+        self.assertEqual((options[str(self.tutor.pk)]['free_slots'], options[str(self.tutor.pk)]['tutor_meet_link'],
+                          options[str(self.tutor.pk)]['eligible']), (14, MEET, True))
+        # The original Demo's tutor is listed, free as they are, but never eligible, with why.
+        original = options[str(self.original_tutor.pk)]
+        self.assertEqual((original['original'], original['eligible'], original['status'], original['reason']['code']),
+                         (True, False, 'AVAILABLE', 'REDEMO_ORIGINAL_TUTOR'))
         other = create_booking(request(student='Kiran', phone='0507000001', day=REDEMO_DAY), now=AFTER)[0]
         assign_tutor(other, self.tutor, now=AFTER)
         options = {option['id']: option for option in redemos.tutor_options(redemo, AFTER)}
@@ -436,6 +448,11 @@ class ChainTests(RedemoTestCase):
         # The Re-Demo, now completed, may be taught again: a second request in the chain.
         later = datetime(2026, 11, 1, 12, 0, tzinfo=BOOKING_TIMEZONE)
         second = request_redemo(booking, 'Still unsure about the tutor.', actor=self.admin, now=later)
+        # Re-Demo 2 repeats Re-Demo 1: its tutor is the one who may not teach it; the first Demo's tutor may.
+        with self.assertRaises(RedemoOriginalTutor):
+            schedule_redemo(second, self.tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
+        options = {option['id']: option['eligible'] for option in redemos.tutor_options(second, later)}
+        self.assertEqual((options[str(self.tutor.pk)], options[str(self.original_tutor.pk)]), (False, True))
         third = schedule_redemo(second, self.original_tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
         self.assertEqual(shown_to_tutor(third)['redemo']['number'], 2)
         self.assertEqual(shown_to_tutor(third)['redemo']['original']['tutor'], {'full_name': 'Tutor Neel'})
@@ -572,6 +589,32 @@ class AdminApiTests(RedemoApiTestCase):
         self.assertFalse(Message.objects.filter(demo_booking=booking).exists())
         # An ordinary Demo's communication says it is no Re-Demo.
         self.assertFalse(self.as_user(self.admin).get(f'/api/communications/bookings/demo/{self.demo.pk}/').data['redemo'])
+
+    def test_the_original_tutor_is_refused_however_the_request_is_made(self):
+        redemo = request_redemo(self.demo, REASON, actor=self.bde)
+        client = self.as_user(self.admin)
+        base = f'/api/bookings/redemos/{redemo.pk}/'
+        res = client.get(f'{base}slots/', {'tutor_id': str(self.original_tutor.pk)})
+        self.assertEqual((res.status_code, res.data['error']), (400, 'REDEMO_ORIGINAL_TUTOR'))
+        res = client.post(f'{base}schedule/', self.schedule_body(tutor=self.original_tutor), format='json')
+        self.assertEqual((res.status_code, res.data['error']), (400, 'REDEMO_ORIGINAL_TUTOR'))
+        self.assertFalse(DemoBooking.objects.filter(redemo_for=redemo).exists())
+        # Another tutor books it; then the booking's own tutor change refuses the original tutor too.
+        res = client.post(f'{base}schedule/', self.schedule_body(), format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        booking_id = res.data['booking_id']
+        booking_url = f'/api/bookings/demo/{booking_id}/'
+        tutors = {t['id']: t for t in client.get(f'{booking_url}tutors/').data['tutors']}
+        self.assertEqual((tutors[str(self.original_tutor.pk)]['status'], tutors[str(self.original_tutor.pk)]['reason']['code']),
+                         ('UNAVAILABLE', 'REDEMO_ORIGINAL_TUTOR'))
+        self.assertEqual(tutors[str(self.tutor.pk)]['current'], True)
+        res = client.put(f'{booking_url}tutor/', {'tutor_id': str(self.original_tutor.pk)}, format='json')
+        self.assertEqual((res.status_code, res.data['error']), (400, 'REDEMO_ORIGINAL_TUTOR'))
+        self.assertEqual(DemoBooking.objects.get(pk=booking_id).assigned_tutor, self.tutor)
+        # An ordinary Demo's tutor list marks nobody so.
+        ordinary = create_booking(request(student='Kiran', phone='0507000001', day=self.day))[0]
+        reasons = [t['reason'] for t in client.get(f'/api/bookings/demo/{ordinary.pk}/tutors/').data['tutors']]
+        self.assertFalse(any(reason and reason['code'] == 'REDEMO_ORIGINAL_TUTOR' for reason in reasons))
 
     def test_a_tutor_not_free_is_refused_with_why(self):
         redemo = request_redemo(self.demo, REASON, actor=self.bde)

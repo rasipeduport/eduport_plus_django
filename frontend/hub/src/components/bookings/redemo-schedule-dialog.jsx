@@ -35,8 +35,10 @@ const slotsText = (count) => (count === 1 ? '1 free Demo slot' : `${count} free 
 
 /**
  * Scheduling a Re-Demo (the administrators' step): the tutor -- every active
- * one from GET /api/bookings/redemos/<id>/tutors/, the original Demo's
- * marked, with how many Demo slots they are free for -- then a date and a
+ * one from GET /api/bookings/redemos/<id>/tutors/, with how many Demo slots
+ * they are free for; the one who taught the Demo being repeated is listed
+ * but never selectable (the API's `eligible`), and with no other tutor free
+ * the dialog says so and books nothing -- then a date and a
  * time from that tutor's slots (GET …/slots/?tutor_id=, the reschedule
  * picker's, a time they are not free refused), their Meet link as the
  * booking will keep it, and remarks for them. Confirming (POST …/schedule/)
@@ -110,6 +112,7 @@ export function RedemoScheduleDialog({ redemo, open, onOpenChange, onScheduled }
   }, [open, redemoId, tutorId, reloadKey]);
 
   const tutors = data?.tutors ?? [];
+  const selectable = (option) => option.status === 'AVAILABLE' && option.eligible !== false;
   const tutor = tutors.find((option) => option.id === tutorId);
   const dates = slots?.dates ?? [];
   const shownDay = shownDayOf(dates, day);
@@ -154,16 +157,24 @@ export function RedemoScheduleDialog({ redemo, open, onOpenChange, onScheduled }
   } else {
     body = (
       <div className="flex flex-col gap-4">
+        {tutors.some(selectable) ? null : (
+          <p role="alert" className="bg-warning/10 text-warning rounded-md px-3 py-2 text-sm">
+            No other tutor can teach this Re-Demo: the tutor who taught the Demo being repeated is not eligible, and no
+            other tutor is free in the booking window. Free a tutor&apos;s time, or add a tutor, then schedule it.
+          </p>
+        )}
         <fieldset className="flex max-h-[30vh] flex-col gap-2 overflow-y-auto pr-1" disabled={pending}>
           <legend className="mb-1 text-sm font-medium">Tutor</legend>
           {tutors.map((option) => {
-            const unavailable = option.status !== 'AVAILABLE';
+            const unavailable = !selectable(option);
+            const ineligible = option.eligible === false;
             return (
               <label
                 key={option.id}
+                aria-disabled={unavailable || undefined}
                 className={cn(
                   'flex items-start gap-3 rounded-md border p-3 text-sm transition-colors',
-                  unavailable ? 'cursor-not-allowed opacity-70' : 'hover:bg-muted/40 cursor-pointer',
+                  unavailable ? 'bg-muted/30 cursor-not-allowed opacity-60' : 'hover:bg-muted/40 cursor-pointer',
                   tutorId === option.id && 'border-primary bg-muted/40'
                 )}
               >
@@ -184,8 +195,11 @@ export function RedemoScheduleDialog({ redemo, open, onOpenChange, onScheduled }
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{option.full_name}</span>
-                    {option.original ? <Badge variant="outline">Original tutor</Badge> : null}
-                    <AvailabilityBadge status={option.status} />
+                    {ineligible ? (
+                      <Badge variant="outline">Original tutor · Not eligible</Badge>
+                    ) : (
+                      <AvailabilityBadge status={option.status} />
+                    )}
                   </span>
                   <span className="text-muted-foreground mt-1 block text-xs">
                     {option.reason ? option.reason.message : slotsText(option.free_slots)}
