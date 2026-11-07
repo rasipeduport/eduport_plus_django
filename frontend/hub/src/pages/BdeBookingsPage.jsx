@@ -4,16 +4,16 @@ import { CalendarCheck, ChevronRightIcon, ClipboardCheck, SearchXIcon } from 'lu
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
-import { BOOKING_STATUSES, DEFAULT_WHEN, WHEN_FILTERS, bdeBookingsUrl } from '@/lib/bookings';
+import { bdeBookingParams, readBdeBookingFilters } from '@/lib/bde-booking-filters';
+import { BOOKING_STATUSES, DEFAULT_WHEN, bdeBookingsUrl } from '@/lib/bookings';
 import { enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
 import { useListParams } from '@/hooks/use-list-params';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
+import { BdeBookingFilters } from '@/components/bookings/bde-booking-filters';
 import { BookingStateBadge } from '@/components/bookings/booking-badges';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
-import { DateRangeFilter } from '@/components/page/date-range-filter';
-import { FilterSelect, ListToolbar, SearchField } from '@/components/page/list-toolbar';
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
@@ -34,10 +34,6 @@ const TYPES = {
   },
 };
 const PAGE_SIZE = 25;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const WHEN_VALUES = new Set(WHEN_FILTERS.map((option) => option.value));
-// The date filter's choices besides its default (Upcoming, shown as the select's empty value).
-const OTHER_WHENS = WHEN_FILTERS.filter((option) => option.value !== DEFAULT_WHEN);
 // A Re-Demo is only ever a Demo's.
 const STATUSES = {
   DEMO: BOOKING_STATUSES,
@@ -61,10 +57,12 @@ function State({ booking }) {
 /**
  * A BDE's Demo or Diagnostic bookings (`type`): every booking of that type
  * made for their own enquiries, as GET /api/bde/bookings/<type>/ lists them --
- * searched and filtered by status, by upcoming or past, and by date, all kept
- * in the URL (q, status, when, from, to, page). Each opens its enquiry's
- * workspace on the Bookings tab with that booking highlighted, where the BDE
- * acts on it; the workspace's way back returns to this list as it was.
+ * filtered by class date (Today, This Week, This Month, All Time or Custom, in
+ * Indian dates), searched, and filtered by booking status and schedule, all
+ * kept in the URL (dates, from, to, q, status, when, page) and read by
+ * lib/bde-booking-filters. Each opens its enquiry's workspace on the Bookings
+ * tab with that booking highlighted, where the BDE acts on it; the workspace's
+ * way back returns to this list as it was.
  */
 export default function BdeBookingsPage({ user, type }) {
   const { icon, title, description, noun } = TYPES[type];
@@ -77,26 +75,14 @@ export default function BdeBookingsPage({ user, type }) {
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
-  const q = (searchParams.get('q') ?? '').trim();
-  const status = statuses.some((option) => option.value === searchParams.get('status')) ? searchParams.get('status') : '';
-  const when = WHEN_VALUES.has(searchParams.get('when')) ? searchParams.get('when') : DEFAULT_WHEN;
-  const from = DATE_RE.test(searchParams.get('from') ?? '') ? searchParams.get('from') : '';
-  const to = DATE_RE.test(searchParams.get('to') ?? '') ? searchParams.get('to') : '';
-  const filtered = Boolean(q || status || from || to || when !== DEFAULT_WHEN);
+  const filters = readBdeBookingFilters(searchParams, statuses);
+  const { page, q, status, when, from, to, filtered } = filters;
 
   useEffect(() => {
     let active = true;
     setPending(true);
 
-    const params = { page, page_size: PAGE_SIZE };
-    if (q) params.q = q;
-    if (status) params.status = status;
-    // "All dates" is the page's own word for no date filter.
-    if (when !== 'all') params.when = when;
-    if (from) params.from = from;
-    if (to) params.to = to;
-
+    const params = bdeBookingParams({ page, q, status, when, from, to }, PAGE_SIZE);
     api
       .get(bdeBookingsUrl(type), { params })
       .then((response) => {
@@ -259,7 +245,7 @@ export default function BdeBookingsPage({ user, type }) {
               }
               action={
                 <Button variant="outline" onClick={clear}>
-                  Clear filters
+                  Clear all filters
                 </Button>
               }
             />
@@ -267,10 +253,10 @@ export default function BdeBookingsPage({ user, type }) {
             <EmptyState
               icon={icon}
               title={`No upcoming ${noun}`}
-              description={`Upcoming ${noun} booked for your enquiries appear here. Earlier ones are under All dates.`}
+              description={`Upcoming ${noun} booked for your enquiries appear here. Earlier ones are under All Schedules.`}
               action={
                 <Button variant="outline" onClick={() => update({ when: 'all' })}>
-                  Show all dates
+                  Show all schedules
                 </Button>
               }
             />
@@ -289,29 +275,7 @@ export default function BdeBookingsPage({ user, type }) {
     }
     content = (
       <div className="flex flex-col gap-4">
-        <ListToolbar active={filtered} onClear={clear}>
-          <SearchField
-            value={q}
-            onSearch={(text) => update({ q: text || null })}
-            label="Search bookings"
-            placeholder="Search student, parent or phone…"
-          />
-          <FilterSelect
-            label="Filter by status"
-            placeholder="All statuses"
-            value={status}
-            onChange={(value) => update({ status: value || null })}
-            options={statuses}
-          />
-          <FilterSelect
-            label="Filter by upcoming or past"
-            placeholder="Upcoming"
-            value={when === DEFAULT_WHEN ? '' : when}
-            onChange={(value) => update({ when: value || null })}
-            options={OTHER_WHENS}
-          />
-          <DateRangeFilter from={from} to={to} onChange={(range) => update(range)} />
-        </ListToolbar>
+        <BdeBookingFilters filters={filters} statuses={statuses} onChange={update} onClear={clear} />
         {list}
       </div>
     );

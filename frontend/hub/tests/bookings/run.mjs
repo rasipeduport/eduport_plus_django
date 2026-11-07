@@ -24,9 +24,11 @@ const src = path.join(hub, 'src');
 
 // ------------------------------------------------------------------ bundle
 const bundle = path.join(tmpdir(), `hub-bookings-${process.pid}.mjs`);
-await esbuild.build({
-  entryPoints: [path.join(here, 'harness.jsx')],
-  outfile: bundle,
+// The plain helpers some tests check on their own (libs.js), bundled the same way.
+const libsBundle = path.join(tmpdir(), `hub-bookings-libs-${process.pid}.mjs`);
+const build = (entry, outfile) => esbuild.build({
+  entryPoints: [path.join(here, entry)],
+  outfile,
   bundle: true,
   format: 'esm',
   platform: 'browser',
@@ -46,6 +48,8 @@ await esbuild.build({
     },
   }],
 });
+await build('harness.jsx', bundle);
+await build('libs.js', libsBundle);
 
 // ------------------------------------------------------------- browser env
 const virtualConsole = new VirtualConsole();
@@ -75,6 +79,8 @@ process.on('unhandledRejection', () => {});
 
 const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeActivity, meetLinkProblem, planMemberSave } =
   await import(pathToFileURL(bundle).href);
+const { bdeBookingParams, classDateSpan, indianToday, readBdeBookingFilters, rangeLabel } =
+  await import(pathToFileURL(libsBundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -3264,6 +3270,140 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
   assert.equal(calls('GET', FOLLOW_UPS).length, 2, 'the list and its counts are read again');
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td span').textContent)),
     ['Call new enquiryDue today', 'Parent confirmationDue today', 'Share tutor reportPending', 'Re-Demo confirmationPending']);
+});
+
+// ------------------------------------------------------- BDE Demo and Diagnostic Bookings: filters
+const BDE_LISTS = { id: 'bde-lists', role: 'BDE', permissions: ['accounts.view_own_enquiries', 'accounts.view_own_lead_communications'] };
+const BDE_DEMO_LIST = '/api/bde/bookings/demo/';
+const BDE_DIAGNOSTIC_LIST = '/api/bde/bookings/diagnostic/';
+const bdeListOf = (booking_type) => ({ count: 1, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [{
+  id: `b-${booking_type.toLowerCase()}`, booking_type, date: '2026-11-10', time: '19:30', starts_at: '2026-11-10T14:00:00+00:00',
+  status: 'BOOKED', activity_state: 'UPCOMING', started_at: null, booked_at: '2026-11-01T10:00:00+05:30', tutor: null,
+  parent_confirmation: 'AWAITING', redemo: false,
+  enquiry: { id: 'lead-1', parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8' } }] });
+const lastParams = (url) => calls('GET', url).at(-1).params;
+const pressed = () => [...document.querySelectorAll('[aria-pressed="true"]')].map((element) => clean(element.textContent));
+const searchBox = () => document.querySelector('input[aria-label="Search bookings"]');
+const LIST_STATUSES = ['BOOKED', 'COMPLETED', 'REDEMO_REQUIRED', 'RESCHEDULED', 'CANCELLED'].map((value) => ({ value }));
+
+/** The options of the Radix Select labelled `label`, read with it open, then closed again. */
+async function optionsOf(label) {
+  const trigger = document.querySelector(`[aria-label="${label}"]`);
+  trigger.focus();
+  await keyDown(trigger, 'Enter');
+  const options = [...document.querySelectorAll('[role="option"]')].map((element) => clean(element.textContent));
+  await keyDown(document.activeElement, 'Escape');
+  return options;
+}
+
+test('BDE booking filters: Today, This Week (Monday to Sunday) and This Month are Indian dates, whatever the device says', () => {
+  const at = (iso) => new Date(iso);
+  // 01:30 IST on Monday 9 Nov is still Sunday 8 Nov in UTC: India's date decides.
+  assert.equal(indianToday(at('2026-11-08T20:00:00Z')), '2026-11-09');
+  assert.deepEqual(classDateSpan('today', at('2026-11-08T20:00:00Z')), { from: '2026-11-09', to: '2026-11-09' });
+  assert.deepEqual(classDateSpan('week', at('2026-11-08T20:00:00Z')), { from: '2026-11-09', to: '2026-11-15' });
+  // A Sunday closes its week; a week and a month run across a new year and a leap day.
+  assert.deepEqual(classDateSpan('week', at('2026-11-08T10:00:00Z')), { from: '2026-11-02', to: '2026-11-08' });
+  assert.deepEqual(classDateSpan('week', at('2027-01-01T06:00:00Z')), { from: '2026-12-28', to: '2027-01-03' });
+  assert.deepEqual(classDateSpan('month', at('2028-02-10T06:00:00Z')), { from: '2028-02-01', to: '2028-02-29' });
+  // 23:59 IST on 31 Dec is December; midnight IST (18:30 UTC) is January.
+  assert.deepEqual(classDateSpan('month', at('2026-12-31T18:29:00Z')), { from: '2026-12-01', to: '2026-12-31' });
+  assert.deepEqual(classDateSpan('month', at('2026-12-31T18:30:00Z')), { from: '2027-01-01', to: '2027-01-31' });
+  assert.equal(classDateSpan('all', at('2026-11-08T10:00:00Z')), null);
+  assert.equal(classDateSpan('custom', at('2026-11-08T10:00:00Z')), null);
+});
+
+test('BDE booking filters: read from the URL, unknown values dropped, a link from before the presets kept as Custom', () => {
+  const read = (query) => readBdeBookingFilters(new URLSearchParams(query), LIST_STATUSES, new Date('2026-11-08T10:00:00Z'));
+  const defaults = { page: 1, q: '', status: '', when: 'upcoming', dates: 'all', from: '', to: '', filtered: false };
+  assert.deepEqual(read(''), defaults);
+  assert.deepEqual(read('dates=week&status=BOOKED&when=past&q=Riya&page=3'),
+    { page: 3, q: 'Riya', status: 'BOOKED', when: 'past', dates: 'week', from: '2026-11-02', to: '2026-11-08', filtered: true });
+  // A preset's own span wins over stray dates; Custom has its own; only from/to is Custom; Custom without them is All Time.
+  assert.deepEqual([read('dates=month&from=2026-01-01').from, read('dates=month&from=2026-01-01').to], ['2026-11-01', '2026-11-30']);
+  assert.deepEqual(read('dates=custom&from=2026-11-01&to=2026-11-15'),
+    { ...defaults, dates: 'custom', from: '2026-11-01', to: '2026-11-15', filtered: true });
+  assert.equal(read('from=2026-11-01&to=2026-11-15').dates, 'custom');
+  assert.deepEqual(read('dates=custom'), defaults);
+  assert.deepEqual(read('dates=yesterday&status=LOST&when=soon&from=2026-1-1'), defaults);
+  assert.deepEqual(read('when=all'), { ...defaults, when: 'all', filtered: true });
+  // What the API is asked: All Schedules asks for neither; All Time for no dates.
+  assert.deepEqual(bdeBookingParams(read(''), 25), { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(bdeBookingParams(read('dates=today&when=all&status=CANCELLED'), 25),
+    { page: 1, page_size: 25, status: 'CANCELLED', from: '2026-11-08', to: '2026-11-08' });
+});
+
+test('BDE Demo Bookings: class date presets and the other filters combine, each change on page 1; Clear all filters puts them back', async () => {
+  serve({ [`GET ${BDE_DEMO_LIST}`]: bdeListOf('DEMO') });
+  const page = await open('/demo-bookings?page=2', BDE_LISTS);
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 2, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(pressed(), ['All Time']);
+  assert.match(bodyText(), /Class dateTodayThis WeekThis MonthAll TimeCustomClasses on any date/);
+  assert.ok(!button('Clear all filters'), 'nothing to clear at the defaults');
+  // The table and its View are as before.
+  assert.equal(rows().length, 1);
+  assert.ok(document.querySelector('a[aria-label="View Riya\'s booking on Tue, 10 Nov · 7:30 PM IST"]'));
+
+  const month = classDateSpan('month', new Date());
+  await click(button('This Month'));
+  assert.equal(page.location().search, '?dates=month');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, when: 'upcoming', ...month });
+  assert.deepEqual(pressed(), ['This Month']);
+  assert.ok(bodyText().includes(`Classes on ${rangeLabel(month.from, month.to)} (IST)`));
+
+  await choose('Filter by booking status', 'Booked');
+  await choose('Filter by schedule', 'Past');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, status: 'BOOKED', when: 'past', ...month });
+  await choose('Filter by schedule', 'All Schedules');
+  await typeInto(searchBox(), 'Riya');
+  await submit(searchBox().closest('form'));
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, q: 'Riya', status: 'BOOKED', ...month });
+  assert.equal(page.location().search, '?dates=month&status=BOOKED&when=all&q=Riya');
+  assert.deepEqual(await optionsOf('Filter by booking status'),
+    ['All statuses', 'Booked', 'Completed', 'Re-Demo required', 'Rescheduled', 'Cancelled']);
+
+  await click(button('Clear all filters'));
+  assert.equal(page.location().search, '');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, when: 'upcoming' });
+  assert.deepEqual(pressed(), ['All Time']);
+  assert.equal(searchBox().value, '');
+  assert.ok(!button('Clear all filters'));
+});
+
+test('BDE Diagnostic Bookings: the same filters -- a Custom range from the URL or picked on the calendar, and Today', async () => {
+  serve({ [`GET ${BDE_DIAGNOSTIC_LIST}`]: bdeListOf('DIAGNOSTIC') });
+  const page = await open('/diagnostic-bookings?dates=custom&from=2026-11-01&to=2026-11-15', BDE_LISTS);
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST),
+    { page: 1, page_size: 25, when: 'upcoming', from: '2026-11-01', to: '2026-11-15' });
+  assert.deepEqual(pressed(), ['Custom']);
+  assert.ok(bodyText().includes('Classes on 1 Nov 2026 – 15 Nov 2026 (IST)'));
+  assert.ok(button('Clear all filters'));
+  // A Re-Demo is only ever a Demo's.
+  assert.deepEqual(await optionsOf('Filter by booking status'), ['All statuses', 'Booked', 'Completed', 'Rescheduled', 'Cancelled']);
+  assert.deepEqual(await optionsOf('Filter by schedule'), ['Upcoming', 'Past', 'All Schedules']);
+
+  const today = classDateSpan('today', new Date());
+  await click(button('Today'));
+  assert.equal(page.location().search, '?dates=today');
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST), { page: 1, page_size: 25, when: 'upcoming', ...today });
+
+  // Custom: two clicks on the calendar, in either order, make the range -- here the last day first.
+  const month = today.from.slice(0, 8);
+  await click(button('Custom'));
+  const calendar = () => document.querySelector('[role="dialog"]');
+  assert.match(clean(calendar().textContent), /Pick the first day\./);
+  // Its weeks run Monday to Sunday, as This Week does.
+  assert.deepEqual([...calendar().querySelectorAll('thead th')].map((th) => th.textContent),
+    ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']);
+  await click(calendar().querySelector(`td[data-day="${month}12"] button`));
+  assert.match(clean(calendar().textContent), /Now pick the last day\./);
+  assert.equal(calls('GET', BDE_DIAGNOSTIC_LIST).length, 2, 'nothing is asked for before the range is whole');
+  await click(calendar().querySelector(`td[data-day="${month}10"] button`));
+  assert.equal(page.location().search, `?dates=custom&from=${month}10&to=${month}12`);
+  assert.deepEqual(lastParams(BDE_DIAGNOSTIC_LIST),
+    { page: 1, page_size: 25, when: 'upcoming', from: `${month}10`, to: `${month}12` });
+  assert.deepEqual(pressed(), ['Custom']);
+  assert.ok(!calendar(), 'the calendar closes once the range is picked');
 });
 
 // ------------------------------------------------------------------ run

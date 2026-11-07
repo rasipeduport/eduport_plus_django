@@ -11087,8 +11087,8 @@
    }
   },
   "/demo-bookings @ bde": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, approved 2026-11-07): /demo-bookings and /diagnostic-bookings list the BDE's own leads' bookings of each type from GET /api/bde/bookings/<type>/ -- searched, filtered by status, by upcoming or past and by date range, and paged, all in the URL -- each opening its enquiry's workspace on Bookings with that booking highlighted, the way back returning to the list. The BDE dashboard's Demo and Diagnostic tiles open those lists.",
-   "note": "Demo Bookings opens for the BDE; until its list arrives it sends them to My Enquiries. Demo Bookings lists the BDE's demo classes (here the one demo), with its filters, paging and each one's View.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, approved 2026-11-07): /demo-bookings and /diagnostic-bookings list the BDE's own leads' bookings of each type from GET /api/bde/bookings/<type>/ -- searched, filtered by status, by upcoming or past and by date range, and paged, all in the URL -- each opening its enquiry's workspace on Bookings with that booking highlighted, the way back returning to the list. The BDE dashboard's Demo and Diagnostic tiles open those lists. BDE booking filters (2026-11-08): Demo and Diagnostic Bookings filter by class date in a section of their own -- Today, This Week (Monday to Sunday), This Month, All Time (the default) or a Custom range picked on a calendar, each a span of Indian dates sent as the API's from/to -- then search, booking status and schedule (Upcoming, the default, Past or All Schedules), with Clear all filters while any filter is off its default; every value stays in the URL (dates, from, to, q, status, when) and a change goes back to page 1.",
+   "note": "Demo Bookings opens for the BDE; until its list arrives it sends them to My Enquiries. Demo Bookings lists the BDE's demo classes (here the one demo), with its filters, paging and each one's View. The class date is chosen from Today, This Week, This Month, All Time and Custom instead of one date-range button; the filters are named Filter by booking status and Filter by schedule, and an empty list offers Show all schedules.",
    "result": {
     "at": "/demo-bookings",
     "noAccess": false,
@@ -11104,10 +11104,14 @@
     ],
     "buttons": [
      "1",
+     "All Time",
      "All statuses",
-     "Any date",
+     "Custom",
      "Next",
      "Previous",
+     "This Month",
+     "This Week",
+     "Today",
      "Toggle Sidebar",
      "Upcoming"
     ],
@@ -11125,8 +11129,8 @@
     ],
     "tabs": [],
     "filters": [
-     "Filter by status",
-     "Filter by upcoming or past"
+     "Filter by booking status",
+     "Filter by schedule"
     ],
     "menus": [],
     "calls": [
@@ -11466,8 +11470,8 @@
    }
   },
   "/diagnostic-bookings @ bde": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, approved 2026-11-07): /demo-bookings and /diagnostic-bookings list the BDE's own leads' bookings of each type from GET /api/bde/bookings/<type>/ -- searched, filtered by status, by upcoming or past and by date range, and paged, all in the URL -- each opening its enquiry's workspace on Bookings with that booking highlighted, the way back returning to the list. The BDE dashboard's Demo and Diagnostic tiles open those lists.",
-   "note": "Diagnostic Bookings opens for the BDE; until its list arrives it sends them to My Enquiries. Diagnostic Bookings lists the BDE's diagnostic tests: none upcoming here, so it offers Show all dates.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, approved 2026-11-07): /demo-bookings and /diagnostic-bookings list the BDE's own leads' bookings of each type from GET /api/bde/bookings/<type>/ -- searched, filtered by status, by upcoming or past and by date range, and paged, all in the URL -- each opening its enquiry's workspace on Bookings with that booking highlighted, the way back returning to the list. The BDE dashboard's Demo and Diagnostic tiles open those lists. BDE booking filters (2026-11-08): Demo and Diagnostic Bookings filter by class date in a section of their own -- Today, This Week (Monday to Sunday), This Month, All Time (the default) or a Custom range picked on a calendar, each a span of Indian dates sent as the API's from/to -- then search, booking status and schedule (Upcoming, the default, Past or All Schedules), with Clear all filters while any filter is off its default; every value stays in the URL (dates, from, to, q, status, when) and a change goes back to page 1.",
+   "note": "Diagnostic Bookings opens for the BDE; until its list arrives it sends them to My Enquiries. Diagnostic Bookings lists the BDE's diagnostic tests: none upcoming here, so it offers Show all dates. The class date is chosen from Today, This Week, This Month, All Time and Custom instead of one date-range button; the filters are named Filter by booking status and Filter by schedule, and an empty list offers Show all schedules.",
    "result": {
     "at": "/diagnostic-bookings",
     "noAccess": false,
@@ -11482,9 +11486,13 @@
      "/activity"
     ],
     "buttons": [
+     "All Time",
      "All statuses",
-     "Any date",
-     "Show all dates",
+     "Custom",
+     "Show all schedules",
+     "This Month",
+     "This Week",
+     "Today",
      "Toggle Sidebar",
      "Upcoming"
     ],
@@ -11492,8 +11500,8 @@
     "headers": [],
     "tabs": [],
     "filters": [
-     "Filter by status",
-     "Filter by upcoming or past"
+     "Filter by booking status",
+     "Filter by schedule"
     ],
     "menus": [],
     "calls": [
