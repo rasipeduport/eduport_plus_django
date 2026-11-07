@@ -87,7 +87,7 @@ function WorkspaceSkeleton() {
  *   Tutor Feedback  its report, read-only, with its PDF and every version
  *   Activity        its whole timeline, the bookings it replaced included
  *
- * The header calls or messages the parent and offers what the booking allows:
+ * The header messages the parent on WhatsApp and offers what the booking allows:
  * one tutor action -- Assign Tutor, or Change Tutor once it has one
  * (accounts.assign_booking_tutor, while the API says its tutor may change) --
  * Reschedule and Cancel booking (the API's actions), Request Re-Demo for a

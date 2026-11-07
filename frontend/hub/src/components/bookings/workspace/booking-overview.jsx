@@ -40,10 +40,13 @@ function FromLead({ loading, children }) {
 
 /**
  * Where the enquiry stands and who has it: from the lead in full (`lead`, GET
- * /api/leads/<id>/) for holders of accounts.view_all_leads -- its source,
- * status, owner BDE (and since when, when they took it later than it came in)
- * and when it first came in, with the lead to open -- else what the booking
- * itself says of its enquiry (its source and BDE).
+ * /api/leads/<id>/) for holders of accounts.view_all_leads -- its original
+ * source (how the parent first reached Eduport Plus, a BDE's link named as
+ * such: the lead's own source_label, which a BDE's enquiry shows too; how this
+ * booking came in is the header's Came in), status, owner BDE (and since when,
+ * when they took it later than it came in) and when it first came in, with the
+ * lead to open -- each a placeholder until the lead arrives. Without the lead
+ * to read, what the booking itself says of its enquiry (its source and BDE).
  */
 function EnquiryCard({ booking, lead, loading, showLead }) {
   const brief = booking.lead ?? {};
@@ -63,7 +66,10 @@ function EnquiryCard({ booking, lead, loading, showLead }) {
       }
     >
       <dl className="divide-y">
-        <Field label="Source">{lead ? lead.source_label : sourceLabel(brief.source)}</Field>
+        {/* How the parent first reached Eduport Plus -- never how this booking came in (the header's Came in). */}
+        <Field label="Original enquiry source">
+          <FromLead loading={loading}>{lead ? lead.source_label : showLead ? null : sourceLabel(brief.source)}</FromLead>
+        </Field>
         <Field label="Status">
           <FromLead loading={loading}>{lead ? <EnquiryStatusBadge enquiry={lead} /> : null}</FromLead>
         </Field>

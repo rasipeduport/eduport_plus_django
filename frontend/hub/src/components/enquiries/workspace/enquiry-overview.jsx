@@ -28,7 +28,7 @@ const CONDUCTED = new Set(['COMPLETED', 'REDEMO_REQUIRED']);
  * administrators' booking workspace draws the same steps on its own timeline.
  */
 export function enquiryJourney(enquiry, ownerTitle = 'Became yours') {
-  const steps = [{ key: 'received', at: enquiry.created_at, title: 'Enquiry received', detail: `Source: ${enquiry.source_label}` }];
+  const steps = [{ key: 'received', at: enquiry.created_at, title: 'Enquiry received', detail: `Original enquiry source: ${enquiry.source_label}` }];
   const received = new Date(enquiry.created_at).getTime();
   if (enquiry.added_at && Math.abs(new Date(enquiry.added_at).getTime() - received) > 60_000) {
     steps.push({ key: 'yours', at: enquiry.added_at, title: ownerTitle });
@@ -143,7 +143,7 @@ export function EnquiryOverview({ enquiry, onShowBooking }) {
       </Panel>
       <Panel icon={ClipboardListIcon} title="Enquiry">
         <dl className="divide-y">
-          <Field label="Source">{enquiry.source_label}</Field>
+          <Field label="Original enquiry source">{enquiry.source_label}</Field>
           <Field label="Status">{enquiry.status_label}</Field>
           <Field label="Next booking">
             {next ? (

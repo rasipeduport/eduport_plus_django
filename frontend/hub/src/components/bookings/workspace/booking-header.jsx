@@ -1,13 +1,15 @@
-import { ArrowRightLeftIcon, CalendarX2Icon, MessageCircleIcon, PhoneIcon, RotateCcwIcon } from 'lucide-react';
+import { ArrowRightLeftIcon, CalendarClockIcon, CalendarX2Icon, MessageCircleIcon, RotateCcwIcon } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
-import { BookingStateBadge, RedemoBadge, RedemoStatusBadge, StartInfo } from '@/components/bookings/booking-badges';
-import { cameInLabel } from '@/lib/bookings';
+import { BookingStateBadge, RedemoBadge, RedemoStatusBadge } from '@/components/bookings/booking-badges';
 import { formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
-import { getInitials } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
+
+/** A booking's id as the BDE's booking sheet shows it: its first eight characters, upper-cased -- the whole id on hover. */
+const shortId = (id) => String(id).slice(0, 8).toUpperCase();
 
 /** Whether the booking has its tutor: who, or that a booking still to come needs one. */
 function TutorStatus({ booking }) {
@@ -16,20 +18,45 @@ function TutorStatus({ booking }) {
   return null;
 }
 
-/** One fact of the booking, its label muted: "Seat 1". */
-function Fact({ label, children }) {
+/** One detail of the booking, its label muted beside its value: "Booking ID 7F4D83DF". */
+function Detail({ label, children }) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+    <div className="flex min-w-0 items-baseline gap-1.5">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 font-medium break-words">{children || <span className="text-muted-foreground">—</span>}</dd>
+      <dd className="min-w-0 font-medium break-words">
+        {children || <span className="text-muted-foreground font-normal">—</span>}
+      </dd>
     </div>
+  );
+}
+
+/**
+ * The booking's details, compact, under its slot: its own reference (Booking
+ * ID, every booking its own) and, for a Demo booked with a Demo invitation,
+ * who sent the invitation and the Diagnostic it came from. Nothing else: how
+ * the enquiry first came in is the Enquiry card's, when the booking was made
+ * is on All Bookings and its timeline, its start on Tutor & Assignment.
+ */
+function BookingDetails({ booking }) {
+  // A Demo invitation's booking: a BDE handoff that is not a Re-Demo an administrator scheduled.
+  const invited = booking.channel === 'BDE_HANDOFF' && !booking.redemo_from;
+  return (
+    <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <Detail label="Booking ID">
+        <span className="font-mono" title={booking.id}>
+          {shortId(booking.id)}
+        </span>
+      </Detail>
+      {invited ? <Detail label="Invited by">{booking.created_by?.full_name}</Detail> : null}
+      {booking.invited_from ? <Detail label="From Diagnostic">{slotLabel(booking.invited_from.slot)}</Detail> : null}
+    </dl>
   );
 }
 
 /** A link-like button inside a line of text. */
 function InlineLink({ onClick, label, children }) {
   return (
-    <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onClick} aria-label={label}>
+    <Button variant="link" size="sm" className="h-auto p-0" onClick={onClick} aria-label={label}>
       {children}
     </Button>
   );
@@ -39,45 +66,9 @@ function InlineLink({ onClick, label, children }) {
 function Note({ icon: Icon, children }) {
   return (
     <li className="flex items-start gap-2">
-      <Icon className="text-muted-foreground mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      <Icon className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">{children}</span>
     </li>
-  );
-}
-
-/**
- * The booking's own facts, under its name: its seat, when it was booked, how
- * it came in and who it came through -- a BDE credited by their link, the
- * administrator who scheduled a Re-Demo, or whoever sent the Demo invitation
- * and from which Diagnostic -- and whether its tutor started it (read-only:
- * only the tutor starts a booking).
- */
-function Facts({ booking }) {
-  let origin;
-  if (booking.channel === 'BDE_HANDOFF' && booking.redemo_from) {
-    origin = <Fact label="Scheduled by">{booking.created_by?.full_name}</Fact>;
-  } else if (booking.channel === 'BDE_HANDOFF') {
-    origin = (
-      <>
-        <Fact label="Invited by">{booking.created_by?.full_name}</Fact>
-        <Fact label="From Diagnostic">{booking.invited_from ? slotLabel(booking.invited_from.slot) : null}</Fact>
-      </>
-    );
-  } else {
-    origin = <Fact label="Credited BDE">{booking.bde?.full_name}</Fact>;
-  }
-  return (
-    <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-      <Fact label="Seat">{booking.seat ? String(booking.seat) : null}</Fact>
-      <Fact label="Booked on">{formatDay(booking.booked_at)}</Fact>
-      <Fact label="Came in">{cameInLabel(booking)}</Fact>
-      {origin}
-      {booking.status !== 'RESCHEDULED' ? (
-        <Fact label="Started">
-          <StartInfo booking={booking} showBy />
-        </Fact>
-      ) : null}
-    </dl>
   );
 }
 
@@ -159,18 +150,17 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
       </Note>
     );
   }
-  return notes.length ? <ul className="flex flex-col gap-1.5 text-xs">{notes}</ul> : null;
+  return notes.length ? <ul className="flex flex-col gap-1.5 text-sm sm:pl-18">{notes}</ul> : null;
 }
 
 /**
  * Who the booking is for and how to reach them, as the BDE's enquiry
- * workspace heads an enquiry -- compact, the actions on one row: the student,
- * the booking's type, where it stands and its tutor; the class and syllabus,
- * the parent and their number; the booking's reference (its id's first eight
- * characters: a lead has no student id) and its slot (IST); then the
- * booking's own facts (Facts) and what has happened to it (Notes). Call and
- * WhatsApp come first among `actions`, the booking's own (the workspace offers
- * only those its state and the caller's permissions allow). A booking of its
+ * workspace heads an enquiry: by the student's name, the booking's type,
+ * where it stands and its tutor; under it the class and syllabus, the parent
+ * and their number, the booking's slot (IST) and its details
+ * (BookingDetails); WhatsApp and `actions` (the booking's own, which the
+ * workspace offers only as its state and the caller's permissions allow) on
+ * the right; then what has happened to the booking (Notes). A booking of its
  * chain opens in its own workspace (`onOpenBooking(id)`), a Re-Demo request
  * on Demo Bookings' Re-Demo tab (`onOpenRedemo(id)`).
  */
@@ -198,38 +188,26 @@ export function BookingHeader({ booking, actions, onOpenBooking, onOpenRedemo })
               <span>Parent: {booking.parent_name}</span>
               <span className="tabular-nums">{booking.phone}</span>
             </p>
-            <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-sm">
-              <span className="text-muted-foreground">
-                Booking ID: <span className="font-mono">{booking.id.slice(0, 8)}</span>
-              </span>
-              <span className="font-medium">{slotLabel(booking.slot)}</span>
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm font-medium">
+              <CalendarClockIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+              {slotLabel(booking.slot)}
             </p>
+            <BookingDetails booking={booking} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className={cn('flex flex-wrap items-center gap-2 lg:justify-end', !links && !actions && 'hidden')}>
           {links ? (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <a href={links.tel}>
-                  <PhoneIcon />
-                  Call
-                </a>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <a href={links.whatsapp} target="_blank" rel="noopener noreferrer">
-                  <MessageCircleIcon />
-                  WhatsApp
-                </a>
-              </Button>
-            </>
+            <Button variant="outline" size="sm" asChild>
+              <a href={links.whatsapp} target="_blank" rel="noopener noreferrer">
+                <MessageCircleIcon />
+                WhatsApp
+              </a>
+            </Button>
           ) : null}
           {actions}
         </div>
       </div>
-      <div className="flex flex-col gap-2 sm:pl-18">
-        <Facts booking={booking} />
-        <Notes booking={booking} onOpenBooking={onOpenBooking} onOpenRedemo={onOpenRedemo} />
-      </div>
+      <Notes booking={booking} onOpenBooking={onOpenBooking} onOpenRedemo={onOpenRedemo} />
     </div>
   );
 }
