@@ -565,6 +565,9 @@ SCENARIOS = [
     Scenario('bde.dashboard', 'get', '/api/bde/dashboard/', capture=_bde_dashboard),
     Scenario('bde.enquiries.list', 'get', '/api/bde/enquiries/'),
     Scenario('bde.enquiries.detail', 'get', '/api/bde/enquiries/{lead_a}/'),
+    # Staff's notes on their own enquiry (bookings.notes): lead_a is nobody's here; the new-role world gives it,
+    # with no notes yet, to its BDE.
+    Scenario('bde.enquiries.notes', 'get', '/api/bde/enquiries/{lead_a}/notes/'),
     # A BDE's Demo Bookings list (BDE Hub redesign, Phase 5): their own leads' bookings only.
     Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
@@ -578,6 +581,8 @@ SCENARIOS = [
     Scenario('leads.list', 'get', '/api/leads/'),
     Scenario('leads.bdes', 'get', '/api/leads/bdes/'),
     Scenario('leads.detail', 'get', '/api/leads/{lead_a}/'),
+    # Staff's notes on any lead (bookings.notes): lead_a has none yet.
+    Scenario('leads.notes', 'get', '/api/leads/{lead_a}/notes/'),
     Scenario('leads.create', 'post', '/api/leads/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000002',
         'student_name': 'Matrix Admin Lead', 'grade': 'Class 6', 'source': 'PHONE_CALL'}),
@@ -667,6 +672,8 @@ SCENARIOS = [
     Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/demo/{booking_a}/'),
     # Start Demo: booking_a has no tutor, so no one may start it.
     Scenario('tutor_bookings.start', 'post', '/api/tutor/bookings/demo/{booking_a}/start/', {}),
+    # Staff's notes on an assigned booking's lead (bookings.notes): booking_a has no tutor, so no one reaches them.
+    Scenario('tutor_bookings.notes', 'get', '/api/tutor/bookings/demo/{booking_a}/notes/'),
     # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
     Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
     Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),

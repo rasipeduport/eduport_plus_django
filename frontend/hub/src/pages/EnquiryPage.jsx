@@ -17,10 +17,10 @@ import { BookingCommunicationSheet } from '@/components/communications/communica
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
-import { EnquiryActivity } from '@/components/enquiries/workspace/enquiry-activity';
 import { EnquiryBookings } from '@/components/enquiries/workspace/enquiry-bookings';
 import { EnquiryFollowUps } from '@/components/enquiries/workspace/enquiry-follow-ups';
 import { EnquiryHeader } from '@/components/enquiries/workspace/enquiry-header';
+import { EnquiryNotes } from '@/components/enquiries/workspace/enquiry-notes';
 import { EnquiryOverview } from '@/components/enquiries/workspace/enquiry-overview';
 
 function EnquirySkeleton() {
@@ -62,8 +62,9 @@ function Unavailable({ failure }) {
  * every booking made for them (Bookings), the reports on those bookings to send
  * to the parent (Tutor Feedback, for holders of accounts.view_own_lead_reports),
  * the calls and parent messages still to do (Follow-ups, for holders of
- * accounts.view_own_lead_communications), what has happened to its bookings
- * (Activity) and Sales & Payment, still to come. The parent is called or
+ * accounts.view_own_lead_communications), Sales & Payment, still to come, and
+ * the notes staff keep on it -- the BDE, the tutors teaching its bookings and
+ * the administrators (Notes, never the parent's). The parent is called or
  * messaged from here, and sent the BDE's own Demo or Diagnostic booking link on
  * WhatsApp.
  *
@@ -101,7 +102,7 @@ export default function EnquiryPage({ user }) {
     ...(canSeeReports ? [{ key: 'feedback', label: 'Tutor Feedback' }] : []),
     ...(canSeeCommunication ? [{ key: 'follow-ups', label: 'Follow-ups' }] : []),
     { key: 'sales', label: 'Sales & Payment' },
-    { key: 'activity', label: 'Activity' },
+    { key: 'notes', label: 'Notes' },
   ];
   const requested = searchParams.get('tab') || (openId && openType ? 'bookings' : 'overview');
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
@@ -226,8 +227,8 @@ export default function EnquiryPage({ user }) {
               description="The plan this family chooses, its payments and where they stand will appear here."
             />
           </TabsContent>
-          <TabsContent value="activity">
-            <EnquiryActivity enquiryId={enquiry.id} />
+          <TabsContent value="notes">
+            <EnquiryNotes enquiryId={enquiry.id} />
           </TabsContent>
         </Tabs>
       </>

@@ -9,6 +9,7 @@ from .views import (
     BdeDemoInviteView,
     BdeEnquiriesView,
     BdeEnquiryDetailView,
+    BdeEnquiryNotesView,
     BdeRedemoView,
 )
 
@@ -19,6 +20,8 @@ urlpatterns = [
     path('dashboard/', BdeDashboardView.as_view(), name='bde-dashboard'),
     path('enquiries/', BdeEnquiriesView.as_view(), name='bde-enquiries'),
     path('enquiries/<uuid:pk>/', BdeEnquiryDetailView.as_view(), name='bde-enquiry'),
+    # Staff's notes on the caller's own enquiry, shared with its tutors and the administrators (bookings.notes).
+    path('enquiries/<uuid:pk>/notes/', BdeEnquiryNotesView.as_view(), name='bde-enquiry-notes'),
     # What has happened to the caller's own leads' bookings, newest first.
     path('activity/', BdeActivityView.as_view(), name='bde-activity'),
     # The caller's own leads' bookings of one type (Demo Bookings, Diagnostic Bookings).

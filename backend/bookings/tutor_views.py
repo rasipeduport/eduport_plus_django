@@ -4,6 +4,8 @@ My Bookings for tutors (bookings.tutor_bookings):
     GET  /api/tutor/bookings/                    the bookings assigned to the caller, paged and filtered
     GET  /api/tutor/bookings/<type>/<id>/        one of them (``<type>`` is demo or diagnostic)
     POST /api/tutor/bookings/<type>/<id>/start/  Start Demo / Start Diagnostic
+    GET  /api/tutor/bookings/<type>/<id>/notes/  staff's notes on its lead (bookings.notes)
+    POST /api/tutor/bookings/<type>/<id>/notes/  add one, as its tutor
 
 Each one's report -- read, submit, edit, history -- is under ``…/report/``
 (reports.tutor_views).
@@ -29,11 +31,12 @@ from accounts.authz import has_app_permission
 from core.pagination import page_params
 from core.permissions import HasAppPermission
 
-from . import tutor_bookings
+from . import notes, tutor_bookings
 from .booking_service import BookingError, start_booking
-from .models import booking_model
+from .models import LeadNoteRole, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME
+from .serializers import LeadNoteSerializer
 
 VIEW_ASSIGNED_BOOKINGS = HasAppPermission('accounts.view_assigned_bookings')
 START_PERMISSION = 'accounts.submit_booking_report'
@@ -132,3 +135,33 @@ class TutorBookingStartView(APIView):
             {'booking': tutor_bookings.booking_detail(booking, timezone.now(), can_start=True), 'changed': changed},
             status=status.HTTP_200_OK,
         )
+
+
+class TutorBookingNotesView(APIView):
+    """
+    GET  /api/tutor/bookings/<type>/<id>/notes/
+         The notes on the lead of one of the caller's bookings, oldest first --
+         the lead's, shared by all its bookings, its BDE and the administrators
+         (bookings.notes): {"results", "count", "timezone"}.
+    POST /api/tutor/bookings/<type>/<id>/notes/ {"body": "..."}
+         Add one, as its tutor; answers the notes as they now stand (201), or
+         400 VALIDATION_ERROR for an empty or overlong note.
+    A booking not assigned to the caller now is 404, as one that does not exist.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ASSIGNED_BOOKINGS]
+
+    def get(self, request, booking_type, pk, *args, **kwargs):
+        booking = _assigned_booking(request, booking_type, pk)
+        if booking is None:
+            return _error('NOT_FOUND', 'No such booking.', status.HTTP_404_NOT_FOUND)
+        return Response(notes.notes_of(booking.lead), status=status.HTTP_200_OK)
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        booking = _assigned_booking(request, booking_type, pk)
+        if booking is None:
+            return _error('NOT_FOUND', 'No such booking.', status.HTTP_404_NOT_FOUND)
+        serializer = LeadNoteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', notes.INVALID_NOTE, status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
+        notes.add_note(booking.lead, request.user, LeadNoteRole.TUTOR, serializer.validated_data['body'])
+        return Response(notes.notes_of(booking.lead), status=status.HTTP_201_CREATED)

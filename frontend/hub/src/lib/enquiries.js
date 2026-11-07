@@ -6,6 +6,10 @@
 export const BDE_DASHBOARD_URL = '/api/bde/dashboard/';
 export const ENQUIRIES_URL = '/api/bde/enquiries/';
 export const enquiryUrl = (id) => `${ENQUIRIES_URL}${id}/`;
+// Staff's notes on one of the BDE's enquiries, shared with its tutors and the
+// administrators (backend bookings/notes.py): read and added, never edited.
+export const enquiryNotesUrl = (id) => `${enquiryUrl(id)}notes/`;
+export const NOTE_MAX_LENGTH = 2000;
 
 /**
  * An enquiry's workspace opened on its Bookings tab with `bookingId`

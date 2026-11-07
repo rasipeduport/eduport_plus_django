@@ -1105,3 +1105,54 @@ class ReDemoRequest(models.Model):
     def __str__(self):
         # Never the reason: this shows up in the Django admin and in logs.
         return f"Re-Demo request {self.id}"
+
+
+class LeadNoteRole(models.TextChoices):
+    """The role a note was written in: the workspace it was added from (bookings.notes)."""
+    BDE = 'BDE', 'BDE'
+    TUTOR = 'TUTOR', 'Tutor'
+    ADMIN = 'ADMIN', 'Admin'
+
+
+class LeadNote(models.Model):
+    """
+    A note staff keep on one lead: a plain running discussion its owner BDE, a
+    tutor assigned to one of its bookings and the administrators all read and
+    add to (bookings.notes). It belongs to the lead, never to a booking, so the
+    lead's Diagnostic and Demo bookings share one discussion. Staff's words
+    only: no parent or student page, booking history, activity log or
+    notification ever carries them. Kept as written -- never edited or
+    deleted -- with who wrote it, in which role and when; the author's name is
+    kept beside them (SET_NULL), as student notes keep theirs, so a note
+    outlives its author's account.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='notes')
+    body = models.TextField()
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lead_notes'
+    )
+    author_name = models.CharField(max_length=255)
+    author_role = models.CharField(max_length=10, choices=LeadNoteRole.choices)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'lead_notes'
+        verbose_name = 'Lead note'
+        verbose_name_plural = 'Lead notes'
+        ordering = ['created_at', 'id']
+        constraints = [
+            models.CheckConstraint(condition=~Q(body=''), name='lead_notes_body_given'),
+            models.CheckConstraint(condition=Q(author_role__in=LeadNoteRole.values), name='lead_notes_known_role'),
+        ]
+        indexes = [
+            models.Index(fields=['lead', 'created_at'], name='lead_notes_lead_idx'),
+        ]
+
+    def __str__(self):
+        # Never the body: this shows up in the Django admin and in logs.
+        return f"Lead note {self.id}"

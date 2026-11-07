@@ -105,6 +105,12 @@ BDE_WORKSPACE = {
         'records': [],
         'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
     },
+    # The notes on their own enquiry, lead_a: none yet.
+    'bde.enquiries.notes': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'results', 'timezone'],
+    },
     'bde.enquiries.list': {
         'status': 200,
         'records': ['lead_a'],
