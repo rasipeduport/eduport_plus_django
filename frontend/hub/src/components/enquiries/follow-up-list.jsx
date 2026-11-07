@@ -85,9 +85,9 @@ function Due({ value }) {
 
 /**
  * What the BDE does on a reminder -- each action offered only when the API
- * says the caller may take it, or the page where it is done: the enquiry,
- * whose booking links go to the parent from its header, or its tutor
- * feedback, where the report is sent -- with calling or messaging the parent.
+ * says the caller may take it, or the page where it is done: the enquiry, or
+ * its tutor feedback, where the report is sent -- with calling or messaging
+ * the parent.
  */
 function Actions({ followUp, from, inEnquiry, onAct, className }) {
   const { actions, enquiry } = followUp;
@@ -139,14 +139,14 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
       </Button>
     );
   }
-  // A new enquiry's booking link goes to the parent from the enquiry's header -- already in view inside it.
+  // A new enquiry opens its own page -- already in view inside it.
   if (followUp.type === 'NEW_ENQUIRY_CALL' && !inEnquiry) {
     buttons.push(
       <Button key="enquiry" size="sm" asChild>
         <Link
           to={followUpPath(followUp)}
           state={from ? { from } : undefined}
-          aria-label={`Open ${enquiry.student_name}’s enquiry to send a booking link`}
+          aria-label={`Open ${enquiry.student_name}’s enquiry`}
         >
           Open enquiry
         </Link>
@@ -193,9 +193,9 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
  * is to be done and by when, for which booking and (unless `inEnquiry`, inside
  * the enquiry's own workspace) whose, with the action that does it -- asking
  * for or recording the parent's confirmation, or recording the call before a
- * class, in a dialog here; opening the enquiry or its report to send the
- * parent a booking link or the report. `onChanged` hears of each action taken
- * here, with what to tell the BDE; `from` is the way back from where one opens.
+ * class, in a dialog here; opening the enquiry, or its report to send it to
+ * the parent. `onChanged` hears of each action taken here, with what to tell
+ * the BDE; `from` is the way back from where one opens.
  */
 export function FollowUpList({ rows, pending, inEnquiry = false, from = null, onChanged }) {
   // The dialog open now, and the follow-up it is for -- kept while it closes.

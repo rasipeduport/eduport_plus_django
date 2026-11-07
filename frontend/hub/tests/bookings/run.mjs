@@ -3228,7 +3228,7 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
     ['All open5', 'Due today3', 'Upcoming2']);
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
-    'Call new enquiryDue todayCall the parent, then send them a booking link from their enquiry.',
+    'Call new enquiryDue todayCall the parent and guide them to book a Demo or Diagnostic.',
     'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',
     'Pre-activity callDue todayCall the parent before the class starts.',
     'Share tutor reportPendingReview the report and share it with the parent.',
@@ -3237,9 +3237,8 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
   const [call, confirm, preCall, report, redemo] = rows();
   assert.match(clean(call.textContent), /KiranRavi Menon\+91 9876543210No booking yet/);
   assert.match(clean(redemo.textContent), /Demo classRe-DemoMon, 9 Nov · 7:30 PM IST/);
-  // A new enquiry's booking link and a report go to the parent from their own pages; nothing is recorded here.
-  assert.equal(call.querySelector('a[aria-label="Open Kiran’s enquiry to send a booking link"]').getAttribute('href'),
-    '/enquiries/e-kiran');
+  // A new enquiry opens its own page, and a report its tutor feedback, where it is sent; nothing is recorded here.
+  assert.equal(call.querySelector('a[aria-label="Open Kiran’s enquiry"]').getAttribute('href'), '/enquiries/e-kiran');
   assert.equal(report.querySelector('a[aria-label="Open Dona’s tutor report to share it"]').getAttribute('href'),
     '/enquiries/e-dona?tab=feedback');
   assert.deepEqual([...call.querySelectorAll('button')].length + [...report.querySelectorAll('button')].length, 0);

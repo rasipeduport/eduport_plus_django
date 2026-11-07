@@ -569,9 +569,6 @@ SCENARIOS = [
     Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
     Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
-    # The enquiry page telling them a booking link went to the parent, ending the new enquiry's reminder.
-    Scenario('bde.enquiries.booking_link_shared', 'post', '/api/bde/enquiries/{lead_a}/booking-link-shared/',
-             {'booking_type': 'DEMO'}),
     Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
     Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',

@@ -5,12 +5,12 @@ system does by itself. Five reminders, each read from where its work is
 recorded, never copied, and each gone from the list once it is resolved or
 its time is up:
 
-    NEW_ENQUIRY_CALL     an administrator gave them an enquiry with no booking
-                         yet (bookings.ownership): call the parent. Shown for
-                         24 hours (a FollowUp), until the BDE sends the parent
-                         one of their booking links from the enquiry
-                         (link_shared) or the enquiry has a booking -- its
-                         progress is then its status's and its bookings'
+    NEW_ENQUIRY_CALL     an enquiry given to them (bookings.ownership) rather
+                         than added by them: call the parent. Shown for 24
+                         hours from when it became theirs (the lead's
+                         owner_assigned_at), while its status is New
+                         (bookings.lead_status) -- gone the moment it is not,
+                         a Demo or Diagnostic booked or otherwise
     PARENT_CONFIRMATION  a Demo or Diagnostic whose parent has not answered,
                          from its confirmation request's due time -- 12 hours
                          before it, or at once for one booked later than that
@@ -39,10 +39,11 @@ bookings, the booking's communication, the report's shares.
 Whose a reminder is follows the lead's owner now, never who owned it when it
 began: a lead given to another BDE takes its reminders with it, as its
 communication goes (communications.views), and the BDE before sees none of
-them. A reminder is Due today when the moment it is due by -- the class's
-start, or the end of its 24 hours -- falls on today's Indian date, and
-Pending when later; none outlives that moment, so none is ever overdue.
-Acting on one stays with the API that owns its record.
+them -- a new enquiry's call starting its 24 hours again for its new BDE.
+A reminder is Due today when the moment it is due by -- the class's start,
+or the end of its 24 hours -- falls on today's Indian date, and Pending when
+later; none outlives that moment, so none is ever overdue. Acting on one
+stays with the API that owns its record.
 
 Each row is written out field by field, so nothing reaches the BDE by being
 added elsewhere: what is due and when, the booking it is for, and whose it is
@@ -52,20 +53,17 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 
-from django.db import OperationalError, transaction
-from django.db.models import Exists, OuterRef, Q, TextChoices
-from django.utils import timezone
+from django.db.models import Q, TextChoices
 
 from accounts.authz import has_app_permission
-from activity.utils import log_activity
-from bookings.booking_service import BUSY_SQLSTATES, BookingBusy, _set_lock_timeout
 from bookings.enquiries import booking_brief, enquiry_brief
+from bookings.lead_status import LeadStatus, with_status
 from bookings.lifecycle import activity_state
 from bookings.models import BOOKING_MODELS, BookingStatus, DemoBooking, DiagnosticBooking, Lead, ParentConfirmation
 from bookings.scheduling import BOOKING_TIMEZONE, indian_today
 from reports.models import REPORT_MODELS
 
-from .models import CommunicationTask, FollowUp, FollowUpKind, FollowUpStatus, Message, Step, TaskStatus
+from .models import CommunicationTask, Message, Step, TaskStatus
 
 
 class FollowUpType(TextChoices):
@@ -88,19 +86,12 @@ _DUE_STATES = {TODAY: FollowUpState.DUE_TODAY, UPCOMING: FollowUpState.PENDING}
 _TYPE_ORDER = {value: index for index, value in enumerate(FollowUpType.values)}
 
 # How long the reminders an event starts are shown: a new enquiry's call from
-# its assignment, a report's sharing from its submission.
+# when it became its BDE's, a report's sharing from its submission.
 REMINDER_WINDOW = timedelta(hours=24)
 
 SEND_COMMUNICATIONS = 'accounts.send_lead_communications'
 RECORD_CONFIRMATION = 'accounts.record_parent_confirmation'
 VIEW_OWN_LEAD_REPORTS = 'accounts.view_own_lead_reports'
-
-
-class EnquiryNotOwned(Exception):
-    """Not one of the caller's own leads -- or none at all: answered alike."""
-    code = 'NOT_FOUND'
-    http_status = 404
-    message = 'No such enquiry.'
 
 
 @dataclass
@@ -117,72 +108,6 @@ class Item:
     # The parent confirmation's request message, once the parent was asked.
     request: Message = None
     actions: dict = field(default_factory=dict)
-
-
-# ---------------------------------------------------------------- the new enquiry's call
-
-def _has_booking(lead):
-    return DemoBooking.objects.filter(lead=lead).exists() or DiagnosticBooking.objects.filter(lead=lead).exists()
-
-
-def enquiry_assigned(lead, now):
-    """
-    ``lead`` has just been given to a BDE (bookings.ownership, which holds its
-    lock). A new enquiry -- no booking of either type yet -- gets the reminder
-    to call it, shown for REMINDER_WINDOW from now: set going again when it
-    had one, done or not, since its new BDE has not spoken to the parent.
-    One per lead, however often this runs. Returns it, or None.
-    """
-    if lead.owner_bde_id is None or _has_booking(lead):
-        return None
-    reminder, _created = FollowUp.objects.update_or_create(
-        lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL,
-        defaults={'status': FollowUpStatus.OPEN, 'due_at': now + REMINDER_WINDOW, 'resolved_at': None,
-                  'resolved_by': None},
-        create_defaults={'status': FollowUpStatus.OPEN, 'due_at': now + REMINDER_WINDOW, 'created_at': now},
-    )
-    return reminder
-
-
-def link_shared(lead_id, booking_type, *, actor, now=None):
-    """
-    ``actor``, a BDE, has just sent the parent of their lead ``lead_id`` one of
-    their booking links (``booking_type``) from the enquiry -- copied it there,
-    or opened the parent's WhatsApp chat with it: the reminder to call the new
-    enquiry is done. Only on the actor's own lead, checked under the lead's
-    lock (EnquiryNotOwned); nothing left to do -- no reminder, or one done or
-    past its 24 hours -- is no error. Returns whether a reminder was done now,
-    which is logged with ids only.
-    """
-    now = now or timezone.now()
-    try:
-        with transaction.atomic():
-            _set_lock_timeout()
-            # The lead first, as an assignment takes it (bookings.ownership), then its reminder.
-            lead = Lead.objects.select_for_update(no_key=True).filter(pk=lead_id).first()
-            if lead is None or lead.owner_bde_id != actor.pk:
-                raise EnquiryNotOwned()
-            reminder = FollowUp.objects.select_for_update().filter(
-                lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL, status=FollowUpStatus.OPEN, due_at__gt=now,
-            ).first()
-            if reminder is None:
-                return False
-            reminder.status, reminder.resolved_at, reminder.resolved_by = FollowUpStatus.DONE, now, actor
-            reminder.save(update_fields=['status', 'resolved_at', 'resolved_by', 'updated_at'])
-    except OperationalError as exc:
-        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
-            raise BookingBusy() from exc
-        raise
-    log_activity(
-        action='follow_up.complete',
-        entity_type='follow_up',
-        entity_id=reminder.id,
-        entity_label=reminder.get_kind_display(),
-        # Ids and codes only: no names, phone numbers or links.
-        context={'kind': reminder.kind, 'lead_id': str(lead.pk), 'booking_type': booking_type},
-        actor=actor,
-    )
-    return True
 
 
 # ---------------------------------------------------------------- reading
@@ -228,15 +153,18 @@ def open_items(user, now, request=None, enquiry=None):
 
 
 def _enquiry_calls(user, now, enquiry):
-    """New enquiries to call: within their 24 hours, not yet sent a booking link, and still without a booking."""
-    reminders = FollowUp.objects.filter(
-        ~Exists(DemoBooking.objects.filter(lead=OuterRef('lead'))),
-        ~Exists(DiagnosticBooking.objects.filter(lead=OuterRef('lead'))),
-        lead__owner_bde=user, kind=FollowUpKind.NEW_ENQUIRY_CALL, status=FollowUpStatus.OPEN, due_at__gt=now,
-    ).select_related('lead')
+    """
+    New enquiries to call: given to ``user`` in the last 24 hours -- one they
+    added themselves is theirs already -- and still New, as the enquiry's
+    status says (bookings.lead_status).
+    """
+    leads = Lead.objects.filter(owner_bde=user, owner_assigned_at__gt=now - REMINDER_WINDOW).exclude(created_by=user)
     if enquiry:
-        reminders = reminders.filter(lead_id=enquiry)
-    return [Item(FollowUpType.NEW_ENQUIRY_CALL, reminder.id, reminder.lead, reminder.due_at) for reminder in reminders]
+        leads = leads.filter(pk=enquiry)
+    return [
+        Item(FollowUpType.NEW_ENQUIRY_CALL, lead.id, lead, lead.owner_assigned_at + REMINDER_WINDOW)
+        for lead in with_status(leads, now).filter(lead_status=LeadStatus.NEW)
+    ]
 
 
 def _awaiting(model, user, now, enquiry):

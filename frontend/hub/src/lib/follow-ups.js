@@ -3,12 +3,10 @@
 // uses them. The API scopes both to the signed-in BDE's own leads and enforces
 // every rule; this only labels what it returns.
 import { callReminder } from '@/lib/communications';
-import { bookingTypeLabel, enquiryUrl, slotLabel } from '@/lib/enquiries';
+import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 
 export const BDE_FOLLOW_UPS_URL = '/api/bde/follow-ups/';
 export const BDE_ACTIVITY_URL = '/api/bde/activity/';
-/** The enquiry page telling the API a booking link went to the parent (POST {booking_type}): ends the new enquiry's reminder. */
-export const bookingLinkSharedUrl = (enquiryId) => `${enquiryUrl(enquiryId)}booking-link-shared/`;
 
 // The due filter (backend followups.DUE_FILTERS); no value is every reminder.
 export const FOLLOW_UP_DUE = [
@@ -44,7 +42,7 @@ const REQUEST_STATES = {
 };
 
 const TASKS = {
-  NEW_ENQUIRY_CALL: 'Call the parent, then send them a booking link from their enquiry.',
+  NEW_ENQUIRY_CALL: 'Call the parent and guide them to book a Demo or Diagnostic.',
   TUTOR_REPORT: 'Review the report and share it with the parent.',
   REDEMO_CONFIRMATION: 'Tell the parent the Re-Demo’s date and time, then record their answer.',
 };
@@ -72,8 +70,7 @@ export function followUpTask(followUp, now = Date.now()) {
 /**
  * Where a reminder is acted on: a booking's communication (its enquiry's
  * workspace on Bookings, the booking highlighted and its sheet open), the
- * enquiry's tutor feedback for a report, or the enquiry itself, whose booking
- * links go to the parent from its header.
+ * enquiry's tutor feedback for a report, or the enquiry itself.
  */
 export function followUpPath(followUp) {
   const { enquiry, booking } = followUp;

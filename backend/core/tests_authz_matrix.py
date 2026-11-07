@@ -64,6 +64,13 @@ ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
     'bookings', 'country', 'created_at', 'parent_email', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus',
     'timezone',
 ])
+# A reminder as the BDE's follow-ups list it (communications.followups.row): a new enquiry's has no booking.
+FOLLOW_UP_ROW_FIELDS = [
+    'actions', 'actions.record_answer', 'actions.record_outcome', 'actions.request_confirmation', 'booking', 'due_at',
+    'enquiry', 'enquiry.grade', 'enquiry.id', 'enquiry.parent_name', 'enquiry.phone', 'enquiry.phone_dial_code',
+    'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'request', 'state', 'state_label', 'type',
+    'type_label',
+]
 BDE_WORKSPACE = {
     'bde.booking_links': BDE_OWN_LINKS,
     'bde.dashboard': {
@@ -85,15 +92,14 @@ BDE_WORKSPACE = {
         'records': [],
         'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
     },
-    # Their follow-ups and activity: lead_a has no booking, so neither has anything yet.
+    # Their follow-ups: lead_a, given to them just now and still New, is their reminder to call it; it has no
+    # booking, so its activity has nothing yet.
     'bde.follow_ups.list': {
         'status': 200,
-        'records': [],
-        'fields': ['count', 'page', 'page_size', 'results', 'summary', 'summary.today', 'summary.total', 'summary.upcoming',
-                   'timezone'],
+        'records': ['lead_a'],
+        'fields': ['count', 'page', 'page_size', 'results', *(f'results[].{field}' for field in FOLLOW_UP_ROW_FIELDS),
+                   'summary', 'summary.today', 'summary.total', 'summary.upcoming', 'timezone'],
     },
-    # ... and ends the reminder to call their own enquiry when a booking link goes to its parent: lead_a has none.
-    'bde.enquiries.booking_link_shared': {'status': 200, 'records': [], 'fields': ['resolved']},
     'bde.activity.list': {
         'status': 200,
         'records': [],

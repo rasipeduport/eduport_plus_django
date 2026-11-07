@@ -74,8 +74,6 @@ export const ACTION_LABELS = {
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
   'booking.parent_confirmation': 'Parent confirmation recorded',
-  // A BDE's reminder done (backend communications.followups): codes only.
-  'follow_up.complete': 'Follow-up completed',
   // Demo invitations (backend bookings.demo_invites): ids only, never the link.
   'demo_invite.issue': 'Demo invitation issued',
   'demo_invite.revoke': 'Demo invitation revoked',
@@ -352,11 +350,6 @@ export function describeActivity(row) {
       if (row.context?.outcome !== 'NOT_CONFIRMED') return `Recorded the parent's confirmation of ${bookingOfType(row)}`;
       const reason = notConfirmedReasonLabel(row.context?.reason_code);
       return `Recorded that the parent did not confirm ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}`;
-    }
-    // The reminder to call a new enquiry, done when its BDE sent the parent a booking link: codes only.
-    case 'follow_up.complete': {
-      const type = String(row.context?.booking_type ?? '').toLowerCase();
-      return `Sent a new enquiry's parent the ${type ? `${type} ` : ''}booking link`;
     }
     case 'report.submit':
       return `Submitted the report on ${bookingOfType(row)}`;

@@ -32,10 +32,6 @@ holds the actions a BDE or the Admin take. Nothing here sends anything: the
 sending engine is a later phase. Unlike the booking's history, these rows do
 hold the parent's phone number and what each message says, so only the lead's
 BDE and the Admin may read them.
-
-A FollowUp is the one BDE reminder no other record holds: calling a new
-enquiry an administrator gave them (communications.followups, which reads
-the other reminders from the steps, the bookings and the reports themselves).
 """
 import uuid
 
@@ -698,70 +694,3 @@ class UnmatchedStatusEvent(models.Model):
 
     def __str__(self):
         return f'{self.get_status_display()} for an unknown message ({self.received_at:%Y-%m-%d %H:%M})'
-
-
-# ---------------------------------------------------------------- BDE follow-ups
-
-class FollowUpKind(models.TextChoices):
-    """The BDE reminders no other record holds (communications.followups reads the rest)."""
-    NEW_ENQUIRY_CALL = 'NEW_ENQUIRY_CALL', 'Call new enquiry'
-
-
-class FollowUpStatus(models.TextChoices):
-    OPEN = 'OPEN', 'Open'
-    DONE = 'DONE', 'Done'
-
-
-class FollowUp(models.Model):
-    """
-    The reminder to call a new enquiry an administrator gave a BDE
-    (bookings.ownership): shown until ``due_at``, 24 hours from then, and done
-    once the BDE sends the parent one of their booking links from the
-    enquiry. One per lead: given to another BDE while still new, it is set
-    going again for them. Whose it is follows the lead's owner now, never who
-    owned it when it was made.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    kind = models.CharField(max_length=30, choices=FollowUpKind.choices)
-    lead = models.ForeignKey('bookings.Lead', on_delete=models.PROTECT, related_name='follow_ups')
-    # The end of the reminder: it is no longer shown after this, done or not.
-    due_at = models.DateTimeField()
-    status = models.CharField(max_length=10, choices=FollowUpStatus.choices, default=FollowUpStatus.OPEN)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    resolved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='resolved_follow_ups'
-    )
-    created_at = models.DateTimeField(default=timezone.now, editable=False)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'bde_follow_ups'
-        verbose_name = 'BDE follow-up'
-        verbose_name_plural = 'BDE follow-ups'
-        ordering = ['created_at']
-        constraints = [
-            models.CheckConstraint(condition=Q(kind__in=FollowUpKind.values), name='bde_follow_ups_known_kind'),
-            models.CheckConstraint(condition=Q(status__in=FollowUpStatus.values), name='bde_follow_ups_known_status'),
-            # An open reminder is unresolved; a done one says when.
-            models.CheckConstraint(
-                condition=(
-                    Q(status=FollowUpStatus.OPEN, resolved_at__isnull=True, resolved_by__isnull=True)
-                    | Q(status=FollowUpStatus.DONE, resolved_at__isnull=False)
-                ),
-                name='bde_follow_ups_resolved_when_done',
-            ),
-            models.UniqueConstraint(
-                fields=['lead'], condition=Q(kind=FollowUpKind.NEW_ENQUIRY_CALL),
-                name='bde_follow_ups_one_call_per_lead',
-            ),
-        ]
-        indexes = [
-            models.Index(fields=['status', 'due_at'], name='bde_follow_ups_open_idx'),
-        ]
-
-    def __str__(self):
-        return f'{self.get_kind_display()} ({self.get_status_display()})'

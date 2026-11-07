@@ -11,18 +11,17 @@ on the real clock.
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth.models import Permission
-from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import RoleGroup
-from activity.models import ActivityLog
 from bookings.booking_service import cancel_booking, record_parent_confirmation, request_redemo, schedule_redemo
 from bookings.lead_intake import create_lead
+from bookings.lead_status import LeadStatus, with_status
 from bookings.models import BookingStatus, CancelReason, Lead, LeadSource, ParentConfirmation
 from bookings.ownership import assign_owner
 from bookings.scheduling import BOOKING_TIMEZONE, indian_today
-from bookings.tests_booking import EVENING, MORNING, NOW, account, start
+from bookings.tests_booking import DIAGNOSTIC, EVENING, MORNING, NOW, account, start
 from bookings.tests_enquiries import booking as booking_of
 from reports.models import ReportShare
 from reports.services import edit_report, record_share, submit_report
@@ -30,7 +29,7 @@ from reports.tests_services import report_input
 
 from . import followups, planner
 from .followups import FollowUpState, FollowUpType
-from .models import CommunicationTask, FollowUp, FollowUpKind, FollowUpStatus, Step, TaskResolution, TaskStatus
+from .models import CommunicationTask, Step, TaskResolution, TaskStatus
 from .services import record_call_outcome, request_confirmation
 from .tests_planning import CommunicationTestCase
 
@@ -43,10 +42,6 @@ STARTS = datetime(2026, 10, 28, 19, 30, tzinfo=BOOKING_TIMEZONE)
 def details(student, phone):
     return {'parent_name': 'Asha Nair', 'phone_dial_code': '+971', 'phone_number': phone, 'student_name': student,
             'grade': 'Class 8'}
-
-
-def shared_url(lead):
-    return f'/api/bde/enquiries/{lead.pk}/booking-link-shared/'
 
 
 class FollowUpTestCase(CommunicationTestCase):
@@ -74,67 +69,51 @@ class FollowUpTestCase(CommunicationTestCase):
 
 
 class NewEnquiryTests(FollowUpTestCase):
-    def test_an_enquiry_an_administrator_gives_the_bde_is_a_reminder_for_24_hours(self):
+    def test_an_enquiry_given_to_the_bde_is_a_reminder_for_24_hours_from_then(self):
         lead = self.new_enquiry()
-        [reminder] = FollowUp.objects.filter(lead=lead)
-        self.assertEqual((reminder.kind, reminder.status, reminder.due_at),
-                         (FollowUpKind.NEW_ENQUIRY_CALL, FollowUpStatus.OPEN, NOW + 24 * HOUR))
-        # Due by 12:00 tomorrow: Pending today, Due today tomorrow morning, gone once its 24 hours are up.
-        self.assertEqual(self.kinds(self.open()), [(FollowUpType.NEW_ENQUIRY_CALL, FollowUpState.PENDING)])
+        [item] = self.open()
+        self.assertEqual((item.type, item.id, item.due_at, item.state),
+                         (FollowUpType.NEW_ENQUIRY_CALL, lead.id, NOW + 24 * HOUR, FollowUpState.PENDING))
+        # Due by 12:00 tomorrow: Due today tomorrow morning, gone once its 24 hours are up.
         self.assertEqual(self.kinds(self.open(now=NOW + 23 * HOUR)),
                          [(FollowUpType.NEW_ENQUIRY_CALL, FollowUpState.DUE_TODAY)])
         self.assertEqual(self.open(now=NOW + 24 * HOUR), [])
-        # Given again, or handled twice: still one reminder.
-        followups.enquiry_assigned(lead, NOW)
-        self.assertEqual(FollowUp.objects.filter(lead=lead).count(), 1)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            FollowUp.objects.create(lead=lead, kind=FollowUpKind.NEW_ENQUIRY_CALL, due_at=NOW)
 
-    def test_sending_the_parent_a_booking_link_from_the_enquiry_ends_it(self):
-        lead = self.new_enquiry()
-        self.assertIs(followups.link_shared(lead.pk, 'DIAGNOSTIC', actor=self.bde, now=NOW + HOUR), True)
-        reminder = FollowUp.objects.get(lead=lead)
-        self.assertEqual((reminder.status, reminder.resolved_at, reminder.resolved_by),
-                         (FollowUpStatus.DONE, NOW + HOUR, self.bde))
-        self.assertEqual(self.open(now=NOW + HOUR), [])
-        entry = ActivityLog.objects.get(action='follow_up.complete')
-        self.assertEqual(entry.context,
-                         {'kind': 'NEW_ENQUIRY_CALL', 'lead_id': str(lead.pk), 'booking_type': 'DIAGNOSTIC'})
-        # Sharing again, or once its 24 hours are up, has nothing left to end; another BDE's lead is not theirs.
-        self.assertIs(followups.link_shared(lead.pk, 'DEMO', actor=self.bde, now=NOW + 2 * HOUR), False)
-        late = self.new_enquiry('Meera', '501110002')
-        self.assertIs(followups.link_shared(late.pk, 'DEMO', actor=self.bde, now=NOW + 25 * HOUR), False)
-        with self.assertRaises(followups.EnquiryNotOwned):
-            followups.link_shared(late.pk, 'DEMO', actor=self.other_bde, now=NOW + HOUR)
-        self.assertEqual(ActivityLog.objects.filter(action='follow_up.complete').count(), 1)
+    def test_gone_the_moment_the_enquiry_is_no_longer_new(self):
+        demo, diagnostic, cancelled = (
+            self.new_enquiry(student, phone)
+            for student, phone in (('Kiran', '501110001'), ('Meera', '501110002'), ('Ravi', '501110003'))
+        )
+        self.assertEqual(len(self.open()), 3)
+        booking_of(demo, 2)
+        booking_of(diagnostic, 2, booking_type=DIAGNOSTIC)
+        booking_of(cancelled, 2, status=BookingStatus.CANCELLED)
+        # The enquiry's own status decides: Demo booked, Diagnostic booked, or any other but New.
+        statuses = dict(with_status(Lead.objects.filter(pk__in=[demo.pk, diagnostic.pk, cancelled.pk]), NOW)
+                        .values_list('pk', 'lead_status'))
+        self.assertEqual(statuses, {demo.pk: LeadStatus.DEMO_BOOKED, diagnostic.pk: LeadStatus.DIAGNOSTIC_BOOKED,
+                                    cancelled.pk: LeadStatus.DEMO_CANCELLED})
+        self.assertEqual(self.open(), [])
 
-    def test_a_booking_ends_it_and_the_enquirys_status_takes_over(self):
-        lead = self.new_enquiry()
-        booking_of(lead, 2)
-        self.assertNotIn(FollowUpType.NEW_ENQUIRY_CALL, self.types(self.open()))
-        self.assertEqual(FollowUp.objects.get(lead=lead).status, FollowUpStatus.OPEN, 'nothing more is written')
-
-    def test_none_for_an_enquiry_with_a_booking_or_one_the_bde_added_or_booked_through_their_link(self):
-        booked = self.book()  # through the BDE's link: the booking has its own reminders
-        own = create_lead(details('Walk-in', '501110003'), source=LeadSource.WALK_IN, created_by=self.bde,
-                          owner=self.bde)
+    def test_none_for_an_enquiry_the_bde_added_or_one_booked_through_their_link(self):
+        self.book()  # through the BDE's link: never New
+        create_lead(details('Walk-in', '501110003'), source=LeadSource.WALK_IN, created_by=self.bde, owner=self.bde)
         other = self.book(owned=False)
         assign_owner(other.lead_id, self.bde.pk, actor=self.admin, via='admin_leads', now=NOW)
-        self.assertFalse(FollowUp.objects.filter(lead__in=[booked.lead_id, own.pk, other.lead_id]).exists())
+        self.assertNotIn(FollowUpType.NEW_ENQUIRY_CALL, self.types(self.open()))
 
-    def test_given_to_another_bde_it_goes_with_the_enquiry_and_starts_again_for_them(self):
-        called = self.new_enquiry(now=NOW)
-        followups.link_shared(called.pk, 'DEMO', actor=self.bde, now=NOW + HOUR)
-        waiting = self.new_enquiry('Meera', '501110002', now=NOW)
-        moved = NOW + 2 * HOUR
-        for lead in (called, waiting):
-            assign_owner(lead.pk, self.other_bde.pk, actor=self.admin, via='admin_leads', now=moved)
+    def test_given_to_another_bde_it_moves_and_starts_24_hours_again_while_still_new(self):
+        lead = self.new_enquiry(now=NOW)
+        moved = NOW + 20 * HOUR
+        assign_owner(lead.pk, self.other_bde.pk, actor=self.admin, via='admin_leads', now=moved)
         self.assertEqual(self.open(now=moved), [])
-        mine = self.open(user=self.other_bde, now=moved)
-        # The new BDE has spoken to neither parent: both are reminders for them, for 24 hours from now.
-        self.assertEqual(sorted(item.lead.pk for item in mine), sorted([called.pk, waiting.pk]))
-        self.assertEqual({item.due_at for item in mine}, {moved + 24 * HOUR})
-        self.assertEqual(FollowUp.objects.filter(lead__in=[called, waiting]).count(), 2)
+        [item] = self.open(user=self.other_bde, now=moved)
+        self.assertEqual((item.id, item.due_at), (lead.id, moved + 24 * HOUR))
+        self.assertEqual(len(self.open(user=self.other_bde, now=NOW + 30 * HOUR)), 1)
+        # No longer New: given on again, it is no one's reminder.
+        booking_of(lead, 2)
+        assign_owner(lead.pk, self.bde.pk, actor=self.admin, via='admin_leads', now=moved + HOUR)
+        self.assertEqual(self.open(now=moved + HOUR), [])
 
 
 class ConfirmationTests(FollowUpTestCase):
@@ -237,7 +216,6 @@ class ReportTests(FollowUpTestCase):
         self.assertEqual((item.type, item.id, item.booking.pk, item.due_at),
                          (FollowUpType.TUTOR_REPORT, booking.report.pk, booking.pk, submitted + 24 * HOUR))
         self.assertEqual(self.open(now=submitted + 24 * HOUR), [])
-        self.assertFalse(FollowUp.objects.exists(), 'a report needs no row of its own')
         # Shared from the enquiry: gone, and an edit afterwards does not bring it back.
         record_share(type(booking).objects.get(pk=booking.pk), self.bde, now=submitted + HOUR)
         self.assertEqual(self.open(now=submitted + HOUR), [])
@@ -268,8 +246,6 @@ class OwnershipTests(FollowUpTestCase):
         self.assertEqual(self.open(now=moment), [])
         self.assertEqual(sorted(self.types(self.open(user=self.other_bde, now=moment))),
                          [FollowUpType.NEW_ENQUIRY_CALL, FollowUpType.PARENT_CONFIRMATION])
-        with self.assertRaises(followups.EnquiryNotOwned):
-            followups.link_shared(lead.pk, 'DEMO', actor=self.bde, now=moment)
         self.assertEqual(set(CommunicationTask.objects.filter(demo_booking=booking, status='OPEN')
                              .values_list('owner', flat=True)), {self.other_bde.pk})
 
@@ -310,24 +286,6 @@ class ApiTests(FollowUpTestCase):
         self.assertEqual(row['actions'],
                          {'record_outcome': False, 'request_confirmation': False, 'record_answer': False})
 
-    def test_the_enquiry_page_ends_the_reminder_when_a_booking_link_goes_to_the_parent(self):
-        lead = self.new_enquiry(now=timezone.now())
-        bad = self.client.post(shared_url(lead), {'booking_type': 'EXAM'}, format='json')
-        self.assertEqual((bad.status_code, bad.json()['fields']), (400, ['booking_type']))
-        first = self.client.post(shared_url(lead), {'booking_type': 'demo'}, format='json')
-        self.assertEqual((first.status_code, first.json()), (200, {'resolved': True}))
-        self.assertEqual(self.client.get(URL).json()['count'], 0)
-        again = self.client.post(shared_url(lead), {'booking_type': 'DIAGNOSTIC'}, format='json')
-        self.assertEqual((again.status_code, again.json()), (200, {'resolved': False}))
-        other = APIClient()
-        other.force_authenticate(self.other_bde)
-        for path in (shared_url(lead), '/api/bde/enquiries/00000000-0000-4000-8000-000000000000/booking-link-shared/'):
-            response = other.post(path, {'booking_type': 'DEMO'}, format='json')
-            self.assertEqual((response.status_code, response.json()['error']), (404, 'NOT_FOUND'))
-        RoleGroup.objects.get(role='BDE').group.permissions.remove(
-            Permission.objects.get(codename='view_own_booking_links'))
-        self.assertEqual(self.client.post(shared_url(lead), {'booking_type': 'DEMO'}, format='json').status_code, 403)
-
     def test_the_call_outcome_is_recorded_on_the_bookings_communication(self):
         booking = self.book(day=indian_today() + timedelta(days=2), now=timezone.now())
         now = timezone.now()
@@ -353,16 +311,12 @@ class ApiTests(FollowUpTestCase):
     def test_filters_are_checked_and_every_other_caller_is_refused(self):
         response = self.client.get(URL, {'due': 'overdue', 'type': 'REPORT_DISCUSSION', 'enquiry': 'x'})
         self.assertEqual((response.status_code, sorted(response.json()['fields'])), (400, ['due', 'enquiry', 'type']))
-        lead_path = '/api/bde/enquiries/00000000-0000-4000-8000-000000000000/booking-link-shared/'
         client = APIClient()
         client.force_authenticate(account('root', role='ADMIN', is_superuser=True, is_staff=True))
         self.assertEqual(client.get(URL).json()['error'], 'NOT_A_BDE')
-        self.assertEqual(client.post(lead_path, {'booking_type': 'DEMO'}, format='json').json()['error'], 'NOT_A_BDE')
         for role in ('MENTOR', 'TUTOR', 'SALES_TL'):
             with self.subTest(role=role):
                 client.force_authenticate(account(role.lower(), role))
                 self.assertEqual(client.get(URL).status_code, 403)
-                self.assertEqual(client.post(lead_path, {'booking_type': 'DEMO'}, format='json').status_code, 403)
         client.force_authenticate(self.admin)
         self.assertEqual(client.get(URL).status_code, 403)
-        self.assertEqual(client.post(lead_path, {'booking_type': 'DEMO'}, format='json').status_code, 403)
