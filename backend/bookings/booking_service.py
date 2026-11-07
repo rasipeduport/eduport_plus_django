@@ -402,6 +402,12 @@ class RedemoCompleted(BookingError):
     message = 'The Re-Demo has already been taught.'
 
 
+class RedemoOriginalTutor(BookingError):
+    """The tutor of the Demo a Re-Demo repeats never teaches that Re-Demo (bookings.redemos)."""
+    code = 'REDEMO_ORIGINAL_TUTOR'
+    message = 'The tutor who taught the Demo being repeated cannot teach its Re-Demo. Choose another tutor.'
+
+
 class TutorNotAssignable(BookingError):
     code = 'INVALID_TUTOR'
     message = 'Selected tutor is not an active tutor.'
@@ -767,6 +773,19 @@ def clean_redemo_remarks(remarks):
     return remarks
 
 
+def redemo_original_tutor_id(booking):
+    """
+    The tutor who may not teach ``booking``, a Re-Demo: the one who taught the
+    Demo it repeats -- its request's Demo, the Re-Demo before it in a chain --
+    or None for any other booking. That Demo is completed, so its tutor never
+    changes.
+    """
+    redemo_id = getattr(booking, 'redemo_for_id', None)
+    if redemo_id is None:
+        return None
+    return ReDemoRequest.objects.filter(pk=redemo_id).values_list('demo_booking__assigned_tutor_id', flat=True).first()
+
+
 def redemo_refusal(redemo):
     """
     Why ``redemo`` may not be scheduled now, a BookingError to raise, or
@@ -791,6 +810,8 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
     ('' clears them; clean_redemo_remarks). Raises a BookingError subclass.
 
     Only while nothing of the request's is booked or taught (redemo_refusal);
+    never with the tutor who taught the Demo being repeated
+    (RedemoOriginalTutor: in a chain, the tutor of the Re-Demo before);
     only an active TUTOR (TutorNotAssignable) free for the whole slot
     (TutorUnavailable, find_tutor_conflict); and only into a slot the public
     pages offer (DateOutOfWindow, SlotUnavailable), open with a free seat
@@ -820,6 +841,8 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
             refusal = redemo_refusal(redemo)
             if refusal is not None:
                 raise refusal
+            if tutor.pk == redemo.demo_booking.assigned_tutor_id:
+                raise RedemoOriginalTutor()
             tutor = _locked_tutor(tutor.pk)
             if not is_assignable_tutor(tutor):
                 raise TutorNotAssignable()
@@ -1383,7 +1406,8 @@ def assign_tutor(booking, tutor, actor=None, now=None):
     (SlotEnded) -- a booking whose scheduled time passed with no start may
     still be handed to a tutor who can take it -- and
     only when the tutor is free for the whole slot (TutorUnavailable, see
-    find_tutor_conflict). Every check is made again under the locks, whatever
+    find_tutor_conflict) -- and, for a Re-Demo, never the tutor who taught
+    the Demo it repeats (RedemoOriginalTutor). Every check is made again under the locks, whatever
     the caller saw before. The same tutor again changes nothing and is not
     logged; another tutor replaces the current one -- a reassignment, checked
     exactly like a first assignment.
@@ -1397,6 +1421,8 @@ def assign_tutor(booking, tutor, actor=None, now=None):
             tutor = _locked_tutor(tutor.pk)
             if not is_assignable_tutor(tutor):
                 raise TutorNotAssignable()
+            if tutor.pk == redemo_original_tutor_id(booking):
+                raise RedemoOriginalTutor()
             if booking.assigned_tutor_id == tutor.pk:
                 return booking, False
             conflict = find_tutor_conflict(tutor, booking.slot.starts_at, booking.slot.ends_at, exclude_booking=booking)

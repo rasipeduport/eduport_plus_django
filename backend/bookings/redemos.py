@@ -42,13 +42,14 @@ from activity.utils import log_activity
 
 from . import enquiries
 from .booking_service import (
+    RedemoOriginalTutor,
     _overlapping_bookings,
     _overlapping_classes,
     assignable_tutors,
     clean_redemo_remarks,
     redemo_refusal,
 )
-from .coordination import report_brief, slot_brief, slot_options as booking_slot_options
+from .coordination import ORIGINAL_TUTOR_REASON, report_brief, slot_brief, slot_options as booking_slot_options
 from .lifecycle import activity_state
 from .models import BookingType, DemoBooking, Lead, ReDemoRequest, ReDemoStatus
 from .redemo_chain import redemo_number, state
@@ -254,24 +255,35 @@ def tutor_options(redemo, now):
     Every active tutor for the scheduling picker: AVAILABLE with how many
     Demo slots with a seat left in the booking window they are free for, or
     UNAVAILABLE with none; each with the Meet room a Re-Demo of theirs is
-    taught in, and the original Demo's tutor marked. What a picker shows;
+    taught in. The tutor who taught the Demo being repeated is listed,
+    marked ``original`` and not ``eligible``, with why: they never teach its
+    Re-Demo (booking_service.RedemoOriginalTutor). What a picker shows;
     booking_service.schedule_redemo checks the tutor again under its locks.
     """
+    original = redemo.demo_booking.assigned_tutor_id
     tutors = list(assignable_tutors().order_by('full_name', 'email', 'id'))
     slots = _window_slots(now)
     busy = _commitments(tutors, slots)
     rows = []
     for tutor in tutors:
         free = sum(_free(slot, busy[tutor.pk]) for slot in slots)
+        eligible = tutor.pk != original
+        if not eligible:
+            reason = {'code': RedemoOriginalTutor.code, 'message': ORIGINAL_TUTOR_REASON}
+        elif not free:
+            reason = {'code': 'TUTOR_UNAVAILABLE', 'message': 'No free Demo slot in the booking window.'}
+        else:
+            reason = None
         rows.append({
             'id': str(tutor.pk),
             'full_name': tutor.full_name or tutor.email,
             'email': tutor.email,
             'status': AVAILABLE if free else UNAVAILABLE_TUTOR,
             'free_slots': free,
-            'reason': None if free else {'code': 'TUTOR_UNAVAILABLE', 'message': 'No free Demo slot in the booking window.'},
+            'reason': reason,
             'tutor_meet_link': tutor.tutor_meet_link,
-            'original': tutor.pk == redemo.demo_booking.assigned_tutor_id,
+            'original': not eligible,
+            'eligible': eligible,
         })
     return rows
 

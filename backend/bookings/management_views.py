@@ -60,6 +60,7 @@ from . import coordination, redemos
 from .booking_service import (
     BookingError,
     LeadTimeConflict,
+    RedemoOriginalTutor,
     TutorNotAssignable,
     TutorUnavailable,
     assign_tutor,
@@ -498,7 +499,8 @@ class RedemoSlotsView(APIView):
     The Demo slots the Re-Demo may be booked in with that tutor
     (bookings.redemos.slot_options): a reschedule picker's dates and slots
     for the lead, a slot the tutor is not free for refused as TUTOR_BUSY.
-    400 INVALID_TUTOR for an account that is not an active tutor.
+    400 INVALID_TUTOR for an account that is not an active tutor, and
+    REDEMO_ORIGINAL_TUTOR for the tutor who taught the Demo being repeated.
     """
     permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, ASSIGN_BOOKING_TUTOR]
 
@@ -510,6 +512,8 @@ class RedemoSlotsView(APIView):
         tutor = User.objects.filter(pk=serializer.validated_data['tutor_id']).first() if serializer.is_valid() else None
         if not is_assignable_tutor(tutor):
             return _error(TutorNotAssignable.code, TutorNotAssignable.message, TutorNotAssignable.http_status)
+        if tutor.pk == redemo.demo_booking.assigned_tutor_id:
+            return _error(RedemoOriginalTutor.code, RedemoOriginalTutor.message, RedemoOriginalTutor.http_status)
         schedulable, refusal = redemos.schedulable(redemo)
         return Response(
             {
@@ -533,7 +537,8 @@ class RedemoScheduleView(APIView):
     them (booking_service.schedule_redemo): 201 with the request in full and
     the new booking's id. The booking is a Demo like any other from then on,
     moved, reassigned or cancelled from its own sheet. 400 VALIDATION_ERROR,
-    INVALID_TUTOR, DATE_OUT_OF_WINDOW or REMARKS_TOO_LONG; 409
+    INVALID_TUTOR, REDEMO_ORIGINAL_TUTOR (the tutor who taught the Demo being
+    repeated), DATE_OUT_OF_WINDOW or REMARKS_TOO_LONG; 409
     REDEMO_SCHEDULED, REDEMO_COMPLETED, TUTOR_UNAVAILABLE (with
     ``conflict``), SLOT_UNAVAILABLE, SLOT_FULL, LEAD_ALREADY_BOOKED or
     LEAD_TIME_CONFLICT (with ``conflict``).

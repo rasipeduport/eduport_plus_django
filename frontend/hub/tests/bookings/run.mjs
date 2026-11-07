@@ -2716,13 +2716,15 @@ const SCHEDULED = { id: 'b-redo', status: 'BOOKED', slot: REDO_SLOT, tutor: { id
   tutor_meet_link: MEET, activity_state: 'UPCOMING', has_report: false, report_version: null };
 const REDEMOS = '/api/bookings/redemos/';
 const redemoAt = (rest = '') => `${REDEMOS}${REDEMO.id}/${rest}`;
+// The original Demo's tutor (Tutor A) is free, but never eligible for its Re-Demo (backend REDEMO_ORIGINAL_TUTOR).
+const ORIGINAL_REASON = 'Taught the Demo being repeated, so cannot teach its Re-Demo.';
 const TUTORS = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: true, refusal: null, tutors: [
-  { id: 't-a', full_name: 'Tutor A', email: 'a@hub.test', status: 'AVAILABLE', free_slots: 9, reason: null,
-    tutor_meet_link: null, original: true },
-  { id: 't-b', full_name: 'Tutor B', email: 'b@hub.test', status: 'UNAVAILABLE', free_slots: 0, tutor_meet_link: null, original: false,
-    reason: { code: 'TUTOR_UNAVAILABLE', message: 'No free Demo slot in the booking window.' } },
+  { id: 't-a', full_name: 'Tutor A', email: 'a@hub.test', status: 'AVAILABLE', free_slots: 9, tutor_meet_link: null,
+    original: true, eligible: false, reason: { code: 'REDEMO_ORIGINAL_TUTOR', message: ORIGINAL_REASON } },
+  { id: 't-b', full_name: 'Tutor B', email: 'b@hub.test', status: 'UNAVAILABLE', free_slots: 0, tutor_meet_link: null,
+    original: false, eligible: true, reason: { code: 'TUTOR_UNAVAILABLE', message: 'No free Demo slot in the booking window.' } },
   { id: 't-c', full_name: 'Tutor C', email: 'c@hub.test', status: 'AVAILABLE', free_slots: 1, reason: null,
-    tutor_meet_link: MEET, original: false },
+    tutor_meet_link: MEET, original: false, eligible: true },
 ] };
 const openSlot = (time, extra = {}) => ({ time, starts_at: `2026-11-01T${time}:00+05:30`, ends_at: `2026-11-01T${time}:00+05:30`,
   status: 'AVAILABLE', seats_left: 3, bookable: true, unavailable_reason: null, lead_conflict: null, tutor_free: true,
@@ -2859,9 +2861,15 @@ test("Re-Demo tab: scheduling picks the tutor, then a time they are free, shows 
   await click(button('Schedule Re-Demo', topDialog()));
   const dialog = topDialog();
   assert.match(clean(dialog.textContent), /Schedule the Re-Demo.*Ira · Re-Demo of the Demo on Sat, 31 Oct · 7:30 PM IST/);
-  assert.deepEqual(tutorRadios(dialog), [['Tutor A', 'Original tutor Available', false], ['Tutor B', 'Unavailable', true],
+  // The original Demo's tutor stays listed but disabled, and says why; the others are offered as they are free.
+  assert.deepEqual(tutorRadios(dialog), [['Tutor A', 'Original tutor · Not eligible', true], ['Tutor B', 'Unavailable', true],
     ['Tutor C', 'Available', false]]);
-  assert.match(clean(dialog.textContent), /9 free Demo slots.*No free Demo slot in the booking window\..*1 free Demo slot/);
+  assert.match(clean(dialog.textContent),
+    new RegExp(`Tutor AOriginal tutor · Not eligible${ORIGINAL_REASON.replace('.', '\\.')}.*No free Demo slot in the booking window\\..*1 free Demo slot`));
+  const original = dialog.querySelector('input[value="t-a"]').closest('label');
+  assert.equal(original.getAttribute('aria-disabled'), 'true');
+  assert.match(original.className, /cursor-not-allowed/);
+  assert.ok(!dialog.querySelector('[role="alert"]'), 'another tutor can teach it');
   assert.equal(calls('GET', redemoAt('slots/')).length, 0, 'no slots until a tutor is chosen');
   assert.equal(button('Schedule Re-Demo', dialog).disabled, true);
 
@@ -2882,6 +2890,26 @@ test("Re-Demo tab: scheduling picks the tutor, then a time they are free, shows 
     [{ tutor_id: 't-c', date: '2026-11-01', time: '10:00', remarks: 'Go slower.' }]);
   assert.match(bodyText(), /Ira's Re-Demo is booked with Tutor C on Sun, 1 Nov · 10:00 AM IST\. The BDE tells the parent\./);
   assert.ok(calls('GET', redemoAt()).length > reads, 'the request is read again');
+});
+
+test('Re-Demo tab: with no tutor but the original one free, scheduling says why and cannot go ahead', async () => {
+  const onlyOriginal = { ...TUTORS, tutors: TUTORS.tutors.map((option) => (option.id === 't-c'
+    ? { ...option, status: 'UNAVAILABLE', free_slots: 0, reason: { code: 'TUTOR_UNAVAILABLE', message: 'No free Demo slot in the booking window.' } }
+    : option)) };
+  serve({
+    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: REDEMO_DETAIL,
+    [`GET ${redemoAt('tutors/')}`]: onlyOriginal,
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  await click(button('Schedule Re-Demo', topDialog()));
+  const dialog = topDialog();
+  assert.match(clean(dialog.querySelector('[role="alert"]').textContent),
+    /^No other tutor can teach this Re-Demo: the tutor who taught the Demo being repeated is not eligible/);
+  assert.deepEqual(tutorRadios(dialog).map(([name, , disabled]) => [name, disabled]), [['Tutor A', true], ['Tutor B', true], ['Tutor C', true]]);
+  assert.equal(button('Schedule Re-Demo', dialog).disabled, true);
+  assert.equal(calls('GET', redemoAt('slots/')).length, 0);
+  assert.equal(calls('POST', redemoAt('schedule/')).length, 0, 'nothing can be booked');
 });
 
 test('Re-Demo tab: a refused schedule is shown and the slots read again; one already scheduled is not offered', async () => {
