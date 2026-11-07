@@ -6259,8 +6259,8 @@
    }
   },
   "/bookings @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6288,6 +6288,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6305,7 +6306,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",
@@ -6443,8 +6445,8 @@
    }
   },
   "/bookings @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6472,6 +6474,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6489,7 +6492,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",
@@ -6505,8 +6509,8 @@
    }
   },
   "/bookings @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings",
     "noAccess": false,
@@ -6534,6 +6538,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6551,7 +6556,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",
@@ -6667,8 +6673,8 @@
    }
   },
   "/bookings?booking={booking_a} @ admin": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "An administrator holds accounts.view_all_bookings and accounts.assign_booking_tutor: the page lists every booking (type tabs, search, status, tutor-assignment, when and date-range filters, paging), each with View and, while its tutor may change, Assign or Change. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6696,6 +6702,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6713,7 +6720,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",
@@ -6853,8 +6861,8 @@
    }
   },
   "/bookings?booking={booking_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "A superuser holds both permissions (D1), whatever the role: the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6882,6 +6890,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6899,7 +6908,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",
@@ -6917,8 +6927,8 @@
    }
   },
   "/bookings?booking={booking_a} @ superuser": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
-   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Admin report screens (Phase 5.2 P8, design D.3): the Bookings list gains a Report column (the version submitted, or Report due) and a Filter by report (Report submitted / No report yet / Report due, the API's report=submitted|missing|due); a booking's sheet gains its report read-only, with its PDF and versions. Read-only: nothing on these screens writes a report. Parent communication (Phase 3.1, read-only): accounts.view_all_communications (the ADMIN role group; a superuser under D1) shows a booking's communication in its sheet (GET /api/communications/bookings/<type>/<id>/); accounts.view_own_lead_communications (the BDE role group) shows the parent's answer beside each booking of the BDE's own enquiry and opens that booking's communication in a side sheet, own leads only. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Re-Demo management (backend bookings.redemos): the Bookings page gains a Re-Demo tab beside Demo and Diagnostic for the same callers (accounts.view_all_bookings), listing the Re-Demo requests; no other page, call or caller changes.",
+   "note": "A superuser holds both permissions (D1): the page as the administrator sees it. With ?booking=<id>, that booking opens in the side sheet (GET /api/bookings/<id>/). Since the split the page has a Demo and a Diagnostic tab, each its own list, opening on Demo; there is no combined \"All\" list and, one type per tab, no Type column. Access, navigation and actions are unchanged. P8: the Report column header, the Filter by report select and its All reports trigger are new; booking_a has no report, so no report is read; every other control and call is as before. With accounts.view_all_communications the open booking's sheet also reads its communication (GET /api/communications/bookings/demo/<id>/) for its Communication card, read-only; nothing else changes. The sidebar gains Leads; nothing else on the page changes. The Re-Demo tab (a third tab, so one more tab and button); the same calls.",
    "result": {
     "at": "/bookings?booking={booking_a}",
     "noAccess": false,
@@ -6946,6 +6956,7 @@
      "Diagnostic",
      "Next",
      "Previous",
+     "Re-Demo",
      "Refresh",
      "Toggle Sidebar",
      "Upcoming",
@@ -6963,7 +6974,8 @@
     ],
     "tabs": [
      "Demo",
-     "Diagnostic"
+     "Diagnostic",
+     "Re-Demo"
     ],
     "filters": [
      "Filter by report",

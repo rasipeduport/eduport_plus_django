@@ -15,7 +15,7 @@ import {
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import { bdeBookingCancelUrl, bdeDemoInviteUrl, bookingState, readBookingType } from '@/lib/bookings';
+import { bdeBookingCancelUrl, bdeDemoInviteUrl, bdeRedemoUrl, bookingState, readBookingType } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, enquiryError, enquiryUrl, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { getInitials } from '@/lib/utils';
@@ -26,9 +26,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
+import { RedemoStatusBadge } from '@/components/bookings/booking-badges';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { DemoInviteButton } from '@/components/bookings/demo-invite-button';
 import { MeetLink } from '@/components/bookings/meet-link';
+import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { BookingCommunicationSheet } from '@/components/communications/communication-sheet';
@@ -48,7 +50,11 @@ function Field({ label, children }) {
  * (Q22) -- the API says which in each booking's `actions` and checks again,
  * that the lead is theirs, on every request -- and, from a Diagnostic whose
  * report is in, send the parent (`recipient`) a Demo invitation (actions.demo_invite;
- * a refusal reads the enquiry again, `onInviteRefused`). With the lead's communication to
+ * a refusal reads the enquiry again, `onInviteRefused`). A completed Demo may
+ * be sent for a Re-Demo (actions.request_redemo, `onRequestRedemo`): it then
+ * says where the Re-Demo stands and, once an administrator has scheduled it,
+ * when and with whom -- the details the BDE gives the parent; the Re-Demo
+ * itself is a booking of its own, marked Re-Demo. With the lead's communication to
  * see (accounts.view_own_lead_communications, `onOpenCommunication`), each
  * shows the parent's answer to the confirmation request and opens its
  * communication.
@@ -74,7 +80,25 @@ function Teaching({ booking }) {
   );
 }
 
-function BookingsPanel({ bookings, onCancel, onOpenCommunication, recipient, onInviteRefused }) {
+/** Where a Demo's Re-Demo stands, under its status: the request's own and, once scheduled, when and with whom. */
+function RedemoLine({ redemo }) {
+  return (
+    <span className="flex flex-col items-start gap-0.5">
+      <span className="flex flex-wrap items-center gap-1 text-xs">
+        <span className="text-muted-foreground">Re-Demo:</span>
+        <RedemoStatusBadge status={redemo.status} />
+      </span>
+      {redemo.booking ? (
+        <span className="text-muted-foreground text-xs">
+          {slotLabel(redemo.booking)}
+          {redemo.tutor ? ` with ${redemo.tutor.full_name}` : ''}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function BookingsPanel({ bookings, onCancel, onOpenCommunication, recipient, onInviteRefused, onRequestRedemo }) {
   const communication = Boolean(onOpenCommunication);
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
@@ -112,12 +136,16 @@ function BookingsPanel({ bookings, onCancel, onOpenCommunication, recipient, onI
                     <TableCell>
                       {/* Where it stands as a class, read-only: only its tutor starts it, never its scheduled time. */}
                       <div className="flex flex-col items-start gap-1">
-                        <Badge variant={state.variant}>{state.label}</Badge>
+                        <span className="flex flex-wrap gap-1">
+                          <Badge variant={state.variant}>{state.label}</Badge>
+                          {booking.redemo_from ? <Badge variant="outline">Re-Demo</Badge> : null}
+                        </span>
                         {booking.started_at ? (
                           <span className="text-muted-foreground text-xs whitespace-nowrap">
                             Started {istMoment(booking.started_at)}
                           </span>
                         ) : null}
+                        {booking.redemo ? <RedemoLine redemo={booking.redemo} /> : null}
                       </div>
                     </TableCell>
                     {communication ? (
@@ -157,6 +185,16 @@ function BookingsPanel({ bookings, onCancel, onOpenCommunication, recipient, onI
                             recipient={recipient}
                             onRefused={onInviteRefused}
                           />
+                        ) : null}
+                        {booking.actions?.request_redemo ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onRequestRedemo(booking)}
+                            aria-label={`Request a Re-Demo of the demo on ${slotLabel(booking)}`}
+                          >
+                            Request Re-Demo
+                          </Button>
                         ) : null}
                       </div>
                     </TableCell>
@@ -217,6 +255,7 @@ export default function EnquiryPage({ user }) {
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [cancelling, setCancelling] = useState(null);
+  const [requestingRedemo, setRequestingRedemo] = useState(null);
   const [notice, setNotice] = useState(null);
   const canSeeCommunication = can(user, PERMISSIONS.viewOwnLeadCommunications);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
@@ -357,6 +396,9 @@ export default function EnquiryPage({ user }) {
           onOpenCommunication={canSeeCommunication ? showCommunication : null}
           recipient={{ dialCode: enquiry.phone_dial_code, number: enquiry.phone_number }}
           onInviteRefused={refreshEnquiry}
+          onRequestRedemo={(booking) =>
+            setRequestingRedemo({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
+          }
         />
 
         {can(user, PERMISSIONS.viewOwnLeadReports) ? <LeadReportsPanel enquiry={enquiry} /> : null}
@@ -390,6 +432,21 @@ export default function EnquiryPage({ user }) {
           setEnquiry(updated);
           setNotice(
             `Cancelled ${updated.student_name}'s ${bookingTypeLabel(cancelling.booking_type).toLowerCase()} on ${slotLabel(cancelling.slot)}.`
+          );
+        }}
+      />
+      <RequestRedemoDialog
+        booking={requestingRedemo}
+        open={Boolean(requestingRedemo)}
+        onOpenChange={(open) => {
+          if (!open) setRequestingRedemo(null);
+        }}
+        requestUrl={requestingRedemo ? bdeRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
+        onRequested={(updated) => {
+          // The API answers the enquiry as it now stands.
+          setEnquiry(updated);
+          setNotice(
+            `Asked for a Re-Demo of ${updated.student_name}'s demo on ${slotLabel(requestingRedemo.slot)}. An administrator schedules it; then tell the parent the date and time shown here.`
           );
         }}
       />

@@ -15,7 +15,7 @@ import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ReportStateBadge } from '@/components/bookings/booking-badges';
+import { RedemoBadge, ReportStateBadge } from '@/components/bookings/booking-badges';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { DemoReportForm } from '@/components/reports/demo-report-form';
@@ -482,7 +482,11 @@ export default function TutorReportPage({ user }) {
           <p className="text-muted-foreground text-sm">
             {booking.student_name} · {slotLabel(booking.slot)}
           </p>
-          <BookingTypeBadge type={booking.booking_type} />
+          {booking.redemo ? (
+            <RedemoBadge number={booking.redemo.number} />
+          ) : (
+            <BookingTypeBadge type={booking.booking_type} />
+          )}
           <ReportStateBadge booking={booking} />
         </div>
       </div>

@@ -12,7 +12,7 @@ import { bookingError, tutorBookingUrl } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { istMoment } from '@/lib/communications';
 import { reportActions, reportPdfFallbackName, reportPdfUrl, reportState, tutorReportUrl } from '@/lib/reports';
-import { ReportStateBadge, StartInfo } from './booking-badges';
+import { RedemoBadge, ReportStateBadge, StartInfo } from './booking-badges';
 import { MeetLink } from './meet-link';
 import { StartBookingButton } from './start-booking-button';
 
@@ -86,6 +86,45 @@ function ReportSection({ booking }) {
   );
 }
 
+/**
+ * Why this Re-Demo is taught (the API's `redemo`, backend bookings.redemos),
+ * each labelled by where it comes from: the reason given when it was
+ * requested (the BDE's, often the parent's words), the administrators'
+ * remarks from scheduling it, and the Demo it follows -- when it was and who
+ * taught it.
+ */
+function RedemoSection({ redemo }) {
+  const which = redemo.number > 1 ? `Re-Demo ${redemo.number}` : 'Re-Demo';
+  return (
+    <Section title={which}>
+      <Detail label="Request reason">
+        <span className="flex flex-col">
+          <span className="whitespace-pre-wrap">{redemo.reason}</span>
+          <span className="text-muted-foreground text-xs font-normal">From the Re-Demo request (BDE / parent)</span>
+        </span>
+      </Detail>
+      <Detail label="Admin remarks">
+        <span className="flex flex-col">
+          {redemo.admin_remarks ? (
+            <span className="whitespace-pre-wrap">{redemo.admin_remarks}</span>
+          ) : (
+            <span className="text-muted-foreground">No remarks</span>
+          )}
+          <span className="text-muted-foreground text-xs font-normal">From the administrator who scheduled it</span>
+        </span>
+      </Detail>
+      <Detail label="Follows the Demo">
+        <span className="flex flex-col">
+          <span>{slotLabel(redemo.original.slot)}</span>
+          <span className="text-muted-foreground text-xs font-normal">
+            {redemo.original.tutor ? `Taught by ${redemo.original.tutor.full_name}` : 'No tutor recorded'}
+          </span>
+        </span>
+      </Detail>
+    </Section>
+  );
+}
+
 // A booked or completed booking is one the tutor teaches (or taught); a cancelled or moved one has no class.
 const teaches = (booking) => booking.status === 'BOOKED' || booking.status === 'COMPLETED';
 
@@ -101,7 +140,9 @@ function Detail({ label, children }) {
 /**
  * One booking the tutor is assigned to teach (GET /api/tutor/bookings/<type>/<id>/):
  * the slot in Indian time, its Google Meet link (the booking's copy of the
- * tutor's own), the child it is for and its report. Only the
+ * tutor's own), the child it is for and its report -- and, for a Re-Demo,
+ * why it is taught again, the administrators' remarks and the Demo it
+ * follows (RedemoSection). Only the
  * fields below are read -- nothing of the parent, the BDE or the assignment.
  * A booking no longer assigned to the caller is answered 404, as one that does
  * not exist; a link without a known `bookingType` names no booking, so it is
@@ -180,7 +221,7 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
           </p>
         ) : null}
         <Section title="Booking">
-          <Detail label="Type">{bookingTypeLabel(shown.booking_type)}</Detail>
+          <Detail label="Type">{shown.redemo ? 'Re-Demo' : bookingTypeLabel(shown.booking_type)}</Detail>
           <Detail label="When">{slotLabel(shown.slot)}</Detail>
           <Detail label="Status">
             <ReportStateBadge booking={shown} />
@@ -195,6 +236,8 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
           ) : null}
           {teaches(shown) ? <StartSection booking={shown} onStarted={started} onRefresh={refresh} /> : null}
         </Section>
+
+        {shown.redemo ? <RedemoSection redemo={shown.redemo} /> : null}
 
         {teaches(shown) ? <ReportSection booking={shown} /> : null}
 
@@ -217,7 +260,11 @@ export function TutorBookingSheet({ bookingType, bookingId, open, onOpenChange, 
           <SheetDescription>{shown ? `${slotLabel(shown.slot)} · ${shown.grade || 'Class not given'}` : 'Loading…'}</SheetDescription>
           {shown ? (
             <div className="flex flex-wrap gap-2 pt-1">
-              <BookingTypeBadge type={shown.booking_type} />
+              {shown.redemo ? (
+                <RedemoBadge number={shown.redemo.number} />
+              ) : (
+                <BookingTypeBadge type={shown.booking_type} />
+              )}
               <ReportStateBadge booking={shown} />
             </div>
           ) : null}

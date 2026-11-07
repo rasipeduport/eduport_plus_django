@@ -16,9 +16,12 @@ function describeBookingEvent(event) {
       if (d.via === 'reschedule') return `Booked in the new slot, ${slotLabel(d.slot)}`;
       // The parent picked the slot on the page a Demo invitation opens (backend bookings.demo_invites).
       if (d.via === 'demo_invite') return `Booked with a Demo invitation for ${slotLabel(d.slot)}`;
+      // A Re-Demo an administrator scheduled, with its tutor (backend bookings.redemos).
+      if (d.via === 'redemo') return `Re-Demo scheduled for ${slotLabel(d.slot)}`;
       return `Booked on the booking page for ${slotLabel(d.slot)}`;
     case 'TUTOR_ASSIGNED':
       if (d.via === 'reschedule') return `${d.new_tutor?.full_name ?? 'The tutor'} carried over to the new slot`;
+      if (d.via === 'redemo') return `${d.new_tutor?.full_name ?? 'The tutor'} assigned for the Re-Demo`;
       return d.old_tutor
         ? `Tutor changed from ${d.old_tutor.full_name} to ${d.new_tutor?.full_name ?? '—'}`
         : `${d.new_tutor?.full_name ?? 'A tutor'} assigned`;
@@ -47,6 +50,9 @@ function describeBookingEvent(event) {
       return 'Parent confirmed';
     case 'PARENT_NOT_CONFIRMED':
       return d.reason?.label ? `Parent did not confirm — ${d.reason.label}` : 'Parent did not confirm';
+    // A completed Demo sent to be taught again: its report and tutor stay; the reason stays on the request.
+    case 'REDEMO_REQUESTED':
+      return 'Re-Demo requested — the Demo is now Re-Demo required';
     default:
       return event.kind_label ?? event.kind;
   }

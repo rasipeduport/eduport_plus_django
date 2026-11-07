@@ -4,7 +4,7 @@ import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, RefreshCw
 
 import api from '@/lib/api';
 import { apiErrorMessage } from '@/lib/api-errors';
-import { bookingPagePath } from '@/lib/bookings';
+import { bookingPagePath, conducted } from '@/lib/bookings';
 import { formatDateInZone, formatShortDateInZone, formatTimeInZone, utcToZonedWallTime } from '@/lib/timezone';
 import { FormDialog } from '@/components/form-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -186,7 +186,7 @@ function SeatHolders({ slot }) {
   return (
     <ul className="mt-1 flex flex-col gap-0.5 text-xs">
       {slot.bookings.map((booking) => {
-        const label = `Seat ${booking.seat}: ${booking.student_name}${booking.status === 'COMPLETED' ? ' (Completed)' : ''}`;
+        const label = `Seat ${booking.seat}: ${booking.student_name}${conducted(booking) ? ' (Completed)' : ''}`;
         return (
           <li key={booking.id}>
             <Link

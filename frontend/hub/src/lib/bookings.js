@@ -32,11 +32,64 @@ export const bookingRescheduleUrl = (type, id) => `${bookingUrl(type, id)}resche
 export const bookingCancelUrl = (type, id) => `${bookingUrl(type, id)}cancel/`;
 // A Diagnostic's Demo invitation for its parent (backend bookings.demo_invites): the Admin's, and a BDE's for their own lead.
 export const bookingDemoInviteUrl = (type, id) => `${bookingUrl(type, id)}demo-invite/`;
+// Asking for a completed Demo to be taught again (backend bookings.redemos): the Admin's, and a BDE's for their own lead.
+export const bookingRedemoUrl = (type, id) => `${bookingUrl(type, id)}redemo/`;
 // A BDE's routes on a booking of their own lead; the API checks the lead is theirs on every request.
 export const bdeBookingUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/`;
 // Cancelling it (Q22).
 export const bdeBookingCancelUrl = (type, id) => `${bdeBookingUrl(type, id)}cancel/`;
 export const bdeDemoInviteUrl = (type, id) => `${bdeBookingUrl(type, id)}demo-invite/`;
+export const bdeRedemoUrl = (type, id) => `${bdeBookingUrl(type, id)}redemo/`;
+
+// Re-Demo requests for administrators (backend bookings/management_views.py, bookings/redemos.py): the
+// Bookings page's Re-Demo tab (?type=REDEMO). Scheduling and remarks need accounts.assign_booking_tutor.
+export const REDEMO_TAB = 'REDEMO';
+export const REDEMOS_URL = `${BOOKINGS_URL}redemos/`;
+export const redemoUrl = (id) => `${REDEMOS_URL}${id}/`;
+export const redemoTutorsUrl = (id) => `${redemoUrl(id)}tutors/`;
+// The Demo slots it may be booked in with one tutor (?tutor_id=), and booking it there.
+export const redemoSlotsUrl = (id) => `${redemoUrl(id)}slots/`;
+export const redemoScheduleUrl = (id) => `${redemoUrl(id)}schedule/`;
+export const redemoRemarksUrl = (id) => `${redemoUrl(id)}remarks/`;
+
+// Where a Re-Demo request stands (backend models.ReDemoStatus, read from its rows by bookings.redemo_chain).
+export const REDEMO_STATUSES = [
+  { value: 'AWAITING_SCHEDULING', label: 'Awaiting scheduling', variant: 'warning' },
+  { value: 'SCHEDULED', label: 'Re-Demo scheduled', variant: 'success' },
+  { value: 'COMPLETED', label: 'Re-Demo completed', variant: 'secondary' },
+];
+
+/** `{ label, variant }` for a Re-Demo request's status. */
+export function redemoStatus(status) {
+  return REDEMO_STATUSES.find((option) => option.value === status) ?? { label: status ?? '—', variant: 'outline' };
+}
+
+/** `value` if it is a Re-Demo status, else ''. */
+export function readRedemoStatus(value) {
+  return REDEMO_STATUSES.some((option) => option.value === value) ? value : '';
+}
+
+// A Re-Demo reason is staff's own words (required), the remarks the administrators' (backend limits).
+export const REDEMO_REASON_MAX_LENGTH = 1000;
+export const REDEMO_REMARKS_MAX_LENGTH = 2000;
+
+// Moving between the Bookings page's lists (a booking type's, the Re-Demo tab's): what that clears, since
+// one list's filters and paging mean nothing in the other.
+export const CLEARED_FILTERS = {
+  q: null,
+  status: null,
+  assigned: null,
+  report: null,
+  from: null,
+  to: null,
+  when: null,
+  page: null,
+};
+
+/** The day a slot picker shows first: the one picked, else the first with an open slot, else the first. */
+export function shownDayOf(dates, day) {
+  return day || dates.find((entry) => entry.slots.some((slot) => slot.bookable))?.date || dates[0]?.date || '';
+}
 
 /** The Bookings page with one booking open in its detail sheet (?type=<TYPE>&booking=<id>). */
 export function bookingPagePath(type, id) {
@@ -69,6 +122,8 @@ export const rescheduleReasonLabel = (code) => labelOf(RESCHEDULE_REASONS, code)
 export const BOOKING_STATUSES = [
   { value: 'BOOKED', label: 'Booked' },
   { value: 'COMPLETED', label: 'Completed' },
+  // A completed Demo sent for a Re-Demo (backend bookings.redemos).
+  { value: 'REDEMO_REQUIRED', label: 'Re-Demo required' },
   { value: 'RESCHEDULED', label: 'Rescheduled' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
@@ -195,6 +250,8 @@ const ACTIVITY_STATES = {
   COMPLETED: { label: 'Completed', variant: 'secondary' },
   CANCELLED: { label: 'Cancelled', variant: 'outline' },
   RESCHEDULED: { label: 'Rescheduled', variant: 'outline' },
+  // A completed Demo sent for a Re-Demo: its status, not a state of the class (which was taught).
+  REDEMO_REQUIRED: { label: 'Re-Demo required', variant: 'warning' },
 };
 const BOOKED_STATE = { label: 'Booked', variant: 'success' };
 
@@ -237,11 +294,18 @@ export function referralLabel(status) {
 
 /**
  * How a booking came in, as its detail names it: a Demo booked with a Demo
- * invitation (a BDE handoff, backend bookings.demo_invites), or the booking
- * page's link as referralLabel reads it.
+ * invitation, or a Re-Demo an administrator scheduled (both BDE handoffs,
+ * backend bookings.demo_invites / bookings.redemos), or the booking page's
+ * link as referralLabel reads it.
  */
 export function cameInLabel(booking) {
-  return booking?.channel === 'BDE_HANDOFF' ? 'Demo invitation' : referralLabel(booking?.referral_status);
+  if (booking?.channel !== 'BDE_HANDOFF') return referralLabel(booking?.referral_status);
+  return booking.redemo_from ? 'Re-Demo, scheduled by an administrator' : 'Demo invitation';
+}
+
+/** Whether the booking's class took place and has its report: completed, or completed and sent for a Re-Demo. */
+export function conducted(booking) {
+  return booking?.status === 'COMPLETED' || booking?.status === 'REDEMO_REQUIRED';
 }
 
 /**

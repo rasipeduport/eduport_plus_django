@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { bookingState } from '@/lib/bookings';
+import { bookingState, conducted, redemoStatus } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { reportState } from '@/lib/reports';
 
@@ -7,6 +7,17 @@ import { reportState } from '@/lib/reports';
 export function BookingStateBadge({ booking }) {
   const state = bookingState(booking);
   return <Badge variant={state.variant}>{state.label}</Badge>;
+}
+
+/** Where a Re-Demo request stands (lib/bookings redemoStatus): Awaiting scheduling, Re-Demo scheduled, Re-Demo completed. */
+export function RedemoStatusBadge({ status }) {
+  const shown = redemoStatus(status);
+  return <Badge variant={shown.variant}>{shown.label}</Badge>;
+}
+
+/** A booking that is a Re-Demo (backend bookings.redemos): "Re-Demo", or "Re-Demo 2" and on for a later one in its chain. */
+export function RedemoBadge({ number }) {
+  return <Badge variant="default">{number > 1 ? `Re-Demo ${number}` : 'Re-Demo'}</Badge>;
 }
 
 /**
@@ -34,7 +45,7 @@ export function StartInfo({ booking, showBy = false }) {
       </span>
     );
   }
-  if (booking.status === 'COMPLETED') return <span className="text-muted-foreground">Start not recorded</span>;
+  if (conducted(booking)) return <span className="text-muted-foreground">Start not recorded</span>;
   if (booking.activity_state === 'LATE' || booking.activity_state === 'NOT_STARTED') {
     return <Badge variant="warning">Not started</Badge>;
   }
