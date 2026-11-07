@@ -3,15 +3,18 @@ The BDE workspace's dashboard and enquiries (bookings.enquiries): a BDE reads
 and adds only their own leads, statuses follow the bookings, and every other
 caller -- superusers included -- is refused.
 """
-from datetime import time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from activity.models import ActivityLog
 
+from . import enquiries
 from .booking_service import BookingRequest, create_booking
 from .models import BookingLink, BookingSlot, BookingStatus, BookingType, Lead, LeadSource, ReferralStatus, SlotTime, booking_model
 from .scheduling import BOOKING_TIMEZONE, booking_window, slot_instants
@@ -40,15 +43,21 @@ def lead(owner, student, phone='501234567', link=None, source=LeadSource.BOOKING
     )
 
 
-def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED, started_by=None):
+def booking(of, days, booking_type=DEMO, status=BookingStatus.BOOKED, started_by=None, at=EVENING):
     """
-    A booking of ``of`` at 19:30 IST, ``days`` from today (negative: in the
-    past); ``started_by`` its tutor, who started it a minute into the slot.
+    A booking of ``of`` at ``at`` IST (19:30 unless given), ``days`` from today
+    (negative: in the past); ``started_by`` its tutor, who started it a minute
+    into the slot.
     """
     local_date = timezone.now().astimezone(BOOKING_TIMEZONE).date() + timedelta(days=days)
-    starts_at, ends_at = slot_instants(local_date, EVENING)
+    return booking_on(of, local_date, at, booking_type, status, started_by)
+
+
+def booking_on(of, local_date, at=EVENING, booking_type=DEMO, status=BookingStatus.BOOKED, started_by=None):
+    """A booking of ``of`` on the Indian date ``local_date`` at ``at`` IST, as booking() makes one."""
+    starts_at, ends_at = slot_instants(local_date, at)
     slot, _ = BookingSlot.objects.get_or_create(
-        booking_type=booking_type, local_date=local_date, local_time=EVENING,
+        booking_type=booking_type, local_date=local_date, local_time=at,
         defaults={'starts_at': starts_at, 'ends_at': ends_at},
     )
     model = booking_model(booking_type)
@@ -334,7 +343,106 @@ class DashboardTests(EnquiryTestCase):
         data = self.client.get(DASHBOARD).json()
         self.assertEqual(data['enquiries'], {'total': 0, 'last_7_days': 0})
         self.assertEqual(data['upcoming'], {'total': 0, 'rows': []})
+        self.assertEqual(data['agenda'], {'date': indian_date().isoformat(), 'total': 0, 'rows': []})
         self.assertEqual(data['recent_enquiries'], [])
+
+
+def indian_date():
+    return timezone.now().astimezone(BOOKING_TIMEZONE).date()
+
+
+def complete(booking):
+    """Mark ``booking`` (one its tutor started) completed, as its report would."""
+    type(booking).objects.filter(pk=booking.pk).update(status=BookingStatus.COMPLETED, completed_at=timezone.now())
+    return booking
+
+
+class AgendaTests(EnquiryTestCase):
+    """
+    Today's agenda on the dashboard: the BDE's own bookings on today's Indian
+    date that hold their seat -- to come, under way, completed or missed --
+    soonest first, with nothing on them the BDE's enquiry pages do not show.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.tutor = account('tutor_t', role='TUTOR')
+
+    def test_the_agenda_is_todays_bookings_of_the_bdes_own_enquiries(self):
+        riya = lead(self.bde, 'Riya', phone='501000001')
+        arjun = lead(self.bde, 'Arjun', phone='501000002')
+        evening = booking(riya, 0, DEMO)
+        morning = complete(booking(arjun, 0, DIAGNOSTIC, at=time(9, 30), started_by=self.tutor))
+        # A completed Demo sent for a Re-Demo was still taught today.
+        retaught = complete(booking(arjun, 0, DEMO, at=time(15, 30), started_by=self.tutor))
+        type(retaught).objects.filter(pk=retaught.pk).update(status=BookingStatus.REDEMO_REQUIRED)
+        booking(arjun, 0, DEMO, at=time(11, 30), status=BookingStatus.CANCELLED)
+        booking(riya, 0, DIAGNOSTIC, at=time(12, 30), status=BookingStatus.RESCHEDULED)
+        booking(riya, 1, DEMO)
+        booking(riya, -1, DIAGNOSTIC)
+        booking(lead(self.other_bde, 'Sara', phone='502000000'), 0, DEMO, at=time(10, 30))
+        booking(lead(None, 'Nobody', phone='503000000'), 0, DEMO, at=time(8, 30))
+
+        agenda = self.client.get(DASHBOARD).json()['agenda']
+        self.assertEqual(agenda['date'], indian_date().isoformat())
+        self.assertEqual(agenda['total'], 3)
+        self.assertEqual([row['id'] for row in agenda['rows']], [str(morning.id), str(retaught.id), str(evening.id)])
+        self.assertEqual([row['status'] for row in agenda['rows']], ['COMPLETED', 'REDEMO_REQUIRED', 'BOOKED'])
+        self.assertEqual([row['activity_state'] for row in agenda['rows']][:2], ['COMPLETED', 'COMPLETED'])
+        self.assertEqual([row['time'] for row in agenda['rows']], ['09:30', '15:30', '19:30'])
+
+    def test_today_is_the_indian_date_not_the_servers(self):
+        # A quarter past midnight in India on 9 November: still 8 November in UTC, the server's clock.
+        now = datetime(2026, 11, 8, 18, 45, tzinfo=UTC)
+        riya = lead(self.bde, 'Riya')
+        first_thing = booking_on(riya, date(2026, 11, 9), time(7, 30))
+        booking_on(riya, date(2026, 11, 8), time(23, 30), DIAGNOSTIC)
+
+        agenda = enquiries.dashboard(self.bde, now=now)['agenda']
+        self.assertEqual(agenda['date'], '2026-11-09')
+        self.assertEqual(agenda['total'], 1)
+        self.assertEqual([row['id'] for row in agenda['rows']], [str(first_thing.id)])
+
+    def test_an_agenda_row_names_the_tutor_and_carries_nothing_more(self):
+        riya = lead(self.bde, 'Riya')
+        taught = booking(riya, 0, DEMO, started_by=self.tutor)
+        type(taught).objects.filter(pk=taught.pk).update(tutor_meet_link='https://meet.google.com/abc-defg-hij')
+        untaught = booking(lead(self.bde, 'Arjun', phone='501000002'), 0, DIAGNOSTIC, at=time(9, 0))
+
+        response = self.client.get(DASHBOARD)
+        rows = {row['id']: row for row in response.json()['agenda']['rows']}
+        for row in rows.values():
+            self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'activity_state',
+                                        'tutor', 'enquiry'})
+        self.assertEqual(rows[str(taught.id)]['tutor'], {'full_name': 'Tutor T'})
+        self.assertIsNone(rows[str(untaught.id)]['tutor'])
+        self.assertEqual(rows[str(taught.id)]['enquiry'],
+                         {'id': str(riya.id), 'parent_name': 'Asha Nair', 'student_name': 'Riya', 'grade': 'Class 8'})
+        # The Meet room is the enquiry page's to show, not the dashboard's.
+        self.assertNotIn('meet.google.com', response.content.decode())
+
+    def test_the_agenda_lists_the_first_rows_and_counts_them_all(self):
+        riya = lead(self.bde, 'Riya')
+        times = [time(7 + i // 2, 30 * (i % 2)) for i in range(enquiries.AGENDA_ROWS + 2)]
+        made = [booking(riya, 0, DIAGNOSTIC if i % 2 else DEMO, at=at) for i, at in enumerate(times)]
+
+        agenda = self.client.get(DASHBOARD).json()['agenda']
+        self.assertEqual(agenda['total'], len(times))
+        self.assertEqual([row['id'] for row in agenda['rows']], [str(b.id) for b in made[:enquiries.AGENDA_ROWS]])
+
+    def test_a_longer_agenda_costs_no_more_queries(self):
+        riya = lead(self.bde, 'Riya')
+
+        def queries():
+            with CaptureQueriesContext(connection) as captured:
+                enquiries.dashboard(self.bde)
+            return len(captured.captured_queries)
+
+        booking(riya, 0, DEMO, at=time(9, 0), started_by=self.tutor)
+        few = queries()
+        for hour in (10, 11, 12, 13):
+            booking(riya, 0, DIAGNOSTIC, at=time(hour, 0), started_by=self.tutor)
+        self.assertEqual(queries(), few)
 
 
 class OtherCallerTests(TestCase):

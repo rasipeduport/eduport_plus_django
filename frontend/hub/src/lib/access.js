@@ -6,6 +6,7 @@
 // only decides what the Hub offers. Only the BDE workspace and a tutor's My
 // Bookings read the role as well (see canOpenPage, isBde and isTutor): an
 // account holding no permission gets no pages at all, whatever its role.
+// What the sidebar lists is lib/navigation's, filtered through canOpenPage.
 
 export const PERMISSIONS = {
   viewTeam: 'accounts.view_team',
@@ -100,7 +101,9 @@ export const PAGE_PERMISSIONS = {
   '/homework': HOMEWORK_VIEW,
   '/team': [P.viewTeam, P.manageTeam],
   '/invitations': [P.viewInvitations],
-  '/activity': ACTIVITY_VIEW,
+  // The activity log, or a BDE's own activity (App.jsx picks by isBde): only a
+  // BDE (and a superuser, who holds the log's permissions anyway) holds view_own_enquiries.
+  '/activity': [...ACTIVITY_VIEW, P.viewOwnEnquiries],
   // Every lead, whatever brought it in, and the BDE who owns it, for administrators.
   '/leads': [P.viewAllLeads],
   // Every Demo and Diagnostic booking and the tutor teaching it, for administrators.
@@ -110,12 +113,21 @@ export const PAGE_PERMISSIONS = {
   // The Demo and Diagnostic bookings a tutor is assigned to teach, their own only.
   '/my-bookings': [P.viewAssignedBookings],
   // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.
+  // My Enquiries, then the Demo and Diagnostic bookings made for those enquiries, what to
+  // follow up, and the two modules still to come (My Sales, Plans & Pricing). The
+  // follow-ups are the leads' parent communication, which carries the parent's phone
+  // number: they open on the communication permission, as their API does.
   '/enquiries': [P.viewOwnEnquiries],
+  '/demo-bookings': [P.viewOwnEnquiries],
+  '/diagnostic-bookings': [P.viewOwnEnquiries],
+  '/follow-ups': [P.viewOwnLeadCommunications],
+  '/sales': [P.viewOwnEnquiries],
+  '/plans': [P.viewOwnEnquiries],
 };
 
 // Pages for BDE accounts only. A superuser holds their permissions too (D1)
 // but owns no links or enquiries, so these pages read the role as well.
-const BDE_PAGES = new Set(['/enquiries']);
+const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
 
 // Pages for tutors only. A superuser holds accounts.view_assigned_bookings too
 // (D1) but is assigned no booking unless they are a tutor, so My Bookings reads

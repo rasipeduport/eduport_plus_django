@@ -1,8 +1,10 @@
+import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import AppHeader from '@/components/app-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { REFRESH_ATTRIBUTE_VALUE, usesRefreshedDesign } from '@/lib/design';
 import { getInitials } from '@/lib/utils';
 
 // Routes already migrated to the shadcn design system. Everything else still
@@ -20,6 +22,12 @@ const PORTED_PATHS = new Set([
   '/my-bookings',
   '/enquiries',
   '/leads',
+  // The BDE workspace's pages, built on the design tokens from the start.
+  '/demo-bookings',
+  '/diagnostic-bookings',
+  '/follow-ups',
+  '/sales',
+  '/plans',
 ]);
 
 // Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon
@@ -27,9 +35,26 @@ const PORTED_PATHS = new Set([
 // keeps the full sidebar. Phones use the sheet and ignore this value.
 const defaultSidebarOpen = () => (typeof window === 'undefined' ? true : window.innerWidth >= 1024);
 
+/**
+ * Mark the page for the refreshed design while `refreshed` (lib/design.js),
+ * before the browser paints, so neither the page nor a dialog portalled to
+ * <body> flashes the old colours; signing out or another account clears it.
+ */
+function useDesign(refreshed) {
+  useLayoutEffect(() => {
+    if (!refreshed) return undefined;
+    const root = document.documentElement;
+    root.dataset.design = REFRESH_ATTRIBUTE_VALUE;
+    return () => {
+      delete root.dataset.design;
+    };
+  }, [refreshed]);
+}
+
 // Protected layout: collapsible sidebar + breadcrumb header.
 export default function SidebarLayout({ user, logout, children }) {
   const { pathname } = useLocation();
+  useDesign(usesRefreshedDesign(user));
 
   const userData = {
     name: user?.full_name ?? '',

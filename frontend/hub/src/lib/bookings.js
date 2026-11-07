@@ -35,6 +35,8 @@ export const bookingDemoInviteUrl = (type, id) => `${bookingUrl(type, id)}demo-i
 // Asking for a completed Demo to be taught again (backend bookings.redemos): the Admin's, and a BDE's for their own lead.
 export const bookingRedemoUrl = (type, id) => `${bookingUrl(type, id)}redemo/`;
 // A BDE's routes on a booking of their own lead; the API checks the lead is theirs on every request.
+// A BDE's own leads' bookings of one type (backend bookings.views.BdeBookingsView): their Demo or Diagnostic Bookings.
+export const bdeBookingsUrl = (type) => `/api/bde/bookings/${typePath(type)}/`;
 export const bdeBookingUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/${id}/`;
 // Cancelling it (Q22).
 export const bdeBookingCancelUrl = (type, id) => `${bdeBookingUrl(type, id)}cancel/`;

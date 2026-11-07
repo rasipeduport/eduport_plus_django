@@ -53,6 +53,9 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
     ('api/bde/booking-links/', 'get'),
     ('api/bde/dashboard/', 'get'),
     ('api/bde/enquiries/', 'get'),
+    # Their own leads' follow-ups and activity (BDE Hub redesign, Phase 6).
+    ('api/bde/follow-ups/', 'get'),
+    ('api/bde/activity/', 'get'),
 }
 # What /me lists: BDE its workspace's permissions and its own leads' Demo
 # handoff (a Demo invitation, bookings.demo_invites), reports and conversion;

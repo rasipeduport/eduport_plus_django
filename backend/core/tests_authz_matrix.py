@@ -73,9 +73,29 @@ BDE_WORKSPACE = {
             'bookings', 'bookings.DEMO', 'bookings.DEMO.total', 'bookings.DEMO.upcoming', 'bookings.DIAGNOSTIC',
             'bookings.DIAGNOSTIC.total', 'bookings.DIAGNOSTIC.upcoming', 'enquiries', 'enquiries.last_7_days',
             'enquiries.total', 'recent_enquiries', 'timezone', 'upcoming', 'upcoming.rows', 'upcoming.total',
+            # Today's agenda (BDE Hub redesign, Phase 3): lead_a has no booking today, so no row fields appear.
+            'agenda', 'agenda.date', 'agenda.rows', 'agenda.total',
             *(f'recent_enquiries[].{field}' for field in ENQUIRY_ROW_FIELDS),
         ]),
         'capture': {'enquiries': {'total': 1, 'last_7_days': 1}, 'upcoming': 0},
+    },
+    # Their Demo Bookings: lead_a has no booking, and booking_a's lead is nobody's.
+    'bde.bookings.list': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
+    },
+    # Their follow-ups and activity: lead_a has no booking, so neither has anything yet.
+    'bde.follow_ups.list': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'page', 'page_size', 'results', 'summary', 'summary.overdue', 'summary.today', 'summary.total',
+                   'summary.upcoming', 'timezone'],
+    },
+    'bde.activity.list': {
+        'status': 200,
+        'records': [],
+        'fields': ['count', 'page', 'page_size', 'results', 'timezone'],
     },
     'bde.enquiries.list': {
         'status': 200,

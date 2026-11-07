@@ -1,6 +1,6 @@
 // The administrators' Leads page: the /api/leads/ contract (backend
 // bookings/lead_views.py) as the Hub uses it. Rows, statuses and sources read
-// as a BDE's My Leads does (lib/enquiries.js); the API enforces every rule.
+// as a BDE's My Enquiries does (lib/enquiries.js); the API enforces every rule.
 
 export const LEADS_URL = '/api/leads/';
 export const LEAD_BDES_URL = '/api/leads/bdes/';

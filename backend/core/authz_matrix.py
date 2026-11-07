@@ -565,6 +565,11 @@ SCENARIOS = [
     Scenario('bde.dashboard', 'get', '/api/bde/dashboard/', capture=_bde_dashboard),
     Scenario('bde.enquiries.list', 'get', '/api/bde/enquiries/'),
     Scenario('bde.enquiries.detail', 'get', '/api/bde/enquiries/{lead_a}/'),
+    # A BDE's Demo Bookings list (BDE Hub redesign, Phase 5): their own leads' bookings only.
+    Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
+    # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
+    Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
+    Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
     Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
         'student_name': 'Matrix Walk-in', 'grade': 'Class 6', 'source': 'WALK_IN'}),

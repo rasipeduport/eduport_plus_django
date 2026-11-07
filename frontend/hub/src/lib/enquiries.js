@@ -1,4 +1,4 @@
-// The BDE workspace's enquiries -- their My Leads: the /api/bde/ contract
+// The BDE workspace's enquiries -- their My Enquiries: the /api/bde/ contract
 // (backend bookings/enquiries.py) as the Hub uses it, and the labels the
 // administrators' Leads page shares (lib/leads.js). The API scopes every answer
 // to the signed-in BDE and enforces every rule; this only labels what it returns.
@@ -7,11 +7,18 @@ export const BDE_DASHBOARD_URL = '/api/bde/dashboard/';
 export const ENQUIRIES_URL = '/api/bde/enquiries/';
 export const enquiryUrl = (id) => `${ENQUIRIES_URL}${id}/`;
 
+/**
+ * An enquiry's workspace opened on its Bookings tab with `bookingId`
+ * highlighted -- how the dashboard and the booking lists open one booking in
+ * context (pages/EnquiryPage.jsx reads `tab` and `highlight`).
+ */
+export const enquiryBookingPath = (enquiryId, bookingId) => `/enquiries/${enquiryId}?tab=bookings&highlight=${bookingId}`;
+
 // A lead's status follows its bookings (backend bookings.lead_status): nobody
 // sets it. A booking to come shows first, then a class that happened, then a
 // slot that ended with no start (the class never happened), then a cancellation.
 // The status filter also takes each stage of either type (backend STAGES):
-// the dashboard's Upcoming Bookings opens My Leads at ?status=BOOKED.
+// the dashboard's Upcoming Bookings opens My Enquiries at ?status=BOOKED.
 export const LEAD_STATUSES = [
   { value: 'NEW', label: 'New' },
   { value: 'BOOKED', label: 'Booked (any type)' },

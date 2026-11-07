@@ -1280,6 +1280,144 @@
     "status": 200
    }
   },
+  "bde.activity.list @ admin": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ anon": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ mentor_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ mentor_b": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ parent_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ su_mentor": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ su_tutor": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ superuser": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ tutor_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ tutor_b": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.activity.list @ unknown": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.booking_links @ admin": {
    "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
    "note": "Only the BDE role may hold accounts.view_own_booking_links, so this caller is refused and nothing is issued.",
@@ -1696,6 +1834,144 @@
   "bde.bookings.demo_invite @ unknown": {
    "decision": "Demo invitations (Diagnostic -> Demo, bookings.demo_invites): once a Diagnostic's report is submitted, the Admin (POST /api/bookings/diagnostic/<id>/demo-invite/, accounts.view_all_bookings + accounts.send_lead_communications) or the BDE who owns the lead (POST /api/bde/bookings/diagnostic/<id>/demo-invite/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) gets the parent's invitation link. The public state/book endpoints answer the marketing server's service key only; the token travels in the body.",
    "note": "Only a BDE reaches it (BDE_WORKSPACE: 404 for booking_a, a Demo of a lead nobody owns); superusers hold the permissions (D1) but are answered NOT_A_BDE; everyone else 403.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ admin": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ anon": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ mentor_a": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ mentor_b": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ parent_a": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ su_mentor": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.view_own_enquiries (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ su_tutor": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.view_own_enquiries (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ superuser": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "A superuser holds accounts.view_own_enquiries (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ tutor_a": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ tutor_b": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.list @ unknown": {
+   "decision": "BDE Hub redesign Phase 5 (Demo and Diagnostic Bookings, read-only endpoint approved 2026-11-07): GET /api/bde/bookings/<type>/ lists the caller's own leads' bookings of one type, on accounts.view_own_enquiries, which only the BDE role may hold (a superuser holds it under D1).",
+   "note": "Only the BDE role may hold accounts.view_own_enquiries, so this caller is refused and nothing is read.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -2695,6 +2971,144 @@
   "bde.enquiries.reports @ unknown": {
    "decision": "BDE report sharing (Phase 5.2 P9, scope revised and approved 2026-11-02, design F.4 and E.1): the lead's owner BDE reads each report on their own leads as it prints, and downloads its current PDF. Both routes need accounts.view_own_lead_reports; ownership is enforced in the backend -- the lead, or the booking's lead, is looked up among the caller's own leads only -- so another BDE's lead, an unowned lead, the wrong type and a missing id all answer 404 NOT_FOUND, and an account that is not a BDE is answered NOT_A_BDE. Nothing records a send: report_shares and accounts.share_booking_report stay unused.",
    "note": "No staff role reaches the BDE report routes (403); superusers hold the permission but are no BDE (NOT_A_BDE). In the new-role world the BDE reads lead_a's report list (empty: no report yet) and is answered 404 'No such booking' for booking_a's PDF, whose lead is not theirs (tests_authz_matrix BDE_WORKSPACE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ admin": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ anon": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ mentor_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ mentor_b": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ parent_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ su_mentor": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ su_tutor": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ superuser": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ tutor_a": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ tutor_b": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.list @ unknown": {
+   "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

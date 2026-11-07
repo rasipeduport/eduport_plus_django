@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from django.utils import timezone
@@ -12,7 +13,7 @@ from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
-from . import enquiries
+from . import bde_activity, coordination, enquiries
 from .booking_service import BookingBusy, BookingError, cancel_booking, request_redemo, set_slots_closed
 from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
@@ -34,6 +35,10 @@ CANCEL_BOOKING = 'accounts.cancel_booking'
 CREATE_DEMO_BOOKING = 'accounts.create_demo_booking'
 VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
 VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications'
+VIEW_OWN_LEAD_REPORTS = 'accounts.view_own_lead_reports'
+# The filters of a BDE's Demo and Diagnostic Bookings lists: the Admin list's
+# (coordination.parse_filters) less its tutor, slot, assignment and report filters.
+BDE_BOOKING_FILTERS = ('status', 'when', 'from', 'to', 'q')
 
 
 class BdeBookingLinksView(APIView):
@@ -211,6 +216,95 @@ def _enquiry(request, lead, now):
         show_confirmation=has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request),
         can_invite=has_app_permission(request.user, CREATE_DEMO_BOOKING, request),
     )
+
+
+class BdeBookingsView(BdeWorkspaceView):
+    """
+    GET /api/bde/bookings/<type>/?q=&status=&when=&from=&to=&page=&page_size=
+    The caller's own leads' bookings of one type -- their Demo Bookings or
+    Diagnostic Bookings -- soonest slot first (``when=past``: most recent first),
+    always paged: {"results", "count", "page", "page_size", "timezone"}. Filtered
+    as the Admin's list is (coordination.parse_filters and filtered): a value the
+    list does not know answers 400 INVALID_INPUT naming the parameters, and the
+    Admin list's tutor, slot, assignment and report filters are not read. Each
+    row is enquiries.booking_list_row's. Nothing in a request chooses whose
+    bookings are read: always the caller's own leads'; an unknown type is 404.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
+
+    def get(self, request, booking_type, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        try:
+            model = booking_model(PATH_TYPES[booking_type])
+        except KeyError:
+            raise NotFound()
+        params = {name: request.query_params.get(name) for name in BDE_BOOKING_FILTERS if name in request.query_params}
+        filters, invalid = coordination.parse_filters(params)
+        if invalid:
+            return _bde_error('INVALID_INPUT', 'Check the booking filters.', status.HTTP_400_BAD_REQUEST, fields=invalid)
+        now = timezone.now()
+        own = model.objects.filter(lead__in=enquiries.own_leads(request.user)).select_related('slot', 'lead', 'assigned_tutor')
+        bookings = coordination.filtered(own, now, **filters)
+        page, page_size = page_params(request)
+        offset = (page - 1) * page_size
+        show_confirmation = has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request)
+        return Response(
+            {
+                'results': [enquiries.booking_list_row(booking, now, show_confirmation) for booking in bookings[offset:offset + page_size]],
+                'count': bookings.count(),
+                'page': page,
+                'page_size': page_size,
+                'timezone': BOOKING_TIMEZONE_NAME,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class BdeActivityView(BdeWorkspaceView):
+    """
+    GET /api/bde/activity/?enquiry=&page=&page_size=
+    What has happened to the caller's own leads' bookings, newest first,
+    always paged: {"results", "count", "page", "page_size", "timezone"}, each
+    row bde_activity.activity_row's -- never who else did it, nor why.
+    ``enquiry`` narrows it to one of the caller's own leads (any other finds
+    nothing). The parent's answers are left out without
+    accounts.view_own_lead_communications, report edits without
+    accounts.view_own_lead_reports.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
+
+    def get(self, request, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        enquiry = (request.query_params.get('enquiry') or '').strip()
+        events = bde_activity.own_events(
+            request.user,
+            show_communication=has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request),
+            show_reports=has_app_permission(request.user, VIEW_OWN_LEAD_REPORTS, request),
+        )
+        if enquiry:
+            try:
+                events = bde_activity.for_enquiry(events, uuid.UUID(enquiry))
+            except ValueError:
+                return _bde_error('INVALID_INPUT', 'Check the activity filters.', status.HTTP_400_BAD_REQUEST, fields=['enquiry'])
+        events = bde_activity.newest_first(events)
+        page, page_size = page_params(request)
+        offset = (page - 1) * page_size
+        shown = list(events[offset:offset + page_size])
+        slots = bde_activity.moved_to(shown)
+        return Response(
+            {
+                'results': [bde_activity.activity_row(event, request.user, slots) for event in shown],
+                'count': events.count(),
+                'page': page,
+                'page_size': page_size,
+                'timezone': BOOKING_TIMEZONE_NAME,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class BdeBookingCancelView(BdeWorkspaceView):

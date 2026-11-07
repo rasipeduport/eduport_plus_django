@@ -31,10 +31,11 @@ from .models import (
     BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, DemoBooking, Lead,
     LeadSource, ReDemoStatus,
 )
-from .scheduling import BOOKING_TIMEZONE_NAME
+from .scheduling import BOOKING_TIMEZONE_NAME, indian_today
 
-# Rows on the dashboard's upcoming bookings table and recent enquiries list.
+# Rows on the dashboard's upcoming bookings table, today's agenda and recent enquiries list.
 UPCOMING_ROWS = 8
+AGENDA_ROWS = 12
 RECENT_ROWS = 5
 # Phone searches need this many digits, so "1" does not match every number.
 MIN_PHONE_SEARCH_DIGITS = 3
@@ -275,21 +276,37 @@ def _booking_actions(booking, now, can_cancel, can_invite=False):
 
 
 def dashboard(bde, now=None):
-    """The BDE dashboard: their enquiries and their enquiries' bookings, counted and listed."""
+    """
+    The BDE dashboard: their enquiries and their enquiries' bookings, counted
+    and listed. Today's agenda is every booking of theirs on today's Indian
+    date (the date the slots are booked in, whatever the server's clock zone)
+    that holds its seat -- still to come, under way, completed or missed;
+    cancelled and moved ones are not on it (a moved booking's replacement is,
+    on its own date) -- soonest first.
+    """
     now = now or timezone.now()
+    today = indian_today(now)
     leads = own_leads(bde)
     upcoming_now = Q(status=BookingStatus.BOOKED, slot__ends_at__gt=now)
-    counts, upcoming = {}, []
+    on_today = Q(status__in=HOLDS_SEAT, slot__local_date=today)
+    counts, upcoming, agenda = {}, [], []
     for model in BOOKING_MODELS:
         bookings = model.objects.filter(lead__owner_bde=bde)
         counts[model.BOOKING_TYPE] = bookings.aggregate(
             total=Count('pk', filter=Q(status__in=HOLDS_SEAT)),
             upcoming=Count('pk', filter=upcoming_now),
+            today=Count('pk', filter=on_today),
         )
         upcoming.extend(
             bookings.filter(upcoming_now).select_related('slot', 'lead').order_by('slot__starts_at', 'created_at')[:UPCOMING_ROWS]
         )
+        agenda.extend(
+            bookings.filter(on_today).select_related('slot', 'lead', 'assigned_tutor')
+            .order_by('slot__starts_at', 'created_at')[:AGENDA_ROWS]
+        )
     upcoming.sort(key=_soonest)
+    agenda.sort(key=_soonest)
+    demo, diagnostic = counts[BookingType.DEMO], counts[BookingType.DIAGNOSTIC]
     return {
         'timezone': BOOKING_TIMEZONE_NAME,
         'enquiries': {
@@ -297,25 +314,64 @@ def dashboard(bde, now=None):
             'last_7_days': leads.filter(owner_assigned_at__gte=now - timedelta(days=7)).count(),
         },
         'bookings': {
-            BookingType.DEMO: counts[BookingType.DEMO],
-            BookingType.DIAGNOSTIC: counts[BookingType.DIAGNOSTIC],
+            BookingType.DEMO: {'total': demo['total'], 'upcoming': demo['upcoming']},
+            BookingType.DIAGNOSTIC: {'total': diagnostic['total'], 'upcoming': diagnostic['upcoming']},
         },
         'upcoming': {
-            'total': counts[BookingType.DEMO]['upcoming'] + counts[BookingType.DIAGNOSTIC]['upcoming'],
-            'rows': [
-                {
-                    **booking_brief(booking),
-                    'enquiry': {
-                        'id': str(booking.lead.id),
-                        'parent_name': booking.lead.parent_name,
-                        'student_name': booking.lead.student_name,
-                        'grade': booking.lead.grade,
-                    },
-                }
-                for booking in upcoming[:UPCOMING_ROWS]
-            ],
+            'total': demo['upcoming'] + diagnostic['upcoming'],
+            'rows': [{**booking_brief(booking), 'enquiry': enquiry_brief(booking.lead)} for booking in upcoming[:UPCOMING_ROWS]],
+        },
+        'agenda': {
+            'date': today.isoformat(),
+            'total': demo['today'] + diagnostic['today'],
+            'rows': [_agenda_row(booking, now) for booking in agenda[:AGENDA_ROWS]],
         },
         'recent_enquiries': enquiry_rows(listed(leads, now)[:RECENT_ROWS], now),
+    }
+
+
+def enquiry_brief(lead):
+    """Whose booking it is, as the dashboard's rows name it."""
+    return {'id': str(lead.id), 'parent_name': lead.parent_name, 'student_name': lead.student_name, 'grade': lead.grade}
+
+
+def booking_list_row(booking, now, show_confirmation=False):
+    """
+    One of the BDE's bookings as their Demo and Diagnostic Bookings lists show
+    it, written out field by field so nothing reaches the BDE by being added
+    elsewhere: when and what it is, where it stands as a class (read-only),
+    when it was booked, who teaches it -- the tutor's name only; the Meet room is
+    the enquiry page's to show -- the parent's answer to the confirmation request
+    for whoever may see the lead's communication (``show_confirmation``),
+    whether it is a scheduled Re-Demo, and whose booking it is. Never who
+    cancelled or moved it, or why: that stays with the administrators.
+    """
+    return {
+        **booking_brief(booking),
+        'status': booking.status,
+        'activity_state': activity_state(booking, now),
+        'started_at': booking.started_at.isoformat() if booking.started_at else None,
+        'booked_at': booking.created_at.isoformat(),
+        'tutor': _teaching(booking)['tutor'],
+        'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
+        'redemo': getattr(booking, 'redemo_for_id', None) is not None,
+        'enquiry': enquiry_brief(booking.lead),
+    }
+
+
+def _agenda_row(booking, now):
+    """
+    One of today's bookings on the agenda: when and what it is, where it
+    stands as a class (read-only, as the enquiry shows it), whose it is and who
+    teaches it -- the tutor's name only, never their Meet link, which the
+    enquiry's page shows.
+    """
+    return {
+        **booking_brief(booking),
+        'status': booking.status,
+        'activity_state': activity_state(booking, now),
+        'tutor': _teaching(booking)['tutor'],
+        'enquiry': enquiry_brief(booking.lead),
     }
 
 

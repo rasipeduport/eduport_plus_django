@@ -23,7 +23,7 @@ const ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * an administrator's -- with its status and owner BDE, searched and filtered
  * in the URL. Administrators add a lead by hand (accounts.add_lead) and give a
  * lead to a BDE or move it to another (accounts.assign_lead_owner); the BDE
- * then finds it in their My Leads. The API enforces each of these again.
+ * then finds it in their My Enquiries. The API enforces each of these again.
  */
 export default function LeadsPage({ user }) {
   const canAdd = can(user, PERMISSIONS.addLead);

@@ -3,6 +3,11 @@
 @import './legacy.css';
 
 @custom-variant dark (&:is(.dark *));
+/* The refreshed design language, rolled out role by role (lib/design.js): the
+   layout marks <html data-design="refresh"> for those roles, which swaps the
+   tokens below and turns on any `refresh:` style a shared component carries.
+   Keyed on <html> so dialogs, sheets and menus portalled to <body> follow it. */
+@custom-variant refresh (&:is([data-design='refresh'] *));
 
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
@@ -33,6 +38,15 @@
     --color-warning-foreground: var(--warning-foreground);
     --color-info: var(--info);
     --color-info-foreground: var(--info-foreground);
+    --color-link: var(--link);
+    --color-demo: var(--demo);
+    --color-demo-foreground: var(--demo-foreground);
+    --color-demo-text: var(--demo-text);
+    --color-diagnostic: var(--diagnostic);
+    --color-diagnostic-foreground: var(--diagnostic-foreground);
+    --color-diagnostic-text: var(--diagnostic-text);
+    --color-highlight: var(--highlight);
+    --color-highlight-foreground: var(--highlight-foreground);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -74,6 +88,21 @@
     --warning-foreground: oklch(0.985 0 0);
     --info: oklch(0.55 0.16 250);
     --info-foreground: oklch(0.985 0 0);
+    /* Brand-coloured text (links), and each booking type's colour: a fill with
+       its foreground, and a shade that reads as text on the page. Here they
+       alias the colours those places already use, so a role on this design
+       sees no change; the refreshed design gives them their own values. The
+       aliases resolve against whichever theme's tokens are in force. */
+    --link: var(--primary);
+    --demo: var(--info);
+    --demo-foreground: var(--info-foreground);
+    --demo-text: var(--info);
+    --diagnostic: var(--warning);
+    --diagnostic-foreground: var(--warning-foreground);
+    --diagnostic-text: var(--warning);
+    /* The logo's yellow and ink, for highlights such as "Coming Soon". */
+    --highlight: oklch(0.89 0.15 90);
+    --highlight-foreground: oklch(0.17 0.02 275);
     --border: oklch(0.88 0 0);
     --input: oklch(0.86 0 0);
     --ring: oklch(0.708 0 0);
@@ -134,6 +163,101 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* ---------------------------------------------------------------------------
+ * The refreshed design language (lib/design.js decides who gets it): the
+ * Admin theme itself -- its sidebar, cards, borders and grey selection, and in
+ * dark mode its charcoal page -- with Eduport's colours as accents only: blue
+ * for primary actions, links and Demo, green for Diagnostic and success, and
+ * the logo's yellow (--highlight, above) for Coming Soon and highlights. Only
+ * the light page differs from the Admin theme's: white, not light grey.
+ * Every text pair is at least WCAG AA (4.5:1), soft badges on their tint
+ * included: the light theme's status colours are a shade deeper than the
+ * Admin theme's, and in dark mode links and each booking type's text take a
+ * lighter shade than its fill. The dark block redeclares every token the
+ * light one sets: the light block outranks .dark, so a token missing from the
+ * dark block would leak through.
+ * ------------------------------------------------------------------------ */
+:root[data-design='refresh'] {
+    --background: oklch(1 0 0);
+    --primary: oklch(0.546 0.245 262.881);
+    --primary-foreground: oklch(0.985 0 0);
+    --link: var(--primary);
+    --demo: var(--primary);
+    --demo-foreground: var(--primary-foreground);
+    --demo-text: var(--primary);
+    --diagnostic: oklch(0.53 0.15 150);
+    --diagnostic-foreground: oklch(0.985 0 0);
+    --diagnostic-text: oklch(0.5 0.14 150);
+    --success: oklch(0.52 0.13 150);
+    --info: oklch(0.53 0.16 250);
+    --warning: oklch(0.52 0.115 70);
+}
+
+:root.dark[data-design='refresh'] {
+    --background: oklch(0.145 0 0);
+    --primary: oklch(0.56 0.2 262);
+    --primary-foreground: oklch(0.985 0 0);
+    --link: oklch(0.72 0.14 258);
+    --demo: var(--primary);
+    --demo-foreground: var(--primary-foreground);
+    --demo-text: oklch(0.72 0.14 258);
+    --diagnostic: oklch(0.54 0.14 150);
+    --diagnostic-foreground: oklch(0.985 0 0);
+    --diagnostic-text: oklch(0.74 0.16 150);
+    --success: oklch(0.72 0.15 150);
+    --info: oklch(0.7 0.15 250);
+    --warning: oklch(0.78 0.14 75);
+}
+
+/* Gentle motion for illustrations (components/page/coming-soon), always used
+   through motion-safe: so a reader who asks for less motion sees a still picture. */
+@theme {
+    --animate-float: float 6s ease-in-out infinite;
+    --animate-twinkle: twinkle 2.4s ease-in-out infinite;
+    --animate-blink: blink 5s ease-in-out infinite;
+    --animate-sway: sway 3s ease-in-out infinite;
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-6px);
+        }
+    }
+    @keyframes twinkle {
+        0%,
+        100% {
+            opacity: 0.35;
+            transform: scale(0.8);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    @keyframes blink {
+        0%,
+        92%,
+        100% {
+            transform: scaleY(1);
+        }
+        95% {
+            transform: scaleY(0.1);
+        }
+    }
+    @keyframes sway {
+        0%,
+        100% {
+            transform: rotate(-8deg);
+        }
+        50% {
+            transform: rotate(8deg);
+        }
+    }
 }
 
 @layer base {

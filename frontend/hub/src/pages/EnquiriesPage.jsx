@@ -1,42 +1,87 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2Icon, PlusIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { InboxIcon, PlusIcon, SearchXIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { ENQUIRIES_URL, LEAD_STATUSES, SOURCE_FILTERS, enquiryError } from '@/lib/enquiries';
+import { useListParams } from '@/hooks/use-list-params';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
-import { EnquiryList } from '@/components/enquiries/enquiry-list';
+import { MyEnquiriesList } from '@/components/enquiries/my-enquiries-list';
+import { EmptyState, Page, PageHeader } from '@/components/page/page';
+import { FilterSelect, ListToolbar, SearchField } from '@/components/page/list-toolbar';
+import { Pagination } from '@/components/page/pagination';
+import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
 const PAGE_SIZE = 25;
 const STATUS_VALUES = new Set(LEAD_STATUSES.map((status) => status.value));
 const SOURCE_VALUES = new Set(SOURCE_FILTERS.map((source) => source.value));
 
-function AccessDenied({ failure }) {
+/**
+ * What the list says when it has no rows: no enquiry matches the filters, the
+ * page asked for is past the last one, or the BDE has no enquiries yet.
+ */
+function NoEnquiries({ filtered, total, onClear, onFirstPage, onAdd }) {
+  if (total > 0) {
+    return (
+      <EmptyState
+        icon={SearchXIcon}
+        title="Nothing on this page"
+        description="This page is past the last one."
+        action={
+          <Button variant="outline" onClick={onFirstPage}>
+            Go to the first page
+          </Button>
+        }
+      />
+    );
+  }
+  if (filtered) {
+    return (
+      <EmptyState
+        icon={SearchXIcon}
+        title="No enquiries match these filters"
+        description="Try another search, or clear the filters to see every enquiry."
+        action={
+          <Button variant="outline" onClick={onClear}>
+            Clear filters
+          </Button>
+        }
+      />
+    );
+  }
   return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
-      <ShieldAlertIcon className="text-muted-foreground size-8" />
-      <p className="font-medium">
-        {failure.code === 'NOT_A_BDE' ? 'Leads belong to BDE accounts.' : "You don't have access to leads."}
-      </p>
-      <p className="text-muted-foreground max-w-md text-sm">{failure.message}</p>
-    </div>
+    <EmptyState
+      icon={InboxIcon}
+      title="No enquiries yet"
+      description="Share your booking links, or add an enquiry that reached you another way."
+      action={
+        onAdd ? (
+          <Button onClick={onAdd}>
+            <PlusIcon />
+            Add Enquiry
+          </Button>
+        ) : null
+      }
+    />
   );
 }
 
 /**
- * My Leads: the BDE's own leads -- the ones their booking links brought in,
- * the ones they added by hand and the ones an administrator assigned them --
- * with their booking links to share. The API serves each BDE only the leads
- * they own now: one reassigned to another BDE is gone from here.
+ * My Enquiries: the BDE's own enquiries -- the ones their booking links
+ * brought in, the ones they added by hand and the ones an administrator
+ * assigned them -- with their booking links to share. Search, filters and the
+ * page are kept in the URL (q, status, source, page) and applied by the API,
+ * which serves each BDE only the enquiries they own now: one reassigned to
+ * another BDE is gone from here.
  */
 export default function EnquiriesPage({ user }) {
   const canAdd = can(user, PERMISSIONS.addEnquiry);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
-  const [searchParams] = useSearchParams();
+  const { searchParams, update, clear } = useListParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
@@ -48,6 +93,7 @@ export default function EnquiriesPage({ user }) {
   const q = (searchParams.get('q') ?? '').trim();
   const status = STATUS_VALUES.has(searchParams.get('status')) ? searchParams.get('status') : '';
   const source = SOURCE_VALUES.has(searchParams.get('source')) ? searchParams.get('source') : '';
+  const filtered = Boolean(q || status || source);
 
   useEffect(() => {
     let active = true;
@@ -66,7 +112,7 @@ export default function EnquiriesPage({ user }) {
         setFailure(null);
       })
       .catch((err) => {
-        if (active) setFailure(enquiryError(err, 'Could not load your leads.'));
+        if (active) setFailure(enquiryError(err, 'Could not load your enquiries.'));
       })
       .finally(() => {
         if (active) setPending(false);
@@ -85,81 +131,108 @@ export default function EnquiriesPage({ user }) {
 
   let content;
   if (failure?.status === 403) {
-    content = <AccessDenied failure={failure} />;
-  } else if (!data && !failure) {
-    content = <TableSkeleton />;
-  } else if (!data) {
     content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={retry} disabled={pending}>
-          Try again
-        </Button>
-      </div>
+      <AccessDeniedState
+        title={failure.code === 'NOT_A_BDE' ? 'Enquiries belong to BDE accounts.' : "You don't have access to enquiries."}
+        message={failure.message}
+      />
     );
   } else {
+    const rows = data?.results ?? [];
+    const total = data?.count ?? 0;
+    let list;
+    if (!data && !failure) {
+      list = <TableSkeleton columns={6} toolbar={false} />;
+    } else if (!data) {
+      list = <ErrorState message={failure.message} onRetry={retry} pending={pending} />;
+    } else {
+      list = (
+        <>
+          {/* A later page or filter that failed to load keeps the rows already shown. */}
+          {failure ? <ErrorState message={failure.message} onRetry={retry} pending={pending} /> : null}
+          {rows.length ? (
+            <MyEnquiriesList rows={rows} pending={pending} />
+          ) : (
+            <NoEnquiries
+              filtered={filtered}
+              total={total}
+              onClear={clear}
+              onFirstPage={() => update({ page: null })}
+              onAdd={canAdd ? () => setAddOpen(true) : null}
+            />
+          )}
+          {total > 0 ? (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              pending={pending}
+              onPageChange={(next) => update({ page: String(next) })}
+            />
+          ) : null}
+        </>
+      );
+    }
     content = (
-      <>
-        {failure ? (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <p className="text-destructive text-sm">{failure.message}</p>
-            <Button variant="outline" size="sm" onClick={retry} disabled={pending}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
-        <EnquiryList
-          rows={data.results ?? []}
-          total={data.count ?? 0}
-          page={page}
-          pageSize={PAGE_SIZE}
-          filters={{ q, status, source }}
-          pending={pending}
-        />
-      </>
+      <div className="flex flex-col gap-4">
+        <ListToolbar active={filtered} onClear={clear}>
+          <SearchField
+            value={q}
+            onSearch={(text) => update({ q: text || null })}
+            label="Search enquiries"
+            placeholder="Search parent, student or phone…"
+          />
+          <FilterSelect
+            label="Filter by status"
+            placeholder="All statuses"
+            value={status}
+            onChange={(value) => update({ status: value || null })}
+            options={LEAD_STATUSES}
+          />
+          <FilterSelect
+            label="Filter by source"
+            placeholder="All sources"
+            value={source}
+            onChange={(value) => update({ source: value || null })}
+            options={SOURCE_FILTERS}
+          />
+        </ListToolbar>
+        {list}
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">My Leads</h1>
-          <p className="text-muted-foreground text-sm">
-            Parents who reached you through your booking links, the leads you added yourself, and the leads assigned
-            to you.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-2 sm:justify-end">
-          {/* The BDE's own booking links, to share with any parent. */}
-          {canShareLinks ? <ShareLinkButtons /> : null}
-          {canAdd ? (
-            <Button variant="outline" onClick={() => setAddOpen(true)}>
-              <PlusIcon />
-              Add lead
-            </Button>
-          ) : null}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="My Enquiries"
+        description="Every enquiry that is yours: from your booking links, added by you, or assigned to you. Search, filter and open one to take action."
+        actions={
+          <>
+            {/* The BDE's own booking links, to share with any parent. */}
+            {canShareLinks ? <ShareLinkButtons /> : null}
+            {canAdd ? (
+              <Button variant="outline" onClick={() => setAddOpen(true)}>
+                <PlusIcon />
+                Add Enquiry
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
       {added ? (
-        <div role="status" className="bg-success/10 text-success mb-4 flex items-start gap-2 rounded-md px-3 py-2 text-sm">
-          <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-          <p className="flex-1">
-            Added the lead for {added.student_name}.{' '}
-            <Link to={`/enquiries/${added.id}`} className="font-medium underline">
-              Open it
-            </Link>
-          </p>
-          <button type="button" onClick={() => setAdded(null)} className="shrink-0" aria-label="Dismiss">
-            <XIcon className="size-4" />
-          </button>
-        </div>
+        <Notice onDismiss={() => setAdded(null)}>
+          Added the enquiry for {added.student_name}.{' '}
+          <Link to={`/enquiries/${added.id}`} className="font-medium underline">
+            Open it
+          </Link>
+        </Notice>
       ) : null}
 
       {content}
 
       {canAdd ? <AddEnquiryDialog open={addOpen} onOpenChange={setAddOpen} onCreated={handleAdded} /> : null}
-    </div>
+    </Page>
   );
 }

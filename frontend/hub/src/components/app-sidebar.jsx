@@ -1,56 +1,27 @@
-import {
-  BookOpen,
-  CalendarCheck,
-  CalendarCheck2,
-  CalendarClock,
-  CalendarDays,
-  ClipboardList,
-  GraduationCap,
-  History,
-  Inbox,
-  LayoutDashboard,
-  Mail,
-  Users,
-  UsersRound,
-} from 'lucide-react';
+import { Fragment } from 'react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenuButton, SidebarRail } from '@/components/ui/sidebar';
-import { canOpenPage } from '@/lib/access';
-
-const navMain = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  // The BDE workspace: a BDE's own leads.
-  { title: 'My Leads', url: '/enquiries', icon: Inbox },
-  // Every lead, for administrators.
-  { title: 'Leads', url: '/leads', icon: Users },
-  { title: 'Students', url: '/students', icon: GraduationCap },
-  { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
-  { title: 'Exams', url: '/exams', icon: ClipboardList },
-  { title: 'Homework', url: '/homework', icon: BookOpen },
-  // The single staff-management entry, for managers and holders of view_team.
-  { title: 'Team', url: '/team', icon: UsersRound },
-  { title: 'Invitations', url: '/invitations', icon: Mail },
-  { title: 'Activity', url: '/activity', icon: History },
-  // A BDE's booking links are shared from their dashboard (Share Demo / Diagnostic Link).
-];
-
-// The Demo and Diagnostic bookings parents make: for administrators each
-// booking and its tutor, and the slots they are booked into; for a tutor the
-// bookings they are assigned to teach.
-const navDemoDiagnostic = [
-  { title: 'Bookings', url: '/bookings', icon: CalendarCheck2 },
-  { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
-  { title: 'My Bookings', url: '/my-bookings', icon: CalendarDays },
-];
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenuButton,
+  SidebarRail,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+import { usesRefreshedDesign } from '@/lib/design';
+import { workspaceFor } from '@/lib/navigation';
 
 export function AppSidebar({ user, logout, ...props }) {
   // Exactly the pages the route guards in App.jsx open for this account
-  // (lib/access): those its permissions open. An account holding none is
-  // offered nothing, and a section none of whose pages open is not shown.
-  const items = navMain.filter((item) => canOpenPage(user, item.url));
-  const demoDiagnostic = navDemoDiagnostic.filter((item) => canOpenPage(user, item.url));
+  // (lib/navigation, lib/access): those its permissions open. An account
+  // holding none is offered nothing, and a section none of whose pages open is
+  // not shown.
+  const workspace = workspaceFor(user);
+  // The refreshed design (lib/design) closes the phone's sidebar sheet once a page is picked.
+  const closeOnNavigate = usesRefreshedDesign(user);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -64,13 +35,18 @@ export function AppSidebar({ user, logout, ...props }) {
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">Eduport Plus</span>
-            <span className="truncate text-xs">Hub</span>
+            <span className="truncate text-xs">{workspace.name}</span>
           </div>
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={items} />
-        {demoDiagnostic.length ? <NavMain label="Demo & Diagnostic" items={demoDiagnostic} /> : null}
+        {workspace.sections.map((section, index) => (
+          <Fragment key={section.label ?? index}>
+            {/* A section with no heading of its own is set apart by a rule. */}
+            {index > 0 && !section.label ? <SidebarSeparator /> : null}
+            <NavMain label={section.label} items={section.items} closeOnNavigate={closeOnNavigate} />
+          </Fragment>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} logout={logout} />
