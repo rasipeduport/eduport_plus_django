@@ -92,6 +92,9 @@ BDE_WORKSPACE = {
         'fields': ['count', 'page', 'page_size', 'results', 'summary', 'summary.overdue', 'summary.today', 'summary.total',
                    'summary.upcoming', 'timezone'],
     },
+    # ... and completes only their own: this follow-up is nobody's, answered as one that does not exist.
+    'bde.follow_ups.complete': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such follow-up.', 'records': [],
+                                'fields': ['error', 'message']},
     'bde.activity.list': {
         'status': 200,
         'records': [],
@@ -128,6 +131,8 @@ BDE_WORKSPACE = {
                                             'records': [], 'fields': ['error', 'message']},
     'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
                                            'records': [], 'fields': ['error', 'message']},
+    'communications.call_outcome': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                    'fields': ['error', 'message']},
 }
 
 

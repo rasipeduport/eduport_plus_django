@@ -2,11 +2,13 @@
 // contracts (backend communications.followups, bookings.bde_activity) as the Hub
 // uses them. The API scopes both to the signed-in BDE's own leads and enforces
 // every rule; this only labels what it returns.
-import { stepLabel } from '@/lib/communications';
+import { callReminder } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 
 export const BDE_FOLLOW_UPS_URL = '/api/bde/follow-ups/';
 export const BDE_ACTIVITY_URL = '/api/bde/activity/';
+/** Completing a new enquiry's call or a report's discussion (POST {outcome}); the rest are done on the booking. */
+export const followUpCompleteUrl = (id) => `${BDE_FOLLOW_UPS_URL}${id}/complete/`;
 
 // The due filter (backend followups.DUE_FILTERS); no value is every open follow-up.
 export const FOLLOW_UP_DUE = [
@@ -15,10 +17,80 @@ export const FOLLOW_UP_DUE = [
   { value: 'upcoming', label: 'Upcoming' },
 ];
 
-// The communication steps, named as a booking's communication names them (lib/communications).
-export const FOLLOW_UP_STEPS = ['ACKNOWLEDGEMENT', 'CONFIRMATION_REQUEST', 'PARENT_CONFIRMATION', 'PRE_ACTIVITY_CALL', 'AFTER_ACTIVITY'].map(
-  (step) => ({ value: step, label: stepLabel({ step }) })
-);
+// What a BDE follows up (backend followups.FollowUpType), in the order an enquiry meets them.
+export const FOLLOW_UP_TYPES = [
+  { value: 'NEW_ENQUIRY_CALL', label: 'Call new enquiry' },
+  { value: 'PARENT_CONFIRMATION', label: 'Parent confirmation' },
+  { value: 'PRE_ACTIVITY_CALL', label: 'Pre-activity call' },
+  { value: 'REPORT_DISCUSSION', label: 'Discuss tutor report' },
+  { value: 'REDEMO_CONFIRMATION', label: 'Re-Demo confirmation' },
+];
+
+// How a new enquiry's call went (backend FOLLOW_UP_OUTCOMES): recording one completes it.
+export const NEW_ENQUIRY_OUTCOMES = [
+  { value: 'SPOKE', label: 'Spoke to the parent' },
+  { value: 'MESSAGED', label: 'Messaged the parent' },
+  { value: 'NOT_INTERESTED', label: 'Not interested' },
+  { value: 'WRONG_NUMBER', label: 'Wrong number' },
+];
+
+// Each state's badge: open ones by when they are due, then how they ended.
+export const FOLLOW_UP_STATE_VARIANTS = {
+  OVERDUE: 'destructive',
+  DUE_TODAY: 'warning',
+  PENDING: 'outline',
+  COMPLETED: 'success',
+  MISSED: 'destructive',
+};
+
+// Where the parent's confirmation request stands, once they were asked.
+const REQUEST_STATES = {
+  WAITING: 'on its way',
+  PENDING: 'on its way',
+  QUEUED: 'on its way',
+  SENT: 'sent',
+  DELIVERED: 'delivered',
+  READ: 'read',
+  FAILED: 'failed: call the parent',
+  CANCELLED: 'not sent',
+};
+
+const TASKS = {
+  NEW_ENQUIRY_CALL: 'Call the parent, understand what they need and guide them to the next step.',
+  REPORT_DISCUSSION: 'Share the report with the parent and discuss their feedback.',
+  REDEMO_CONFIRMATION: 'Tell the parent the Re-Demo’s date and time, then record their answer.',
+};
+
+/** What an open follow-up asks of the BDE now, in a sentence. */
+export function followUpTask(followUp, now = Date.now()) {
+  switch (followUp.type) {
+    case 'PARENT_CONFIRMATION':
+      return followUp.request
+        ? `Confirmation request ${REQUEST_STATES[followUp.request.status] ?? followUp.request.status_label.toLowerCase()}. Record the parent’s answer.`
+        : 'Ask the parent to confirm, then record their answer.';
+    case 'PRE_ACTIVITY_CALL':
+      return (
+        callReminder(
+          { step: 'PRE_ACTIVITY_CALL', active_from: followUp.opens_at, due_at: followUp.due_at },
+          followUp.booking?.booking_type,
+          now
+        ) ?? 'Call the parent before the class starts.'
+      );
+    default:
+      return TASKS[followUp.type] ?? null;
+  }
+}
+
+/**
+ * Where a follow-up is looked into: a booking's communication (its enquiry's
+ * workspace on Bookings, the booking highlighted and its sheet open), the
+ * enquiry's tutor feedback for a report, or the enquiry itself.
+ */
+export function followUpPath(followUp) {
+  const { enquiry, booking } = followUp;
+  if (followUp.type === 'REPORT_DISCUSSION') return `/enquiries/${enquiry.id}?tab=feedback`;
+  return booking ? communicationPath(enquiry.id, booking) : `/enquiries/${enquiry.id}`;
+}
 
 /**
  * A booking's communication, where its follow-ups are acted on: its enquiry's

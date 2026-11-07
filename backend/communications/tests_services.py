@@ -13,7 +13,7 @@ from django.test import override_settings
 
 from bookings.booking_service import BookingNotOwned, cancel_booking, record_parent_confirmation
 from bookings.models import CancelReason, ParentConfirmation
-from bookings.tests_booking import NOW
+from bookings.tests_booking import NOW, start
 
 from .models import (
     CallOutcome,
@@ -32,6 +32,7 @@ from .models import (
 from .rendering import Requirement
 from .services import (
     BookingNotUpcoming,
+    CallClosed,
     CallNotOpenYet,
     ConfirmationNotNeeded,
     InvalidCallOutcome,
@@ -125,10 +126,22 @@ class CallTests(CommunicationTestCase):
         # No message goes to the parent for this step.
         self.assertFalse(Message.objects.filter(task=task).exists())
 
-    def test_closed_once_the_slot_ends_or_the_booking_is_cancelled(self):
+    def test_closed_at_the_start_or_once_its_tutor_starts_it(self):
+        booking = self.ready(self.book())
+        starts = booking.slot.starts_at
+        # The start closes it, before the sweep has made it Missed, and long after.
+        for moment in (starts, booking.slot.ends_at):
+            with self.assertRaises(CallClosed):
+                record_call_outcome(self.call(booking), TaskResolution.MESSAGED, actor=self.bde, now=moment)
+        # So does its tutor starting it early.
+        start(booking, minutes=-3)
+        with self.assertRaises(CallClosed):
+            record_call_outcome(self.call(booking), TaskResolution.CALLED, actor=self.bde,
+                                now=starts - timedelta(minutes=2))
+        self.assertFalse(CallOutcome.objects.exists())
+
+    def test_closed_once_the_booking_is_cancelled(self):
         booking = self.book()
-        with self.assertRaises(TaskClosed):
-            record_call_outcome(self.call(booking), TaskResolution.MESSAGED, actor=self.bde, now=booking.slot.ends_at)
         cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
         with self.assertRaises(TaskClosed):
             record_call_outcome(self.call(booking), TaskResolution.MESSAGED, actor=self.bde,

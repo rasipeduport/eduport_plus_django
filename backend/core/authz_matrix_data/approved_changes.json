@@ -2980,6 +2980,144 @@
     "status": 403
    }
   },
+  "bde.follow_ups.complete @ admin": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ anon": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ mentor_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ mentor_b": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ parent_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ su_mentor": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ su_tutor": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ superuser": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "A superuser holds the permissions (D1) but is not a BDE: answered NOT_A_BDE before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ tutor_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ tutor_b": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.follow_ups.complete @ unknown": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/bde/follow-ups/<id>/complete/ completes one of the caller's own BDE follow-ups that no other record holds -- a new enquiry's call, with how it went (accounts.send_lead_communications), or a tutor report's discussion with the parent (accounts.view_own_lead_reports and accounts.share_booking_report) -- on accounts.view_own_enquiries and accounts.view_own_lead_communications, as GET /api/bde/follow-ups/ reads them. Only the BDE role may hold those permissions (a superuser holds them under D1 and is answered NOT_A_BDE); another BDE's follow-up and one that does not exist are answered alike, 404 NOT_FOUND.",
+   "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.follow_ups.list @ admin": {
    "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
    "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
@@ -8738,6 +8876,146 @@
   "communications.booking @ unknown": {
    "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE).",
    "note": "Holds neither communication permission: refused before anything is read -- the communication carries the parent's phone number and every message sent to them.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ admin": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan and so no call: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.call_outcome @ anon": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ mentor_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ mentor_b": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ parent_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ su_mentor": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan and so no call: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.call_outcome @ su_tutor": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan and so no call: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.call_outcome @ superuser": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan and so no call: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.call_outcome @ tutor_a": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ tutor_b": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.call_outcome @ unknown": {
+   "decision": "BDE follow-ups aligned with BDE responsibilities (2026-11-07): POST /api/communications/bookings/<type>/<id>/call-outcome/ records how the 15-minute call went (services.record_call_outcome: Called, Messaged or No answer, from 15 minutes before the start until the start), which a BDE does from their follow-ups. It works within the caller's communication scope -- accounts.view_all_communications, every booking (the Admin; a superuser under D1), or accounts.view_own_lead_communications, the caller's own leads' bookings (a BDE) -- and needs accounts.send_lead_communications, as asking for confirmation does.",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

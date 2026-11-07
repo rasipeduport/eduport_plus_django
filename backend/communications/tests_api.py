@@ -207,7 +207,7 @@ class ContentTests(CommunicationApiTestCase):
         self.assertEqual(overdue, {'ACKNOWLEDGEMENT': True, 'CONFIRMATION_REQUEST': False, 'PARENT_CONFIRMATION': False,
                                    'PRE_ACTIVITY_CALL': False, 'AFTER_ACTIVITY': False})
 
-    def test_the_call_is_a_reminder_never_overdue_and_done_at_the_start(self):
+    def test_the_call_is_never_overdue_and_missed_at_the_start_unrecorded(self):
         booking = self.book()  # at NOW, days ago by the real clock: its start has passed, the sweep not yet run
         call = self.by_step(self.ok(self.admin, booking)['tasks'])['PRE_ACTIVITY_CALL']
         self.assertEqual((call['status'], call['overdue']), ('OPEN', False))
@@ -217,7 +217,7 @@ class ContentTests(CommunicationApiTestCase):
         self.assertEqual(
             (call['status'], call['resolution'], call['resolution_label'], call['resolved_at'], call['resolved_by'],
              call['overdue']),
-            ('DONE', 'REMINDED', 'Reminder complete', when(booking.slot.starts_at), None, False),
+            ('MISSED', '', '', when(booking.slot.starts_at), None, False),
         )
         # The booking as it was: never started, which only its tutor's Start does.
         self.assertEqual((data['booking']['status'], data['booking']['started_at'], data['booking']['activity_state']),

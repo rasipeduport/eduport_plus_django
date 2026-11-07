@@ -8,8 +8,9 @@ five steps, owned by the lead's BDE (the Admin when the lead has none):
     2 CONFIRMATION_REQUEST   message the BDE sends when they choose (target: 12 h before)
     3 PARENT_CONFIRMATION    the BDE records Confirmed / Not Confirmed; the
                              confirmed message waits until it has everything it needs
-    4 PRE_ACTIVITY_CALL      a reminder for the BDE to call, from 15 minutes before
-                             until the start, then done; no message
+    4 PRE_ACTIVITY_CALL      the BDE calls, from 15 minutes before until the
+                             start, and records how it went; Missed at the
+                             start without an outcome; no message
     5 AFTER_ACTIVITY         automatic message once the booking is completed
 
 Each step is a CommunicationTask (one per booking and step), so its deadline,
@@ -31,6 +32,11 @@ holds the actions a BDE or the Admin take. Nothing here sends anything: the
 sending engine is a later phase. Unlike the booking's history, these rows do
 hold the parent's phone number and what each message says, so only the lead's
 BDE and the Admin may read them.
+
+A FollowUp is a BDE's own action that no step stands for: calling a new
+enquiry an administrator gave them, and discussing a tutor's report with the
+parent (communications.followups, which reads the other follow-ups from the
+steps and the bookings themselves).
 """
 import uuid
 
@@ -194,8 +200,9 @@ class TaskResolution(models.TextChoices):
     CALLED = 'CALLED', 'Called'
     MESSAGED = 'MESSAGED', 'Messaged'
     NO_ANSWER = 'NO_ANSWER', 'No answer'
-    # The 15-minute call is a reminder only: done when its booking's scheduled
-    # start comes, whether anyone called or not -- and never a sign it started.
+    # No longer written: the 15-minute call is Missed when its booking's
+    # scheduled start comes with no outcome recorded (planner.close_expired);
+    # communications.0006 made the calls closed this way before Missed too.
     REMINDED = 'REMINDED', 'Reminder complete'
     BOOKING_CANCELLED = 'BOOKING_CANCELLED', 'Booking cancelled'
     BOOKING_RESCHEDULED = 'BOOKING_RESCHEDULED', 'Booking rescheduled'
@@ -692,3 +699,125 @@ class UnmatchedStatusEvent(models.Model):
 
     def __str__(self):
         return f'{self.get_status_display()} for an unknown message ({self.received_at:%Y-%m-%d %H:%M})'
+
+
+# ---------------------------------------------------------------- BDE follow-ups
+
+class FollowUpKind(models.TextChoices):
+    """The BDE follow-ups no communication step stands for (communications.followups reads the rest)."""
+    NEW_ENQUIRY_CALL = 'NEW_ENQUIRY_CALL', 'Call new enquiry'
+    REPORT_DISCUSSION = 'REPORT_DISCUSSION', 'Discuss tutor report'
+
+
+class FollowUpStatus(models.TextChoices):
+    OPEN = 'OPEN', 'Open'
+    DONE = 'DONE', 'Completed'
+
+
+class FollowUpOutcome(models.TextChoices):
+    """How a follow-up was completed: a code, never free text (as for every reason, M1)."""
+    SPOKE = 'SPOKE', 'Spoke to the parent'
+    MESSAGED = 'MESSAGED', 'Messaged the parent'
+    NOT_INTERESTED = 'NOT_INTERESTED', 'Not interested'
+    WRONG_NUMBER = 'WRONG_NUMBER', 'Wrong number'
+    DISCUSSED = 'DISCUSSED', 'Report discussed'
+
+
+# What the BDE may record for each kind; recording it completes the follow-up.
+FOLLOW_UP_OUTCOMES = {
+    FollowUpKind.NEW_ENQUIRY_CALL: (
+        FollowUpOutcome.SPOKE, FollowUpOutcome.MESSAGED, FollowUpOutcome.NOT_INTERESTED, FollowUpOutcome.WRONG_NUMBER,
+    ),
+    FollowUpKind.REPORT_DISCUSSION: (FollowUpOutcome.DISCUSSED,),
+}
+
+
+class FollowUp(models.Model):
+    """
+    One of a BDE's own follow-ups: the call a new enquiry gets when an
+    administrator gives it to them (bookings.ownership), or the talk with the
+    parent a tutor's report calls for once it is submitted (reports.services).
+    At most one of each per lead or booking, so a trigger handled twice never
+    makes a second. Whose it is follows the lead's owner now, never who owned
+    it when it was made: a lead given to another BDE takes it with them.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=30, choices=FollowUpKind.choices)
+    lead = models.ForeignKey('bookings.Lead', on_delete=models.PROTECT, related_name='follow_ups')
+    # The booking whose report is to be discussed; neither for a new enquiry's call.
+    diagnostic_booking = models.ForeignKey(
+        'bookings.DiagnosticBooking',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='follow_ups'
+    )
+    demo_booking = models.ForeignKey(
+        'bookings.DemoBooking',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='follow_ups'
+    )
+    due_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=FollowUpStatus.choices, default=FollowUpStatus.OPEN)
+    outcome = models.CharField(max_length=20, choices=FollowUpOutcome.choices, blank=True, default='')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='resolved_follow_ups'
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'bde_follow_ups'
+        verbose_name = 'BDE follow-up'
+        verbose_name_plural = 'BDE follow-ups'
+        ordering = ['created_at']
+        constraints = [
+            models.CheckConstraint(condition=Q(kind__in=FollowUpKind.values), name='bde_follow_ups_known_kind'),
+            models.CheckConstraint(condition=Q(status__in=FollowUpStatus.values), name='bde_follow_ups_known_status'),
+            # A report's follow-up names its booking; a new enquiry's names none.
+            models.CheckConstraint(
+                condition=(
+                    (Q(kind=FollowUpKind.REPORT_DISCUSSION) & _one_booking())
+                    | Q(kind=FollowUpKind.NEW_ENQUIRY_CALL, diagnostic_booking__isnull=True, demo_booking__isnull=True)
+                ),
+                name='bde_follow_ups_booking_for_reports',
+            ),
+            # An open follow-up has no outcome; a completed one says when, and one its kind allows.
+            models.CheckConstraint(
+                condition=(
+                    Q(status=FollowUpStatus.OPEN, outcome='', resolved_at__isnull=True, resolved_by__isnull=True)
+                    | Q(
+                        status=FollowUpStatus.DONE, resolved_at__isnull=False, kind=FollowUpKind.NEW_ENQUIRY_CALL,
+                        outcome__in=FOLLOW_UP_OUTCOMES[FollowUpKind.NEW_ENQUIRY_CALL],
+                    )
+                    | Q(
+                        status=FollowUpStatus.DONE, resolved_at__isnull=False, kind=FollowUpKind.REPORT_DISCUSSION,
+                        outcome__in=FOLLOW_UP_OUTCOMES[FollowUpKind.REPORT_DISCUSSION],
+                    )
+                ),
+                name='bde_follow_ups_outcome_matches_status',
+            ),
+            models.UniqueConstraint(
+                fields=['lead'], condition=Q(kind=FollowUpKind.NEW_ENQUIRY_CALL),
+                name='bde_follow_ups_one_call_per_lead',
+            ),
+            models.UniqueConstraint(fields=['diagnostic_booking'], name='bde_follow_ups_one_per_diag_report'),
+            models.UniqueConstraint(fields=['demo_booking'], name='bde_follow_ups_one_per_demo_report'),
+        ]
+        indexes = [
+            models.Index(fields=['status', 'due_at'], name='bde_follow_ups_open_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_kind_display()} ({self.get_status_display()})'
+
+    @property
+    def booking(self):
+        return self.diagnostic_booking or self.demo_booking

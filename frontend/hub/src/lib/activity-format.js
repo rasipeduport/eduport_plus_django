@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
+import { NEW_ENQUIRY_OUTCOMES } from './follow-ups';
 import { reportFieldsText } from './reports';
 
 // Short, human label per action — used for badges and the action filter.
@@ -74,6 +75,8 @@ export const ACTION_LABELS = {
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
   'booking.parent_confirmation': 'Parent confirmation recorded',
+  // A BDE's own follow-ups (backend communications.followups): the kind and the outcome's code only.
+  'follow_up.complete': 'Follow-up completed',
   // Demo invitations (backend bookings.demo_invites): ids only, never the link.
   'demo_invite.issue': 'Demo invitation issued',
   'demo_invite.revoke': 'Demo invitation revoked',
@@ -111,6 +114,9 @@ export function formatValue(value) {
   }
   return String(value);
 }
+
+// How a new enquiry's call went, as its follow-up's log entry names it by code.
+const FOLLOW_UP_OUTCOME_LABELS = Object.fromEntries(NEW_ENQUIRY_OUTCOMES.map((option) => [option.value, option.label]));
 
 function humanize(action) {
   const text = action.replace(/[._]/g, ' ').trim();
@@ -349,6 +355,12 @@ export function describeActivity(row) {
       if (row.context?.outcome !== 'NOT_CONFIRMED') return `Recorded the parent's confirmation of ${bookingOfType(row)}`;
       const reason = notConfirmedReasonLabel(row.context?.reason_code);
       return `Recorded that the parent did not confirm ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}`;
+    }
+    // A new enquiry's call or a report's discussion, completed by its BDE: codes only.
+    case 'follow_up.complete': {
+      if (row.context?.kind === 'REPORT_DISCUSSION') return "Completed the discussion of a tutor's report with the parent";
+      const outcome = FOLLOW_UP_OUTCOME_LABELS[row.context?.outcome];
+      return `Completed the call to a new enquiry${outcome ? ` — ${outcome}` : ''}`;
     }
     case 'report.submit':
       return `Submitted the report on ${bookingOfType(row)}`;

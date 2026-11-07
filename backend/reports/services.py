@@ -11,8 +11,10 @@ Under the locks: only the booking's assigned tutor (anyone else is told the
 booking does not exist), only a booked booking its tutor has started --
 their own Start, never the slot's time alone (bookings.lifecycle) -- and only
 once. It saves the report as version 1 with its first revision,
-completes the booking, records COMPLETED in the booking's history and writes
-its after-activity message (communications.planner) -- all of it or none.
+completes the booking, records COMPLETED in the booking's history, writes
+its after-activity message (communications.planner) and gives the lead's BDE
+the report to discuss with the parent (communications.followups) -- all of it
+or none.
 The tutor's scheduling lock is not taken: nothing about the tutor's time
 changes.
 
@@ -39,7 +41,7 @@ from bookings import history
 # The booking locks every booking write takes, in the order they take them.
 from bookings.booking_service import BUSY_SQLSTATES, _locked_booking, _set_lock_timeout, slot_label
 from bookings.models import CONDUCTED, BookingEventKind, BookingStatus
-from communications import planner
+from communications import followups, planner
 
 from .models import (
     DEMO_FIELD_CHARS,
@@ -185,6 +187,8 @@ def submit_report(booking, tutor, fields, now=None):
             )
             # The after-activity message, written once with the completion.
             planner.booking_completed(booking, now)
+            # The BDE's follow-up: share the report with the parent and discuss it.
+            followups.report_submitted(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise ReportBusy() from exc

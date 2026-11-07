@@ -1,9 +1,9 @@
 """
 What a BDE or the Admin do with a booking's communication (PRD 3.11): see a
 message before it goes, ask the parent to confirm, and record how the
-15-minute call went. Recording the parent's answer changes the booking, so it
-lives with the other booking writes (bookings.booking_service.
-record_parent_confirmation).
+15-minute call went (from the BDE's follow-ups, communications.followups).
+Recording the parent's answer changes the booking, so it lives with the
+other booking writes (bookings.booking_service.record_parent_confirmation).
 
 Each action takes the booking's locks in the order every booking write takes
 them (booking_service._locked_booking), so it queues behind a cancellation or
@@ -83,6 +83,12 @@ class TaskClosed(CommunicationError):
     code = 'TASK_CLOSED'
     http_status = 409
     message = 'This task is closed, so nothing more can be recorded on it.'
+
+
+class CallClosed(TaskClosed):
+    """The 15-minute call closes at the start: a call with no outcome by then is Missed."""
+    code = 'CALL_CLOSED'
+    message = 'The class has started, so this call can no longer be recorded.'
 
 
 class NotPlanned(CommunicationError):
@@ -190,8 +196,9 @@ def record_call_outcome(task, outcome, *, actor, owner_bde=None, now=None):
     Messaged or No Answer. Every outcome is kept (CallOutcome); the task is
     Done and shows the latest, so a later Called after a No Answer erases
     nothing. Only from 15 minutes before the start (CallNotOpenYet) until the
-    slot ends -- after that the call is Missed -- and never on a cancelled
-    booking's call (TaskClosed). Nothing ever records one by itself.
+    start, or until its tutor starts it if that comes first (CallClosed): at
+    the start a call with no outcome is Missed (planner.close_expired). Never
+    on a cancelled booking's call (TaskClosed). Nothing ever records one by itself.
     """
     if outcome not in CALL_OUTCOMES:
         raise InvalidCallOutcome()
@@ -204,8 +211,10 @@ def record_call_outcome(task, outcome, *, actor, owner_bde=None, now=None):
             booking = _locked_booking(task.booking)
             _check_owner(booking, owner_bde)
             task = CommunicationTask.objects.select_for_update().get(pk=task.pk)
-            if task.status not in (TaskStatus.OPEN, TaskStatus.DONE) or task.expires_at <= now:
+            if task.status not in (TaskStatus.OPEN, TaskStatus.DONE):
                 raise TaskClosed()
+            if task.due_at <= now or booking.started_at is not None:
+                raise CallClosed()
             if task.active_from > now:
                 raise CallNotOpenYet()
             entry = CallOutcome.objects.create(task=task, outcome=outcome, recorded_by=actor, recorded_at=now)

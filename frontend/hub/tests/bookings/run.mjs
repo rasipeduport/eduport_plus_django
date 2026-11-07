@@ -3167,6 +3167,103 @@ test('Communication: a Re-Demo says its parent is contacted by the BDE, with not
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
 });
 
+// ------------------------------------------------------------------ BDE follow-ups
+const FOLLOW_UPS = '/api/bde/follow-ups/';
+const FOLLOW_UP_BDE = { id: 'bde', role: 'BDE', permissions: [
+  'accounts.record_parent_confirmation', 'accounts.send_lead_communications', 'accounts.share_booking_report',
+  'accounts.view_own_enquiries', 'accounts.view_own_lead_communications', 'accounts.view_own_lead_reports'] };
+const NO_ACTIONS = { record_outcome: false, request_confirmation: false, record_answer: false, complete: false };
+const FOLLOW_UP_TYPES = { NEW_ENQUIRY_CALL: 'Call new enquiry', PARENT_CONFIRMATION: 'Parent confirmation',
+  PRE_ACTIVITY_CALL: 'Pre-activity call', REPORT_DISCUSSION: 'Discuss tutor report', REDEMO_CONFIRMATION: 'Re-Demo confirmation' };
+const FU_KIRAN = { id: 'e-kiran', parent_name: 'Ravi Menon', student_name: 'Kiran', grade: 'Class 7', phone: '+91 9876543210',
+  phone_dial_code: '+91', phone_number: '9876543210' };
+const FU_DONA = { id: 'e-dona', parent_name: 'Asha Nair', student_name: 'Dona', grade: 'Class 8', phone: '+971 501234567',
+  phone_dial_code: '+971', phone_number: '501234567' };
+const followUpBooking = (id, booking_type, date, extra = {}) => ({ id, booking_type, date, time: '19:30',
+  starts_at: `${date}T14:00:00+00:00`, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false, ...extra });
+const followUp = (type, id, fields = {}) => ({ id, type, type_label: FOLLOW_UP_TYPES[type], state: 'DUE_TODAY',
+  state_label: 'Due today', due_at: '2026-11-07T14:00:00+00:00', opens_at: null, closed_at: null, outcome: null, by_you: null,
+  request: null, booking: null, enquiry: FU_DONA, actions: NO_ACTIONS, ...fields });
+const FU_NEW_CALL = followUp('NEW_ENQUIRY_CALL', 'f-call', { enquiry: FU_KIRAN, state: 'OVERDUE', state_label: 'Overdue',
+  due_at: '2026-11-07T06:30:00+00:00', actions: { ...NO_ACTIONS, record_outcome: true } });
+const FU_CONFIRM = followUp('PARENT_CONFIRMATION', 'b-dona', { booking: followUpBooking('b-dona', 'DEMO', '2026-11-07'),
+  actions: { ...NO_ACTIONS, request_confirmation: true, record_answer: true } });
+const FU_PRE_CALL = followUp('PRE_ACTIVITY_CALL', 't-call', { booking: followUpBooking('b-ali', 'DIAGNOSTIC', '2026-11-07'),
+  actions: { ...NO_ACTIONS, record_outcome: true } });
+const FU_REPORT = followUp('REPORT_DISCUSSION', 'f-report', { state: 'PENDING', state_label: 'Pending',
+  due_at: '2026-11-08T14:40:00+00:00', actions: { ...NO_ACTIONS, complete: true },
+  booking: followUpBooking('b-done', 'DEMO', '2026-11-06', { status: 'COMPLETED', activity_state: 'COMPLETED' }) });
+const FU_REDEMO = followUp('REDEMO_CONFIRMATION', 'b-redo', { state: 'PENDING', state_label: 'Pending',
+  due_at: '2026-11-09T14:00:00+00:00', booking: followUpBooking('b-redo', 'DEMO', '2026-11-09', { redemo: true }),
+  actions: { ...NO_ACTIONS, record_answer: true } });
+
+test('Follow-ups: only what the BDE does, each with its own action; recording one posts it and reads the list again', async () => {
+  let remaining = [FU_NEW_CALL, FU_CONFIRM, FU_PRE_CALL, FU_REPORT, FU_REDEMO];
+  const count = (state) => remaining.filter((row) => row.state === state).length;
+  const done = (row) => () => {
+    remaining = remaining.filter((item) => item !== row);
+    return ok({});
+  };
+  serve({
+    [`GET ${FOLLOW_UPS}`]: () => ok({ results: remaining, count: remaining.length, page: 1, page_size: 25,
+      timezone: 'Asia/Kolkata', summary: { total: remaining.length, overdue: count('OVERDUE'), today: count('DUE_TODAY'),
+        upcoming: count('PENDING') } }),
+    [`POST ${FOLLOW_UPS}f-call/complete/`]: done(FU_NEW_CALL),
+    ['POST /api/communications/bookings/diagnostic/b-ali/call-outcome/']: done(FU_PRE_CALL),
+    [`POST ${FOLLOW_UPS}f-report/complete/`]: done(FU_REPORT),
+  });
+  await open('/follow-ups', FOLLOW_UP_BDE);
+  assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
+    ['All open5', 'Overdue1', 'Due today2', 'Upcoming2']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
+    'Call new enquiryOverdueCall the parent, understand what they need and guide them to the next step.',
+    'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',
+    'Pre-activity callDue todayCall the parent before the class starts.',
+    'Discuss tutor reportPendingShare the report with the parent and discuss their feedback.',
+    'Re-Demo confirmationPendingTell the parent the Re-Demo’s date and time, then record their answer.',
+  ]);
+  const [call, confirm, preCall, report, redemo] = rows();
+  assert.match(clean(call.textContent), /KiranRavi Menon\+91 9876543210No booking yet/);
+  assert.match(clean(redemo.textContent), /Demo classRe-DemoMon, 9 Nov · 7:30 PM IST/);
+  assert.ok(button('Request confirmation', confirm) && button('Record answer', confirm));
+  assert.ok(button('Record outcome', preCall) && button('Mark as completed', report));
+  assert.ok(button('Record answer', redemo) && !button('Request confirmation', redemo), 'a Re-Demo is confirmed by hand');
+  assert.equal(report.querySelector('a[aria-label="Open Dona’s tutor report"]').getAttribute('href'), '/enquiries/e-dona?tab=feedback');
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'nothing is written by looking');
+
+  // A Re-Demo's answer is recorded in the dialog the communication sheet uses.
+  await click(button('Record answer', redemo));
+  assert.match(clean(topDialog().textContent), /Record parent's answerDona · Demo class · Mon, 9 Nov · 7:30 PM IST/);
+  await click(button('Cancel', topDialog()));
+
+  // A new enquiry's call: how it went, from the list -- never typed.
+  await click(button('Record outcome', call));
+  assert.deepEqual([...topDialog().querySelectorAll('label')].map((element) => clean(element.textContent)),
+    ['Spoke to the parent', 'Messaged the parent', 'Not interested', 'Wrong number']);
+  await click(radio('Spoke to the parent', topDialog()));
+  await click(button('Record outcome', topDialog()));
+  assert.deepEqual(calls('POST', `${FOLLOW_UPS}f-call/complete/`).map((entry) => entry.data), [{ outcome: 'SPOKE' }]);
+  assert.match(bodyText(), /Recorded “Spoke to the parent” for Kiran\. The follow-up is completed\./);
+  assert.equal(rows().length, 4);
+
+  // The call before a class is recorded on its booking's communication.
+  await click(button('Record outcome', rows()[1]));
+  assert.deepEqual([...topDialog().querySelectorAll('label')].map((element) => clean(element.textContent)),
+    ['Called', 'Messaged', 'No answer']);
+  await click(radio('No answer', topDialog()));
+  await click(button('Record outcome', topDialog()));
+  assert.deepEqual(calls('POST', '/api/communications/bookings/diagnostic/b-ali/call-outcome/').map((entry) => entry.data),
+    [{ outcome: 'NO_ANSWER' }]);
+
+  // A report's discussion is marked done once shared and discussed.
+  await click(button('Mark as completed', rows()[1]));
+  await click(button('Mark as completed', topDialog()));
+  assert.deepEqual(calls('POST', `${FOLLOW_UPS}f-report/complete/`).map((entry) => entry.data), [{ outcome: 'DISCUSSED' }]);
+  assert.equal(calls('GET', FOLLOW_UPS).length, 4, 'the list and its counts are read again after each action');
+  assert.deepEqual(rows().map((row) => clean(row.querySelector('td span').textContent)), ['Parent confirmationDue today',
+    'Re-Demo confirmationPending']);
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

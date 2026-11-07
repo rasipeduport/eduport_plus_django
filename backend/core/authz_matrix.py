@@ -569,6 +569,9 @@ SCENARIOS = [
     Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
     Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
+    # Completing one of their own follow-ups (a new enquiry's call, a report's discussion): this one is nobody's.
+    Scenario('bde.follow_ups.complete', 'post', '/api/bde/follow-ups/00000000-0000-4000-8000-00000000f011/complete/',
+             {'outcome': 'SPOKE'}),
     Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
     Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
@@ -606,6 +609,9 @@ SCENARIOS = [
              '/api/communications/bookings/demo/{booking_a}/confirmation-request/'),
     Scenario('communications.parent_confirmation', 'post',
              '/api/communications/bookings/demo/{booking_a}/parent-confirmation/', {'outcome': 'CONFIRMED'}),
+    # How the 15-minute call went, recorded from a BDE's follow-ups (or by the Admin).
+    Scenario('communications.call_outcome', 'post',
+             '/api/communications/bookings/demo/{booking_a}/call-outcome/', {'outcome': 'CALLED'}),
 
     # --- booking slots (administrators) ----------------------------------------
     # A date that stays ahead of the clock, so it is always one that may change.

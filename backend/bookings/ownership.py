@@ -23,10 +23,13 @@ changes apply, and the BDE's My Leads reads the result.
 - The lead's bookings' open communication tasks become the new owner's, and
   the unsent parent messages, which sign with the owner, are checked again
   (communications.planner.lead_owner_changed), in the same transaction.
+- A new enquiry -- no booking yet -- gets its call, the new owner's first
+  follow-up (communications.followups.enquiry_assigned); every follow-up the
+  lead has goes with it, and the BDE before sees none of them.
 - The change is logged (lead.assign_owner): ids only.
 
 Locks, in order: the lead, the BDE's account, then the lead's messages and
-tasks (the planner's order). Booking writers take the lead before any
+tasks (the planner's order), then its follow-up. Booking writers take the lead before any
 account too (a reschedule: the lead, then the tutor's), so none of them waits
 on this in a circle.
 """
@@ -35,7 +38,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from activity.utils import log_activity
-from communications import planner
+from communications import followups, planner
 
 from .booking_service import BUSY_SQLSTATES, BookingBusy, _set_lock_timeout
 from .models import Lead
@@ -88,6 +91,7 @@ def assign_owner(lead_id, bde_id, *, actor=None, via, expected_owner_id=ANY_OWNE
             lead.owner_assigned_at = now
             lead.save(update_fields=['owner_bde', 'owner_link', 'owner_assigned_at', 'updated_at'])
             planner.lead_owner_changed(lead, now)
+            followups.enquiry_assigned(lead, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc

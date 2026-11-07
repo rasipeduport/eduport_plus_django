@@ -14,6 +14,8 @@ export const bookingCommunicationUrl = (type, id) => `/api/communications/bookin
 export const messagePreviewUrl = (type, id) => `${bookingCommunicationUrl(type, id)}preview/`;
 export const confirmationRequestUrl = (type, id) => `${bookingCommunicationUrl(type, id)}confirmation-request/`;
 export const parentConfirmationUrl = (type, id) => `${bookingCommunicationUrl(type, id)}parent-confirmation/`;
+// How the 15-minute call went (POST {outcome}), recorded from the BDE's follow-ups.
+export const callOutcomeUrl = (type, id) => `${bookingCommunicationUrl(type, id)}call-outcome/`;
 
 // Errors answer `{ error: CODE, message }`, as the booking API's do.
 export const communicationError = bookingError;
@@ -22,12 +24,18 @@ export const communicationError = bookingError;
 // is in -- as the slots are (lib/enquiries slotLabel).
 const INDIAN_TIME = 'Asia/Kolkata';
 
-/** An API timestamp as "30 Oct 2026, 7:31 PM IST", or null. */
-export function istMoment(value) {
+/** An API timestamp's Indian date and time, as "30 Oct 2026" and "7:31 PM IST", or null. */
+export function istParts(value) {
   if (!value) return null;
   const moment = new Date(value);
   if (Number.isNaN(moment.getTime())) return null;
-  return `${formatShortDateInZone(moment, INDIAN_TIME)}, ${formatTimeInZone(moment, INDIAN_TIME)} IST`;
+  return { date: formatShortDateInZone(moment, INDIAN_TIME), time: `${formatTimeInZone(moment, INDIAN_TIME)} IST` };
+}
+
+/** An API timestamp as "30 Oct 2026, 7:31 PM IST", or null. */
+export function istMoment(value) {
+  const parts = istParts(value);
+  return parts ? `${parts.date}, ${parts.time}` : null;
 }
 
 // What the parent answered when asked to confirm (backend bookings.models.ParentConfirmation).
@@ -128,10 +136,17 @@ const DONE_AS = {
 
 const ACTIVITY_NAMES = { DEMO: 'Demo', DIAGNOSTIC: 'Diagnostic' };
 
+// What the BDE may record for the 15-minute call (backend communications.models.CALL_OUTCOMES).
+export const CALL_OUTCOME_CHOICES = [
+  { value: 'CALLED', label: 'Called' },
+  { value: 'MESSAGED', label: 'Messaged' },
+  { value: 'NO_ANSWER', label: 'No answer' },
+];
+
 /**
  * The 15-minute call's reminder while it is on -- from its `active_from` until
- * the start (`due_at`), when the backend marks it done -- or null. A reminder
- * only: nothing is recorded on it.
+ * the start (`due_at`), when the backend closes it, Missed unless an outcome
+ * was recorded -- or null.
  */
 export function callReminder(task, bookingType, now = Date.now()) {
   if (task.step !== 'PRE_ACTIVITY_CALL' || !task.active_from || !task.due_at) return null;

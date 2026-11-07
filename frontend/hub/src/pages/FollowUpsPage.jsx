@@ -4,7 +4,7 @@ import { CheckCircle2Icon, SearchXIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { enquiryError } from '@/lib/enquiries';
-import { BDE_FOLLOW_UPS_URL, FOLLOW_UP_DUE, FOLLOW_UP_STEPS } from '@/lib/follow-ups';
+import { BDE_FOLLOW_UPS_URL, FOLLOW_UP_DUE, FOLLOW_UP_TYPES } from '@/lib/follow-ups';
 import { useListParams } from '@/hooks/use-list-params';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,16 +19,17 @@ const PAGE_SIZE = 25;
 // The due tabs' value for every open follow-up (no `due` in the URL).
 const ALL = 'all';
 const DUE_VALUES = new Set(FOLLOW_UP_DUE.map((option) => option.value));
-const STEP_VALUES = new Set(FOLLOW_UP_STEPS.map((option) => option.value));
+const TYPE_VALUES = new Set(FOLLOW_UP_TYPES.map((option) => option.value));
 
 /**
- * A BDE's follow-ups: the open steps of the parent communication on their own
- * enquiries' bookings -- asking the parent to confirm, recording the answer,
- * the call before the class, the messages around it -- soonest due first, from
- * GET /api/bde/follow-ups/. Overdue, Due today and Upcoming (Indian days) and
- * the step are kept in the URL (due, step, page). Each opens its booking's
- * communication in the enquiry's workspace, where it is done; the way back
- * returns here.
+ * A BDE's follow-ups: what they must do next on their own enquiries -- call a
+ * new enquiry, get a parent's confirmation, make the call before a class,
+ * discuss a tutor's report, confirm a scheduled Re-Demo -- soonest due first,
+ * from GET /api/bde/follow-ups/; never the automatic WhatsApp messages, which
+ * stay in each booking's communication. Overdue, Due today and Upcoming (Indian
+ * days) and the type are kept in the URL (due, type, page). Each is done here,
+ * in a dialog, or opens where it is looked into; the way back returns here.
+ * A follow-up done leaves the list, which is read again with its counts.
  */
 export default function FollowUpsPage() {
   const location = useLocation();
@@ -37,10 +38,11 @@ export default function FollowUpsPage() {
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [notice, setNotice] = useState(null);
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const due = DUE_VALUES.has(searchParams.get('due')) ? searchParams.get('due') : '';
-  const step = STEP_VALUES.has(searchParams.get('step')) ? searchParams.get('step') : '';
+  const type = TYPE_VALUES.has(searchParams.get('type')) ? searchParams.get('type') : '';
 
   useEffect(() => {
     let active = true;
@@ -48,7 +50,7 @@ export default function FollowUpsPage() {
 
     const params = { page, page_size: PAGE_SIZE };
     if (due) params.due = due;
-    if (step) params.step = step;
+    if (type) params.type = type;
 
     api
       .get(BDE_FOLLOW_UPS_URL, { params })
@@ -67,9 +69,13 @@ export default function FollowUpsPage() {
     return () => {
       active = false;
     };
-  }, [page, due, step, reloadKey]);
+  }, [page, due, type, reloadKey]);
 
   const retry = () => setReloadKey((key) => key + 1);
+  const changed = (message) => {
+    setNotice(message);
+    retry();
+  };
   const from = { to: `${location.pathname}${location.search}`, label: 'Follow-ups' };
   const summary = data?.summary;
   const dueLabel = FOLLOW_UP_DUE.find((option) => option.value === due)?.label;
@@ -95,7 +101,7 @@ export default function FollowUpsPage() {
         <>
           {failure ? <ErrorState message={failure.message} onRetry={retry} pending={pending} /> : null}
           {rows.length ? (
-            <FollowUpList rows={rows} pending={pending} from={from} />
+            <FollowUpList rows={rows} pending={pending} from={from} onChanged={changed} />
           ) : total > 0 ? (
             <EmptyState
               icon={SearchXIcon}
@@ -107,7 +113,7 @@ export default function FollowUpsPage() {
                 </Button>
               }
             />
-          ) : due || step ? (
+          ) : due || type ? (
             <EmptyState
               icon={CheckCircle2Icon}
               title={`No ${dueLabel ? dueLabel.toLowerCase() : 'matching'} follow-ups`}
@@ -122,7 +128,7 @@ export default function FollowUpsPage() {
             <EmptyState
               icon={CheckCircle2Icon}
               title="You're all caught up"
-              description="New follow-ups appear here as your enquiries book demo classes and diagnostic tests."
+              description="Follow-ups appear here when an enquiry is assigned to you, a class is coming up, a tutor submits a report or a Re-Demo is scheduled."
             />
           )}
           {total > 0 ? (
@@ -153,15 +159,20 @@ export default function FollowUpsPage() {
             ))}
           </TabsList>
         </Tabs>
-        <ListToolbar active={Boolean(step)} onClear={() => update({ step: null })}>
+        <ListToolbar active={Boolean(type)} onClear={() => update({ type: null })}>
           <FilterSelect
-            label="Filter by step"
-            placeholder="Every step"
-            value={step}
-            onChange={(value) => update({ step: value || null })}
-            options={FOLLOW_UP_STEPS}
+            label="Filter by type"
+            placeholder="Every type"
+            value={type}
+            onChange={(value) => update({ type: value || null })}
+            options={FOLLOW_UP_TYPES}
           />
         </ListToolbar>
+        {notice ? (
+          <p role="status" className="bg-success/10 text-success rounded-md px-3 py-2 text-sm">
+            {notice}
+          </p>
+        ) : null}
         {list}
       </div>
     );
@@ -171,7 +182,7 @@ export default function FollowUpsPage() {
     <Page>
       <PageHeader
         title="Follow-ups"
-        description="Calls and parent messages due on your enquiries' bookings, soonest first, in Indian time (IST). Open one to do it."
+        description="What you need to do next on your enquiries, soonest first, in Indian time (IST). Automatic WhatsApp messages stay in each booking's communication."
       />
       {content}
     </Page>

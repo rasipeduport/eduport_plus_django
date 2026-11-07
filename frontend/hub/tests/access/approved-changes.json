@@ -11833,8 +11833,8 @@
    }
   },
   "/follow-ups @ bde": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 6 (Follow-ups and Activity, approved 2026-11-07): /follow-ups lists the open parent-communication steps of the BDE's own leads' bookings from GET /api/bde/follow-ups/ -- by when they are due (overdue, today, upcoming, in Indian days) and step, each opening its booking's communication in the enquiry's workspace -- and opens, like its API, on accounts.view_own_lead_communications; /activity shows what has happened to those bookings from GET /api/bde/activity/, never who else acted or why. The BDE dashboard's agenda counts the follow-ups due today and overdue, and the enquiry workspace's Follow-ups and Activity tabs show that enquiry's.",
-   "note": "Follow-ups opens for the BDE; until its list arrives it sends them to My Enquiries. Follow-ups lists the BDE's open follow-ups (here the one confirmation request) by due tab and step, each opening its communication.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. BDE Hub redesign Phase 6 (Follow-ups and Activity, approved 2026-11-07): /follow-ups lists the open parent-communication steps of the BDE's own leads' bookings from GET /api/bde/follow-ups/ -- by when they are due (overdue, today, upcoming, in Indian days) and step, each opening its booking's communication in the enquiry's workspace -- and opens, like its API, on accounts.view_own_lead_communications; /activity shows what has happened to those bookings from GET /api/bde/activity/, never who else acted or why. The BDE dashboard's agenda counts the follow-ups due today and overdue, and the enquiry workspace's Follow-ups and Activity tabs show that enquiry's. BDE follow-ups aligned with BDE responsibilities (2026-11-07): /follow-ups lists only what the BDE must do next -- call a new enquiry an administrator gave them, a parent's confirmation from 12 hours before a Demo or Diagnostic, the call from 15 minutes before it, discussing a submitted tutor report, confirming a scheduled Re-Demo -- never the automatic WhatsApp messages, which stay in each booking's communication; it is filtered by type instead of communication step, and each follow-up is done from the list (record a call's outcome, request confirmation, record the parent's answer, mark a report discussed) as the API offers it, or opens where it is looked into.",
+   "note": "Follow-ups opens for the BDE; until its list arrives it sends them to My Enquiries. Follow-ups lists the BDE's open follow-ups (here the one confirmation request) by due tab and step, each opening its communication. The list now offers the follow-up's own actions -- for this parent confirmation, Request confirmation and Record answer -- names its columns Follow-up, Student & parent, Booking and Due (IST), and filters by type.",
    "result": {
     "at": "/follow-ups",
     "noAccess": false,
@@ -11852,10 +11852,12 @@
      "1",
      "All open1",
      "Due today1",
-     "Every step",
+     "Every type",
      "Next",
      "Overdue0",
      "Previous",
+     "Record answer",
+     "Request confirmation",
      "Toggle Sidebar",
      "Upcoming0"
     ],
@@ -11868,8 +11870,8 @@
      "Actions",
      "Booking",
      "Due (IST)",
-     "Enquiry",
-     "Follow-up"
+     "Follow-up",
+     "Student & parent"
     ],
     "tabs": [
      "All open1",
@@ -11878,7 +11880,7 @@
      "Upcoming0"
     ],
     "filters": [
-     "Filter by step"
+     "Filter by type"
     ],
     "menus": [],
     "calls": [
