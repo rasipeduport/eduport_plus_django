@@ -1,74 +1,98 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2Icon, RefreshCwIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { RefreshCwIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
+import { ADMIN_BOOKING_STATUSES, CLEARED_ADMIN_FILTERS, readAdminBookingFilters } from '@/lib/admin-booking-filters';
 import {
-  CLEARED_FILTERS,
   REDEMOS_URL,
-  REDEMO_TAB,
+  REDEMO_VIEW,
   bookingError,
   bookingRedemoUrl,
+  bookingsPagePath,
   bookingsUrl,
   cancelReasonLabel,
   listParams,
-  readFilters,
   readRedemoStatus,
 } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
 import { BookingDetailSheet } from '@/components/bookings/booking-detail-sheet';
-import { BookingList } from '@/components/bookings/booking-list';
+import { AdminBookingFilters, BookingList } from '@/components/bookings/booking-list';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { RedemoDetailSheet } from '@/components/bookings/redemo-detail-sheet';
 import { RedemoList } from '@/components/bookings/redemo-list';
 import { RedemoScheduleDialog } from '@/components/bookings/redemo-schedule-dialog';
 import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
 import { RescheduleBookingDialog } from '@/components/bookings/reschedule-booking-dialog';
+import { Page, PageHeader } from '@/components/page/page';
+import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
 const PAGE_SIZE = 25;
+const TYPES = {
+  DEMO: {
+    title: 'Demo Bookings',
+    description:
+      'Every demo class parents have booked, across every BDE. Give each its own tutor (the tutor list shows who is free for the slot) and schedule the Re-Demos asked for. Times are Indian time (IST).',
+    noun: 'demo classes',
+  },
+  DIAGNOSTIC: {
+    title: 'Diagnostic Bookings',
+    description:
+      'Every diagnostic test parents have booked, across every BDE. Give each its own tutor: the tutor list shows who is free for the slot. Times are Indian time (IST).',
+    noun: 'diagnostic tests',
+  },
+};
+// Demo Bookings' two lists: the bookings, and the Re-Demo requests (?tab=redemo).
+const BOOKINGS_VIEW = 'bookings';
 
-function AccessDenied({ failure }) {
+/** The page's title and what it is for, with Refresh on the right. */
+function BookingsHeader({ type, onRefresh, pending }) {
+  const { title, description } = TYPES[type];
   return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
-      <ShieldAlertIcon className="text-muted-foreground size-8" />
-      <p className="font-medium">You don&apos;t have access to bookings.</p>
-      <p className="text-muted-foreground max-w-md text-sm">{failure.message}</p>
-    </div>
+    <PageHeader
+      title={title}
+      description={description}
+      actions={
+        <Button variant="outline" onClick={onRefresh} disabled={pending}>
+          <RefreshCwIcon />
+          Refresh
+        </Button>
+      }
+    />
   );
 }
 
-function PageHeader({ onRefresh, pending }) {
+/**
+ * Demo Bookings' tabs: its bookings, and the Re-Demo requests. Each is a list
+ * of its own, so moving between them clears the filters and the open item.
+ */
+function DemoTabs({ value }) {
+  const [, setSearchParams] = useSearchParams();
+  const show = (next) => setSearchParams(new URLSearchParams(next === REDEMO_VIEW ? { tab: REDEMO_VIEW } : {}));
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold">Demo &amp; Diagnostic bookings</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Every demo class and diagnostic test parents have booked. Give each booking its own tutor: a tutor teaches
-          one student at a time, so the tutor list shows who is free for the slot. Times are Indian time (IST).
-        </p>
-      </div>
-      <Button variant="ghost" size="sm" onClick={onRefresh} disabled={pending}>
-        <RefreshCwIcon />
-        Refresh
-      </Button>
-    </div>
+    <Tabs value={value} onValueChange={show}>
+      <TabsList>
+        <TabsTrigger value={BOOKINGS_VIEW}>Bookings</TabsTrigger>
+        <TabsTrigger value={REDEMO_VIEW}>Re-Demo requests</TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 
-function Notice({ notice, onDismiss }) {
-  if (!notice) return null;
+/** Where a list's load stands: the skeleton, an error with Try again, or the list (with any later error above it). */
+function Loaded({ data, failure, pending, onRetry, children }) {
+  if (!data && !failure) return <TableSkeleton columns={6} toolbar={false} />;
+  if (!data) return <ErrorState message={failure.message} onRetry={onRetry} pending={pending} />;
   return (
-    <div role="status" className="bg-success/10 text-success mb-4 flex items-start gap-2 rounded-md px-3 py-2 text-sm">
-      <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-      <p className="flex-1">{notice}</p>
-      <button type="button" onClick={onDismiss} className="shrink-0" aria-label="Dismiss">
-        <XIcon className="size-4" />
-      </button>
-    </div>
+    <>
+      {failure ? <ErrorState message={failure.message} onRetry={onRetry} pending={pending} /> : null}
+      {children}
+    </>
   );
 }
 
@@ -84,23 +108,27 @@ function nextParams(searchParams, updates) {
 }
 
 /**
- * The Bookings page for the Admin / Coordinator: the Demo and Diagnostic
- * bookings (BookingsView) and, in the Re-Demo tab (?type=REDEMO), the Re-Demo
- * requests (RedemosView).
+ * The Demo or Diagnostic Bookings page (`type`) for the Admin / Coordinator:
+ * the type's bookings (BookingsView) and, for Demo in its Re-Demo tab
+ * (?tab=redemo), the Re-Demo requests (RedemosView).
  */
-export default function BookingsPage({ user }) {
+export default function BookingsPage({ user, type }) {
   const [searchParams] = useSearchParams();
-  return searchParams.get('type') === REDEMO_TAB ? <RedemosView user={user} /> : <BookingsView user={user} />;
+  return type === 'DEMO' && searchParams.get('tab') === REDEMO_VIEW ? (
+    <RedemosView user={user} />
+  ) : (
+    <BookingsView user={user} type={type} />
+  );
 }
 
 /**
- * Demo and Diagnostic bookings for the Admin / Coordinator: every booking
- * parents made, one tab per type (?type=DIAGNOSTIC; Demo by default) -- each
- * type is its own list (GET /api/bookings/<demo|diagnostic>/), filtered and
+ * One type's bookings for the Admin / Coordinator: every booking of `type`
+ * parents made (GET /api/bookings/<demo|diagnostic>/), filtered by class date,
+ * search, status, tutor, report and schedule (lib/admin-booking-filters) and
  * paged by the API. A completed Demo may be sent for a Re-Demo from its sheet
  * (actions.request_redemo, a reason required and shown back first), which the
  * Re-Demo tab then lists. A booking opens in a side sheet (?booking=<id>, of the
- * tab's type), is given its tutor in a dialog that shows who is free for the
+ * page's type), is given its tutor in a dialog that shows who is free for the
  * slot, and may be moved to another slot or cancelled with a reason from the
  * list -- each offered only when the booking's `actions` from the API say so
  * (accounts.reschedule_booking, accounts.cancel_booking). Opens for holders of
@@ -108,12 +136,13 @@ export default function BookingsPage({ user }) {
  * accounts.assign_booking_tutor. The API enforces both, and checks the tutor
  * again on every assignment.
  */
-function BookingsView({ user }) {
+function BookingsView({ user, type }) {
   const canAssign = can(user, PERMISSIONS.assignBookingTutor);
   // A tutor's permanent Meet link belongs to their account: team managers set it (backend accounts.team).
   const canEditMeetLink = can(user, PERMISSIONS.manageTeam);
   // Each booking's parent communication, in its sheet (Phase 3.1).
   const canViewCommunication = can(user, PERMISSIONS.viewAllCommunications);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -125,9 +154,8 @@ function BookingsView({ user }) {
   const [requestingRedemo, setRequestingRedemo] = useState(null);
   const [notice, setNotice] = useState(null);
 
-  const filters = readFilters(searchParams);
-  const { q, type, status, assigned, report, from, to, when } = filters;
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const filters = readAdminBookingFilters(searchParams, type);
+  const { page, q, status, assigned, report, from, to, when } = filters;
   const openId = searchParams.get('booking');
 
   useEffect(() => {
@@ -155,6 +183,8 @@ function BookingsView({ user }) {
 
   // Any filter change (anything but paging or the open booking) starts again at page 1.
   const update = (updates) => setSearchParams(nextParams(searchParams, updates));
+  // Clearing the filters keeps the booking open, if one is.
+  const clear = () => update(CLEARED_ADMIN_FILTERS);
 
   // After a change: say what happened, and read the list (and the open booking) again.
   const changed = (message) => {
@@ -175,49 +205,36 @@ function BookingsView({ user }) {
 
   let content;
   if (failure?.status === 403) {
-    content = <AccessDenied failure={failure} />;
-  } else if (!data && !failure) {
-    content = <TableSkeleton columns={6} />;
-  } else if (!data) {
-    content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={reload} disabled={pending}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <AccessDeniedState title="You don't have access to bookings." message={failure.message} />;
   } else {
     content = (
-      <>
-        {failure ? (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <p className="text-destructive text-sm">{failure.message}</p>
-            <Button variant="outline" size="sm" onClick={reload} disabled={pending}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
-        <BookingList
-          rows={data.results ?? []}
-          total={data.count ?? 0}
-          page={page}
-          pageSize={PAGE_SIZE}
-          filters={filters}
-          pending={pending}
-          canAssign={canAssign}
-          onChange={update}
-          onOpen={(id) => update({ booking: id })}
-          onAssign={setAssigning}
-        />
-      </>
+      <div className="flex flex-col gap-4">
+        {type === 'DEMO' ? <DemoTabs value={BOOKINGS_VIEW} /> : null}
+        <AdminBookingFilters filters={filters} statuses={ADMIN_BOOKING_STATUSES[type]} onChange={update} onClear={clear} />
+        <Loaded data={data} failure={failure} pending={pending} onRetry={reload}>
+          <BookingList
+            rows={data?.results ?? []}
+            total={data?.count ?? 0}
+            page={page}
+            pageSize={PAGE_SIZE}
+            filters={filters}
+            pending={pending}
+            canAssign={canAssign}
+            noun={TYPES[type].noun}
+            onChange={update}
+            onClear={clear}
+            onOpen={(id) => update({ booking: id })}
+            onAssign={setAssigning}
+          />
+        </Loaded>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <PageHeader onRefresh={reload} pending={pending} />
-      <Notice notice={notice} onDismiss={() => setNotice(null)} />
+    <Page>
+      <BookingsHeader type={type} onRefresh={reload} pending={pending} />
+      {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
 
       {content}
 
@@ -240,7 +257,7 @@ function BookingsView({ user }) {
         onCancel={setCancelling}
         onOpenBooking={(id) => update({ booking: id })}
         onRequestRedemo={setRequestingRedemo}
-        onOpenRedemo={(id) => update({ ...CLEARED_FILTERS, type: REDEMO_TAB, booking: null, redemo: id })}
+        onOpenRedemo={(id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ tab: REDEMO_VIEW, redemo: id })}`)}
       />
 
       <RequestRedemoDialog
@@ -252,7 +269,7 @@ function BookingsView({ user }) {
         requestUrl={requestingRedemo ? bookingRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
         onRequested={() =>
           changed(
-            `Asked for a Re-Demo of ${requestingRedemo.student_name}'s demo. It is now Re-Demo required; schedule it in the Re-Demo tab.`
+            `Asked for a Re-Demo of ${requestingRedemo.student_name}'s demo. It is now Re-Demo required; schedule it in the Re-Demo requests tab.`
           )
         }
       />
@@ -287,16 +304,16 @@ function BookingsView({ user }) {
           onAssigned={(booking) => changed(`${booking.tutor?.full_name} now teaches ${booking.student_name}'s ${typeOf(booking)}.`)}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }
 
 /**
- * The Re-Demo tab (?type=REDEMO): every Re-Demo request, newest first
+ * Demo Bookings' Re-Demo tab (?tab=redemo): every Re-Demo request, newest first
  * (GET /api/bookings/redemos/), searched (?q=), filtered by where it stands
  * (?status=) and paged by the API. A request opens in a side sheet
  * (?redemo=<id>) with its original Demo, its reason and the Re-Demo
- * scheduled for it -- each Demo opening in the Demo tab with its own report
+ * scheduled for it -- each Demo opening in Demo Bookings with its own report
  * -- and, for holders of accounts.assign_booking_tutor, Schedule Re-Demo (a
  * dialog of the tutor, the date and time they are free, and remarks for
  * them, which books it at once) and those remarks. Nothing is sent to the
@@ -312,6 +329,7 @@ function RedemosView({ user }) {
   const [scheduling, setScheduling] = useState(null);
   const [notice, setNotice] = useState(null);
 
+  const navigate = useNavigate();
   const q = (searchParams.get('q') ?? '').trim();
   const status = readRedemoStatus(searchParams.get('status'));
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
@@ -346,47 +364,31 @@ function RedemosView({ user }) {
 
   let content;
   if (failure?.status === 403) {
-    content = <AccessDenied failure={failure} />;
-  } else if (!data && !failure) {
-    content = <TableSkeleton columns={6} />;
-  } else if (!data) {
-    content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={reload} disabled={pending}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <AccessDeniedState title="You don't have access to bookings." message={failure.message} />;
   } else {
     content = (
-      <>
-        {failure ? (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <p className="text-destructive text-sm">{failure.message}</p>
-            <Button variant="outline" size="sm" onClick={reload} disabled={pending}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
-        <RedemoList
-          rows={data.results ?? []}
-          total={data.count ?? 0}
-          page={page}
-          pageSize={PAGE_SIZE}
-          filters={{ q, status }}
-          pending={pending}
-          onChange={update}
-          onOpen={(id) => update({ redemo: id })}
-        />
-      </>
+      <div className="flex flex-col gap-4">
+        <DemoTabs value={REDEMO_VIEW} />
+        <Loaded data={data} failure={failure} pending={pending} onRetry={reload}>
+          <RedemoList
+            rows={data?.results ?? []}
+            total={data?.count ?? 0}
+            page={page}
+            pageSize={PAGE_SIZE}
+            filters={{ q, status }}
+            pending={pending}
+            onChange={update}
+            onOpen={(id) => update({ redemo: id })}
+          />
+        </Loaded>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <PageHeader onRefresh={reload} pending={pending} />
-      <Notice notice={notice} onDismiss={() => setNotice(null)} />
+    <Page>
+      <BookingsHeader type="DEMO" onRefresh={reload} pending={pending} />
+      {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
 
       {content}
 
@@ -398,8 +400,8 @@ function RedemosView({ user }) {
         }}
         reloadKey={reloadKey}
         onSchedule={setScheduling}
-        // A Demo of the chain opens in the Demo tab, with its own report.
-        onOpenBooking={(id) => update({ ...CLEARED_FILTERS, type: null, redemo: null, booking: id })}
+        // A Demo of the chain opens in Demo Bookings, with its own report.
+        onOpenBooking={(id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ when: 'all', booking: id })}`)}
         onOpenRedemo={(id) => update({ redemo: id })}
       />
 
@@ -418,6 +420,6 @@ function RedemosView({ user }) {
           }}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

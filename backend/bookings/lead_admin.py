@@ -6,16 +6,20 @@ My Leads shows (bookings.enquiries, bookings.lead_status), plus who owns it.
 Administrators add leads by hand here, and give leads to BDEs through
 bookings.ownership.
 """
+from datetime import date, datetime, time, timedelta
+
 from django.db.models import Q
 
 from accounts.models import RoleChoices, User
 from activity.utils import log_activity
+from core.timezones import DATE_PATTERN
 
 from . import enquiries
 from .lead_intake import create_lead
 from .lead_status import with_status
 from .leads import InvalidLeadDetails
 from .models import MANUAL_LEAD_SOURCES
+from .scheduling import BOOKING_TIMEZONE
 from .services import owns_booking_links
 
 # The owner filter's value for the leads nobody owns.
@@ -36,6 +40,44 @@ def filter_owner(leads, owner):
     if owner == UNASSIGNED:
         return leads.filter(owner_bde__isnull=True)
     return leads.filter(owner_bde_id=owner)
+
+
+def received_dates(params):
+    """
+    ``from`` and ``to`` from a query string -- the Indian dates (YYYY-MM-DD) a
+    lead came in on, inclusive -- as ((date_from, date_to), invalid): either is
+    None when unset, and ``invalid`` names each parameter that is not a date,
+    and ``to`` when it comes before ``from``. Nothing is guessed for either.
+    """
+    dates, invalid = {}, []
+    for name in ('from', 'to'):
+        value = (params.get(name) or '').strip()
+        if not value:
+            dates[name] = None
+            continue
+        try:
+            if not DATE_PATTERN.match(value):
+                raise ValueError(value)
+            dates[name] = date.fromisoformat(value)
+        except ValueError:
+            dates[name] = None
+            invalid.append(name)
+    if dates['from'] and dates['to'] and dates['from'] > dates['to']:
+        invalid.append('to')
+    return (dates['from'], dates['to']), invalid
+
+
+def received_between(leads, date_from=None, date_to=None):
+    """
+    ``leads`` that came in on the Indian dates ``date_from`` to ``date_to``,
+    inclusive -- the day in India, whatever the server's clock zone -- either
+    end left open when None.
+    """
+    if date_from:
+        leads = leads.filter(created_at__gte=datetime.combine(date_from, time.min, tzinfo=BOOKING_TIMEZONE))
+    if date_to:
+        leads = leads.filter(created_at__lt=datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=BOOKING_TIMEZONE))
+    return leads
 
 
 def _ownership(lead):

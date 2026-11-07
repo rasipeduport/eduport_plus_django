@@ -589,6 +589,8 @@ SCENARIOS = [
     # No caller here is a BDE, so no account may take lead_a: mentor_a is refused as one.
     Scenario('leads.assign_owner', 'put', '/api/leads/{lead_a}/owner/',
              lambda w: {'bde_id': w.id('mentor_a'), 'current_owner_id': None}),
+    # The admissions pipeline at a glance (bookings.admissions): the last seven days of leads and bookings.
+    Scenario('admissions.dashboard', 'get', '/api/admissions/dashboard/'),
 
     # --- public booking and lead APIs (the marketing site's server key only) --
     Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),

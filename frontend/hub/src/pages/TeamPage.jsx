@@ -1,27 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2Icon, PlusIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { CreateMemberDialog } from '@/components/team/create-member-dialog';
 import { TeamDirectory } from '@/components/team/team-directory';
+import { Page, PageHeader } from '@/components/page/page';
+import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { TEAM_ROLES, TEAM_URL, canManageTeam, teamError } from '@/lib/team';
 
 const PAGE_SIZE = 25;
 const ROLE_VALUES = new Set(TEAM_ROLES.map((role) => role.value));
 const STATUS_VALUES = new Set(['active', 'deactivated']);
-
-function AccessDenied({ message }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
-      <ShieldAlertIcon className="text-muted-foreground size-8" />
-      <p className="font-medium">You don&apos;t have access to the team directory.</p>
-      {message ? <p className="text-muted-foreground max-w-md text-sm">{message}</p> : null}
-    </div>
-  );
-}
 
 /**
  * Team Management. Admins and superusers manage staff accounts; staff granted
@@ -82,29 +74,15 @@ export default function TeamPage({ user }) {
 
   let content;
   if (failure?.status === 403) {
-    content = <AccessDenied message={failure.message} />;
+    content = <AccessDeniedState title="You don't have access to the team directory." message={failure.message} />;
   } else if (!data && !failure) {
     content = <TableSkeleton />;
   } else if (!data) {
-    content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={retry} disabled={pending}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <ErrorState message={failure.message} onRetry={retry} pending={pending} />;
   } else {
     content = (
       <>
-        {failure ? (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <p className="text-destructive text-sm">{failure.message}</p>
-            <Button variant="outline" size="sm" onClick={retry} disabled={pending}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
+        {failure ? <ErrorState message={failure.message} onRetry={retry} pending={pending} /> : null}
         <TeamDirectory
           rows={data.results ?? []}
           total={data.count ?? 0}
@@ -120,42 +98,31 @@ export default function TeamPage({ user }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Team</h1>
-          <p className="text-muted-foreground text-sm">
-            {canManage
-              ? 'Staff accounts: who can sign in to the Hub, their roles and any extra permissions.'
-              : 'The Eduport Plus staff directory. You can view it but not change it.'}
-          </p>
-        </div>
-        {canManage ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <PlusIcon />
-            Add staff member
-          </Button>
-        ) : null}
-      </div>
+    <Page>
+      <PageHeader
+        title="Team"
+        description={
+          canManage
+            ? 'Staff accounts: who can sign in to the Hub, their roles and any extra permissions.'
+            : 'The Eduport Plus staff directory. You can view it but not change it.'
+        }
+        actions={
+          canManage ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+              Add Staff Member
+            </Button>
+          ) : null
+        }
+      />
 
-      {notice ? (
-        <div
-          role="status"
-          className="bg-success/10 text-success mb-4 flex items-start gap-2 rounded-md px-3 py-2 text-sm"
-        >
-          <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-          <p className="flex-1">{notice}</p>
-          <button type="button" onClick={() => setNotice('')} className="shrink-0" aria-label="Dismiss">
-            <XIcon className="size-4" />
-          </button>
-        </div>
-      ) : null}
+      {notice ? <Notice onDismiss={() => setNotice('')}>{notice}</Notice> : null}
 
       {content}
 
       {canManage ? (
         <CreateMemberDialog viewer={user} open={createOpen} onOpenChange={setCreateOpen} onCreated={handleChanged} />
       ) : null}
-    </div>
+    </Page>
   );
 }

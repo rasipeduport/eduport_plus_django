@@ -9,7 +9,6 @@ import {
   MessageCircleIcon,
   PhoneIcon,
   SearchXIcon,
-  ShieldAlertIcon,
   UserRoundCogIcon,
   UserRoundIcon,
 } from 'lucide-react';
@@ -28,6 +27,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { AssignOwnerDialog } from '@/components/leads/assign-owner-dialog';
+import { EmptyState, Page } from '@/components/page/page';
+import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
 function Field({ label, children }) {
   return (
@@ -111,15 +112,10 @@ function LeadSkeleton() {
 }
 
 function Unavailable({ failure }) {
-  const missing = failure.status === 404;
-  const Icon = missing ? SearchXIcon : ShieldAlertIcon;
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
-      <Icon className="text-muted-foreground size-8" />
-      <p className="font-medium">{missing ? 'Lead not found' : "You don't have access to this lead."}</p>
-      <p className="text-muted-foreground max-w-md text-sm">{missing ? 'It may have been removed.' : failure.message}</p>
-    </div>
-  );
+  if (failure.status === 404) {
+    return <EmptyState icon={SearchXIcon} title="Lead not found" description="It may have been removed." />;
+  }
+  return <AccessDeniedState title="You don't have access to this lead." message={failure.message} />;
 }
 
 /**
@@ -173,14 +169,7 @@ export default function LeadPage({ user }) {
   if (failure && (failure.status === 404 || failure.status === 403)) {
     content = <Unavailable failure={failure} />;
   } else if (failure && !lead) {
-    content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
   } else if (!lead || lead.id !== leadId) {
     content = <LeadSkeleton />;
   } else {
@@ -275,18 +264,16 @@ export default function LeadPage({ user }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <Button variant="ghost" size="sm" className="text-muted-foreground mb-4 -ml-2" asChild>
-        <Link to="/leads">
-          <ArrowLeftIcon className="size-4" />
-          Leads
-        </Link>
-      </Button>
-      {notice ? (
-        <p role="status" className="bg-success/10 text-success mb-4 rounded-md px-3 py-2 text-sm">
-          {notice}
-        </p>
-      ) : null}
+    <Page>
+      <div className="flex flex-col gap-4">
+        <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2 w-fit" asChild>
+          <Link to="/leads">
+            <ArrowLeftIcon className="size-4" />
+            Leads
+          </Link>
+        </Button>
+        {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
+      </div>
       {content}
       {canAssign && lead ? (
         <AssignOwnerDialog
@@ -301,6 +288,6 @@ export default function LeadPage({ user }) {
           onStale={() => setReloadKey((key) => key + 1)}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

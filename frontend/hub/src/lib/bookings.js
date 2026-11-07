@@ -44,7 +44,8 @@ export const bdeDemoInviteUrl = (type, id) => `${bdeBookingUrl(type, id)}demo-in
 export const bdeRedemoUrl = (type, id) => `${bdeBookingUrl(type, id)}redemo/`;
 
 // Re-Demo requests for administrators (backend bookings/management_views.py, bookings/redemos.py): the
-// Bookings page's Re-Demo tab (?type=REDEMO). Scheduling and remarks need accounts.assign_booking_tutor.
+// Demo Bookings page's Re-Demo tab (REDEMO_VIEW, below; REDEMO_TAB is the former single Bookings page's
+// ?type=REDEMO). Scheduling and remarks need accounts.assign_booking_tutor.
 export const REDEMO_TAB = 'REDEMO';
 export const REDEMOS_URL = `${BOOKINGS_URL}redemos/`;
 export const redemoUrl = (id) => `${REDEMOS_URL}${id}/`;
@@ -75,28 +76,33 @@ export function readRedemoStatus(value) {
 export const REDEMO_REASON_MAX_LENGTH = 1000;
 export const REDEMO_REMARKS_MAX_LENGTH = 2000;
 
-// Moving between the Bookings page's lists (a booking type's, the Re-Demo tab's): what that clears, since
-// one list's filters and paging mean nothing in the other.
-export const CLEARED_FILTERS = {
-  q: null,
-  status: null,
-  assigned: null,
-  report: null,
-  from: null,
-  to: null,
-  when: null,
-  page: null,
-};
-
 /** The day a slot picker shows first: the one picked, else the first with an open slot, else the first. */
 export function shownDayOf(dates, day) {
   return day || dates.find((entry) => entry.slots.some((slot) => slot.bookable))?.date || dates[0]?.date || '';
 }
 
-/** The Bookings page with one booking open in its detail sheet (?type=<TYPE>&booking=<id>). */
+// The administrators' Bookings pages: one per type (/bookings/demo, /bookings/diagnostic),
+// the Re-Demo requests a tab of Demo's (?tab=redemo).
+export const bookingsPagePath = (type) => `/bookings/${typePath(type)}`;
+export const REDEMO_VIEW = 'redemo';
+
+/** The type's Bookings page with one booking open in its detail sheet (?booking=<id>). */
 export function bookingPagePath(type, id) {
-  typePath(type); // DEMO or DIAGNOSTIC only, as for the API paths
-  return `/bookings?type=${type}&booking=${id}`;
+  return `${bookingsPagePath(type)}?booking=${id}`;
+}
+
+/**
+ * Where a link to the former single Bookings page (/bookings?type=<TYPE>&...)
+ * leads now: its type's page -- Demo unless it said Diagnostic -- or Demo's
+ * Re-Demo tab for type=REDEMO, with every other parameter kept.
+ */
+export function legacyBookingsPath(search) {
+  const params = new URLSearchParams(search);
+  const type = params.get('type');
+  params.delete('type');
+  if (type === REDEMO_TAB) params.set('tab', REDEMO_VIEW);
+  const query = params.toString();
+  return `${bookingsPagePath(type === 'DIAGNOSTIC' ? 'DIAGNOSTIC' : DEFAULT_TYPE)}${query ? `?${query}` : ''}`;
 }
 
 // Why a booking was cancelled or moved: a code from a fixed list (backend
@@ -150,13 +156,8 @@ export const WHEN_FILTERS = [
 ];
 export const DEFAULT_WHEN = 'upcoming';
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 const values = (options) => new Set(options.map((option) => option.value));
 const TYPE_VALUES = values(BOOKING_TYPES);
-const STATUS_VALUES = values(BOOKING_STATUSES);
-const ASSIGNMENT_VALUES = values(ASSIGNMENT_FILTERS);
-const REPORT_VALUES = values(REPORT_FILTERS);
 const WHEN_VALUES = values(WHEN_FILTERS);
 
 /** `value` if it is a booking type (DEMO or DIAGNOSTIC), else ''. */
@@ -164,31 +165,7 @@ export function readBookingType(value) {
   return TYPE_VALUES.has(value) ? value : '';
 }
 
-/**
- * The list's filters from the page URL, and the type tab it shows (Demo
- * unless the URL says Diagnostic). A value the API would refuse is dropped
- * here, so a hand-edited link shows the unfiltered list rather than an error.
- * Reports are due only on slots that are over, so Report due reads Upcoming
- * (the default) as Past: a link to the reports due never shows an empty list.
- */
-export function readFilters(searchParams) {
-  const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
-  const date = (name) => (DATE_RE.test(searchParams.get(name) ?? '') ? searchParams.get(name) : '');
-  const report = pick('report', REPORT_VALUES);
-  const when = pick('when', WHEN_VALUES) || DEFAULT_WHEN;
-  return {
-    q: (searchParams.get('q') ?? '').trim(),
-    type: pick('type', TYPE_VALUES) || DEFAULT_TYPE,
-    status: pick('status', STATUS_VALUES),
-    assigned: pick('assigned', ASSIGNMENT_VALUES),
-    report,
-    from: date('from'),
-    to: date('to'),
-    when: report === REPORT_DUE && when === 'upcoming' ? 'past' : when,
-  };
-}
-
-/** The query the list endpoint (bookingsUrl(filters.type)) takes for `filters` and `page`. */
+/** The query a type's list endpoint (bookingsUrl) takes for `filters` (lib/admin-booking-filters) and `page`. */
 export function listParams(filters, page, pageSize) {
   const params = { page, page_size: pageSize };
   for (const name of ['q', 'status', 'assigned', 'report', 'from', 'to']) {
@@ -229,7 +206,7 @@ export function startError(err) {
   return { ...failure, message: START_REFUSALS[failure.code] ?? failure.message };
 }
 
-/** The tutor list's filters from the page URL; a value the API would refuse is dropped, as in readFilters. */
+/** The tutor list's filters from the page URL; a value the API would refuse is dropped. */
 export function readTutorFilters(searchParams) {
   const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
   return { type: pick('type', TYPE_VALUES), when: pick('when', WHEN_VALUES) || DEFAULT_WHEN };

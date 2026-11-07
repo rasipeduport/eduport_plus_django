@@ -1,6 +1,7 @@
 // The administrators' Leads page: the /api/leads/ contract (backend
 // bookings/lead_views.py) as the Hub uses it. Rows, statuses and sources read
 // as a BDE's My Enquiries does (lib/enquiries.js); the API enforces every rule.
+import { bookingsPagePath } from '@/lib/bookings';
 
 export const LEADS_URL = '/api/leads/';
 export const LEAD_BDES_URL = '/api/leads/bdes/';
@@ -18,10 +19,10 @@ export function ownerOptions(bdes) {
   ];
 }
 
-/** Where a lead's booking opens on the Bookings page: its type's list, any date, its sheet open. */
+/** Where a lead's booking opens: its type's Bookings page, any date, its sheet open. */
 export function bookingPageUrl(booking) {
-  const params = new URLSearchParams({ type: booking.booking_type, when: 'all', booking: booking.id });
-  return `/bookings?${params}`;
+  const params = new URLSearchParams({ when: 'all', booking: booking.id });
+  return `${bookingsPagePath(booking.booking_type)}?${params}`;
 }
 
 // The utm_* parameters a lead form's page carried (backend Lead.source_details), as the lead page labels them.

@@ -5,14 +5,17 @@ import { remainingToday, sessionsToday } from '@/lib/session-day';
 import { cn } from '@/lib/utils';
 import { ToneIcon } from './dashboard-primitives';
 
-/** One headline number; a link when `to` is given. Shared with the BDE dashboard. */
-export function Tile({ icon, tone, label, value, hint, hintTone = 'muted', to }) {
+/**
+ * One headline number; a link when `to` is given. Shared with the BDE and
+ * Admissions dashboards; `labelClassName` adds to its label's classes.
+ */
+export function Tile({ icon, tone, label, value, hint, hintTone = 'muted', to, labelClassName }) {
   const body = (
     <>
       <ToneIcon icon={icon} tone={tone} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs font-medium text-pretty">{label}</p>
+          <p className={cn('text-muted-foreground text-xs font-medium text-pretty', labelClassName)}>{label}</p>
           {to ? <ChevronRight className="text-muted-foreground size-4 shrink-0" /> : null}
         </div>
         <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>

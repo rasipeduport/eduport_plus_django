@@ -342,6 +342,22 @@ const LEAD_BDES = { status: 200, body: { results: [{ id: LEAD_BDE_ID, full_name:
 const LEAD_DETAIL = { status: 200, body: { ...WEBSITE_LEAD, phone_dial_code: '+91', phone_number: '9876543210',
   parent_email: 'meera@example.com', school_name: 'Kendriya Vidyalaya', syllabus: 'CBSE', country: 'India',
   timezone: 'Asia/Kolkata', bookings: [], added_by: null, source_details: { utm_source: 'instagram' } } };
+// The Admissions Dashboard (Admin Hub redesign, Phase 2), which opens on
+// accounts.view_all_leads like the Leads page: one week's counts on fixed
+// dates, the two leads above as the latest, nothing booked for today.
+const ADMISSIONS_PATH = '/api/admissions/dashboard/';
+const ADMISSIONS_RANGE = { from: '2026-11-02', to: '2026-11-08' };
+const byType = (demo, diagnostic) => ({ DEMO: demo, DIAGNOSTIC: diagnostic });
+const ADMISSIONS_DASHBOARD = { status: 200, body: { timezone: 'Asia/Kolkata', range: ADMISSIONS_RANGE,
+  leads: { received: 2, new: 1 },
+  pipeline: [['NEW', 'New', 1], ['BOOKED', 'Booked', 1], ['COMPLETED', 'Completed', 0], ['NOT_STARTED', 'Not started', 0],
+    ['CANCELLED', 'Cancelled', 0]].map(([stage, label, count]) => ({ stage, label, count })),
+  bookings: byType({ total: 1, upcoming: 1 }, { total: 0, upcoming: 0 }),
+  today_bookings: { date: ADMISSIONS_RANGE.to, total: 0, rows: [] },
+  pending: { unassigned_leads: 1, needs_tutor: byType(1, 0), report_due: byType(0, 0), redemo_scheduling: 0,
+    awaiting_confirmation: byType(1, 0) },
+  recent_leads: [WEBSITE_LEAD, OWNED_LEAD], activity: [] } };
+
 function withLeads(answers) {
   const me = answers['/api/auth/me/'];
   const permissions = [...new Set([...me.body.user.permissions, ...LEAD_PERMISSIONS])].sort();
@@ -351,6 +367,7 @@ function withLeads(answers) {
     [LEADS_PATH]: LEADS_LIST,
     [`${LEADS_PATH}bdes/`]: LEAD_BDES,
     [`${LEADS_PATH}${LEAD_ID}/`]: LEAD_DETAIL,
+    [ADMISSIONS_PATH]: ADMISSIONS_DASHBOARD,
   };
 }
 
@@ -388,6 +405,10 @@ const PATHS = [
   `/my-bookings/demo/${MY_BOOKING_ID}/report`, '/leads', `/leads/${LEAD_ID}`,
   // The BDE workspace's pages beyond My Enquiries (BDE Hub redesign, Phase 2).
   '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans',
+  // The Admin Hub's new pages (Admin Hub redesign): the Admissions Dashboard on fixed dates, the Demo and
+  // Diagnostic Bookings pages, and the Sales & Finance modules still to come.
+  `/admissions?range=custom&from=${ADMISSIONS_RANGE.from}&to=${ADMISSIONS_RANGE.to}`, '/bookings/demo', '/bookings/diagnostic',
+  '/sales-dashboard', '/sales-module', '/sales-punching', '/sales-syllabus', '/tutor-earnings',
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };

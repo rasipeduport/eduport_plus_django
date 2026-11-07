@@ -2,9 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import api from '@/lib/api';
+import { PERMISSIONS, can } from '@/lib/access';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { InvitationsTable } from '@/components/invitations/invitations-table';
+import { NewInvitation } from '@/components/invitations/new-invitation';
+import { Page, PageHeader } from '@/components/page/page';
+import { ErrorState } from '@/components/page/states';
 
+/**
+ * Invitations: the students invited to Eduport Plus, where each invitation
+ * stands, and -- for holders of accounts.create_invitation -- a new one
+ * (?open=true opens its form). Staff are no longer invited: their accounts
+ * are made in Team, and the staff invitations still on record can only be
+ * withdrawn. The API enforces every rule.
+ */
 export default function InvitationsPage({ user }) {
   const [searchParams] = useSearchParams();
   const [invitations, setInvitations] = useState([]);
@@ -39,19 +50,25 @@ export default function InvitationsPage({ user }) {
     };
   }, [fetchInvitations]);
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <TableSkeleton />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-16">
-      {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
+    <Page>
+      <PageHeader
+        title="Invitations"
+        description="Students invited to Eduport Plus, and where each invitation stands. Staff accounts are made in Team."
+        actions={
+          can(user, PERMISSIONS.createInvitation) ? (
+            <NewInvitation initialOpen={initialOpen} onSuccess={fetchInvitations} />
+          ) : null
+        }
+      />
 
-      <InvitationsTable data={invitations} user={user} initialOpen={initialOpen} onChanged={fetchInvitations} />
-    </div>
+      {error ? <ErrorState message={error} onRetry={fetchInvitations} /> : null}
+
+      {loading ? (
+        <TableSkeleton toolbar={false} />
+      ) : (
+        <InvitationsTable data={invitations} user={user} onChanged={fetchInvitations} />
+      )}
+    </Page>
   );
 }

@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react';
+import {
+  CalendarClockIcon,
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LockIcon,
+  RefreshCwIcon,
+} from 'lucide-react';
 
 import api from '@/lib/api';
 import { apiErrorMessage } from '@/lib/api-errors';
@@ -14,8 +22,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState, Page, PageHeader } from '@/components/page/page';
+import { ResponsiveList } from '@/components/page/responsive-list';
+import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { cn } from '@/lib/utils';
 
 // Slot times and dates are Indian time, whatever zone this device is in
@@ -214,12 +224,12 @@ function SlotsSkeleton() {
   );
 }
 
-function NoAccess() {
+/** One figure of the day's summary. */
+function Stat({ label, value }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
-      <ShieldAlertIcon className="text-muted-foreground size-8" />
-      <p className="font-medium">You don&apos;t have access to booking slots.</p>
-      <p className="text-muted-foreground max-w-md text-sm">Ask an administrator if you need to manage them.</p>
+    <div className="bg-card min-w-0 rounded-lg border px-3 py-2">
+      <p className="text-muted-foreground truncate text-xs">{label}</p>
+      <p className="text-lg font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
@@ -410,18 +420,75 @@ export default function BookingSlotsPage() {
   const slots = current?.slots ?? [];
   const editable = Boolean(current?.editable);
 
+  const columns = [
+    {
+      key: 'time',
+      header: 'Time (IST)',
+      className: 'font-medium whitespace-nowrap',
+      cell: (slot) => (
+        <>
+          {slotLabel(slot)}
+          {slot.scheduled ? null : <span className="text-muted-foreground block text-xs font-normal">No longer offered</span>}
+        </>
+      ),
+    },
+    {
+      key: 'bookings',
+      header: 'Bookings',
+      className: 'tabular-nums',
+      cell: (slot) => (
+        <>
+          {slot.booked} / {slot.capacity}
+          <SeatHolders slot={slot} />
+        </>
+      ),
+    },
+    { key: 'status', header: 'Status', cell: (slot) => <StatusBadge slot={slot} /> },
+    { key: 'details', header: 'Details', className: 'text-muted-foreground min-w-48 text-xs', cell: (slot) => <Closure slot={slot} /> },
+    ...(editable
+      ? [
+          {
+            key: 'set',
+            header: 'Set status',
+            // A time no longer offered can only be put back (the API closes offered times only).
+            cell: (slot) =>
+              slot.scheduled || slot.closed ? <StatusSelect slot={slot} disabled={saving} onChoose={chooseStatus} /> : null,
+          },
+        ]
+      : []),
+  ];
+
+  const renderCard = (slot) => (
+    <article className="bg-card flex h-full flex-col gap-3 rounded-xl border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-medium">{slotLabel(slot)} IST</h2>
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {slot.booked} of {slot.capacity} booked
+            {slot.scheduled ? '' : ' · No longer offered'}
+          </p>
+        </div>
+        <StatusBadge slot={slot} />
+      </div>
+      <SeatHolders slot={slot} />
+      {slot.closed ? (
+        <div className="text-muted-foreground text-xs">
+          <Closure slot={slot} />
+        </div>
+      ) : null}
+      {editable && (slot.scheduled || slot.closed) ? (
+        <div className="mt-auto border-t pt-3">
+          <StatusSelect slot={slot} disabled={saving} onChoose={chooseStatus} />
+        </div>
+      ) : null}
+    </article>
+  );
+
   let content;
   if (failed?.status === 403) {
-    content = <NoAccess />;
+    content = <AccessDeniedState title="You don't have access to booking slots." message="Ask an administrator if you need to manage them." />;
   } else if (failed) {
-    content = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-destructive text-sm">{failed.message}</p>
-        <Button variant="outline" size="sm" onClick={reload}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <ErrorState message={failed.message} onRetry={reload} />;
   } else if (!current) {
     content = <SlotsSkeleton />;
   } else {
@@ -429,91 +496,53 @@ export default function BookingSlotsPage() {
     const closed = slots.filter((slot) => slot.closed).length;
     content = (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1 text-sm">
-          <p>{parentNote(current)}</p>
-          <p className="text-muted-foreground">
-            {plural(slots.length, 'slot')} · {booked} booked · {closed} closed by an administrator · up to {current.capacity}{' '}
-            bookings a slot
-          </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm">{parentNote(current)}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Stat label="Slots" value={slots.length} />
+            <Stat label="Booked" value={booked} />
+            <Stat label="Closed by an administrator" value={closed} />
+            <Stat label="Bookings a slot" value={`Up to ${current.capacity}`} />
+          </div>
         </div>
 
-        {notice ? (
-          <p role="status" className="text-sm">
-            {notice}
-          </p>
-        ) : null}
-        {error ? (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
+        {notice ? <Notice>{notice}</Notice> : null}
+        {error ? <ErrorState message={error} /> : null}
 
         {slots.length === 0 ? (
-          <p className="text-muted-foreground rounded-md border px-6 py-12 text-center text-sm">
-            No {typeLabel.toLowerCase()} times are scheduled.
-          </p>
+          <EmptyState
+            icon={CalendarClockIcon}
+            title={`No ${typeLabel.toLowerCase()} times are scheduled`}
+            description="Pick another date, or the other booking type."
+          />
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time (IST)</TableHead>
-                  <TableHead>Bookings</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Details</TableHead>
-                  {editable ? <TableHead>Set status</TableHead> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {slots.map((slot) => (
-                  <TableRow key={slot.time}>
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {slotLabel(slot)}
-                      {slot.scheduled ? null : (
-                        <span className="text-muted-foreground block text-xs font-normal">No longer offered</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {slot.booked} / {slot.capacity}
-                      <SeatHolders slot={slot} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge slot={slot} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground min-w-48 text-xs">
-                      <Closure slot={slot} />
-                    </TableCell>
-                    {editable ? (
-                      <TableCell>
-                        {/* A time no longer offered can only be put back (the API closes offered times only). */}
-                        {slot.scheduled || slot.closed ? (
-                          <StatusSelect slot={slot} disabled={saving} onChoose={chooseStatus} />
-                        ) : null}
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ResponsiveList
+            label={`${typeLabel} slots`}
+            columns={columns}
+            rows={slots}
+            rowKey={(slot) => slot.time}
+            minTableWidth={760}
+            renderCard={renderCard}
+          />
         )}
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Booking slots</h1>
-        <p className="text-muted-foreground text-sm">
-          The one-hour slots parents book for a demo class or a diagnostic test. Each slot&apos;s status follows its
-          bookings: Available, Filling Fast, Only a Few Left or Fully Booked. To stop new bookings, set a slot to Fully
-          Booked; it keeps the bookings it holds (marked with a lock) until you set it back to the status its bookings
-          give it. Times are Indian time (IST).
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Booking Slots"
+        description="The one-hour slots parents book for a demo class or a diagnostic test. Each slot's status follows its bookings; to stop new bookings, set a slot to Fully Booked. It keeps the bookings it holds (marked with a lock) until you set it back. Times are Indian time (IST)."
+        actions={
+          <Button variant="outline" onClick={reload} disabled={saving}>
+            <RefreshCwIcon />
+            Refresh
+          </Button>
+        }
+      />
 
-      <div className="mb-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <Tabs value={type} onValueChange={(value) => choose({ type: value })}>
           <TabsList>
             {TYPES.map((entry) => (
@@ -524,42 +553,47 @@ export default function BookingSlotsPage() {
           </TabsList>
         </Tabs>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Previous day" onClick={() => choose({ date: addDays(date, -1) })}>
-            <ChevronLeftIcon />
-          </Button>
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-52 justify-between font-normal">
-                <span className="truncate">{dateLabel(date)}</span>
-                <ChevronDownIcon className="shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={toPickerDate(date)}
-                defaultMonth={toPickerDate(date)}
-                captionLayout="dropdown"
-                onSelect={(picked) => {
-                  if (!picked) return;
-                  choose({ date: fromPickerDate(picked) });
-                  setCalendarOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-          <Button variant="outline" size="icon" aria-label="Next day" onClick={() => choose({ date: addDays(date, 1) })}>
-            <ChevronRightIcon />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => choose({ date: addDays(indianToday(), 1) })}>
-            Tomorrow
-          </Button>
-          <Button variant="ghost" size="sm" onClick={reload} disabled={saving}>
-            <RefreshCwIcon />
-            Refresh
-          </Button>
-        </div>
+        <section
+          aria-label="Date"
+          className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <CalendarDaysIcon className="text-muted-foreground size-4" aria-hidden="true" />
+            Date
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon" aria-label="Previous day" onClick={() => choose({ date: addDays(date, -1) })}>
+              <ChevronLeftIcon />
+            </Button>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-52 min-w-0 flex-1 justify-between font-normal sm:flex-none">
+                  <span className="truncate">{dateLabel(date)}</span>
+                  <ChevronDownIcon className="shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={toPickerDate(date)}
+                  defaultMonth={toPickerDate(date)}
+                  captionLayout="dropdown"
+                  onSelect={(picked) => {
+                    if (!picked) return;
+                    choose({ date: fromPickerDate(picked) });
+                    setCalendarOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="icon" aria-label="Next day" onClick={() => choose({ date: addDays(date, 1) })}>
+              <ChevronRightIcon />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => choose({ date: addDays(indianToday(), 1) })}>
+              Tomorrow
+            </Button>
+          </div>
+        </section>
       </div>
 
       {content}
@@ -573,6 +607,6 @@ export default function BookingSlotsPage() {
           if (!open) setPendingChange(null);
         }}
       />
-    </div>
+    </Page>
   );
 }

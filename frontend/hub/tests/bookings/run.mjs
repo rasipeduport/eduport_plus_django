@@ -240,10 +240,10 @@ const tutors = (booking, current = null, extra = {}) => ({
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 
-test('loading, then the Demo bookings with assigned and unassigned ones told apart; Diagnostic is its own tab', async () => {
+test('loading, then the Demo bookings with assigned and unassigned ones told apart; Diagnostic is its own page', async () => {
   const answer = deferred();
   serve({ [`GET ${LIST}`]: () => answer.promise, [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]) });
-  const page = await open('/bookings', ADMIN);
+  const page = await open('/bookings/demo', ADMIN);
   assert.ok(document.querySelector('[data-slot="skeleton"]'), 'a loading skeleton while the list loads');
   assert.deepEqual(calls('GET', LIST)[0].params, { page: 1, page_size: 25, when: 'upcoming' });
 
@@ -251,10 +251,10 @@ test('loading, then the Demo bookings with assigned and unassigned ones told apa
   await settle();
   assert.ok(!document.querySelector('[data-slot="skeleton"]'), 'the skeleton is gone');
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => [clean(element.textContent),
-    element.getAttribute('aria-selected')]), [['Demo', 'true'], ['Diagnostic', 'false'], ['Re-Demo', 'false']],
-  'a tab per type, Demo first, and the Re-Demo requests');
+    element.getAttribute('aria-selected')]), [['Bookings', 'true'], ['Re-Demo requests', 'false']],
+  "Demo's bookings, and its Re-Demo requests");
   assert.deepEqual([...document.querySelectorAll('th')].map((th) => clean(th.textContent)),
-    ['When (IST)', 'Student', 'Parent', 'Tutor', 'Status', 'Report', 'Actions'], 'one type per tab, so no type column; a report column (P8)');
+    ['Date & Time', 'Student', 'Parent', 'Tutor', 'Status', 'Report', 'Actions'], 'one type per page, so no type column; a report column (P8)');
   const [riya, arun] = rows();
   assert.match(clean(riya.textContent), /Sat, 31 Oct.*7:30 PM.*Riya.*Class 8.*Asha Nair.*Unassigned.*Upcoming/);
   assert.match(clean(arun.textContent), /Arun.*Tutor B.*Upcoming/);
@@ -263,11 +263,31 @@ test('loading, then the Demo bookings with assigned and unassigned ones told apa
   assert.ok(button('Change', arun) && !button('Assign', arun), 'an assigned booking offers Change');
   assert.match(bodyText(), /Showing 1–2 of 2/);
 
-  await mouseDown(tab('Diagnostic'));
+  await page.unmount();
+  const diagnostic = await open('/bookings/diagnostic', ADMIN);
   assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).map((entry) => entry.params), [{ page: 1, page_size: 25, when: 'upcoming' }]);
-  assert.equal(new URLSearchParams(page.location().search).get('type'), 'DIAGNOSTIC');
+  assert.equal(diagnostic.location().pathname, '/bookings/diagnostic');
+  assert.equal(document.querySelectorAll('[role="tab"]').length, 0, 'only Demo has Re-Demo requests');
+  assert.match(bodyText(), /^Diagnostic Bookings/);
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td:nth-child(2) p').textContent)), ['Ali']);
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url === '/api/bookings/'), 'no combined list is asked for');
+});
+
+test("the former single page's links land on their type's page, every other parameter kept", async () => {
+  serve({ [`GET ${LIST}`]: list([RIYA]), [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]), [`GET ${at(ALI)}`]: detail(ALI),
+    'GET /api/bookings/redemos/': list([]) });
+  for (const [link, pathname, query] of [
+    ['/bookings', '/bookings/demo', {}],
+    [`/bookings?booking=${RIYA.id}`, '/bookings/demo', { booking: RIYA.id }],
+    [`/bookings?type=DIAGNOSTIC&when=all&booking=${ALI.id}`, '/bookings/diagnostic', { when: 'all', booking: ALI.id }],
+    ['/bookings?type=REDEMO&redemo=rd-9', '/bookings/demo', { tab: 'redemo', redemo: 'rd-9' }],
+    ['/bookings?type=TRIAL', '/bookings/demo', {}],
+  ]) {
+    const page = await open(link, ADMIN);
+    assert.equal(page.location().pathname, pathname, link);
+    assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), query, link);
+    await page.unmount();
+  }
 });
 
 test('Completed and Rescheduled bookings say so, and offer no tutor change', async () => {
@@ -297,16 +317,23 @@ test('an error, then Try again', async () => {
 
 test('empty: no upcoming bookings, or none matching the filters', async () => {
   serve({ [`GET ${LIST}`]: list([]), [`GET ${DIAGNOSTIC_LIST}`]: list([]) });
-  const page = await open('/bookings', ADMIN);
-  assert.match(clean(rows()[0].textContent), /^No upcoming demo bookings\.$/);
-  assert.match(bodyText(), /No results/);
-  await mouseDown(tab('Diagnostic'));
-  assert.match(clean(rows()[0].textContent), /^No upcoming diagnostic bookings\.$/);
+  let page = await open('/bookings/demo', ADMIN);
+  assert.equal(rows().length, 0);
+  assert.match(bodyText(), /No upcoming demo classes/);
+  assert.ok(!bodyText().includes('Showing'), 'no paging for an empty list');
+  await click(button('Show all schedules'));
+  assert.equal(new URLSearchParams(page.location().search).get('when'), 'all');
+  assert.equal('when' in calls('GET', LIST).at(-1).params, false);
+  await page.unmount();
+  page = await open('/bookings/diagnostic', ADMIN);
+  assert.match(bodyText(), /No upcoming diagnostic tests/);
   await page.unmount();
   globalThis.__bookingsApi.calls = [];
-  await open('/bookings?status=CANCELLED', ADMIN);
-  assert.match(clean(rows()[0].textContent), /^No bookings match these filters\.$/);
+  page = await open('/bookings/demo?status=CANCELLED', ADMIN);
+  assert.match(bodyText(), /No demo classes match these filters/);
   assert.equal(calls('GET', LIST)[0].params.status, 'CANCELLED');
+  await click(button('Clear all filters'));
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
 });
 
 test('paging', async () => {
@@ -324,38 +351,38 @@ test('paging', async () => {
 });
 
 test('search and filters reach the API and the URL, and start again at page 1', async () => {
-  serve({ [`GET ${LIST}`]: list([RIYA]) });
-  const page = await open('/bookings?page=2&from=2026-10-30&to=2026-11-02', ADMIN);
-  assert.deepEqual(calls('GET', LIST).at(-1).params,
+  serve({ [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]) });
+  const page = await open('/bookings/diagnostic?page=2&from=2026-10-30&to=2026-11-02', ADMIN);
+  assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).at(-1).params,
     { page: 2, page_size: 25, from: '2026-10-30', to: '2026-11-02', when: 'upcoming' });
-  assert.match(bodyText(), /30 Oct 2026 – 2 Nov 2026/);
+  assert.match(bodyText(), /Classes on 30 Oct 2026 – 2 Nov 2026 \(IST\)/, 'a link from before the presets is a Custom range');
 
   await typeInto(document.querySelector('[aria-label="Search bookings"]'), 'riya');
   await submit(document.querySelector('[aria-label="Search bookings"]').closest('form'));
-  assert.deepEqual(calls('GET', LIST).at(-1).params,
-    { page: 1, page_size: 25, q: 'riya', from: '2026-10-30', to: '2026-11-02', when: 'upcoming' });
-
-  // The other tab keeps the filters, and is a list of its own: the type is its URL, never a filter.
-  await mouseDown(tab('Diagnostic'));
   assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).at(-1).params,
     { page: 1, page_size: 25, q: 'riya', from: '2026-10-30', to: '2026-11-02', when: 'upcoming' });
-  await choose('Filter by status', 'Cancelled');
+  await choose('Filter by booking status', 'Cancelled');
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.status, 'CANCELLED');
-  await choose('Filter by status', 'Completed');
+  await choose('Filter by booking status', 'Completed');
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.status, 'COMPLETED');
   await choose('Filter by tutor assignment', 'Needs a tutor');
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.assigned, 'false');
-  await choose('Filter by when', 'All dates');
+  await choose('Filter by schedule', 'All Schedules');
   const last = calls('GET', DIAGNOSTIC_LIST).at(-1).params;
-  assert.equal('when' in last, false, '"All dates" sends no when filter');
+  assert.equal('when' in last, false, '"All Schedules" sends no when filter');
   assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)),
-    { q: 'riya', from: '2026-10-30', to: '2026-11-02', type: 'DIAGNOSTIC', status: 'COMPLETED', assigned: 'false', when: 'all' });
+    { q: 'riya', from: '2026-10-30', to: '2026-11-02', status: 'COMPLETED', assigned: 'false', when: 'all' });
 
-  await click(button('Clear'));
+  // A class date preset: Indian dates, the Custom range gone.
+  await click(button('Today'));
+  const today = indianToday();
+  assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).at(-1).params,
+    { page: 1, page_size: 25, q: 'riya', status: 'COMPLETED', assigned: 'false', from: today, to: today });
+  assert.equal(new URLSearchParams(page.location().search).get('dates'), 'today');
+
+  await click(button('Clear all filters'));
   assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).at(-1).params, { page: 1, page_size: 25, when: 'upcoming' });
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { type: 'DIAGNOSTIC' });
-  await mouseDown(tab('Demo'));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {}, 'Demo is the default tab');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => !entry.params || !('type' in entry.params)),
     'no type parameter is ever sent');
 });
@@ -368,9 +395,9 @@ test('an unknown filter value in the URL is dropped, never sent', async () => {
 
 test('View opens the booking in full in the side sheet, under its own type', async () => {
   serve({ [`GET ${DIAGNOSTIC_LIST}`]: list([ALI]), [`GET ${at(ALI)}`]: detail(ALI), [`GET ${LIST}`]: list([RIYA]) });
-  const page = await open('/bookings?type=DIAGNOSTIC', ADMIN);
+  const page = await open('/bookings/diagnostic', ADMIN);
   await click(button('View', rows()[0]));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { type: 'DIAGNOSTIC', booking: ALI.id });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: ALI.id });
   assert.equal(calls('GET', '/api/bookings/diagnostic/b-ali/').length, 1);
   const sheet = topDialog();
   const text = clean(sheet.textContent);
@@ -379,17 +406,13 @@ test('View opens the booking in full in the side sheet, under its own type', asy
     assert.ok(text.includes(shown), `the sheet shows ${shown}`);
   }
   assert.ok(button('Change tutor', sheet) && button('Unassign', sheet));
-
-  // The other tab is the other type's list: the open booking closes, and the page starts again at 1.
-  await mouseDown(tab('Demo'));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), {});
-  assert.ok(!topDialog(), 'the sheet closed');
+  assert.equal(calls('GET', LIST).length, 0, "the Demo list is another page's");
 });
 
 test('a booking opened under the other type is not found', async () => {
   serve({ [`GET ${LIST}`]: list([RIYA]) });
   await open(`/bookings?booking=${ALI.id}`, ADMIN);
-  assert.equal(calls('GET', `/api/bookings/demo/${ALI.id}/`).length, 1, 'asked for as a Demo booking, the tab it was opened on');
+  assert.equal(calls('GET', `/api/bookings/demo/${ALI.id}/`).length, 1, 'asked for as a Demo booking, the page it was opened on');
   assert.match(clean(topDialog().textContent), /Booking not found/);
 });
 
@@ -416,16 +439,16 @@ test('Booking slots: each booked seat links to its booking, which the Bookings p
   assert.match(clean(morning.textContent), /0 \/ 3/);
   const links = [...evening.querySelectorAll('a')];
   assert.deepEqual(links.map((link) => [clean(link.textContent), link.getAttribute('aria-label'), link.getAttribute('href')]), [
-    ['Seat 1: Arun (Completed)', 'Seat 1: Arun (Completed), 7:30 PM – 8:30 PM: open the booking', '/bookings?type=DEMO&booking=b-arun'],
-    ['Seat 2: Riya', 'Seat 2: Riya, 7:30 PM – 8:30 PM: open the booking', '/bookings?type=DEMO&booking=b-riya'],
+    ['Seat 1: Arun (Completed)', 'Seat 1: Arun (Completed), 7:30 PM – 8:30 PM: open the booking', '/bookings/demo?booking=b-arun'],
+    ['Seat 2: Riya', 'Seat 2: Riya, 7:30 PM – 8:30 PM: open the booking', '/bookings/demo?booking=b-riya'],
   ], 'one link per seat, in seat order, named by the child and the slot');
   const bookingsCell = evening.querySelector('td:nth-child(2)');
   assert.ok(clean(bookingsCell.textContent).startsWith('2 / 3') && bookingsCell.querySelectorAll('a').length === 2,
     'the seats are listed under the count, in the Bookings column');
 
   await click(links[1]);
-  assert.equal(page.location().pathname, '/bookings');
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { type: 'DEMO', booking: RIYA.id });
+  assert.equal(page.location().pathname, '/bookings/demo');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: RIYA.id });
   assert.equal(calls('GET', at(RIYA)).length, 1, 'the booking is read under its own type');
   assert.ok(clean(topDialog().textContent).includes('Asha Nair'), 'the sheet shows the booking in full');
 });
@@ -909,7 +932,7 @@ test('reports: the Report column shows the version submitted, Report due, or not
 
 test('reports: Filter by report reaches the API and the URL with search and every other filter; Report due looks at past slots', async () => {
   serve({ [`GET ${LIST}`]: list([IRA]) });
-  const page = await open('/bookings', ADMIN);
+  const page = await open('/bookings/demo', ADMIN);
   const params = () => calls('GET', LIST).at(-1).params;
   const query = () => Object.fromEntries(new URLSearchParams(page.location().search));
 
@@ -925,28 +948,28 @@ test('reports: Filter by report reaches the API and the URL with search and ever
   await choose('Filter by report', 'Report due');
   assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', report: 'due', when: 'past' });
   assert.deepEqual(query(), { q: 'Dev', report: 'due', when: 'past' });
-  await choose('Filter by status', 'Booked');
+  await choose('Filter by booking status', 'Booked');
   await choose('Filter by tutor assignment', 'Tutor assigned');
   assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', report: 'due', when: 'past' });
-  await choose('Filter by when', 'All dates');
+  await choose('Filter by schedule', 'All Schedules');
   assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', report: 'due' });
   // Back to Upcoming: no report is due there, so Report due goes rather than empty the list.
-  await choose('Filter by when', 'Upcoming');
+  await choose('Filter by schedule', 'Upcoming');
   assert.deepEqual(params(), { page: 1, page_size: 25, q: 'Dev', status: 'BOOKED', assigned: 'true', when: 'upcoming' });
   assert.equal(query().report, undefined);
 
   await choose('Filter by report', 'Report due');
-  await click(button('Clear'));
+  await click(button('Clear all filters'));
   assert.deepEqual(params(), { page: 1, page_size: 25, when: 'upcoming' });
   assert.deepEqual(query(), {});
   await page.unmount();
 
   // A link to the reports due shows them, whatever it says of Upcoming; an unknown value is dropped.
   for (const [link, sent] of [
-    ['/bookings?report=due', { page: 1, page_size: 25, report: 'due', when: 'past' }],
-    ['/bookings?report=due&when=upcoming', { page: 1, page_size: 25, report: 'due', when: 'past' }],
-    ['/bookings?report=due&when=all', { page: 1, page_size: 25, report: 'due' }],
-    ['/bookings?report=overdue', { page: 1, page_size: 25, when: 'upcoming' }],
+    ['/bookings/demo?report=due', { page: 1, page_size: 25, report: 'due', when: 'past' }],
+    ['/bookings/demo?report=due&when=upcoming', { page: 1, page_size: 25, report: 'due', when: 'past' }],
+    ['/bookings/demo?report=due&when=all', { page: 1, page_size: 25, report: 'due' }],
+    ['/bookings/demo?report=overdue', { page: 1, page_size: 25, when: 'upcoming' }],
   ]) {
     globalThis.__bookingsApi.calls = [];
     const opened = await open(link, ADMIN);
@@ -2810,7 +2833,7 @@ test('Re-Demo: a completed Demo offers Request Re-Demo; the reason is required a
   assert.equal(calls('POST', at(IRA, 'redemo/')).length, 0, 'nothing is sent before the confirmation');
   await click(button('Request Re-Demo', topDialog()));
   assert.deepEqual(calls('POST', at(IRA, 'redemo/')).map((entry) => entry.data), [{ reason: REASON }]);
-  assert.match(bodyText(), /Asked for a Re-Demo of Ira's demo\. It is now Re-Demo required; schedule it in the Re-Demo tab\./);
+  assert.match(bodyText(), /Asked for a Re-Demo of Ira's demo\. It is now Re-Demo required; schedule it in the Re-Demo requests tab\./);
 });
 
 test("Re-Demo: a refusal is shown in the dialog; no Request Re-Demo unless the API offers it", async () => {
@@ -2855,7 +2878,8 @@ test('Re-Demo: a Demo sent for one says so, keeps its report, and opens its requ
   assert.match(text, /Re-DemoOpen requestStatusAwaiting schedulingRequested byBde One/);
   assert.equal(calls('GET', at(IRA, 'report/')).length, 1, 'its report is still read');
   await click(button('Open request', topDialog()));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { type: 'REDEMO', redemo: REDEMO.id });
+  assert.equal(page.location().pathname, '/bookings/demo');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { tab: 'redemo', redemo: REDEMO.id });
 });
 
 test('Re-Demo tab: the requests, newest first; search and status reach the API; one opens with its reason and no link', async () => {
@@ -2864,8 +2888,9 @@ test('Re-Demo tab: the requests, newest first; search and status reach the API; 
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
   });
   const page = await open('/bookings?type=REDEMO', ADMIN);
+  assert.equal(page.location().pathname, '/bookings/demo', "the former Re-Demo tab's link lands on Demo's");
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => [clean(element.textContent),
-    element.getAttribute('aria-selected')]), [['Demo', 'false'], ['Diagnostic', 'false'], ['Re-Demo', 'true']]);
+    element.getAttribute('aria-selected')]), [['Bookings', 'false'], ['Re-Demo requests', 'true']]);
   assert.equal(calls('GET', LIST).length, 0, 'the booking list is not read on the Re-Demo tab');
   const [first] = rows();
   assert.match(clean(first.textContent), /Ira.*Class 8 · BDE: Bde One.*Awaiting scheduling/);
@@ -2882,9 +2907,9 @@ test('Re-Demo tab: the requests, newest first; search and status reach the API; 
   assert.match(text, /Re-Demo 1Schedule Re-DemoNot scheduled yet\. Choose the tutor, date and time; the BDE then tells the parent\./);
   assert.match(text, /Original Demo.*Tutor: Tutor A · Report: Submitted · version 2/);
   assert.ok(!/invitation|demo-invite/i.test(text), 'no parent invitation anywhere');
-  // Opening the original Demo leaves the Re-Demo tab for the Demo tab, with that booking open.
+  // Opening the original Demo leaves the Re-Demo tab for Demo's bookings, with that booking open.
   await click(button('Open the original Demo', topDialog()));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: IRA.id });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { when: 'all', booking: IRA.id });
 });
 
 test("Re-Demo tab: scheduling picks the tutor, then a time they are free, shows their Meet link and books it with the remarks", async () => {
@@ -2995,7 +3020,7 @@ test('Re-Demo tab: a scheduled one shows its booking, tutor and Meet link, and o
   assert.match(text, /Re-Demo 1BookingSun, 1 Nov · 10:00 AM IST.*Tutor: Tutor C · Report: Not submitted yet.*Meet linkmeet\.google\.com\/abc-defg-hij/);
   assert.ok(!button('Schedule Re-Demo', topDialog()), 'scheduled once; changed from its booking');
   await click(button('Open the Re-Demo booking', topDialog()));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: SCHEDULED.id });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { when: 'all', booking: SCHEDULED.id });
 });
 
 test('Re-Demo tab: remarks for the tutor are saved with their own PUT; without accounts.assign_booking_tutor nothing changes', async () => {
@@ -3032,7 +3057,7 @@ test('Re-Demo tab: an error, then Try again; none yet says so', async () => {
   await open('/bookings?type=REDEMO', ADMIN);
   assert.match(bodyText(), /Server error/);
   await click(button('Try again'));
-  assert.match(bodyText(), /No Re-Demo requests yet\./);
+  assert.match(bodyText(), /No Re-Demo requests yet/);
 });
 
 test('Re-Demo: the booking it scheduled is marked Re-Demo, names the Demo it teaches again, and its timeline says so', async () => {

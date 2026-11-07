@@ -44,7 +44,12 @@ export function AppSidebar({ user, logout, ...props }) {
           <Fragment key={section.label ?? index}>
             {/* A section with no heading of its own is set apart by a rule. */}
             {index > 0 && !section.label ? <SidebarSeparator /> : null}
-            <NavMain label={section.label} items={section.items} closeOnNavigate={closeOnNavigate} />
+            <NavMain
+              label={section.label}
+              items={section.items}
+              collapsible={workspace.collapsible}
+              closeOnNavigate={closeOnNavigate}
+            />
           </Fragment>
         ))}
       </SidebarContent>

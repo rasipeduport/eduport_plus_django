@@ -11,15 +11,18 @@ export function Page({ className, children }) {
   return <div className={cn('container mx-auto flex flex-col gap-6 px-4 pt-20 pb-12 sm:px-6', className)}>{children}</div>;
 }
 
-/** The page's title and what it is for, with its main actions on the right (below it on a phone). */
-export function PageHeader({ title, description, actions, className }) {
+/**
+ * The page's title and what it is for, with its main actions on the right
+ * (below it on a phone); `actionsClassName` adds to the actions' row.
+ */
+export function PageHeader({ title, description, actions, className, actionsClassName }) {
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-x-6 gap-y-3', className)}>
       <div className="min-w-0 max-w-3xl">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description ? <p className="text-muted-foreground mt-1 text-sm">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-start gap-2 sm:justify-end">{actions}</div> : null}
+      {actions ? <div className={cn('flex flex-wrap items-start gap-2 sm:justify-end', actionsClassName)}>{actions}</div> : null}
     </div>
   );
 }

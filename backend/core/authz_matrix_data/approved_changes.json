@@ -696,6 +696,362 @@
     "status": 200
    }
   },
+  "admissions.dashboard @ admin": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "result": {
+    "fields": [
+     "activity",
+     "bookings",
+     "bookings.DEMO",
+     "bookings.DEMO.total",
+     "bookings.DEMO.upcoming",
+     "bookings.DIAGNOSTIC",
+     "bookings.DIAGNOSTIC.total",
+     "bookings.DIAGNOSTIC.upcoming",
+     "leads",
+     "leads.new",
+     "leads.received",
+     "pending",
+     "pending.awaiting_confirmation",
+     "pending.awaiting_confirmation.DEMO",
+     "pending.awaiting_confirmation.DIAGNOSTIC",
+     "pending.needs_tutor",
+     "pending.needs_tutor.DEMO",
+     "pending.needs_tutor.DIAGNOSTIC",
+     "pending.redemo_scheduling",
+     "pending.report_due",
+     "pending.report_due.DEMO",
+     "pending.report_due.DIAGNOSTIC",
+     "pending.unassigned_leads",
+     "pipeline",
+     "pipeline[].count",
+     "pipeline[].label",
+     "pipeline[].stage",
+     "range",
+     "range.from",
+     "range.to",
+     "recent_leads",
+     "recent_leads[].added_at",
+     "recent_leads[].created_at",
+     "recent_leads[].grade",
+     "recent_leads[].id",
+     "recent_leads[].next_booking",
+     "recent_leads[].next_booking.booking_type",
+     "recent_leads[].next_booking.date",
+     "recent_leads[].next_booking.id",
+     "recent_leads[].next_booking.starts_at",
+     "recent_leads[].next_booking.time",
+     "recent_leads[].owner",
+     "recent_leads[].parent_name",
+     "recent_leads[].phone",
+     "recent_leads[].source",
+     "recent_leads[].source_label",
+     "recent_leads[].status",
+     "recent_leads[].status_label",
+     "recent_leads[].student_name",
+     "timezone",
+     "today_bookings",
+     "today_bookings.date",
+     "today_bookings.rows",
+     "today_bookings.total"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "admissions.dashboard @ anon": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ mentor_a": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ mentor_b": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ parent_a": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ su_mentor": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "result": {
+    "fields": [
+     "activity",
+     "bookings",
+     "bookings.DEMO",
+     "bookings.DEMO.total",
+     "bookings.DEMO.upcoming",
+     "bookings.DIAGNOSTIC",
+     "bookings.DIAGNOSTIC.total",
+     "bookings.DIAGNOSTIC.upcoming",
+     "leads",
+     "leads.new",
+     "leads.received",
+     "pending",
+     "pending.awaiting_confirmation",
+     "pending.awaiting_confirmation.DEMO",
+     "pending.awaiting_confirmation.DIAGNOSTIC",
+     "pending.needs_tutor",
+     "pending.needs_tutor.DEMO",
+     "pending.needs_tutor.DIAGNOSTIC",
+     "pending.redemo_scheduling",
+     "pending.report_due",
+     "pending.report_due.DEMO",
+     "pending.report_due.DIAGNOSTIC",
+     "pending.unassigned_leads",
+     "pipeline",
+     "pipeline[].count",
+     "pipeline[].label",
+     "pipeline[].stage",
+     "range",
+     "range.from",
+     "range.to",
+     "recent_leads",
+     "recent_leads[].added_at",
+     "recent_leads[].created_at",
+     "recent_leads[].grade",
+     "recent_leads[].id",
+     "recent_leads[].next_booking",
+     "recent_leads[].next_booking.booking_type",
+     "recent_leads[].next_booking.date",
+     "recent_leads[].next_booking.id",
+     "recent_leads[].next_booking.starts_at",
+     "recent_leads[].next_booking.time",
+     "recent_leads[].owner",
+     "recent_leads[].parent_name",
+     "recent_leads[].phone",
+     "recent_leads[].source",
+     "recent_leads[].source_label",
+     "recent_leads[].status",
+     "recent_leads[].status_label",
+     "recent_leads[].student_name",
+     "timezone",
+     "today_bookings",
+     "today_bookings.date",
+     "today_bookings.rows",
+     "today_bookings.total"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "admissions.dashboard @ su_tutor": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "result": {
+    "fields": [
+     "activity",
+     "bookings",
+     "bookings.DEMO",
+     "bookings.DEMO.total",
+     "bookings.DEMO.upcoming",
+     "bookings.DIAGNOSTIC",
+     "bookings.DIAGNOSTIC.total",
+     "bookings.DIAGNOSTIC.upcoming",
+     "leads",
+     "leads.new",
+     "leads.received",
+     "pending",
+     "pending.awaiting_confirmation",
+     "pending.awaiting_confirmation.DEMO",
+     "pending.awaiting_confirmation.DIAGNOSTIC",
+     "pending.needs_tutor",
+     "pending.needs_tutor.DEMO",
+     "pending.needs_tutor.DIAGNOSTIC",
+     "pending.redemo_scheduling",
+     "pending.report_due",
+     "pending.report_due.DEMO",
+     "pending.report_due.DIAGNOSTIC",
+     "pending.unassigned_leads",
+     "pipeline",
+     "pipeline[].count",
+     "pipeline[].label",
+     "pipeline[].stage",
+     "range",
+     "range.from",
+     "range.to",
+     "recent_leads",
+     "recent_leads[].added_at",
+     "recent_leads[].created_at",
+     "recent_leads[].grade",
+     "recent_leads[].id",
+     "recent_leads[].next_booking",
+     "recent_leads[].next_booking.booking_type",
+     "recent_leads[].next_booking.date",
+     "recent_leads[].next_booking.id",
+     "recent_leads[].next_booking.starts_at",
+     "recent_leads[].next_booking.time",
+     "recent_leads[].owner",
+     "recent_leads[].parent_name",
+     "recent_leads[].phone",
+     "recent_leads[].source",
+     "recent_leads[].source_label",
+     "recent_leads[].status",
+     "recent_leads[].status_label",
+     "recent_leads[].student_name",
+     "timezone",
+     "today_bookings",
+     "today_bookings.date",
+     "today_bookings.rows",
+     "today_bookings.total"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "admissions.dashboard @ superuser": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "result": {
+    "fields": [
+     "activity",
+     "bookings",
+     "bookings.DEMO",
+     "bookings.DEMO.total",
+     "bookings.DEMO.upcoming",
+     "bookings.DIAGNOSTIC",
+     "bookings.DIAGNOSTIC.total",
+     "bookings.DIAGNOSTIC.upcoming",
+     "leads",
+     "leads.new",
+     "leads.received",
+     "pending",
+     "pending.awaiting_confirmation",
+     "pending.awaiting_confirmation.DEMO",
+     "pending.awaiting_confirmation.DIAGNOSTIC",
+     "pending.needs_tutor",
+     "pending.needs_tutor.DEMO",
+     "pending.needs_tutor.DIAGNOSTIC",
+     "pending.redemo_scheduling",
+     "pending.report_due",
+     "pending.report_due.DEMO",
+     "pending.report_due.DIAGNOSTIC",
+     "pending.unassigned_leads",
+     "pipeline",
+     "pipeline[].count",
+     "pipeline[].label",
+     "pipeline[].stage",
+     "range",
+     "range.from",
+     "range.to",
+     "recent_leads",
+     "recent_leads[].added_at",
+     "recent_leads[].created_at",
+     "recent_leads[].grade",
+     "recent_leads[].id",
+     "recent_leads[].next_booking",
+     "recent_leads[].next_booking.booking_type",
+     "recent_leads[].next_booking.date",
+     "recent_leads[].next_booking.id",
+     "recent_leads[].next_booking.starts_at",
+     "recent_leads[].next_booking.time",
+     "recent_leads[].owner",
+     "recent_leads[].parent_name",
+     "recent_leads[].phone",
+     "recent_leads[].source",
+     "recent_leads[].source_label",
+     "recent_leads[].status",
+     "recent_leads[].status_label",
+     "recent_leads[].student_name",
+     "timezone",
+     "today_bookings",
+     "today_bookings.date",
+     "today_bookings.rows",
+     "today_bookings.total"
+    ],
+    "records": [
+     "booking_a",
+     "lead_a",
+     "lead_b"
+    ],
+    "status": 200
+   }
+  },
+  "admissions.dashboard @ tutor_a": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ tutor_b": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "admissions.dashboard @ unknown": {
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
+   "note": "Refused: the caller does not hold accounts.view_all_leads.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",

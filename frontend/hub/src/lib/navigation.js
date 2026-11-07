@@ -1,32 +1,42 @@
 import {
   BadgePercent,
+  BookMarked,
   BookOpen,
+  Briefcase,
   CalendarCheck,
   CalendarCheck2,
   CalendarClock,
   CalendarDays,
+  ChartColumn,
   ClipboardCheck,
   ClipboardList,
+  ClipboardPen,
   GraduationCap,
   History,
   Inbox,
   LayoutDashboard,
+  LayoutGrid,
   Mail,
   PhoneCall,
   ReceiptIndianRupee,
   Users,
   UsersRound,
+  Wallet,
 } from 'lucide-react';
 
-import { canOpenPage, isBde } from '@/lib/access';
+import { canOpenPage, isAdmin, isBde } from '@/lib/access';
 
 // What the sidebar offers, workspace by workspace. Each workspace names itself
 // under the logo and lists its sections: an optional `label`, and items of
 // `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon") and
 // `nested` (the item stays highlighted on the pages under its address, such as
-// one enquiry under My Enquiries). The sidebar shows exactly the items whose
-// pages the route guards open for the account (lib/access canOpenPage), and no
-// section none of whose items open.
+// one enquiry under My Enquiries). An item may instead hold `children` (items
+// of `title` and `url`), shown as a submenu that opens and closes under it,
+// such as Bookings' Demo and Diagnostic. A `collapsible` workspace lets each
+// labelled section fold away under its heading. The sidebar shows exactly the
+// items whose pages the route guards open for the account (lib/access
+// canOpenPage), an item with children while any child opens, and no section
+// none of whose items open.
 
 export const COMING_SOON = 'Coming Soon';
 
@@ -88,21 +98,95 @@ const STAFF_WORKSPACE = {
   ],
 };
 
-/** `{ name, sections }`: the workspace `user` works in, holding only the items they may open. */
+// The Admin Hub: the academics Dashboard on top, then the admissions pipeline
+// (its dashboard, every lead, the Demo and Diagnostic bookings and their
+// slots), the Sales & Finance modules still to come, the academic modules,
+// the staff and invitations, and the activity log.
+const ADMIN_WORKSPACE = {
+  name: 'Admin Hub',
+  collapsible: true,
+  sections: [
+    {
+      items: [{ title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      label: 'Admissions',
+      items: [
+        { title: 'Admissions Dashboard', url: '/admissions', icon: LayoutGrid },
+        { title: 'Leads', url: '/leads', icon: Users, nested: true },
+        {
+          title: 'Bookings',
+          icon: CalendarCheck2,
+          children: [
+            { title: 'Demo', url: '/bookings/demo' },
+            { title: 'Diagnostic', url: '/bookings/diagnostic' },
+          ],
+        },
+        { title: 'Booking Slots', url: '/booking-slots', icon: CalendarClock },
+      ],
+    },
+    {
+      label: 'Sales & Finance',
+      items: [
+        { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn, badge: COMING_SOON },
+        { title: 'Sales Module', url: '/sales-module', icon: Briefcase, badge: COMING_SOON },
+        { title: 'Sales Punching', url: '/sales-punching', icon: ClipboardPen, badge: COMING_SOON },
+        { title: 'Sales Syllabus', url: '/sales-syllabus', icon: BookMarked, badge: COMING_SOON },
+        { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },
+      ],
+    },
+    {
+      label: 'Academics & Learning',
+      items: [
+        { title: 'Enrolled Students', url: '/students', icon: GraduationCap, nested: true },
+        { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
+        { title: 'Exams', url: '/exams', icon: ClipboardList },
+        { title: 'Homework', url: '/homework', icon: BookOpen },
+      ],
+    },
+    {
+      label: 'Organization',
+      items: [
+        { title: 'Team', url: '/team', icon: UsersRound, nested: true },
+        { title: 'Invitations', url: '/invitations', icon: Mail },
+      ],
+    },
+    {
+      label: 'Monitoring',
+      items: [{ title: 'Activity Log', url: '/activity', icon: History }],
+    },
+  ],
+};
+
+function workspaceOf(user) {
+  if (isBde(user)) return BDE_WORKSPACE;
+  return isAdmin(user) ? ADMIN_WORKSPACE : STAFF_WORKSPACE;
+}
+
+/** `item` holding only what `user` may open, or null when that is nothing. */
+function openable(user, item) {
+  if (!item.children) return canOpenPage(user, item.url) ? item : null;
+  const children = item.children.filter((child) => canOpenPage(user, child.url));
+  return children.length > 0 ? { ...item, children } : null;
+}
+
+/** `{ name, collapsible, sections }`: the workspace `user` works in, holding only the items they may open. */
 export function workspaceFor(user) {
-  const workspace = isBde(user) ? BDE_WORKSPACE : STAFF_WORKSPACE;
+  const workspace = workspaceOf(user);
   const sections = workspace.sections
-    .map((section) => ({ ...section, items: section.items.filter((item) => canOpenPage(user, item.url)) }))
+    .map((section) => ({ ...section, items: section.items.map((item) => openable(user, item)).filter(Boolean) }))
     .filter((section) => section.items.length > 0);
-  return { name: workspace.name, sections };
+  return { name: workspace.name, collapsible: Boolean(workspace.collapsible), sections };
 }
 
 /**
  * Whether `item` is the page at `pathname` -- or, for a `nested` item, a page
- * under it. A page opened from another list (`fromPath`, the way back a link
- * passed: an enquiry opened from Demo Bookings, say) keeps that list current.
+ * under it; for an item with children, whether one of them is. A page opened
+ * from another list (`fromPath`, the way back a link passed: an enquiry opened
+ * from Demo Bookings, say) keeps that list current.
  */
 export function isCurrentItem(item, pathname, fromPath = null) {
+  if (item.children) return item.children.some((child) => isCurrentItem(child, pathname, fromPath));
   const origin = fromPath ? fromPath.split('?')[0] : null;
   if (origin && origin !== pathname) return origin === item.url;
   return pathname === item.url || (Boolean(item.nested) && pathname.startsWith(`${item.url}/`));

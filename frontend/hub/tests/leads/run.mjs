@@ -205,15 +205,14 @@ test('Leads: every lead with when it came in, its source, status and owner; Assi
   serve({ [`GET ${LEADS}`]: list([WEBSITE, OWNED]), [`GET ${BDES}`]: { results: BDE_OPTIONS } });
   await open('/leads', ADMIN);
   assert.deepEqual(calls('GET', LEADS)[0].params, { page: 1, page_size: 25 });
-  assert.deepEqual(headers(),
-    ['Received', 'Parent', 'Phone', 'Student', 'Class', 'Source', 'Status', 'Next booking', 'Owner', 'Assign', 'Open']);
+  assert.deepEqual(headers(), ['Received', 'Student', 'Parent', 'Source', 'Status', 'Next booking', 'Owner', 'Open']);
   const [web, own] = rows();
-  assert.match(clean(web.textContent), /6 Nov 2026.*Meera Menon.*\+91 9876543210.*Kavya.*Class 7.*Website.*New.*—.*Unassigned/);
-  assert.match(clean(own.textContent), /Asha Nair.*Riya.*Demo link.*Demo booked.*Sun, 8 Nov.*7:30 PM IST.*Anil Kumar/);
+  assert.match(clean(web.textContent), /6 Nov 2026.*Kavya.*Class 7.*Meera Menon.*\+91 9876543210.*Website.*New.*—.*Unassigned/);
+  assert.match(clean(own.textContent), /Riya.*Asha Nair.*Demo link.*Demo booked.*Sun, 8 Nov.*7:30 PM IST.*Anil Kumar/);
   assert.ok(button('Assign', web) && !button('Reassign', web));
   assert.ok(button('Reassign', own) && !button('Assign', own));
   assert.equal(web.querySelector('a').getAttribute('href'), '/leads/lead-web');
-  assert.ok(button('Add lead'));
+  assert.ok(button('Add Lead'));
 });
 
 test('Leads: the filters -- status, source and owner, Unassigned included -- go to the API from the URL', async () => {
@@ -237,6 +236,22 @@ test('Leads: the filters -- status, source and owner, Unassigned included -- go 
   assert.equal(calls('GET', LEADS).at(-1).params.owner, BINA.id);
 });
 
+test('Leads: the dates a lead came in on go to the API from the URL, and Clear all filters drops them', async () => {
+  serve({ [`GET ${LEADS}`]: list([WEBSITE]), [`GET ${BDES}`]: { results: BDE_OPTIONS } });
+  const page = await open('/leads?status=NEW&from=2026-11-02&to=2026-11-08&page=2', ADMIN);
+  assert.deepEqual(calls('GET', LEADS).at(-1).params,
+    { page: 2, page_size: 25, status: 'NEW', from: '2026-11-02', to: '2026-11-08' });
+  assert.match(clean(document.querySelector('[aria-label="Filter by received date"]').textContent), /2 Nov 2026 – 8 Nov 2026/);
+  await click(button('Clear all filters'));
+  assert.deepEqual(calls('GET', LEADS).at(-1).params, { page: 1, page_size: 25 });
+  assert.equal(page.location().search, '');
+  await page.unmount();
+
+  // A range that ends before it starts is not sent.
+  await open('/leads?from=2026-11-08&to=2026-11-02', ADMIN);
+  assert.deepEqual(calls('GET', LEADS).at(-1).params, { page: 1, page_size: 25, from: '2026-11-08' });
+});
+
 test('Leads: an administrator adds a lead by hand, with the email; it lands unassigned and the list is read again', async () => {
   let posted = null;
   serve({
@@ -248,7 +263,7 @@ test('Leads: an administrator adds a lead by hand, with the email; it lands unas
     },
   });
   await open('/leads', ADMIN);
-  await click(button('Add lead'));
+  await click(button('Add Lead'));
   const dialog = topDialog();
   assert.match(clean(dialog.textContent), /added unassigned; assign it to a BDE/);
   await click(button('Add lead', dialog));
@@ -279,7 +294,7 @@ test('Leads: a child who already has a lead is pointed to, not added twice', asy
     [`POST ${LEADS}`]: () => fail(409, { error: 'LEAD_EXISTS', message: 'A lead for this child and phone number already exists.', lead_id: 'lead-web' }),
   });
   await open('/leads', ADMIN);
-  await click(button('Add lead'));
+  await click(button('Add Lead'));
   await typeInto(document.getElementById('enquiry-parent-name'), 'Meera');
   await typeInto(document.getElementById('enquiry-phone-number'), '9876543210');
   await typeInto(document.getElementById('enquiry-student-name'), 'Kavya');
@@ -345,7 +360,7 @@ test("Leads: reassigning never offers the current owner and sends them; a change
 test('Leads: without the permissions to add or assign, neither is offered', async () => {
   serve({ [`GET ${LEADS}`]: list([WEBSITE, OWNED]), [`GET ${BDES}`]: { results: BDE_OPTIONS } });
   await open('/leads', VIEWER);
-  assert.ok(!button('Add lead') && !button('Assign') && !button('Reassign'));
+  assert.ok(!button('Add Lead') && !button('Assign') && !button('Reassign'));
   assert.ok(!headers().includes('Assign'));
   assert.ok(headers().includes('Owner'));
 });
@@ -370,7 +385,7 @@ test('Lead page: the parent, the child, where it came from, its owner and bookin
   assert.deepEqual([shown.Owner, shown.Received, 'Added by' in shown], ['Unassigned', '6 Nov 2026', false]);
   assert.equal(link('Call').getAttribute('href'), 'tel:+919876543210');
   assert.equal(link('WhatsApp').getAttribute('href'), 'https://wa.me/919876543210');
-  assert.equal(link('Open').getAttribute('href'), '/bookings?type=DIAGNOSTIC&when=all&booking=b-9');
+  assert.equal(link('Open').getAttribute('href'), '/bookings/diagnostic?when=all&booking=b-9');
 
   await click(button('Assign'));
   await choose('BDE', 'Anil Kumar');
