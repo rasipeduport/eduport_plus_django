@@ -19,7 +19,8 @@ import BookingsPage from './pages/BookingsPage';
 import BookingWorkspacePage from './pages/BookingWorkspacePage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
 import TutorBookingWorkspacePage from './pages/TutorBookingWorkspacePage';
-import TutorDashboardPage from './pages/TutorDashboardPage';
+import TutorMainDashboardPage from './pages/TutorMainDashboardPage';
+import TutorAdmissionsDashboardPage from './pages/TutorAdmissionsDashboardPage';
 import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
@@ -69,8 +70,9 @@ function HubRoutes({ user, logout }) {
       <Routes>
         {/* A BDE's dashboard is their own enquiries and bookings; an administrator's
             the Admin Hub's common dashboard, still to come (their academics
-            dashboard is /academics-dashboard); a tutor's their own bookings and
-            classes; everyone else's the staff one. */}
+            dashboard is /academics-dashboard); a tutor's the Tutor Hub's Main
+            Dashboard, across their admissions and academic work (each with its
+            own dashboard too, below); everyone else's the staff one. */}
         <Route
           path="/dashboard"
           element={page(
@@ -80,14 +82,21 @@ function HubRoutes({ user, logout }) {
             ) : isAdmin(user) ? (
               <ComingSoonPage module="dashboard" />
             ) : isTutor(user) ? (
-              <TutorDashboardPage user={user} />
+              <TutorMainDashboardPage user={user} />
             ) : (
               <DashboardPage user={user} />
             )
           )}
         />
-        {/* The staff dashboard as it is, for administrators: the Admin Hub's Academics Dashboard. */}
+        {/* The staff dashboard as it is, for administrators and tutors: the Admin
+            Hub's and the Tutor Hub's Academics Dashboard (a tutor's, the dashboard
+            they had at /dashboard before the Tutor Hub). */}
         <Route path="/academics-dashboard" element={page('/academics-dashboard', <DashboardPage user={user} />)} />
+        {/* A tutor's Admissions Dashboard: the Demo and Diagnostic bookings they are assigned, at a glance. */}
+        <Route
+          path="/admissions-dashboard"
+          element={page('/admissions-dashboard', <TutorAdmissionsDashboardPage user={user} />)}
+        />
         <Route path="/students" element={page('/students', <StudentsPage user={user} />)} />
         {/* One student's full record. Scoped by the API: a mentor or tutor
             opening someone else's student gets a 404. */}

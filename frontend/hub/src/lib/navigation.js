@@ -159,16 +159,21 @@ const ADMIN_WORKSPACE = {
   ],
 };
 
-// The Tutor Hub: their Dashboard and the Demo and Diagnostic bookings they are
-// assigned to teach on top, then their regular teaching (Academics &
-// Learning), their earnings still to come, and their own activity.
+// The Tutor Hub: its Main Dashboard on top, then the admissions work (its
+// dashboard and the Demo and Diagnostic bookings they are assigned to teach),
+// their regular teaching with its dashboard (Academics & Learning), their
+// earnings still to come, and their own activity.
 const TUTOR_WORKSPACE = {
   name: 'Tutor Hub',
   collapsible: true,
   sections: [
     {
+      items: [{ title: 'Main Dashboard', url: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      label: 'Admissions',
       items: [
-        { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+        { title: 'Admissions Dashboard', url: '/admissions-dashboard', icon: LayoutGrid },
         {
           title: 'Bookings',
           icon: CalendarCheck2,
@@ -183,11 +188,12 @@ const TUTOR_WORKSPACE = {
     {
       label: 'Academics & Learning',
       items: [
+        { title: 'Academics Dashboard', url: '/academics-dashboard', icon: School },
         { title: 'My Students', url: '/students', icon: GraduationCap, nested: true },
         { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
+        { title: 'Homework', url: '/homework', icon: BookOpen },
         // Shown only to a tutor granted an exam permission: the TUTOR role holds none.
         { title: 'Exams', url: '/exams', icon: ClipboardList },
-        { title: 'Homework', url: '/homework', icon: BookOpen },
       ],
     },
     {

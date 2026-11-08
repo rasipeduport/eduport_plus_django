@@ -97,8 +97,8 @@ export const PAGE_PERMISSIONS = {
   // The staff dashboard, or a BDE's own (App.jsx picks by isBde). A BDE's
   // booking links are shared from it, so holding them opens it too.
   '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries, P.viewOwnBookingLinks],
-  // The staff dashboard under its Admin Hub name, Academics Dashboard (administrators only:
-  // the Admin Hub's /dashboard is its common dashboard, still to come).
+  // The staff dashboard under its Admin Hub and Tutor Hub name, Academics
+  // Dashboard (administrators and tutors only: each Hub's /dashboard is its own).
   '/academics-dashboard': [P.viewStaffDashboard],
   '/students': STUDENT_VIEW,
   '/sessions': SESSION_VIEW,
@@ -126,6 +126,8 @@ export const PAGE_PERMISSIONS = {
   '/my-bookings': [P.viewAssignedBookings],
   '/my-bookings/demo': [P.viewAssignedBookings],
   '/my-bookings/diagnostic': [P.viewAssignedBookings],
+  // A tutor's Admissions Dashboard: those bookings at a glance.
+  '/admissions-dashboard': [P.viewAssignedBookings],
   // A tutor's Hourly Earnings, still to come: a Coming Soon page with nothing behind it yet.
   '/hourly-earnings': [P.viewStaffDashboard],
   // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.
@@ -152,11 +154,9 @@ export const PAGE_PERMISSIONS = {
 // but owns no links or enquiries, so these pages read the role as well.
 const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
 
-// Pages for administrators only: the Admin Hub's Academics Dashboard and its
-// modules still to come. A mentor or tutor holds view_staff_dashboard too, so
-// these read the role as well.
+// Pages for administrators only: the Admin Hub's modules still to come. A
+// mentor or tutor holds view_staff_dashboard too, so these read the role as well.
 const ADMIN_PAGES = new Set([
-  '/academics-dashboard',
   '/sales-dashboard',
   '/sales-module',
   '/sales-punching',
@@ -169,7 +169,17 @@ const ADMIN_PAGES = new Set([
 // bookings read the role as well; the API lists only the caller's own
 // bookings either way. A mentor holds view_staff_dashboard too, so Hourly
 // Earnings reads it as well.
-const TUTOR_PAGES = new Set(['/my-bookings', '/my-bookings/demo', '/my-bookings/diagnostic', '/hourly-earnings']);
+const TUTOR_PAGES = new Set([
+  '/my-bookings',
+  '/my-bookings/demo',
+  '/my-bookings/diagnostic',
+  '/admissions-dashboard',
+  '/hourly-earnings',
+]);
+
+// Pages for administrators and tutors only: the Academics Dashboard (the staff
+// dashboard). A mentor holds view_staff_dashboard too, so it reads the role as well.
+const ADMIN_AND_TUTOR_PAGES = new Set(['/academics-dashboard']);
 
 /** Whether `user` is a BDE: the Hub then offers the BDE workspace, the BDE dashboard included. */
 export function isBde(user) {
@@ -196,6 +206,7 @@ export function canOpenPage(user, path) {
   if (BDE_PAGES.has(path) && !isBde(user)) return false;
   if (TUTOR_PAGES.has(path) && !isTutor(user)) return false;
   if (ADMIN_PAGES.has(path) && !isAdmin(user)) return false;
+  if (ADMIN_AND_TUTOR_PAGES.has(path) && !isAdmin(user) && !isTutor(user)) return false;
   const permissions = PAGE_PERMISSIONS[path];
   return Boolean(permissions) && canAny(user, permissions);
 }

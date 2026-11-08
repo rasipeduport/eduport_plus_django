@@ -13,8 +13,10 @@ import { getInitials } from '@/lib/utils';
 // set's complement — i.e. add it here — as each page is ported.
 const PORTED_PATHS = new Set([
   '/dashboard',
-  // The staff dashboard under its Admin Hub name.
+  // The staff dashboard under its Admin Hub and Tutor Hub name.
   '/academics-dashboard',
+  // A tutor's Admissions Dashboard.
+  '/admissions-dashboard',
   '/students',
   '/invitations',
   '/activity',

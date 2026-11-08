@@ -11,13 +11,13 @@ export const REFRESH_ATTRIBUTE_VALUE = 'refresh';
 
 // Pages a refreshed role still sees in the current look, because their own
 // redesign has not come yet: the Admin's and the tutor's Academics & Learning
-// -- the Admin's Academics Dashboard (the staff dashboard), and each page with
+// -- their Academics Dashboard (the staff dashboard), and each page with
 // everything under it, such as one student's profile under /students. The
 // sidebar and header look the same either way: the refreshed tokens leave the
 // sidebar's alone.
 const CURRENT_LOOK_PAGES = {
   ADMIN: ['/academics-dashboard', '/students', '/sessions', '/exams', '/homework'],
-  TUTOR: ['/students', '/sessions', '/exams', '/homework'],
+  TUTOR: ['/academics-dashboard', '/students', '/sessions', '/exams', '/homework'],
 };
 
 /** Whether `user` works in the refreshed design (its sidebar and pages), whichever page is open. */
