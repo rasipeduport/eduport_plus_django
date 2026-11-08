@@ -3,7 +3,7 @@ import { XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FilterSelect, SearchField } from '@/components/page/list-toolbar';
 import { SCHEDULE_OPTIONS } from '@/lib/bde-booking-filters';
-import { DEFAULT_WHEN } from '@/lib/bookings';
+import { DEFAULT_WHEN, TAUGHT_STATUSES } from '@/lib/bookings';
 import { ClassDateFilter } from './class-date-filter';
 
 // The schedule select offers its default, Upcoming, as its empty value.
@@ -40,7 +40,9 @@ export function BdeBookingFilters({ filters, statuses, onChange, onClear }) {
           label="Filter by schedule"
           placeholder="Upcoming"
           value={filters.when === DEFAULT_WHEN ? '' : filters.when}
-          onChange={(value) => onChange({ when: value || null })}
+          // Upcoming is the default, left out of the URL -- but a taught class reads every date by default,
+          // so for one Upcoming is written out.
+          onChange={(value) => onChange({ when: value || (TAUGHT_STATUSES.has(filters.status) ? DEFAULT_WHEN : null) })}
           options={OTHER_SCHEDULES}
         />
         {filters.filtered ? (

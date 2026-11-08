@@ -279,8 +279,9 @@ test("the former single page's links land on their type's page, every other para
     'GET /api/bookings/redemos/': list([]) });
   for (const [link, pathname, query] of [
     ['/bookings', '/bookings/demo', {}],
-    [`/bookings?booking=${RIYA.id}`, '/bookings/demo', { booking: RIYA.id }],
-    [`/bookings?type=DIAGNOSTIC&when=all&booking=${ALI.id}`, '/bookings/diagnostic', { when: 'all', booking: ALI.id }],
+    // A booking such a link opened now opens in its own workspace (BookingsPage), the list it named as the way back.
+    [`/bookings?booking=${RIYA.id}`, `/bookings/demo/${RIYA.id}`, {}],
+    [`/bookings?type=DIAGNOSTIC&when=all&booking=${ALI.id}`, `/bookings/diagnostic/${ALI.id}`, {}],
     ['/bookings?type=REDEMO&redemo=rd-9', '/bookings/demo', { tab: 'redemo', redemo: 'rd-9' }],
     ['/bookings?type=TRIAL', '/bookings/demo', {}],
   ]) {
@@ -366,8 +367,14 @@ test('search and filters reach the API and the URL, and start again at page 1', 
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.status, 'CANCELLED');
   await choose('Filter by booking status', 'Completed');
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.status, 'COMPLETED');
+  // A class already taught has a slot that is almost always over: with no schedule chosen it reads every date.
+  assert.equal('when' in calls('GET', DIAGNOSTIC_LIST).at(-1).params, false, 'Completed reads every date');
+  await choose('Filter by schedule', 'Upcoming');
+  assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.when, 'upcoming', 'Upcoming may still be asked for');
   await choose('Filter by tutor assignment', 'Needs a tutor');
   assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.assigned, 'false');
+  await choose('Filter by schedule', 'Past');
+  assert.equal(calls('GET', DIAGNOSTIC_LIST).at(-1).params.when, 'past');
   await choose('Filter by schedule', 'All Schedules');
   const last = calls('GET', DIAGNOSTIC_LIST).at(-1).params;
   assert.equal('when' in last, false, '"All Schedules" sends no when filter');
@@ -2767,9 +2774,12 @@ test('Activity feed: Demo invitations and the Demos they book are labelled and d
 // action where the API's actions say so, shows the reason back before asking, and books a Re-Demo
 // only from the administrators' schedule dialog -- nothing is ever sent to the parent to book.
 const REASON = 'The parent wants a slower pace.';
+// A lead's id as the API gives it: a UUID (the Re-Demo tab drops anything else from its URL).
+const IRA_LEAD = '7a3e0b52-9b1e-4c37-8f0e-2d1c5a9e4b10';
 const IRA_SHEET = detail(IRA, { activity_state: 'COMPLETED', started_at: STARTED_AT,
   actions: { cancel: false, no_show: false, reschedule: false, demo_invite: false, request_redemo: true },
   redemo_request: null, redemo_from: null });
+IRA_SHEET.lead = { ...IRA_SHEET.lead, id: IRA_LEAD };
 const REDEMO = { id: 'rd-1', status: 'AWAITING_SCHEDULING', status_label: 'Awaiting scheduling',
   requested_at: '2026-11-01T06:00:00+00:00', requested_by: { id: 'bde', full_name: 'Bde One' }, reason: REASON,
   student_name: 'Ira', grade: 'Class 8', parent_name: 'Asha Nair', phone: '+971 501234567', owner_bde: { id: 'bde', full_name: 'Bde One' },
@@ -2784,6 +2794,14 @@ const REDEMO_DETAIL = { ...REDEMO, number: 1, timezone: 'Asia/Kolkata',
   admin_remarks: '', remarks_updated_at: null, remarks_updated_by: null,
   bookings: [], chain: [{ id: 'rd-1', status: 'AWAITING_SCHEDULING', status_label: 'Awaiting scheduling',
     requested_at: REDEMO.requested_at, original: REDEMO.original, booking: null, current: true }],
+  progress: [
+    { key: 'REQUESTED', label: 'Requested', done: true, at: '2026-11-01T06:00:00+00:00' },
+    { key: 'SCHEDULED', label: 'Scheduled', done: false, at: null },
+    { key: 'CONFIRMED', label: 'Parent confirmed', done: false, at: null },
+    { key: 'TAUGHT', label: 'Taught', done: false, at: null },
+    { key: 'REPORTED', label: 'Report submitted', done: false, at: null },
+    { key: 'SHARED', label: 'Report shared', done: false, at: null },
+  ],
   actions: { schedule: true, edit_remarks: true } };
 const REDO_SLOT = { date: '2026-11-01', time: '10:00', starts_at: '2026-11-01T04:30:00+00:00', ends_at: '2026-11-01T05:30:00+00:00',
   started: false, ended: false };
@@ -2801,13 +2819,31 @@ const TUTORS = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: tr
   { id: 't-c', full_name: 'Tutor C', email: 'c@hub.test', status: 'AVAILABLE', free_slots: 1, reason: null,
     tutor_meet_link: MEET, original: false, eligible: true },
 ] };
+// Each slot also carries the student's own date and time of the same instant (backend redemos.student_clock):
+// India's, labelled IST, for a student whose zone is not known.
 const openSlot = (time, extra = {}) => ({ time, starts_at: `2026-11-01T${time}:00+05:30`, ends_at: `2026-11-01T${time}:00+05:30`,
   status: 'AVAILABLE', seats_left: 3, bookable: true, unavailable_reason: null, lead_conflict: null, tutor_free: true,
-  tutor_reason: null, ...extra });
-const SLOTS = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: true, refusal: null,
+  tutor_reason: null, student_date: '2026-11-01', student_time: time, student_label: 'IST', ...extra });
+const IST_CLOCK = { student_timezone: null, display_timezone: 'Asia/Kolkata', display_timezone_label: 'IST',
+  student_timezone_known: false };
+const SLOTS = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: true, refusal: null, ...IST_CLOCK,
   tutor: { id: 't-c', full_name: 'Tutor C', tutor_meet_link: MEET },
   dates: [{ date: '2026-11-01', slots: [openSlot('10:00'), openSlot('19:30', { bookable: false, unavailable_reason: 'TUTOR_BUSY',
     tutor_free: false, tutor_reason: { code: 'BOOKING_CONFLICT', message: 'Teaching another booking then.' } })] }] };
+// By time, for a student in Dubai: 10:00 AM IST is 8:30 AM there and 7:30 PM IST is 6:00 PM -- the same instants.
+const TIMES = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: true, refusal: null,
+  student_timezone: 'Asia/Dubai', display_timezone: 'Asia/Dubai', display_timezone_label: 'UAE', student_timezone_known: true,
+  dates: [{ date: '2026-11-01', slots: [
+    openSlot('10:00', { starts_at: '2026-11-01T04:30:00+00:00', student_time: '08:30', student_label: 'UAE', free_tutors: 2 }),
+    openSlot('19:30', { starts_at: '2026-11-01T14:00:00+00:00', student_time: '18:00', student_label: 'UAE', free_tutors: 0,
+      bookable: false, unavailable_reason: 'NO_TUTOR_FREE' }),
+  ] }] };
+const SLOT_TUTORS = { redemo_id: REDEMO.id, timezone: 'Asia/Kolkata', schedulable: true, refusal: null, date: '2026-11-01',
+  slot: TIMES.dates[0].slots[0], tutors: [
+    { ...TUTORS.tutors[0] },
+    { id: 't-c', full_name: 'Tutor C', email: 'c@hub.test', status: 'AVAILABLE', reason: null, tutor_meet_link: MEET,
+      original: false, earlier: false, eligible: true },
+  ] };
 const tutorRadios = (dialog) => [...dialog.querySelectorAll('input[name="redemo-tutor"]')].map((input) => {
   const label = input.closest('label');
   return [clean(label.querySelector('.font-medium').textContent),
@@ -2828,8 +2864,11 @@ test('Re-Demo: a completed Demo offers Request Re-Demo; the reason is required a
     [`GET ${at(IRA)}`]: IRA_SHEET,
     [`GET ${at(IRA, 'report/')}`]: iraReport,
     [`POST ${at(IRA, 'redemo/')}`]: () => ok(REDEMO_DETAIL),
+    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: REDEMO_DETAIL,
+    [`GET ${redemoAt('times/')}`]: TIMES,
   });
-  await open(`/bookings?booking=${IRA.id}`, ADMIN);
+  const page = await open(`/bookings?booking=${IRA.id}`, ADMIN);
   await click(button('Request Re-Demo', topDialog()));
   const dialog = topDialog();
   assert.match(clean(dialog.textContent), /Request Re-Demo.*Ira · Demo/);
@@ -2845,7 +2884,15 @@ test('Re-Demo: a completed Demo offers Request Re-Demo; the reason is required a
   assert.equal(calls('POST', at(IRA, 'redemo/')).length, 0, 'nothing is sent before the confirmation');
   await click(button('Request Re-Demo', topDialog()));
   assert.deepEqual(calls('POST', at(IRA, 'redemo/')).map((entry) => entry.data), [{ reason: REASON }]);
-  assert.match(bodyText(), /Asked for a Re-Demo of Ira's demo\. It is now Re-Demo required; schedule it in the Re-Demo requests tab\./);
+  assert.match(bodyText(), /Asked for a Re-Demo of Ira's demo\. It is now Re-Demo required\.Schedule it now/);
+  // Schedule it now: the request on the Re-Demo tab -- this student's only, highlighted -- with its dialog open.
+  await click(button('Schedule it now'));
+  assert.equal(page.location().pathname, '/bookings/demo');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)),
+    { tab: 'redemo', redemo: REDEMO.id, lead: IRA_LEAD });
+  assert.equal(calls('GET', REDEMOS).at(-1).params.lead, IRA_LEAD, "the list asks for this student's requests only");
+  assert.match(clean(topDialog().textContent), /Schedule the Re-Demo/);
+  assert.match(bodyText(), /Ira's booking/, 'the way back to the booking');
 });
 
 test("Re-Demo: a refusal is shown in the dialog; no Request Re-Demo unless the API offers it", async () => {
@@ -2870,33 +2917,41 @@ test("Re-Demo: a refusal is shown in the dialog; no Request Re-Demo unless the A
     [`GET ${at(IRA, 'report/')}`]: iraReport,
   });
   await open(`/bookings?booking=${IRA.id}`, ADMIN);
-  assert.ok(clean(topDialog().textContent).includes('Ira'));
-  assert.ok(!button('Request Re-Demo', topDialog()));
+  assert.ok(bodyText().includes('Ira'));
+  assert.ok(!button('Request Re-Demo'));
 });
 
 test('Re-Demo: a Demo sent for one says so, keeps its report, and opens its request in the Re-Demo tab', async () => {
   serve({
     [`GET ${LIST}`]: list([{ ...IRA, status: 'REDEMO_REQUIRED' }]),
     [`GET ${at(IRA)}`]: { ...IRA_SHEET, status: 'REDEMO_REQUIRED', actions: { ...IRA_SHEET.actions, request_redemo: false },
-      redemo_request: { id: REDEMO.id, status: 'AWAITING_SCHEDULING', status_label: 'Awaiting scheduling',
-        requested_at: REDEMO.requested_at, requested_by: REDEMO.requested_by } },
+      redemo_request: { id: REDEMO.id, status: 'SCHEDULED', status_label: 'Re-Demo scheduled',
+        requested_at: REDEMO.requested_at, requested_by: REDEMO.requested_by,
+        booking: { id: SCHEDULED.id, status: 'BOOKED', slot: REDO_SLOT }, closed_at: null } },
     [`GET ${at(IRA, 'report/')}`]: iraReport,
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
   });
   const page = await open(`/bookings?when=past&booking=${IRA.id}`, ADMIN);
-  const text = clean(topDialog().textContent);
+  const text = bodyText();
   assert.match(text, /Re-Demo required/);
-  assert.match(text, /Re-DemoOpen requestStatusAwaiting schedulingRequested byBde One/);
-  assert.equal(calls('GET', at(IRA, 'report/')).length, 1, 'its report is still read');
-  await click(button('Open request', topDialog()));
+  assert.match(text, /Re-DemoRe-Demo scheduledrequested on 1 Nov 2026 by Bde One·Booked for Sun, 1 Nov · 10:00 AM ISTOpen Re-DemoOpen request/);
+  await click(button('Open request'));
   assert.equal(page.location().pathname, '/bookings/demo');
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { tab: 'redemo', redemo: REDEMO.id });
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)),
+    { tab: 'redemo', redemo: REDEMO.id, lead: IRA_LEAD });
+  assert.equal(calls('GET', REDEMOS).at(-1).params.lead, IRA_LEAD, "the list asks for this student's requests only");
+  assert.match(bodyText(), /Showing Ira's requests only\.Show every request/);
+  assert.ok(button("Schedule Ira's Re-Demo", rows()[0]), 'the request listed, highlighted');
+  // The way back is the booking it was opened from.
+  await click([...document.querySelectorAll('a')].find((link) => clean(link.textContent) === "Ira's booking"));
+  assert.equal(page.location().pathname, `/bookings/demo/${IRA.id}`);
 });
 
-test('Re-Demo tab: the requests, newest first; search and status reach the API; one opens with its reason and no link', async () => {
+test("Re-Demo tab: the requests in the API's order; status chips, search and BDE reach the API; one opens with its reason", async () => {
   serve({
-    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${REDEMOS}`]: { ...list([REDEMO]), counts: { ALL: 1, AWAITING_SCHEDULING: 1, ATTENTION: 0, SCHEDULED: 0,
+      COMPLETED: 0, CLOSED: 0 }, owners: [{ id: 'bde', full_name: 'Bde One' }] },
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
   });
   const page = await open('/bookings?type=REDEMO', ADMIN);
@@ -2904,32 +2959,53 @@ test('Re-Demo tab: the requests, newest first; search and status reach the API; 
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => [clean(element.textContent),
     element.getAttribute('aria-selected')]), [['Bookings', 'false'], ['Re-Demo requests', 'true']]);
   assert.equal(calls('GET', LIST).length, 0, 'the booking list is not read on the Re-Demo tab');
+  // Each chip says how many stand there.
+  assert.deepEqual([...document.querySelectorAll('[aria-label="Filter by Re-Demo status"] button')].map((b) => clean(b.textContent)),
+    ['All1', 'Awaiting scheduling1', 'Needs attention0', 'Scheduled0', 'Completed0', 'Closed0']);
   const [first] = rows();
   assert.match(clean(first.textContent), /Ira.*Class 8 · BDE: Bde One.*Awaiting scheduling/);
-  await choose('Filter by Re-Demo status', 'Re-Demo scheduled');
+  assert.ok(button("Schedule Ira's Re-Demo", first), 'one waiting to be scheduled offers Schedule straight away');
+  await click(button('Scheduled0'));
   assert.equal(calls('GET', REDEMOS).at(-1).params.status, 'SCHEDULED');
   const search = document.querySelector('[aria-label="Search Re-Demo requests"]');
   await typeInto(search, 'Ira');
   await submit(search.closest('form'));
-  assert.deepEqual(calls('GET', REDEMOS).at(-1).params, { page: 1, page_size: 25, q: 'Ira', status: 'SCHEDULED' });
+  await choose("Filter by the lead's BDE", 'No BDE');
+  assert.deepEqual(calls('GET', REDEMOS).at(-1).params, { page: 1, page_size: 25, q: 'Ira', status: 'SCHEDULED', owner: 'none' });
+  await click(button('Clear all filters'));
+  assert.deepEqual(calls('GET', REDEMOS).at(-1).params, { page: 1, page_size: 25 });
+  // A hand-edited link with an impossible date, or a range ending before it starts, still shows a list.
+  await page.unmount();
+  await open('/bookings/demo?tab=redemo&from=2026-02-31&to=2026-11-01', ADMIN);
+  assert.deepEqual(calls('GET', REDEMOS).at(-1).params, { page: 1, page_size: 25, to: '2026-11-01' });
+  await mounted.pop().unmount();
+  await open('/bookings/demo?tab=redemo&from=2026-11-09&to=2026-11-01', ADMIN);
+  assert.deepEqual(calls('GET', REDEMOS).at(-1).params, { page: 1, page_size: 25, from: '2026-11-09' });
+  await mounted.pop().unmount();
 
-  await click(button('View the Re-Demo request for Ira'));
+  await page.navigate?.(`/bookings/demo?tab=redemo&redemo=${REDEMO.id}`);
+  if (!topDialog()) {
+    await page.unmount();
+    await open(`/bookings/demo?tab=redemo&redemo=${REDEMO.id}`, ADMIN);
+  }
   const text = clean(topDialog().textContent);
   assert.match(text, new RegExp(`Reason${REASON}`));
-  assert.match(text, /Re-Demo 1Schedule Re-DemoNot scheduled yet\. Choose the tutor, date and time; the BDE then tells the parent\./);
-  assert.match(text, /Original Demo.*Tutor: Tutor A · Report: Submitted · version 2/);
+  assert.match(text, /Requested byBde One/);
+  assert.match(text, /ProgressRequested.*Scheduled.*Parent confirmed.*Taught.*Report submitted.*Report shared/);
+  assert.match(text, /Re-Demo 1Not scheduled yet\. Choose the time and the tutor; the BDE then tells the parent\./);
+  assert.match(text, /Original DemoOpen bookingWhenSat, 31 Oct · 7:30 PM IST.*TutorTutor A.*Version 2/);
+  assert.match(text, /SyllabusCBSE.*Time zoneNot set \(times read in IST\)/);
+  assert.equal((text.match(/Awaiting scheduling/g) ?? []).length, 1, 'its status is said once');
+  assert.ok(button('Schedule Re-Demo', topDialog()), 'the main action heads it');
   assert.ok(!/invitation|demo-invite/i.test(text), 'no parent invitation anywhere');
-  // Opening the original Demo leaves the Re-Demo tab for Demo's bookings, with that booking open.
-  await click(button('Open the original Demo', topDialog()));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { when: 'all', booking: IRA.id });
 });
 
-test("Re-Demo tab: scheduling picks the tutor, then a time they are free, shows their Meet link and books it with the remarks", async () => {
+test('Re-Demo tab: scheduling by time -- the student’s own time with IST beside it, then a tutor free then; the instant is sent', async () => {
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
-    [`GET ${redemoAt('tutors/')}`]: TUTORS,
-    [`GET ${redemoAt('slots/')}`]: SLOTS,
+    [`GET ${redemoAt('times/')}`]: TIMES,
+    [`GET ${redemoAt('slot-tutors/')}`]: SLOT_TUTORS,
     [`POST ${redemoAt('schedule/')}`]: () => ok({ ...REDEMO_DETAIL, status: 'SCHEDULED', status_label: 'Re-Demo scheduled',
       tutor: SCHEDULED.tutor, booking: SCHEDULED, bookings: [SCHEDULED], admin_remarks: 'Go slower.',
       actions: { schedule: false, edit_remarks: true }, booking_id: SCHEDULED.id }),
@@ -2937,80 +3013,160 @@ test("Re-Demo tab: scheduling picks the tutor, then a time they are free, shows 
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
   await click(button('Schedule Re-Demo', topDialog()));
   const dialog = topDialog();
-  assert.match(clean(dialog.textContent), /Schedule the Re-Demo.*Ira · Re-Demo of the Demo on Sat, 31 Oct · 7:30 PM IST/);
-  // The original Demo's tutor stays listed but disabled, and says why; the others are offered as they are free.
-  assert.deepEqual(tutorRadios(dialog), [['Tutor A', 'Original tutor · Not eligible', true], ['Tutor B', 'Unavailable', true],
-    ['Tutor C', 'Available', false]]);
+  let text = clean(dialog.textContent);
+  assert.match(text, /Schedule the Re-Demo.*Ira · Re-Demo of the Demo on Sat, 31 Oct · 7:30 PM IST/);
+  assert.match(text, /Repeats the Demo on Sat, 31 Oct · 7:30 PM IST with Tutor A \(not eligible\)/);
+  assert.match(text, /Times are shown on the student's clock \(United Arab Emirates \(Asia\/Dubai\)\), with India's time beside them\./);
+  assert.deepEqual([...dialog.querySelectorAll('[role="tab"]')].map((element) => [clean(element.textContent),
+    element.getAttribute('aria-selected')]), [['By time', 'true'], ['By tutor', 'false']]);
+  assert.equal(calls('GET', redemoAt('tutors/')).length, 0, 'by time reads no tutor list first');
+  assert.match(text, /Date and time \(UAE time, IST beside it\)Sun, 1 Nov\(1\)/);
+  assert.match(text, /8:30 AM UAE10:00 AM IST3 seats left · 2 tutors free/);
+  assert.match(text, /6:00 PM UAE7:30 PM ISTNo tutor who may teach it is free/);
+  assert.equal(dialog.querySelector('input[name="redemo-time"][value="2026-11-01T14:00:00+00:00"]').disabled, true);
+  assert.equal(button('Schedule Re-Demo', dialog).disabled, true);
+
+  await click(dialog.querySelector('input[name="redemo-time"][value="2026-11-01T04:30:00+00:00"]'));
+  assert.deepEqual(calls('GET', redemoAt('slot-tutors/')).map((entry) => entry.params), [{ date: '2026-11-01', time: '10:00' }]);
+  assert.deepEqual(tutorRadios(topDialog()), [['Tutor A', 'Original tutor · Not eligible', true], ['Tutor C', 'Available', false]]);
+  await click(topDialog().querySelector('input[value="t-c"]'));
+  await typeText(topDialog().querySelector('#redemo-remarks'), ' Go slower. ');
+  text = clean(topDialog().textContent);
+  assert.match(text, /Meet link: meet\.google\.com\/abc-defg-hij/);
+  assert.match(text, /Books the Re-Demo with Tutor CSun, 1 Nov · 8:30 AM UAE for the student · Sun, 1 Nov · 10:00 AM IST/);
+  await click(button('Schedule Re-Demo', topDialog()));
+  assert.deepEqual(calls('POST', redemoAt('schedule/')).map((entry) => entry.data),
+    [{ tutor_id: 't-c', date: '2026-11-01', time: '10:00', starts_at: '2026-11-01T04:30:00+00:00', remarks: 'Go slower.' }]);
+  assert.match(bodyText(), /Ira's Re-Demo is booked with Tutor C on Sun, 1 Nov · 10:00 AM IST\. The BDE tells the parent\./);
+});
+
+test('Re-Demo tab: scheduling by tutor -- the tutor, then their times; the original tutor is listed, never offered', async () => {
+  serve({
+    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: REDEMO_DETAIL,
+    [`GET ${redemoAt('times/')}`]: TIMES,
+    [`GET ${redemoAt('tutors/')}`]: { ...TUTORS, ...IST_CLOCK },
+    [`GET ${redemoAt('slots/')}`]: SLOTS,
+    [`POST ${redemoAt('schedule/')}`]: () => ok({ ...REDEMO_DETAIL, status: 'SCHEDULED', booking: SCHEDULED, tutor: SCHEDULED.tutor,
+      actions: { schedule: false, edit_remarks: true }, booking_id: SCHEDULED.id }),
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  await click(button('Schedule Re-Demo', topDialog()));
+  await mouseDown(tab('By tutor'));
+  const dialog = topDialog();
+  assert.deepEqual(tutorRadios(dialog), [['Tutor A', 'Original tutor · Not eligible', true],
+    ['Tutor B', 'Unavailable No Meet link', true], ['Tutor C', 'Available', false]]);
   assert.match(clean(dialog.textContent),
     new RegExp(`Tutor AOriginal tutor · Not eligible${ORIGINAL_REASON.replace('.', '\\.')}.*No free Demo slot in the booking window\\..*1 free Demo slot`));
   const original = dialog.querySelector('input[value="t-a"]').closest('label');
   assert.equal(original.getAttribute('aria-disabled'), 'true');
-  assert.match(original.className, /cursor-not-allowed/);
   assert.ok(!dialog.querySelector('[role="alert"]'), 'another tutor can teach it');
   assert.equal(calls('GET', redemoAt('slots/')).length, 0, 'no slots until a tutor is chosen');
-  assert.equal(button('Schedule Re-Demo', dialog).disabled, true);
 
   await click(dialog.querySelector('input[value="t-c"]'));
   assert.deepEqual(calls('GET', redemoAt('slots/')).map((entry) => entry.params), [{ tutor_id: 't-c' }]);
   const text = clean(topDialog().textContent);
-  assert.match(text, /Date and time \(IST\)Sun, 1 Nov\(1\)Times10:00 AM3 seats left7:30 PMTeaching another booking then\./);
-  assert.match(text, /Meet link: meet\.google\.com\/abc-defg-hij/);
-  assert.equal(dialog.querySelector('input[name="redemo-time"][value="19:30"]').disabled, true, 'not a time the tutor is busy');
-  assert.equal(button('Schedule Re-Demo', dialog).disabled, true, 'no time yet');
-  await click(dialog.querySelector('input[name="redemo-time"][value="10:00"]'));
-  await typeText(dialog.querySelector('#redemo-remarks'), ' Go slower. ');
-  assert.match(clean(topDialog().textContent),
-    /Books the Re-Demo with Tutor C on Sun, 1 Nov · 10:00 AM IST\. Nothing is sent to the parent: the BDE tells them the time\./);
-  const reads = calls('GET', redemoAt()).length;
-  await click(button('Schedule Re-Demo', dialog));
+  assert.match(text, /Date and time \(IST\)Sun, 1 Nov\(1\)Times10:00 AM IST10:00 AM IST3 seats left7:30 PM IST7:30 PM ISTTeaching another booking then\./);
+  assert.equal(topDialog().querySelector('input[name="redemo-time"][value="2026-11-01T19:30:00+05:30"]').disabled, true,
+    'not a time the tutor is busy');
+  await click(topDialog().querySelector('input[name="redemo-time"][value="2026-11-01T10:00:00+05:30"]'));
+  assert.match(clean(topDialog().textContent), /Books the Re-Demo with Tutor CSun, 1 Nov · 10:00 AM ISTNothing is sent to the parent/);
+  await click(button('Schedule Re-Demo', topDialog()));
   assert.deepEqual(calls('POST', redemoAt('schedule/')).map((entry) => entry.data),
-    [{ tutor_id: 't-c', date: '2026-11-01', time: '10:00', remarks: 'Go slower.' }]);
-  assert.match(bodyText(), /Ira's Re-Demo is booked with Tutor C on Sun, 1 Nov · 10:00 AM IST\. The BDE tells the parent\./);
-  assert.ok(calls('GET', redemoAt()).length > reads, 'the request is read again');
+    [{ tutor_id: 't-c', date: '2026-11-01', time: '10:00', starts_at: '2026-11-01T10:00:00+05:30', remarks: '' }]);
+});
+
+test('Re-Demo tab: a student whose own date is not India’s -- the dates are theirs, each slot names its Indian day, and the instant is sent', async () => {
+  // Los Angeles: 10:00 AM IST on Sun 1 Nov is 9:30 PM on Sat 31 Oct there; 7:30 PM IST is 7:00 AM on Sun 1 Nov.
+  const la = { ...TIMES, student_timezone: 'America/Los_Angeles', display_timezone: 'America/Los_Angeles',
+    display_timezone_label: 'Los Angeles', dates: [{ date: '2026-11-01', slots: [
+      openSlot('10:00', { starts_at: '2026-11-01T04:30:00+00:00', student_date: '2026-10-31', student_time: '21:30',
+        student_label: 'Los Angeles', free_tutors: 1 }),
+      openSlot('19:30', { starts_at: '2026-11-01T14:00:00+00:00', student_date: '2026-11-01', student_time: '07:00',
+        student_label: 'Los Angeles', free_tutors: 1 }),
+    ] }] };
+  serve({
+    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: REDEMO_DETAIL,
+    [`GET ${redemoAt('times/')}`]: la,
+    [`GET ${redemoAt('slot-tutors/')}`]: SLOT_TUTORS,
+    [`POST ${redemoAt('schedule/')}`]: () => ok({ ...REDEMO_DETAIL, status: 'SCHEDULED', booking: SCHEDULED, tutor: SCHEDULED.tutor,
+      actions: { schedule: false, edit_remarks: true }, booking_id: SCHEDULED.id }),
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  await click(button('Schedule Re-Demo', topDialog()));
+  const dialog = topDialog();
+  // Two of the student's days, though both slots are on one Indian date.
+  assert.deepEqual([...dialog.querySelectorAll('[aria-label="Student\'s dates"] button')].map((b) => clean(b.textContent)),
+    ['Sat, 31 Oct(1)', 'Sun, 1 Nov(1)']);
+  assert.match(clean(dialog.textContent), /9:30 PM Los AngelesSun, 1 Nov · 10:00 AM IST/);
+  assert.ok(!clean(dialog.textContent).includes('7:00 AM Los Angeles'), 'the other day’s slot waits under its own date');
+  await click(dialog.querySelector('input[name="redemo-time"][value="2026-11-01T04:30:00+00:00"]'));
+  await click(topDialog().querySelector('input[value="t-c"]'));
+  assert.match(clean(topDialog().textContent),
+    /Books the Re-Demo with Tutor CSat, 31 Oct · 9:30 PM Los Angeles for the student · Sun, 1 Nov · 10:00 AM IST/);
+  await click(button('Schedule Re-Demo', topDialog()));
+  assert.deepEqual(calls('POST', redemoAt('schedule/')).map((entry) => entry.data),
+    [{ tutor_id: 't-c', date: '2026-11-01', time: '10:00', starts_at: '2026-11-01T04:30:00+00:00', remarks: '' }]);
+  // The other day's slot is there too, under the student's Sunday.
+  await mounted.pop().unmount();
+  serve({ [`GET ${REDEMOS}`]: list([REDEMO]), [`GET ${redemoAt()}`]: REDEMO_DETAIL, [`GET ${redemoAt('times/')}`]: la });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  await click(button('Schedule Re-Demo', topDialog()));
+  await click(button('Sun, 1 Nov(1)', topDialog()));
+  assert.match(clean(topDialog().textContent), /7:00 AM Los Angeles7:30 PM IST/);
 });
 
 test('Re-Demo tab: with no tutor but the original one free, scheduling says why and cannot go ahead', async () => {
-  const onlyOriginal = { ...TUTORS, tutors: TUTORS.tutors.map((option) => (option.id === 't-c'
+  const onlyOriginal = { ...TUTORS, ...IST_CLOCK, tutors: TUTORS.tutors.map((option) => (option.id === 't-c'
     ? { ...option, status: 'UNAVAILABLE', free_slots: 0, reason: { code: 'TUTOR_UNAVAILABLE', message: 'No free Demo slot in the booking window.' } }
     : option)) };
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
+    [`GET ${redemoAt('times/')}`]: TIMES,
     [`GET ${redemoAt('tutors/')}`]: onlyOriginal,
+    [`GET ${redemoAt('slot-tutors/')}`]: { ...SLOT_TUTORS, tutors: [SLOT_TUTORS.tutors[0]] },
   });
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
   await click(button('Schedule Re-Demo', topDialog()));
+  // By time: at a time no other tutor is free, it says so.
+  await click(topDialog().querySelector('input[name="redemo-time"][value="2026-11-01T04:30:00+00:00"]'));
+  assert.match(clean(topDialog().querySelector('[role="alert"]').textContent),
+    /^No tutor who may teach this Re-Demo is free at this time\. Choose another time\./);
+  // By tutor: no other tutor is free in the whole window.
+  await mouseDown(tab('By tutor'));
   const dialog = topDialog();
   assert.match(clean(dialog.querySelector('[role="alert"]').textContent),
-    /^No other tutor can teach this Re-Demo: the tutor who taught the Demo being repeated is not eligible/);
+    /^No other tutor can teach this Re-Demo: the tutors who taught its Demos are not eligible/);
   assert.deepEqual(tutorRadios(dialog).map(([name, , disabled]) => [name, disabled]), [['Tutor A', true], ['Tutor B', true], ['Tutor C', true]]);
   assert.equal(button('Schedule Re-Demo', dialog).disabled, true);
-  assert.equal(calls('GET', redemoAt('slots/')).length, 0);
   assert.equal(calls('POST', redemoAt('schedule/')).length, 0, 'nothing can be booked');
 });
 
-test('Re-Demo tab: a refused schedule is shown and the slots read again; one already scheduled is not offered', async () => {
+test('Re-Demo tab: a refused schedule is shown and the options read again; one already scheduled is not offered', async () => {
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
-    [`GET ${redemoAt('tutors/')}`]: TUTORS,
-    [`GET ${redemoAt('slots/')}`]: SLOTS,
+    [`GET ${redemoAt('times/')}`]: TIMES,
+    [`GET ${redemoAt('slot-tutors/')}`]: SLOT_TUTORS,
     [`POST ${redemoAt('schedule/')}`]: () => fail(409, { error: 'TUTOR_UNAVAILABLE', message: 'This tutor is not free then.',
       conflict: { code: 'BOOKING_CONFLICT', message: 'Teaching another booking then.' } }),
   });
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
   await click(button('Schedule Re-Demo', topDialog()));
+  await click(topDialog().querySelector('input[name="redemo-time"][value="2026-11-01T04:30:00+00:00"]'));
   await click(topDialog().querySelector('input[value="t-c"]'));
-  await click(topDialog().querySelector('input[name="redemo-time"][value="10:00"]'));
   await click(button('Schedule Re-Demo', topDialog()));
   assert.match(clean(topDialog().textContent), /This tutor is not free then\. Teaching another booking then\./);
-  assert.equal(calls('GET', redemoAt('slots/')).length, 2, 'the slots are read again');
+  assert.equal(calls('GET', redemoAt('times/')).length, 2, 'the times are read again');
+  assert.equal(calls('GET', redemoAt('slot-tutors/')).length, 2, "and the slot's tutors");
   await mounted.pop().unmount();
 
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
-    [`GET ${redemoAt('tutors/')}`]: { ...TUTORS, schedulable: false,
+    [`GET ${redemoAt('times/')}`]: { ...TIMES, schedulable: false,
       refusal: { code: 'REDEMO_SCHEDULED', message: 'The Re-Demo is already scheduled. Change its booking instead.' } },
   });
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
@@ -3019,23 +3175,28 @@ test('Re-Demo tab: a refused schedule is shown and the slots read again; one alr
   assert.equal(button('Schedule Re-Demo', topDialog()).disabled, true);
 });
 
-test('Re-Demo tab: a scheduled one shows its booking, tutor and Meet link, and opens the booking', async () => {
+test('Re-Demo tab: a scheduled one shows its booking, tutor, Meet link and the parent’s answer, and opens the booking', async () => {
+  const scheduled = { ...SCHEDULED, parent_confirmation: 'AWAITING' };
   serve({
-    [`GET ${REDEMOS}`]: list([{ ...REDEMO, status: 'SCHEDULED', tutor: SCHEDULED.tutor, booking: SCHEDULED }]),
-    [`GET ${redemoAt()}`]: { ...REDEMO_DETAIL, status: 'SCHEDULED', status_label: 'Re-Demo scheduled', tutor: SCHEDULED.tutor,
-      booking: SCHEDULED, bookings: [SCHEDULED], actions: { schedule: false, edit_remarks: true } },
+    [`GET ${REDEMOS}`]: list([{ ...REDEMO, status: 'SCHEDULED', tutor: scheduled.tutor, booking: scheduled }]),
+    [`GET ${redemoAt()}`]: { ...REDEMO_DETAIL, status: 'SCHEDULED', status_label: 'Re-Demo scheduled', tutor: scheduled.tutor,
+      booking: scheduled, bookings: [scheduled], actions: { schedule: false, edit_remarks: true },
+      booking_actions: { cancel: true, no_show: false, reschedule: true, demo_invite: false, request_redemo: false, change_tutor: true } },
   });
   const page = await open('/bookings?type=REDEMO', ADMIN);
-  assert.match(clean(rows()[0].textContent), /Re-Demo scheduled.*Tutor C.*Sun, 1 Nov10:00 AM/);
-  await click(button('View the Re-Demo request for Ira'));
+  assert.match(clean(rows()[0].textContent), /Sun, 1 Nov10:00 AM IST.*Tutor C.*Awaiting confirmation.*Re-Demo scheduledOpen/);
+  await click(button('Open the Re-Demo request for Ira'));
   const text = clean(topDialog().textContent);
-  assert.match(text, /Re-Demo 1BookingSun, 1 Nov · 10:00 AM IST.*Tutor: Tutor C · Report: Not submitted yet.*Meet linkmeet\.google\.com\/abc-defg-hij/);
+  assert.match(text, /Re-Demo 1WhenSun, 1 Nov · 10:00 AM IST.*TutorTutor CMeet linkmeet\.google\.com\/abc-defg-hij.*ParentAwaiting confirmation.*ReportNot submitted yet/);
   assert.ok(!button('Schedule Re-Demo', topDialog()), 'scheduled once; changed from its booking');
-  await click(button('Open the Re-Demo booking', topDialog()));
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { when: 'all', booking: SCHEDULED.id });
+  for (const action of ['Reschedule', 'Change tutor', 'Cancel Re-Demo']) {
+    assert.ok(button(action, topDialog()), `${action} in place`);
+  }
+  await click(button('Open booking', topDialog()));
+  assert.equal(page.location().pathname, `/bookings/demo/${SCHEDULED.id}`);
 });
 
-test('Re-Demo tab: remarks for the tutor are saved with their own PUT; without accounts.assign_booking_tutor nothing changes', async () => {
+test('Re-Demo tab: remarks for the tutor are saved with their own PUT, locked once it starts; without accounts.assign_booking_tutor nothing changes', async () => {
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: REDEMO_DETAIL,
@@ -3044,7 +3205,7 @@ test('Re-Demo tab: remarks for the tutor are saved with their own PUT; without a
   });
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
   const remarks = topDialog().querySelector('[aria-label="Remarks for the tutor"]');
-  assert.match(clean(topDialog().textContent), /Shown to the Re-Demo tutor, not the BDE\./);
+  assert.match(clean(topDialog().textContent), /Shown to the Re-Demo tutor, not the BDE\. Locked once the Re-Demo starts\./);
   assert.equal(button('Save remarks', topDialog()).disabled, true, 'nothing changed yet');
   await typeText(remarks, 'Prefers mornings.');
   await click(button('Save remarks', topDialog()));
@@ -3054,13 +3215,57 @@ test('Re-Demo tab: remarks for the tutor are saved with their own PUT; without a
 
   serve({
     [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: { ...REDEMO_DETAIL, admin_remarks: 'Prefers mornings.', remarks_locked: true,
+      actions: { schedule: false, edit_remarks: false } },
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  assert.match(clean(topDialog().textContent), /Remarks for the tutorPrefers mornings\.Locked: the Re-Demo has started/);
+  assert.ok(!topDialog().querySelector('textarea'));
+  await mounted.pop().unmount();
+
+  serve({
+    [`GET ${REDEMOS}`]: list([REDEMO]),
     [`GET ${redemoAt()}`]: { ...REDEMO_DETAIL, admin_remarks: 'Prefers mornings.', actions: { schedule: false, edit_remarks: false } },
   });
   await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, VIEWER);
   assert.match(clean(topDialog().textContent), /Remarks for the tutorPrefers mornings\./);
-  assert.match(clean(topDialog().textContent), /Not scheduled yet: an administrator chooses the tutor, date and time\./);
+  assert.match(clean(topDialog().textContent), /Not scheduled yet: an administrator chooses the time and the tutor\./);
   assert.ok(!button('Schedule Re-Demo', topDialog()) && !button('Save remarks', topDialog()));
-  assert.ok(!topDialog().querySelector('textarea'));
+  assert.ok(!button("Schedule Ira's Re-Demo"), 'the list offers Open, never Schedule');
+});
+
+test('Re-Demo tab: a waiting request is closed for a reason from the list, and a closed one reopened', async () => {
+  const closed = { ...REDEMO_DETAIL, status: 'CLOSED', status_label: 'Closed',
+    closed: { at: '2026-11-02T06:00:00+00:00', by: { id: 'admin', full_name: 'Admin One', role_label: 'Admin' },
+      reason: { code: 'PARENT_DECLINED', label: 'Parent declined' } },
+    actions: { schedule: false, edit_remarks: true, close: false, reopen: true } };
+  serve({
+    [`GET ${REDEMOS}`]: list([REDEMO]),
+    [`GET ${redemoAt()}`]: { ...REDEMO_DETAIL, actions: { ...REDEMO_DETAIL.actions, close: true, reopen: false } },
+    [`POST ${redemoAt('close/')}`]: () => ok({ ...closed, changed: true }),
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  await click(button('Close request', topDialog()));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /Close Re-Demo request.*Why is it closed\?Parent declinedRequested by mistakeBooked separatelyOther/);
+  assert.equal(button('Close request', dialog).disabled, true, 'a reason first');
+  await click(dialog.querySelector('input[value="PARENT_DECLINED"]'));
+  await click(button('Close request', dialog));
+  assert.deepEqual(calls('POST', redemoAt('close/')).map((entry) => entry.data), [{ reason: 'PARENT_DECLINED' }]);
+  assert.match(bodyText(), /Closed Ira's Re-Demo request \(Parent declined\)\. Its Demo reads Completed again\./);
+  await mounted.pop().unmount();
+
+  serve({
+    [`GET ${REDEMOS}`]: list([{ ...REDEMO, status: 'CLOSED', closed: closed.closed }]),
+    [`GET ${redemoAt()}`]: closed,
+    [`POST ${redemoAt('reopen/')}`]: () => ok({ ...REDEMO_DETAIL, changed: true }),
+  });
+  await open(`/bookings?type=REDEMO&redemo=${REDEMO.id}`, ADMIN);
+  assert.match(clean(topDialog().textContent), /Closed .* by Admin One · Admin · Parent declined/);
+  await click(button('Reopen request', topDialog()));
+  await click(button('Reopen request', topDialog()));
+  assert.equal(calls('POST', redemoAt('reopen/')).length, 1);
+  assert.match(bodyText(), /Reopened Ira's Re-Demo request\. It is waiting to be scheduled\./);
 });
 
 test('Re-Demo tab: an error, then Try again; none yet says so', async () => {
@@ -3072,38 +3277,73 @@ test('Re-Demo tab: an error, then Try again; none yet says so', async () => {
   assert.match(bodyText(), /No Re-Demo requests yet/);
 });
 
-test('Re-Demo: the booking it scheduled is marked Re-Demo, names the Demo it teaches again, and its timeline says so', async () => {
+test('Re-Demo: the booking it scheduled is marked Re-Demo, names the Demo it teaches again, and its History says who and why', async () => {
   const REDO = { ...RIYA, id: 'b-redo', tutor: { id: 't-c', full_name: 'Tutor C' }, redemo_for_id: REDEMO.id };
+  const entry = (id, kind, booking, details, actor = { full_name: 'Admin One', role: 'ADMIN', role_label: 'Admin' }) => ({
+    id, at: '2026-11-02T09:00:00+00:00', kind, kind_label: kind, booking, by: actor ? 'STAFF' : 'PARENT', actor, details });
+  const original = { id: IRA.id, booking_type: 'DEMO', slot: IRA.slot, redemo: false };
+  const redo = { id: REDO.id, booking_type: 'DEMO', slot: REDO.slot, redemo: true };
   serve({
-    [`GET ${LIST}`]: list([REDO, { ...RIYA, id: 'b-other', student_name: 'Sara', redemo_for_id: null }]),
     [`GET ${at(REDO)}`]: detail(REDO, { channel: 'BDE_HANDOFF', referral_status: null, created_by: { id: 'admin', full_name: 'Admin One' },
       invited_from: null, redemo_request: null,
       redemo_from: { id: REDEMO.id, status: 'SCHEDULED', status_label: 'Re-Demo scheduled',
         original: { id: IRA.id, status: 'REDEMO_REQUIRED', slot: IRA.slot } } }),
-    [`GET ${at(REDO, 'history/')}`]: { booking_id: REDO.id, timezone: 'Asia/Kolkata',
-      chain: [{ id: REDO.id, status: 'BOOKED', slot: REDO.slot, current: true }],
-      events: [
-        { id: 'e1', booking_id: REDO.id, kind: 'CREATED', kind_label: 'Created', at: '2026-11-02T09:00:00+00:00',
-          actor: { id: 'admin', full_name: 'Admin One' }, details: { slot: REDO.slot, seat: 1, via: 'redemo', redemo_request_id: REDEMO.id } },
-        { id: 'e2', booking_id: REDO.id, kind: 'TUTOR_ASSIGNED', kind_label: 'Tutor assigned', at: '2026-11-02T09:00:00+00:00',
-          actor: { id: 'admin', full_name: 'Admin One' }, details: { old_tutor: null, new_tutor: { id: 't-c', full_name: 'Tutor C' }, via: 'redemo' } },
+    [`GET ${at(REDO, 'history/')}?scope=student`]: { timezone: 'Asia/Kolkata', student_timezone: 'Asia/Dubai', booking_id: REDO.id,
+      chain_ids: [REDO.id], bookings: [{ ...original, status: 'REDEMO_REQUIRED' }, { ...redo, status: 'BOOKED' }],
+      entries: [
+        entry('e0', 'CREATED', original, { slot: IRA.slot, via: 'public_booking' }, null),
+        entry('e1', 'REDEMO_REQUESTED', original, { from_status: 'COMPLETED', to_status: 'REDEMO_REQUIRED' },
+          { full_name: 'Bde One', role: 'BDE', role_label: 'BDE' }),
+        entry('e2', 'CREATED', redo, { slot: REDO.slot, via: 'redemo' }),
+        entry('e3', 'TUTOR_ASSIGNED', redo, { old_tutor: null, new_tutor: { full_name: 'Tutor C' }, via: 'redemo' }),
       ] },
   });
-  await open(`/bookings?booking=${REDO.id}`, ADMIN);
-  const [redo, other] = rows();
-  assert.match(clean(redo.textContent), /RiyaClass 8Re-Demo/);
-  assert.ok(!clean(other.textContent).includes('Re-Demo'), 'an ordinary Demo is not marked');
-  const text = clean(topDialog().textContent);
-  assert.match(text, /^RiyaSat, 31 Oct · 7:30 PM IST · Class 8Demo classRe-Demo/);
-  assert.match(text, /Came inRe-Demo, scheduled by an administrator/);
-  assert.match(text, /Scheduled byAdmin One/);
-  assert.match(text, /Re-Demo ofSat, 31 Oct · 7:30 PM IST/);
-  assert.match(text, /Re-Demo requestRe-Demo scheduled/);
-  assert.ok(!/From Diagnostic|Credited BDE|Invited by/.test(text));
-  await click(button('Show history', topDialog()));
-  const items = [...topDialog().querySelectorAll('[aria-label="History"] li')].map((li) => clean(li.textContent));
-  assert.match(items[0], /^Re-Demo scheduled for Sat, 31 Oct · 7:30 PM IST.* · by Admin One$/);
-  assert.match(items[1], /^Tutor C assigned for the Re-Demo.* · by Admin One$/);
+  await open(`/bookings/demo/${REDO.id}`, ADMIN);
+  const text = bodyText();
+  assert.match(text, /RiyaDemo classRe-Demo/);
+  assert.match(text, /Re-Demo of the Demo on Sat, 31 Oct · 7:30 PM ISTOpen·RequestRe-Demo scheduledOpen request/);
+  assert.ok(!/Invited by|From Diagnostic/.test(text));
+  assert.ok(!tab('Activity'), 'the Activity tab is History now');
+  await mouseDown(tab('History'));
+  const items = () => [...document.querySelectorAll('[aria-label="History"] > li')].map((li) => clean(li.textContent));
+  // This booking first: the Re-Demo and its tutor, each with who did it.
+  assert.equal(items().length, 2);
+  assert.match(items()[0], /^Re-Demo scheduled.*By Admin One \(Admin\)Re-Demo · Sat, 31 Oct · 7:30 PM ISTSlot: Sat, 31 Oct · 7:30 PM IST$/);
+  assert.match(items()[1], /^Tutor assigned: Tutor C.*By Admin One \(Admin\)/);
+  // All bookings: the student's whole story, the parent's own booking and the BDE's request included.
+  await choose('Show the history of', 'All bookings');
+  assert.match(items()[0], /^Demo class booked on the booking page.*By the parent, on the booking page/);
+  assert.match(items()[1], /^Re-Demo requested.*By Bde One \(BDE\).*Status: Completed → Re-Demo required/);
+});
+
+test('My Bookings: a Re-Demo’s workspace says why, the remarks and the Demo it follows, with that Demo’s report to read', async () => {
+  const report = { id: 'r-1', booking_id: 'b-orig', booking_type: 'DEMO', version: 2,
+    fields: { assessment_review: 'Quick with mental arithmetic.', class_observation_review: 'Asked good questions.',
+      suggested_strategy: 'Start with algebra.' }, student_name: 'Riya', grade: '8', tutor_name: 'Orla Menon',
+    submitted_at: '2026-10-28T15:00:00+00:00', updated_at: '2026-10-28T15:00:00+00:00' };
+  const redo = { ...MY_REDO, redemo: { ...MY_REDO.redemo, original: { ...MY_REDO.redemo.original, report } } };
+  serve({
+    [`GET ${myAt(redo)}`]: { ...myDetail(redo), enquiry: null },
+    [`GET ${myAt(redo)}history/`]: { timezone: 'Asia/Kolkata', student_timezone: null, booking_id: redo.id, chain_ids: [redo.id],
+      bookings: [{ id: redo.id, booking_type: 'DEMO', status: 'BOOKED', slot: redo.slot, redemo: true }],
+      entries: [{ id: 'e1', at: '2026-11-02T09:00:00+00:00', kind: 'CREATED', kind_label: 'Created',
+        booking: { id: redo.id, booking_type: 'DEMO', slot: redo.slot, redemo: true }, by: 'STAFF',
+        actor: { full_name: 'Admin One', role: 'ADMIN', role_label: 'Admin' }, details: { slot: redo.slot, via: 'redemo' } }] },
+  });
+  await open(`/my-bookings/demo/${redo.id}`, TUTOR);
+  let text = bodyText();
+  assert.match(text, new RegExp(`Request reason${REASON}From the Re-Demo request \\(BDE / parent\\)`));
+  assert.match(text, /Admin remarksGo slower with fractions\.From the administrator who scheduled it/);
+  assert.match(text, /Report on the Demo it repeats \(version 2, read-only\)/);
+  assert.ok(!text.includes('Quick with mental arithmetic.'), 'the report opens on request');
+  await click(button('Read the report'));
+  assert.match(bodyText(), /Quick with mental arithmetic\./);
+  assert.ok(!/Requested by|Bde One/.test(bodyText()), 'never who asked');
+  await mouseDown(tab('History'));
+  text = clean(document.querySelector('[aria-label="History"]').textContent);
+  assert.match(text, /^Re-Demo scheduled.*By Admin One \(Admin\)/);
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET' && entry.url.startsWith(MINE)),
+    "only the tutor's own routes are read");
 });
 
 const BDE_DONE_DEMO = { ...BDE_BOOKED, id: 'b-done', status: 'COMPLETED', ended: true, activity_state: 'COMPLETED',
@@ -3143,10 +3383,87 @@ test('BDE: once scheduled, the row says when and with whom -- no invitation to s
   serve({ [`GET ${ENQUIRY_URL}`]: enquiry([redo, done]) });
   await open('/enquiries/lead-1?tab=bookings', BDE);
   const [first, second] = rows().map((element) => clean(element.textContent));
-  assert.match(first, /^Sun, 1 Nov · 10:00 AM ISTDemo classUpcomingRe-DemoTutor C/);
+  assert.match(first, /^Sun, 1 Nov · 10:00 AM ISTDemo classUpcomingRe-DemoShow the Demo it repeatsTutor C/);
   assert.match(second, /Re-Demo:Re-Demo scheduledSun, 1 Nov · 10:00 AM IST with Tutor C/);
   assert.ok(!button('Send Re-Demo Invitation') && !/invitation/i.test(bodyText()), 'nothing to send the parent');
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
+});
+
+test('BDE: a waiting request of their own lead is closed for a reason and reopened, through the BDE routes; History says who and why', async () => {
+  const waiting = { ...BDE_DONE_DEMO, status: 'REDEMO_REQUIRED', actions: { ...BDE_DONE_DEMO.actions, request_redemo: false },
+    redemo: { ...BDE_REDEMO, closed: null, actions: { close: true, reopen: false } } };
+  const closed = { ...waiting, status: 'COMPLETED',
+    redemo: { ...waiting.redemo, status: 'CLOSED', status_label: 'Closed',
+      closed: { at: '2026-11-02T06:00:00+00:00', reason: { code: 'PARENT_DECLINED', label: 'Parent declined' } },
+      actions: { close: false, reopen: true } } };
+  const slot = { date: '2026-10-31', time: '19:30', starts_at: '2026-10-31T14:00:00+00:00' };
+  serve({
+    [`GET ${ENQUIRY_URL}`]: enquiry([waiting]),
+    [`POST ${BDE_REDEMO_URL}close/`]: () => ok({ ...enquiry([closed]), changed: true }),
+    [`POST ${BDE_REDEMO_URL}reopen/`]: () => ok({ ...enquiry([waiting]), changed: true }),
+    ['GET /api/bde/enquiries/lead-1/history/']: { timezone: 'Asia/Kolkata', student_timezone: null, booking_id: null, chain_ids: [],
+      bookings: [{ id: 'b-done', booking_type: 'DEMO', status: 'COMPLETED', slot, redemo: false }],
+      entries: [{ id: 'e1', at: '2026-11-02T06:00:00+00:00', kind: 'REDEMO_CLOSED', kind_label: 'Re-Demo request closed',
+        booking: { id: 'b-done', booking_type: 'DEMO', slot, redemo: false }, by: 'STAFF',
+        actor: { full_name: 'Admin One', role: 'ADMIN', role_label: 'Admin' },
+        details: { from_status: 'REDEMO_REQUIRED', to_status: 'COMPLETED',
+          reason: { code: 'PARENT_DECLINED', label: 'Parent declined' } } }] },
+  });
+  await open('/enquiries/lead-1?tab=bookings', BDE);
+  await click(button('Close the Re-Demo request for the demo on Sat, 31 Oct · 7:30 PM IST'));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /Close Re-Demo request.*Why is it closed\?Parent declinedRequested by mistakeBooked separatelyOther/);
+  assert.equal(button('Close request', dialog).disabled, true, 'a reason first');
+  await click(dialog.querySelector('input[value="PARENT_DECLINED"]'));
+  await click(button('Close request', dialog));
+  assert.deepEqual(calls('POST', `${BDE_REDEMO_URL}close/`).map((entry) => entry.data), [{ reason: 'PARENT_DECLINED' }]);
+  assert.match(clean(rows()[0].textContent), /Closed.*Parent declined/);
+  assert.ok(!button('Close the Re-Demo request for the demo on Sat, 31 Oct · 7:30 PM IST'), 'closed once');
+  await click(button('Reopen the Re-Demo request for the demo on Sat, 31 Oct · 7:30 PM IST'));
+  await click(button('Reopen request', topDialog()));
+  assert.equal(calls('POST', `${BDE_REDEMO_URL}reopen/`).length, 1);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
+  // History: the student's timeline from the BDE's own route, staff named, the reason a code's label.
+  await mouseDown(tab('History'));
+  assert.equal(calls('GET', '/api/bde/enquiries/lead-1/history/').length, 1);
+  const text = clean(document.querySelector('[aria-label="History"]').textContent);
+  assert.match(text, /^Re-Demo request closed.*By Admin One \(Admin\).*Status: Re-Demo required → Completed.*Reason: Parent declined/);
+});
+
+test('BDE: a Re-Demo still to come offers the Demo wording on WhatsApp -- ask to confirm, then the class details', async () => {
+  const ask = "Hi Sir/Ma'am,\n\nYour child’s Eduport Plus 1 on 1 Demo class is scheduled for *Sun, 1 Nov 2026 at 8:30 AM UAE*.";
+  const details = '✅ *Demo Confirmed!*\n\n⏰ Time: 8:30 AM UAE\n\n💻 Join the class: https://meet.google.com/abc-defg-hij';
+  const redo = (confirmation, messages) => ({ ...BDE_BOOKED, id: 'b-redo', date: '2026-11-01', time: '10:00',
+    starts_at: '2026-11-01T04:30:00+00:00', tutor: { full_name: 'Tutor C' }, tutor_meet_link: MEET, redemo: null,
+    redemo_from: { id: 'rd-1', demo_booking_id: 'b-done' }, parent_confirmation: confirmation, parent_messages: messages,
+    actions: { cancel: true, no_show: false, demo_invite: false, request_redemo: false } });
+  const waRu = (link) => {
+    const url = new URL(link.getAttribute('href'));
+    return [`${url.origin}${url.pathname}`, url.searchParams.get('text')];
+  };
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([redo('AWAITING', {
+    confirmation_request: { text: ask, missing: [] }, confirmed: { text: null, missing: ['bde_phone'] } })]) });
+  await open('/enquiries/lead-1?tab=bookings', BDE);
+  const askLink = document.querySelector('a[aria-label^="Ask the parent on WhatsApp to confirm"]');
+  assert.deepEqual(waRu(askLink), ['https://wa.me/971501234567', ask], 'the wording as the API filled it, to the parent');
+  assert.ok(!document.querySelector('a[aria-label^="Send the parent the class details"]'), 'the details wait for the answer');
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([redo('CONFIRMED', {
+    confirmation_request: { text: ask, missing: [] }, confirmed: { text: details, missing: [] } })]) });
+  await open('/enquiries/lead-1?tab=bookings', BDE);
+  assert.ok(!document.querySelector('a[aria-label^="Ask the parent on WhatsApp to confirm"]'), 'confirmed: nothing to ask');
+  const detailsLink = document.querySelector('a[aria-label^="Send the parent the class details"]');
+  assert.deepEqual(waRu(detailsLink), ['https://wa.me/971501234567', details]);
+  await mounted.pop().unmount();
+
+  // A message the booking cannot fill says what it needs instead of opening WhatsApp blank.
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([redo('AWAITING', {
+    confirmation_request: { text: null, missing: ['bde_name'] }, confirmed: { text: null, missing: ['bde_phone'] } })]) });
+  await open('/enquiries/lead-1?tab=bookings', BDE);
+  assert.ok(!document.querySelector('a[aria-label^="Ask the parent on WhatsApp to confirm"]'));
+  assert.match(bodyText(), /The confirmation request needs/);
+  assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'nothing is sent from the Hub');
 });
 
 test('Activity feed: Re-Demo requests, remarks and scheduling are labelled and described, naming nobody', () => {
@@ -3167,47 +3484,50 @@ const MY_REDO = { ...MY_RIYA, id: 'b-redo', slot: mySlot('2026-11-01', '10:00'),
   redemo: { number: 2, reason: REASON, admin_remarks: 'Go slower with fractions.',
     original: { slot: mySlot('2026-10-28', '19:30'), tutor: { full_name: 'Orla Menon' } } } };
 
-test("My Bookings: a Re-Demo is marked as one, and its sheet says why, the admin's remarks and the Demo it follows", async () => {
-  serve({ [`GET ${MINE}`]: mine([MY_RIYA, MY_REDO]), [`GET ${myAt(MY_REDO)}`]: myDetail(MY_REDO), [`GET ${myAt(MY_RIYA)}`]: myDetail(MY_RIYA) });
-  const page = await open(`/my-bookings?${opened(MY_REDO)}`, TUTOR);
+test("My Bookings: a Re-Demo is marked as one in the list, and its workspace says why, the admin's remarks and the Demo it follows", async () => {
+  // The tutor's workspace (pages/TutorBookingWorkspacePage): each booking a page of its own, opened from the list.
+  const workspace = (booking) => ({ ...myDetail(booking), enquiry: null });
+  const badges = () => [...document.querySelectorAll('[data-slot="badge"]')].map((badge) => clean(badge.textContent));
+  serve({ [`GET ${MINE}`]: mine([MY_RIYA, MY_REDO]), [`GET ${myAt(MY_REDO)}`]: workspace(MY_REDO),
+    [`GET ${myAt(MY_RIYA)}`]: workspace(MY_RIYA) });
+  const page = await open('/my-bookings/demo', TUTOR);
   const [riya, redo] = rows().map((element) => clean(element.textContent));
-  assert.match(riya, /^Sat, 31 Oct7:30 PMDemo classRiya/);
-  assert.match(redo, /^Sun, 1 Nov10:00 AMRe-Demo 2Riya/);
-  const text = clean(topDialog().textContent);
-  assert.match(text, /^RiyaSun, 1 Nov · 10:00 AM IST · Class 8Re-Demo 2/);
-  assert.match(text, /TypeRe-DemoWhenSun, 1 Nov · 10:00 AM IST/);
-  assert.match(text, /Meet linkmeet\.google\.com\/abc-defg-hij/);
-  // The reason and the admin's remarks, each labelled with where it comes from.
-  assert.match(text, new RegExp(`Re-Demo 2Request reason${REASON}From the Re-Demo request \\(BDE / parent\\)` +
+  assert.match(riya, /^Sat, 31 Oct7:30 PM ISTRiya/);
+  assert.ok(!riya.includes('Re-Demo'), 'an ordinary Demo is not marked');
+  assert.match(redo, /^Sun, 1 Nov10:00 AM IST.*Re-Demo 2/);
+  await click(document.querySelector('a[aria-label="View Riya\'s booking on Sun, 1 Nov · 10:00 AM IST"]'));
+  assert.equal(page.location().pathname, `/my-bookings/demo/${MY_REDO.id}`, 'View opens the Re-Demo in its own workspace');
+  const text = bodyText();
+  assert.ok(badges().includes('Re-Demo 2'), 'the second Re-Demo of the chain is numbered');
+  assert.match(text, /Join Meet/, "the tutor's Meet room is a click away");
+  // The reason and the admin's remarks, each labelled with where it comes from, and the Demo it follows.
+  assert.match(text, new RegExp(`Request reason${REASON}From the Re-Demo request \\(BDE / parent\\)` +
     'Admin remarksGo slower with fractions\\.From the administrator who scheduled it' +
     'Follows the DemoWed, 28 Oct · 7:30 PM ISTTaught by Orla Menon'));
   assert.ok(!/Requested by|Bde One|Admin One/.test(text), 'never who asked or who scheduled it');
-  // Its report is the Demo report flow, as for any Demo.
-  assert.match(text, /ReportReportYou can write the report once you start the class\./);
-  // The sheet is the Re-Demo the URL names, read from the tutor's own API and nothing else.
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { booking: MY_REDO.id, booking_type: 'DEMO' });
+  // The workspace is the Re-Demo the URL names, read from the tutor's own API and nothing else.
   assert.equal(calls('GET', myAt(MY_REDO)).length, 1);
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET' && entry.url.startsWith(MINE)),
     "only the tutor's own bookings are read");
   await mounted.pop().unmount();
 
-  serve({ [`GET ${MINE}`]: mine([MY_REDO]), [`GET ${myAt(MY_REDO)}`]: myDetail({ ...MY_REDO, redemo: { ...MY_REDO.redemo,
-    number: 1, admin_remarks: '' } }) });
-  await open(`/my-bookings?${opened(MY_REDO)}`, TUTOR);
   // A first Re-Demo is "Re-Demo", unnumbered; with no remarks the tutor is told there are none.
-  assert.match(clean(topDialog().textContent), /^RiyaSun, 1 Nov · 10:00 AM IST · Class 8Re-Demo(?! \d)/);
-  assert.match(clean(topDialog().textContent), /Admin remarksNo remarksFrom the administrator who scheduled it/);
+  serve({ [`GET ${myAt(MY_REDO)}`]: workspace({ ...MY_REDO, redemo: { ...MY_REDO.redemo, number: 1, admin_remarks: '' } }) });
+  await open(`/my-bookings/demo/${MY_REDO.id}`, TUTOR);
+  assert.ok(badges().includes('Re-Demo') && !badges().some((badge) => /^Re-Demo \d/.test(badge)));
+  assert.match(bodyText(), /Admin remarksNo remarksFrom the administrator who scheduled it/);
   await mounted.pop().unmount();
 
-  serve({ [`GET ${MINE}`]: mine([MY_RIYA]), [`GET ${myAt(MY_RIYA)}`]: myDetail(MY_RIYA) });
-  await open(`/my-bookings?${opened(MY_RIYA)}`, TUTOR);
-  assert.ok(!/Follows the Demo|Re-Demo|Request reason/.test(clean(topDialog().textContent)), 'an ordinary Demo has no Re-Demo section');
+  // An ordinary Demo has no Re-Demo section.
+  serve({ [`GET ${myAt(MY_RIYA)}`]: workspace(MY_RIYA) });
+  await open(`/my-bookings/demo/${MY_RIYA.id}`, TUTOR);
+  assert.ok(bodyText().includes('Riya'));
+  assert.ok(!/Follows the Demo|Request reason|Re-Demo/.test(bodyText()), 'an ordinary Demo has no Re-Demo section');
 });
 
-test('Communication: a Re-Demo says its parent is contacted by the BDE, with nothing to send', async () => {
+test("Communication: a Re-Demo's workspace says its parent is contacted by the BDE, with nothing to send, to read only", async () => {
   const REDO = { ...RIYA, id: 'b-redo', redemo_for_id: 'rd-1' };
   serve({
-    [`GET ${LIST}`]: list([REDO]),
     [`GET ${at(REDO)}`]: detail(REDO, { channel: 'BDE_HANDOFF', referral_status: null,
       created_by: { id: 'admin', full_name: 'Admin One' }, invited_from: null, redemo_request: null,
       redemo_from: { id: 'rd-1', status: 'SCHEDULED', status_label: 'Re-Demo scheduled',
@@ -3216,13 +3536,17 @@ test('Communication: a Re-Demo says its parent is contacted by the BDE, with not
       parent_confirmation: { status: 'AWAITING', label: 'Awaiting confirmation', at: null, by: null, reason: null },
       actions: { request_confirmation: false, record_confirmation: true } }),
   });
-  await open(`/bookings?booking=${REDO.id}`, COMMS_ADMIN);
-  const card = clean(communicationCard().textContent);
-  assert.match(card, /No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor\./);
-  assert.ok(!card.includes('made before parent communication began'));
-  // The BDE or Admin may still record what the parent said on the phone; nothing is offered to send.
-  assert.ok(button('Record answer', communicationCard()));
-  assert.ok(!button('Request confirmation', communicationCard()), 'nothing to send the parent');
+  // The booking's own workspace (pages/BookingWorkspacePage): its communication is a tab of its own.
+  await open(`/bookings/demo/${REDO.id}`, COMMS_ADMIN);
+  await mouseDown(tab('Communication'));
+  const text = bodyText();
+  assert.match(text, /No parent messages for this booking/);
+  assert.match(text, /No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor\./);
+  assert.ok(!text.includes('made before parent communication began'));
+  assert.match(text, /Awaiting confirmation/, "the parent's answer, as it stands");
+  // The administrators read a booking's communication here; asking and recording are the BDE's.
+  assert.ok(!button('Request confirmation') && !button('Record answer'), 'nothing to send the parent, nothing to act on');
+  assert.equal(calls('GET', commsUrl(REDO)).length, 1);
   assert.ok(globalThis.__bookingsApi.calls.every((entry) => entry.method === 'GET'), 'only reads');
 });
 
@@ -3254,6 +3578,22 @@ const FU_REPORT = followUp('TUTOR_REPORT', 'r-done', { state: 'PENDING', state_l
 const FU_REDEMO = followUp('REDEMO_CONFIRMATION', 'b-redo', { state: 'PENDING', state_label: 'Pending',
   due_at: '2026-11-09T14:00:00+00:00', booking: followUpBooking('b-redo', 'DEMO', '2026-11-09', { redemo: true }),
   actions: { ...NO_ACTIONS, record_answer: true } });
+
+test('Follow-ups: a Re-Demo confirmation opens WhatsApp with the confirmation request filled in; the others open a plain chat', async () => {
+  const text = 'Your child’s Eduport Plus 1 on 1 Demo class is scheduled for *Mon, 9 Nov 2026 at 7:30 PM IST*.';
+  const redemo = { ...FU_REDEMO, parent_messages: { confirmation_request: { text, missing: [] }, confirmed: { text: null, missing: [] } } };
+  serve({
+    [`GET ${FOLLOW_UPS}`]: { results: [FU_CONFIRM, redemo], count: 2, page: 1, page_size: 25, timezone: 'Asia/Kolkata',
+      summary: { total: 2, today: 1, upcoming: 1 } },
+  });
+  await open('/follow-ups', FOLLOW_UP_BDE);
+  const [confirm, redo] = rows();
+  const prefilled = redo.querySelector('a[aria-label="WhatsApp Asha Nair the Re-Demo date and time"]');
+  assert.ok(prefilled, 'the Re-Demo row says what the message is');
+  assert.equal(new URL(prefilled.getAttribute('href')).searchParams.get('text'), text);
+  const plain = confirm.querySelector('a[aria-label="WhatsApp Asha Nair"]');
+  assert.equal(plain.getAttribute('href'), 'https://wa.me/971501234567');
+});
 
 test('Follow-ups: reminders only, each with what does it; the call is recorded here and the list read again', async () => {
   let remaining = [FU_NEW_CALL, FU_CONFIRM, FU_PRE_CALL, FU_REPORT, FU_REDEMO];
@@ -3397,7 +3737,19 @@ test('BDE Demo Bookings: class date presets and the other filters combine, each 
   assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, q: 'Riya', status: 'BOOKED', ...month });
   assert.equal(page.location().search, '?dates=month&status=BOOKED&when=all&q=Riya');
   assert.deepEqual(await optionsOf('Filter by booking status'),
-    ['All statuses', 'Booked', 'Completed', 'Re-Demo required', 'Rescheduled', 'Cancelled']);
+    ['All statuses', 'Booked', 'Completed', 'Re-Demo required', 'Re-Demo bookings', 'Rescheduled', 'Cancelled']);
+  // A Demo sent for a Re-Demo was taught: with no schedule chosen, its list reads every date, never an empty Upcoming.
+  await choose('Filter by schedule', 'Upcoming');
+  await choose('Filter by booking status', 'Re-Demo required');
+  assert.equal(lastParams(BDE_DEMO_LIST).status, 'REDEMO_REQUIRED');
+  await click(button('Clear all filters'));
+  await choose('Filter by booking status', 'Re-Demo required');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, status: 'REDEMO_REQUIRED' });
+  // ... and Upcoming may still be asked for, in so many words.
+  await choose('Filter by schedule', 'Upcoming');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, status: 'REDEMO_REQUIRED', when: 'upcoming' });
+  await choose('Filter by booking status', 'Re-Demo bookings');
+  assert.deepEqual(lastParams(BDE_DEMO_LIST), { page: 1, page_size: 25, status: 'REDEMO', when: 'upcoming' });
 
   await click(button('Clear all filters'));
   assert.equal(page.location().search, '');

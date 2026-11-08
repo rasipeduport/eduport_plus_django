@@ -639,6 +639,8 @@ SCENARIOS = [
     Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/demo/{booking_a}/tutor/'),
     # Booking operations (P3): the timeline, moving it a day later, cancelling it.
     Scenario('bookings.history', 'get', '/api/bookings/demo/{booking_a}/history/'),
+    # ... and its student's whole History (bookings.timeline), every booking of theirs.
+    Scenario('bookings.history_student', 'get', '/api/bookings/demo/{booking_a}/history/?scope=student'),
     Scenario('bookings.reschedule_options', 'get', '/api/bookings/demo/{booking_a}/reschedule-options/'),
     Scenario('bookings.reschedule', 'post', '/api/bookings/demo/{booking_a}/reschedule/', lambda w: {
         'date': (indian_today(w.now) + timedelta(days=3)).isoformat(), 'time': '19:30', 'reason': 'PARENT_REQUEST',
@@ -674,6 +676,17 @@ SCENARIOS = [
     Scenario('bookings.redemo_schedule', 'post', '/api/bookings/redemos/{booking_a}/schedule/',
              lambda w: {'tutor_id': w.id('tutor_a'), 'date': '2026-11-20', 'time': '10:00', 'remarks': 'Matrix'}),
     Scenario('bookings.redemo_remarks', 'put', '/api/bookings/redemos/{booking_a}/remarks/', {'remarks': 'Matrix'}),
+    # Scheduling by time, and closing and reopening a request (2026-11-08): no request has booking_a's id.
+    Scenario('bookings.redemo_times', 'get', '/api/bookings/redemos/{booking_a}/times/'),
+    Scenario('bookings.redemo_slot_tutors', 'get', '/api/bookings/redemos/{booking_a}/slot-tutors/?date=2026-11-20&time=10:00'),
+    Scenario('bookings.redemo_close', 'post', '/api/bookings/redemos/{booking_a}/close/', {'reason': 'PARENT_DECLINED'}),
+    Scenario('bookings.redemo_reopen', 'post', '/api/bookings/redemos/{booking_a}/reopen/', {}),
+    # ... a BDE closes and reopens only their own lead's request: booking_a's lead is nobody's, and has none.
+    Scenario('bde.bookings.redemo_close', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/close/',
+             {'reason': 'PARENT_DECLINED'}),
+    Scenario('bde.bookings.redemo_reopen', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/reopen/', {}),
+    # ... and reads the History of their own enquiries only (bookings.timeline): lead_a is nobody's here.
+    Scenario('bde.enquiries.history', 'get', '/api/bde/enquiries/{lead_a}/history/'),
 
     # --- My Bookings (tutors: the bookings assigned to them) ----------------------
     # booking_a has no tutor, so a tutor lists none and is not shown it.
@@ -683,6 +696,8 @@ SCENARIOS = [
     Scenario('tutor_bookings.start', 'post', '/api/tutor/bookings/demo/{booking_a}/start/', {}),
     # Staff's notes on an assigned booking's lead (bookings.notes): booking_a has no tutor, so no one reaches them.
     Scenario('tutor_bookings.notes', 'get', '/api/tutor/bookings/demo/{booking_a}/notes/'),
+    # Its History (bookings.timeline): booking_a has no tutor, so no one reaches it.
+    Scenario('tutor_bookings.history', 'get', '/api/tutor/bookings/demo/{booking_a}/history/'),
     # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
     Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
     Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),

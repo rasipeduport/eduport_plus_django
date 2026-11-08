@@ -51,6 +51,11 @@ const breadcrumbPatterns = [
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
   { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
   { pattern: /^\/leads\/[^/]+$/, trail: [{ label: 'Leads', href: '/leads' }, { label: 'Lead' }] },
+  // A Re-Demo request's workspace, under Demo Bookings' Re-Demo requests.
+  {
+    pattern: /^\/bookings\/demo\/redemos\/[^/]+$/,
+    trail: [{ label: 'Demo Bookings', href: '/bookings/demo?tab=redemo' }, { label: 'Re-Demo Request' }],
+  },
   { pattern: /^\/bookings\/demo\/[^/]+$/, trail: [{ label: 'Demo Bookings', href: '/bookings/demo' }, { label: 'Booking' }] },
   {
     pattern: /^\/bookings\/diagnostic\/[^/]+$/,

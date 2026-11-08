@@ -21,8 +21,8 @@ child's it is, the reason given when it was requested (the BDE's or an
 administrator's own words, often what the parent said -- shown as written,
 whatever they mention; the request dialog tells whoever writes it that the
 tutor will read it), the administrators' remarks for the tutor, and the
-Demo it follows -- when it was and who taught it -- but not who asked or
-scheduled it, and nothing of that Demo's report. Every other booking's
+Demo it follows -- when it was, who taught it and its report as last saved,
+to read only -- but not who asked or scheduled it. Every other booking's
 ``redemo`` is null. A Demo sent for a Re-Demo reads Completed to the tutor
 who taught it: the request is not theirs.
 
@@ -131,7 +131,7 @@ def assigned_to(tutor, model):
     if model is DemoBooking:
         bookings = bookings.select_related(
             'redemo_for__demo_booking__slot', 'redemo_for__demo_booking__assigned_tutor',
-            'redemo_for__demo_booking__redemo_for',
+            'redemo_for__demo_booking__redemo_for', 'redemo_for__demo_booking__report',
         )
     return bookings
 
@@ -232,15 +232,20 @@ def redemo_brief(booking, now):
     """
     What the tutor of a Re-Demo is told about it, or None for any other
     booking: which Re-Demo of the child's it is, the request's reason, the
-    administrators' remarks and the Demo it follows -- its slot and its
-    tutor's name.
+    administrators' remarks and the Demo it follows -- its slot, its tutor's
+    name and its report as last saved (the fields its tutor wrote and its
+    version, reports.payloads.report_body), to read only.
     """
+    # The reports app reads bookings; imported here so neither loads the other first.
+    from reports.payloads import report_body
+
     redemo = getattr(booking, 'redemo_for', None)
     if redemo is None:
         return None
     original = redemo.demo_booking
     slot = slot_brief(original.slot, now)
     tutor = original.assigned_tutor
+    report = getattr(original, 'report', None)
     return {
         'number': redemo_number(redemo),
         'reason': redemo.reason,
@@ -248,6 +253,7 @@ def redemo_brief(booking, now):
         'original': {
             'slot': {field: slot[field] for field in SLOT_FIELDS},
             'tutor': {'full_name': tutor.full_name or tutor.email} if tutor is not None else None,
+            'report': report_body(report) if report is not None else None,
         },
     }
 

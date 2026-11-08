@@ -2345,6 +2345,282 @@
     "status": 403
    }
   },
+  "bde.bookings.redemo_close @ admin": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ anon": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ mentor_a": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ mentor_b": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ parent_a": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ su_mentor": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ su_tutor": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ superuser": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ tutor_a": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ tutor_b": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_close @ unknown": {
+   "decision": "Re-Demo request close by the owner BDE (2026-11-08).",
+   "note": "BDE route needs view_own_enquiries + create_demo_booking, as asking does; a superuser is NOT_A_BDE; every other caller lacks the permissions.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ admin": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ anon": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ mentor_a": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ mentor_b": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ parent_a": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ su_mentor": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ su_tutor": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ superuser": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ tutor_a": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ tutor_b": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.bookings.redemo_reopen @ unknown": {
+   "decision": "Re-Demo request reopen by the owner BDE (2026-11-08).",
+   "note": "As closing.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.bookings.redemo_request @ admin": {
    "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
    "result": {
@@ -3197,6 +3473,144 @@
   "bde.enquiries.detail @ unknown": {
    "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ admin": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ anon": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ mentor_a": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ mentor_b": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ parent_a": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ su_mentor": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ su_tutor": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ superuser": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ tutor_a": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ tutor_b": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.history @ unknown": {
+   "decision": "History tab (2026-11-08): the student timeline of a BDE's own enquiry, with staff names and reason codes (approved).",
+   "note": "view_own_enquiries, own leads only; a superuser is NOT_A_BDE; lead_a is nobody's here.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5362,6 +5776,194 @@
     "status": 403
    }
   },
+  "bookings.history_student @ admin": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "bookings",
+     "bookings[].booking_type",
+     "bookings[].id",
+     "bookings[].redemo",
+     "bookings[].slot",
+     "bookings[].slot.date",
+     "bookings[].slot.starts_at",
+     "bookings[].slot.time",
+     "bookings[].status",
+     "chain_ids",
+     "entries",
+     "student_timezone",
+     "timezone"
+    ],
+    "records": [
+     "booking_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history_student @ anon": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ mentor_a": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ mentor_b": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ parent_a": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ su_mentor": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "bookings",
+     "bookings[].booking_type",
+     "bookings[].id",
+     "bookings[].redemo",
+     "bookings[].slot",
+     "bookings[].slot.date",
+     "bookings[].slot.starts_at",
+     "bookings[].slot.time",
+     "bookings[].status",
+     "chain_ids",
+     "entries",
+     "student_timezone",
+     "timezone"
+    ],
+    "records": [
+     "booking_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history_student @ su_tutor": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "bookings",
+     "bookings[].booking_type",
+     "bookings[].id",
+     "bookings[].redemo",
+     "bookings[].slot",
+     "bookings[].slot.date",
+     "bookings[].slot.starts_at",
+     "bookings[].slot.time",
+     "bookings[].status",
+     "chain_ids",
+     "entries",
+     "student_timezone",
+     "timezone"
+    ],
+    "records": [
+     "booking_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history_student @ superuser": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "fields": [
+     "booking_id",
+     "bookings",
+     "bookings[].booking_type",
+     "bookings[].id",
+     "bookings[].redemo",
+     "bookings[].slot",
+     "bookings[].slot.date",
+     "bookings[].slot.starts_at",
+     "bookings[].slot.time",
+     "bookings[].status",
+     "chain_ids",
+     "entries",
+     "student_timezone",
+     "timezone"
+    ],
+    "records": [
+     "booking_a"
+    ],
+    "status": 200
+   }
+  },
+  "bookings.history_student @ tutor_a": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ tutor_b": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.history_student @ unknown": {
+   "decision": "History tab (2026-11-08): the Admin booking workspace's student timeline.",
+   "note": "view_all_bookings, as the booking's own history; never a parent name, phone or Meet link.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.list @ admin": {
    "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
@@ -5747,6 +6349,146 @@
     "status": 403
    }
   },
+  "bookings.redemo_close @ admin": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_close @ anon": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ mentor_a": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ mentor_b": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ parent_a": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ su_mentor": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_close @ su_tutor": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_close @ superuser": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_close @ tutor_a": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ tutor_b": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_close @ unknown": {
+   "decision": "Re-Demo request close (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Admin route needs view_all_bookings + reschedule_booking, as asking for a Re-Demo does; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.redemo_remarks @ admin": {
    "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
    "result": {
@@ -5867,6 +6609,146 @@
   },
   "bookings.redemo_remarks @ unknown": {
    "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ admin": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_reopen @ anon": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ mentor_a": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ mentor_b": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ parent_a": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ su_mentor": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_reopen @ su_tutor": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_reopen @ superuser": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_reopen @ tutor_a": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ tutor_b": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_reopen @ unknown": {
+   "decision": "Re-Demo request reopen (2026-11-08, approved: Admin + owner BDE).",
+   "note": "Same permissions as closing; 404 for booking_a.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -6134,6 +7016,146 @@
     "status": 403
    }
   },
+  "bookings.redemo_slot_tutors @ admin": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_slot_tutors @ anon": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ mentor_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ mentor_b": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ parent_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ su_mentor": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_slot_tutors @ su_tutor": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_slot_tutors @ superuser": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_slot_tutors @ tutor_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ tutor_b": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_slot_tutors @ unknown": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): one slot's tutors.",
+   "note": "Admin-only like the other Re-Demo pickers; 404 for booking_a, which no request names.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bookings.redemo_slots @ admin": {
    "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
    "result": {
@@ -6254,6 +7276,146 @@
   },
   "bookings.redemo_slots @ unknown": {
    "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ admin": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_times @ anon": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ mentor_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ mentor_b": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ parent_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ su_mentor": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_times @ su_tutor": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_times @ superuser": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Re-Demo request.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "bookings.redemo_times @ tutor_a": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ tutor_b": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bookings.redemo_times @ unknown": {
+   "decision": "Re-Demo by-time scheduling (2026-11-08): the slots with how many tutors may teach it then.",
+   "note": "Admin-only like the other Re-Demo pickers (view_all_bookings + assign_booking_tutor); no request has booking_a's id, so whoever may read it is told it does not exist.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -6393,10 +7555,19 @@
    }
   },
   "bookings.redemos @ admin": {
-   "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "decision": "Re-Demo list redesign (2026-11-08): status counts and the BDEs to filter by.",
+   "note": "Field-only change for the callers who already read the list.",
    "result": {
     "fields": [
      "count",
+     "counts",
+     "counts.ALL",
+     "counts.ATTENTION",
+     "counts.AWAITING_SCHEDULING",
+     "counts.CLOSED",
+     "counts.COMPLETED",
+     "counts.SCHEDULED",
+     "owners",
      "page",
      "page_size",
      "results",
@@ -6451,10 +7622,19 @@
    }
   },
   "bookings.redemos @ su_mentor": {
-   "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "decision": "Re-Demo list redesign (2026-11-08): status counts and the BDEs to filter by.",
+   "note": "Field-only change for the callers who already read the list.",
    "result": {
     "fields": [
      "count",
+     "counts",
+     "counts.ALL",
+     "counts.ATTENTION",
+     "counts.AWAITING_SCHEDULING",
+     "counts.CLOSED",
+     "counts.COMPLETED",
+     "counts.SCHEDULED",
+     "owners",
      "page",
      "page_size",
      "results",
@@ -6465,10 +7645,19 @@
    }
   },
   "bookings.redemos @ su_tutor": {
-   "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "decision": "Re-Demo list redesign (2026-11-08): status counts and the BDEs to filter by.",
+   "note": "Field-only change for the callers who already read the list.",
    "result": {
     "fields": [
      "count",
+     "counts",
+     "counts.ALL",
+     "counts.ATTENTION",
+     "counts.AWAITING_SCHEDULING",
+     "counts.CLOSED",
+     "counts.COMPLETED",
+     "counts.SCHEDULED",
+     "owners",
      "page",
      "page_size",
      "results",
@@ -6479,10 +7668,19 @@
    }
   },
   "bookings.redemos @ superuser": {
-   "decision": "Re-Demo management (bookings.redemos, approved scope 2026-11-07, corrected the same day to Admin scheduling): a COMPLETED Demo may be sent for a Re-Demo with a required reason -- by the Admin for any lead (POST /api/bookings/demo/<id>/redemo/, accounts.view_all_bookings + accounts.reschedule_booking) or by the BDE who owns the lead (POST /api/bde/bookings/demo/<id>/redemo/, accounts.view_own_enquiries + accounts.create_demo_booking, ownership checked in the view and again under the lead lock) -- and becomes RE-DEMO REQUIRED at once. The Admin reads every request (GET /api/bookings/redemos/, /<id>/, /<id>/tutors/: accounts.view_all_bookings) and alone schedules it -- the tutor's free slots (GET /<id>/slots/?tutor_id=) and the booking itself with its tutor, slot and remarks (POST /<id>/schedule/) -- and keeps its remarks (PUT /<id>/remarks/), each + accounts.assign_booking_tutor. No parent invitation and no public endpoint: the BDE tells the parent the confirmed time.",
+   "decision": "Re-Demo list redesign (2026-11-08): status counts and the BDEs to filter by.",
+   "note": "Field-only change for the callers who already read the list.",
    "result": {
     "fields": [
      "count",
+     "counts",
+     "counts.ALL",
+     "counts.ATTENTION",
+     "counts.AWAITING_SCHEDULING",
+     "counts.CLOSED",
+     "counts.COMPLETED",
+     "counts.SCHEDULED",
+     "owners",
      "page",
      "page_size",
      "results",
@@ -19092,6 +20290,148 @@
   "tutor_bookings.detail @ unknown": {
    "decision": "My Bookings (Phase 4): /api/tutor/bookings/ serves holders of accounts.view_assigned_bookings (the Demo and Diagnostic bookings assigned to the caller, with the child and the slot only), which only the TUTOR role may hold (a superuser holds it under D1). Whose bookings are read is always the caller's: the fixture booking_a has no tutor, so no caller lists it or is shown it.",
    "note": "My Bookings is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ admin": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ anon": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ mentor_a": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ mentor_b": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ parent_a": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "tutor_bookings.history @ su_mentor": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.history @ su_tutor": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.history @ superuser": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.history @ tutor_a": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.history @ tutor_b": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such booking.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "tutor_bookings.history @ unknown": {
+   "decision": "History tab (2026-11-08): a tutor's booking and its chain (approved scope).",
+   "note": "view_assigned_bookings, assigned bookings only: booking_a has no tutor, so every tutor and superuser is told it does not exist.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

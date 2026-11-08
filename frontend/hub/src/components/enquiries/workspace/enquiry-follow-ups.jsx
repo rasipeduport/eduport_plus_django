@@ -16,10 +16,12 @@ const PAGE_SIZE = 50;
  * The enquiry's reminders -- what needs the BDE now, soonest due first, each
  * done here or opening its booking's communication in the workspace (`from`
  * is the workspace's own way back, kept as the sheet opens). Read when the
- * tab opens, and again after an action. What is over is the enquiry's own:
- * its status, its bookings and their communication.
+ * tab opens, and again after an action -- `onChanged` then lets the
+ * workspace read the enquiry again, whose bookings show what changed (the
+ * parent's answer, and so which Re-Demo message to send). What is over is the
+ * enquiry's own: its status, its bookings and their communication.
  */
-export function EnquiryFollowUps({ enquiryId, from }) {
+export function EnquiryFollowUps({ enquiryId, from, onChanged }) {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -45,6 +47,7 @@ export function EnquiryFollowUps({ enquiryId, from }) {
   const changed = (message) => {
     setNotice(message);
     retry();
+    onChanged?.();
   };
 
   let content;

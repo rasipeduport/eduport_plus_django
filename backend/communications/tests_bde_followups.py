@@ -277,8 +277,10 @@ class ApiTests(FollowUpTestCase):
         self.assertEqual((set(data['summary']), data['summary']['total'], data['count']),
                          ({'total', 'today', 'upcoming'}, 1, 1))
         [row] = data['results']
+        # parent_messages: a Re-Demo confirmation's messages to send by hand, null for every other reminder.
         self.assertEqual(set(row), {'id', 'type', 'type_label', 'state', 'state_label', 'due_at', 'opens_at', 'request',
-                                    'booking', 'enquiry', 'actions'})
+                                    'booking', 'enquiry', 'actions', 'parent_messages'})
+        self.assertIsNone(row['parent_messages'])
         self.assertEqual((row['type'], row['type_label'], row['booking']),
                          ('NEW_ENQUIRY_CALL', 'Call new enquiry', None))
         self.assertEqual(set(row['enquiry']),

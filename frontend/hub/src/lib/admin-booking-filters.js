@@ -5,7 +5,16 @@
 // value kept in the URL. The booking type is the page's own address, never a
 // filter. A value the API would refuse is dropped, so a hand-edited link shows
 // the unfiltered list rather than an error.
-import { ASSIGNMENT_FILTERS, BOOKING_STATUSES, DEFAULT_WHEN, REPORT_DUE, REPORT_FILTERS, WHEN_FILTERS } from '@/lib/bookings';
+import {
+  ASSIGNMENT_FILTERS,
+  BOOKING_STATUSES,
+  DEFAULT_WHEN,
+  DEMO_ONLY_STATUSES,
+  REPORT_DUE,
+  REPORT_FILTERS,
+  TAUGHT_STATUSES,
+  WHEN_FILTERS,
+} from '@/lib/bookings';
 import { CLASS_DATE_OPTIONS, DEFAULT_CLASS_DATES, classDateSpan } from '@/lib/bde-booking-filters';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,7 +27,7 @@ const DATES_VALUES = values(CLASS_DATE_OPTIONS);
 // A Re-Demo is only ever a Demo's, so Diagnostic's status filter does not offer it.
 export const ADMIN_BOOKING_STATUSES = {
   DEMO: BOOKING_STATUSES,
-  DIAGNOSTIC: BOOKING_STATUSES.filter((option) => option.value !== 'REDEMO_REQUIRED'),
+  DIAGNOSTIC: BOOKING_STATUSES.filter((option) => !DEMO_ONLY_STATUSES.has(option.value)),
 };
 
 // What going back to the unfiltered list clears.
@@ -41,7 +50,9 @@ export const CLEARED_ADMIN_FILTERS = {
  * presets, is Custom -- then `q`, `status`, `assigned`, `report`, `when`
  * (Upcoming when absent) and `page`. Reports are due only on slots that are
  * over, so Report due reads Upcoming as Past: a link to the reports due never
- * shows an empty list. `filtered` says whether any filter is off its default.
+ * shows an empty list. A class already taught (Completed, Re-Demo required)
+ * reads Upcoming as All dates for the same reason: its slot is almost always
+ * over. `filtered` says whether any filter is off its default.
  */
 export function readAdminBookingFilters(searchParams, type, now = new Date()) {
   const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
@@ -62,8 +73,12 @@ export function readAdminBookingFilters(searchParams, type, now = new Date()) {
     : '';
   const assigned = pick('assigned', ASSIGNMENT_VALUES);
   const report = pick('report', REPORT_VALUES);
-  const asWhen = pick('when', WHEN_VALUES) || DEFAULT_WHEN;
-  const when = report === REPORT_DUE && asWhen === DEFAULT_WHEN ? 'past' : asWhen;
+  const askedWhen = pick('when', WHEN_VALUES);
+  const asWhen = askedWhen || DEFAULT_WHEN;
+  let when = asWhen;
+  if (asWhen === DEFAULT_WHEN && report === REPORT_DUE) when = 'past';
+  // A taught class reads every date unless Upcoming is asked for in so many words (when=upcoming).
+  else if (!askedWhen && TAUGHT_STATUSES.has(status)) when = 'all';
   return {
     page: Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1),
     type,

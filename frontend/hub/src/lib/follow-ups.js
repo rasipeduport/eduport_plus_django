@@ -131,6 +131,10 @@ export function activitySentence(row) {
       return `Parent did not confirm the ${type.toLowerCase()}`;
     case 'REDEMO_REQUESTED':
       return 'Re-Demo requested';
+    case 'REDEMO_CLOSED':
+      return 'Re-Demo request closed';
+    case 'REDEMO_REOPENED':
+      return 'Re-Demo request reopened';
     default:
       return row.kind_label ?? row.kind;
   }

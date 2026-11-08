@@ -25,7 +25,9 @@ create_invited_demo_booking books a Demo with a Demo invitation
 matched one, and then locks the invitation's row too. schedule_redemo books
 an administrator's Re-Demo (bookings.redemos) likewise, for the request's
 lead, and then locks the request and the tutor as assign_tutor does;
-request_redemo marks a completed Demo RE-DEMO REQUIRED as the request is made.
+request_redemo marks a completed Demo RE-DEMO REQUIRED as the request is made;
+close_redemo and reopen_redemo turn it COMPLETED and back while its request
+is closed with nothing booked for it.
 
 The lead lock is what keeps Q26 true under concurrency: two requests for one
 child in different slots, or of different types, lock different slot rows
@@ -106,6 +108,7 @@ from .models import (
     Lead,
     NotConfirmedReason,
     ParentConfirmation,
+    RedemoCloseReason,
     ReDemoRequest,
     ReferralStatus,
     RescheduleReason,
@@ -113,6 +116,7 @@ from .models import (
     booking_model,
 )
 from .public_serializers import CLASSES, SYLLABI
+from .redemo_chain import excluded_tutor_ids
 from .scheduling import booking_window, slot_instants
 
 LOCK_TIMEOUT = '3s'
@@ -406,6 +410,25 @@ class RedemoOriginalTutor(BookingError):
     """The tutor of the Demo a Re-Demo repeats never teaches that Re-Demo (bookings.redemos)."""
     code = 'REDEMO_ORIGINAL_TUTOR'
     message = 'The tutor who taught the Demo being repeated cannot teach its Re-Demo. Choose another tutor.'
+
+
+class RedemoEarlierTutor(RedemoOriginalTutor):
+    """Nor does anyone who taught an earlier Demo of its chain: the same code, saying which."""
+    message = 'This tutor taught an earlier Demo of this Re-Demo chain, so cannot teach it. Choose another tutor.'
+
+
+class RedemoClosed(BookingError):
+    """A closed request is reopened before anything else is done with it (bookings.redemos)."""
+    code = 'REDEMO_CLOSED'
+    http_status = 409
+    message = 'This Re-Demo request is closed. Reopen it first.'
+
+
+class RedemoRemarksLocked(BookingError):
+    """The remarks are what the tutor read before teaching: kept as they were once the Re-Demo has started."""
+    code = 'REDEMO_REMARKS_LOCKED'
+    http_status = 409
+    message = 'The Re-Demo has started, so its remarks for the tutor can no longer change.'
 
 
 class TutorNotAssignable(BookingError):
@@ -717,7 +740,10 @@ def request_redemo(booking, reason, *, actor, owner_bde=None, now=None):
     Only a COMPLETED Demo (RedemoNotEligible: one to come, cancelled, moved or
     a Diagnostic), and only once (RedemoAlreadyRequested): a Demo already sent
     for a Re-Demo is RE-DEMO REQUIRED, and the request's one-to-one row
-    refuses a second even past the locks. The Admin may ask for any lead's
+    refuses a second even past the locks. A Demo whose request was closed
+    reads COMPLETED again but keeps that request: it is reopened
+    (reopen_redemo), never asked for again (RedemoClosed). The request keeps
+    the version the Demo's report has now (``original_report_version``). The Admin may ask for any lead's
     Demo; a BDE only for their own lead's (``owner_bde``, checked under the
     lead's lock: BookingNotOwned, answered as a booking that does not exist).
 
@@ -743,10 +769,14 @@ def request_redemo(booking, reason, *, actor, owner_bde=None, now=None):
                 raise RedemoAlreadyRequested()
             if booking.status != BookingStatus.COMPLETED:
                 raise RedemoNotEligible()
+            if ReDemoRequest.objects.filter(demo_booking=booking).exists():
+                raise RedemoClosed()
+            report = getattr(booking, 'report', None)
             booking.status = BookingStatus.REDEMO_REQUIRED
             booking.save(update_fields=['status', 'updated_at'])
             redemo = ReDemoRequest.objects.create(
                 lead=lead, demo_booking=booking, reason=reason, requested_by=actor, requested_at=now,
+                original_report_version=report.version if report is not None else None,
             )
             history.record(
                 booking, BookingEventKind.REDEMO_REQUESTED, actor=actor,
@@ -784,10 +814,10 @@ def clean_redemo_remarks(remarks):
 
 def redemo_original_tutor_id(booking):
     """
-    The tutor who may not teach ``booking``, a Re-Demo: the one who taught the
-    Demo it repeats -- its request's Demo, the Re-Demo before it in a chain --
-    or None for any other booking. That Demo is completed, so its tutor never
-    changes.
+    The tutor of the Demo ``booking``, a Re-Demo, repeats -- its request's
+    Demo, the Re-Demo before it in a chain -- or None for any other booking.
+    That Demo is completed, so its tutor never changes. One of the tutors who
+    may not teach it (redemo_excluded_tutor_ids).
     """
     redemo_id = getattr(booking, 'redemo_for_id', None)
     if redemo_id is None:
@@ -795,13 +825,40 @@ def redemo_original_tutor_id(booking):
     return ReDemoRequest.objects.filter(pk=redemo_id).values_list('demo_booking__assigned_tutor_id', flat=True).first()
 
 
+def redemo_excluded_tutor_ids(booking):
+    """
+    The tutors who may not teach ``booking``, a Re-Demo: everyone who taught a
+    Demo of its chain (redemo_chain.excluded_tutor_ids) -- an empty set for any
+    other booking.
+    """
+    redemo_id = getattr(booking, 'redemo_for_id', None)
+    if redemo_id is None:
+        return set()
+    return excluded_tutor_ids(ReDemoRequest.objects.select_related('demo_booking').get(pk=redemo_id))
+
+
+def check_redemo_tutor(redemo, tutor_id):
+    """
+    Refuse ``tutor_id`` for ``redemo``'s Re-Demo when they taught a Demo of its
+    chain: RedemoOriginalTutor for the Demo it repeats, RedemoEarlierTutor for
+    an earlier one.
+    """
+    if tutor_id == redemo.demo_booking.assigned_tutor_id:
+        raise RedemoOriginalTutor()
+    if tutor_id in excluded_tutor_ids(redemo):
+        raise RedemoEarlierTutor()
+
+
 def redemo_refusal(redemo):
     """
     Why ``redemo`` may not be scheduled now, a BookingError to raise, or
-    None: one of its Demos is booked (RedemoScheduled -- it is moved, given
-    another tutor or cancelled as a booking) or taught (RedemoCompleted). One
-    cancelled, or never made, leaves it to be scheduled.
+    None: it is closed (RedemoClosed), or one of its Demos is booked
+    (RedemoScheduled -- it is moved, given another tutor or cancelled as a
+    booking) or taught (RedemoCompleted). One cancelled, or never made,
+    leaves it to be scheduled.
     """
+    if redemo.closed_at is not None:
+        return RedemoClosed()
     held = set(DemoBooking.objects.filter(redemo_for=redemo, status__in=HOLDS_SEAT).values_list('status', flat=True))
     if held & set(CONDUCTED):
         return RedemoCompleted()
@@ -818,16 +875,19 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
     unless None, become the request's remarks for the tutor in the same step
     ('' clears them; clean_redemo_remarks). Raises a BookingError subclass.
 
-    Only while nothing of the request's is booked or taught (redemo_refusal);
-    never with the tutor who taught the Demo being repeated
-    (RedemoOriginalTutor: in a chain, the tutor of the Re-Demo before);
+    Only while the request is open and nothing of it is booked or taught
+    (redemo_refusal); never with a tutor who taught a Demo of its chain
+    (check_redemo_tutor: RedemoOriginalTutor for the Demo it repeats,
+    RedemoEarlierTutor for an earlier one);
     only an active TUTOR (TutorNotAssignable) free for the whole slot
     (TutorUnavailable, find_tutor_conflict); and only into a slot the public
     pages offer (DateOutOfWindow, SlotUnavailable), open with a free seat
     (SlotFull), while the child holds no other live Demo (LeadAlreadyBooked)
     nor anything at that time (LeadTimeConflict) -- the rules of a move.
     The booking is a BDE handoff made by ``actor``, its details from the
-    lead, which is left as it is, owner included; the tutor is assigned by
+    lead -- the student's zone among them, kept as it is now, so the booking
+    keeps it whatever the lead's becomes -- and the lead is left as it is,
+    owner included; the tutor is assigned by
     ``actor`` with their Meet link as it is now, as assign_tutor copies it.
     Nothing is sent to the parent, then or later: a Re-Demo has no
     communication plan, and the BDE tells the parent the time by hand. It is
@@ -850,8 +910,7 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
             refusal = redemo_refusal(redemo)
             if refusal is not None:
                 raise refusal
-            if tutor.pk == redemo.demo_booking.assigned_tutor_id:
-                raise RedemoOriginalTutor()
+            check_redemo_tutor(redemo, tutor.pk)
             tutor = _locked_tutor(tutor.pk)
             if not is_assignable_tutor(tutor):
                 raise TutorNotAssignable()
@@ -867,7 +926,7 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
                 seat=seat,
                 channel=BookingChannel.BDE_HANDOFF,
                 created_by=actor,
-                details=_lead_submission(lead, ''),
+                details=_lead_submission(lead, '', student_timezones.clean(lead.student_timezone)),
                 assigned_tutor=tutor,
                 tutor_assigned_at=at,
                 tutor_assigned_by=actor,
@@ -915,6 +974,119 @@ def schedule_redemo(redemo, tutor, local_date, local_time, *, actor, remarks=Non
         actor=actor,
     )
     return booking
+
+
+def close_redemo(redemo, reason_code, *, actor, owner_bde=None, now=None):
+    """
+    Close ``redemo`` -- the parent declined it, it was asked for by mistake,
+    the child was booked another way, or another reason -- for ``reason_code``
+    (a RedemoCloseReason, else InvalidReason); returns (redemo, changed). One
+    already closed is left as it is. Only while nothing of it is booked or
+    taught (RedemoScheduled, RedemoCompleted): a scheduled Re-Demo is
+    cancelled first. Its Demo reads COMPLETED again, with REDEMO_CLOSED in its
+    history (the code, never words), until the request is reopened.
+
+    The Admin may close any request; a BDE only their own lead's
+    (``owner_bde``, checked under the lead's lock: BookingNotOwned, answered as
+    a request that does not exist).
+
+    Locks: the Demo's slot, the lead -- where scheduling the request queues
+    too, so a close and a scheduling never both go through -- the request,
+    then the Demo.
+    """
+    if reason_code not in RedemoCloseReason.values:
+        raise InvalidReason()
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            demo = redemo.demo_booking
+            BookingSlot.objects.select_for_update().filter(pk=demo.slot_id).first()
+            lead = _locked_lead(redemo.lead_id)
+            if owner_bde is not None and lead.owner_bde_id != owner_bde.pk:
+                raise BookingNotOwned()
+            redemo = ReDemoRequest.objects.select_for_update(of=('self',)).get(pk=redemo.pk)
+            if redemo.closed_at is not None:
+                return redemo, False
+            refusal = redemo_refusal(redemo)
+            if refusal is not None:
+                raise refusal
+            demo = DemoBooking.objects.select_for_update(of=('self',)).select_related('slot').get(pk=redemo.demo_booking_id)
+            redemo.closed_at = now
+            redemo.closed_by = actor
+            redemo.close_reason_code = reason_code
+            redemo.save(update_fields=['closed_at', 'closed_by', 'close_reason_code'])
+            demo.status = BookingStatus.COMPLETED
+            demo.save(update_fields=['status', 'updated_at'])
+            history.record(
+                demo, BookingEventKind.REDEMO_CLOSED, actor=actor,
+                from_status=BookingStatus.REDEMO_REQUIRED, to_status=BookingStatus.COMPLETED,
+                reason_code=reason_code, redemo_request_id=redemo.id,
+            )
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    _log_redemo(redemo, demo, lead, 'redemo.close', actor, owner_bde, reason_code=reason_code)
+    return redemo, True
+
+
+def reopen_redemo(redemo, *, actor, owner_bde=None, now=None):
+    """
+    Open ``redemo`` again after it was closed; returns (redemo, changed). One
+    that is open is left as it is. Its Demo is RE-DEMO REQUIRED once more, with
+    REDEMO_REOPENED in its history, and the request waits to be scheduled --
+    with its reason, remarks and every Demo booked for it before, as they were.
+    Who may reopen, and the locks, are close_redemo's.
+    """
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            demo = redemo.demo_booking
+            BookingSlot.objects.select_for_update().filter(pk=demo.slot_id).first()
+            lead = _locked_lead(redemo.lead_id)
+            if owner_bde is not None and lead.owner_bde_id != owner_bde.pk:
+                raise BookingNotOwned()
+            redemo = ReDemoRequest.objects.select_for_update(of=('self',)).get(pk=redemo.pk)
+            if redemo.closed_at is None:
+                return redemo, False
+            demo = DemoBooking.objects.select_for_update(of=('self',)).select_related('slot').get(pk=redemo.demo_booking_id)
+            redemo.closed_at = None
+            redemo.closed_by = None
+            redemo.close_reason_code = ''
+            redemo.save(update_fields=['closed_at', 'closed_by', 'close_reason_code'])
+            demo.status = BookingStatus.REDEMO_REQUIRED
+            demo.save(update_fields=['status', 'updated_at'])
+            history.record(
+                demo, BookingEventKind.REDEMO_REOPENED, actor=actor,
+                from_status=BookingStatus.COMPLETED, to_status=BookingStatus.REDEMO_REQUIRED,
+                redemo_request_id=redemo.id,
+            )
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    _log_redemo(redemo, demo, lead, 'redemo.reopen', actor, owner_bde)
+    return redemo, True
+
+
+def _log_redemo(redemo, demo, lead, action, actor, owner_bde, **context):
+    log_activity(
+        action=action,
+        entity_type='redemo_request',
+        entity_id=redemo.id,
+        entity_label=slot_label(demo.slot),
+        # Ids and codes only: never the reason, a name or a phone number.
+        context={
+            'booking_id': str(demo.id),
+            'lead_id': str(lead.id),
+            'lead_owner_id': _str_or_none(lead.owner_bde_id),
+            'via': 'bde_workspace' if owner_bde is not None else 'booking_management',
+            **context,
+        },
+        actor=actor,
+    )
 
 
 def cancel_booking(booking, *, reason_code, actor=None, now=None, owner_bde=None):
@@ -1416,7 +1588,7 @@ def assign_tutor(booking, tutor, actor=None, now=None):
     still be handed to a tutor who can take it -- and
     only when the tutor is free for the whole slot (TutorUnavailable, see
     find_tutor_conflict) -- and, for a Re-Demo, never the tutor who taught
-    the Demo it repeats (RedemoOriginalTutor). Every check is made again under the locks, whatever
+    a Demo of its chain (RedemoOriginalTutor, RedemoEarlierTutor). Every check is made again under the locks, whatever
     the caller saw before. The same tutor again changes nothing and is not
     logged; another tutor replaces the current one -- a reassignment, checked
     exactly like a first assignment.
@@ -1430,8 +1602,9 @@ def assign_tutor(booking, tutor, actor=None, now=None):
             tutor = _locked_tutor(tutor.pk)
             if not is_assignable_tutor(tutor):
                 raise TutorNotAssignable()
-            if tutor.pk == redemo_original_tutor_id(booking):
-                raise RedemoOriginalTutor()
+            if getattr(booking, 'redemo_for_id', None) is not None:
+                check_redemo_tutor(ReDemoRequest.objects.select_related('demo_booking').get(pk=booking.redemo_for_id),
+                                   tutor.pk)
             if booking.assigned_tutor_id == tutor.pk:
                 return booking, False
             conflict = find_tutor_conflict(tutor, booking.slot.starts_at, booking.slot.ends_at, exclude_booking=booking)

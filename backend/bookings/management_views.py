@@ -14,12 +14,16 @@ Booking management for the Admin / Coordinator (bookings.coordination):
     POST   /api/bookings/diagnostic/<id>/demo-invite/   the parent's invitation to book a Demo from it
     POST   /api/bookings/demo/<id>/redemo/ {reason}     ask for a completed Demo to be taught again
 
-    GET    /api/bookings/redemos/?q=&status=            every Re-Demo request, paged (bookings.redemos)
+    GET    /api/bookings/redemos/?q=&status=&owner=&from=&to=&lead=&booking=  every Re-Demo request, paged
     GET    /api/bookings/redemos/<id>/                  one in full, with its Demos and chain
     GET    /api/bookings/redemos/<id>/tutors/           every active tutor, free or not in the booking window
     GET    /api/bookings/redemos/<id>/slots/?tutor_id=  the slots it may be booked in with that tutor
-    POST   /api/bookings/redemos/<id>/schedule/ {tutor_id, date, time, remarks}  book the Re-Demo
+    GET    /api/bookings/redemos/<id>/times/            the slots it may be booked in, with how many tutors are free
+    GET    /api/bookings/redemos/<id>/slot-tutors/?date=&time=  every active tutor, free or not for that slot
+    POST   /api/bookings/redemos/<id>/schedule/ {tutor_id, date, time, remarks, starts_at}  book the Re-Demo
     PUT    /api/bookings/redemos/<id>/remarks/ {remarks}  the administrators' remarks for its tutor
+    POST   /api/bookings/redemos/<id>/close/ {reason}   close it, with nothing booked for it
+    POST   /api/bookings/redemos/<id>/reopen/           open it again
 
 Its report, read-only, is under ``…/report/`` (reports.management_views).
 
@@ -37,7 +41,8 @@ needs accounts.send_lead_communications too: the link goes to the parent
 accounts.reschedule_booking (a Re-Demo, like a move, gives the child's Demo a
 new slot), and scheduling a Re-Demo -- its tutor, slot and remarks -- or
 changing its remarks accounts.assign_booking_tutor; reading one,
-view_all_bookings. Cancel and reschedule reasons are
+view_all_bookings; closing and reopening one, as asking for it,
+reschedule_booking. Cancel and reschedule reasons are
 codes from a fixed list (Q9), never free text (decision M1); a Re-Demo's
 reason and remarks are staff's words, kept on the request alone. Nothing in a request widens what is shown: every
 caller holding the permission sees every booking, and nobody else sees any.
@@ -45,6 +50,9 @@ The tutor is changed only by bookings.booking_service, which checks the tutor
 and the booking again under its locks whatever the picker showed. Errors
 answer ``{"error": CODE, "message": ...}``.
 """
+import uuid
+from datetime import datetime
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
@@ -56,27 +64,30 @@ from rest_framework.views import APIView
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 
-from . import coordination, redemos
+from . import coordination, redemos, timeline
 from .booking_service import (
     BookingError,
     LeadTimeConflict,
-    RedemoOriginalTutor,
     TutorNotAssignable,
     TutorUnavailable,
     assign_tutor,
     cancel_booking,
+    check_redemo_tutor,
+    close_redemo,
     is_assignable_tutor,
+    reopen_redemo,
     request_redemo,
     reschedule_booking,
     schedule_redemo,
     unassign_tutor,
 )
 from .demo_invites import invite_body, issue_invite
-from .models import BookingSlot, BookingType, ReDemoStatus, booking_model
+from .models import BookingSlot, BookingType, DemoBooking, booking_model
 from .public_views import PATH_TYPES
-from .scheduling import BOOKING_TIMEZONE_NAME
+from .scheduling import BOOKING_TIMEZONE_NAME, slot_instants
 from .serializers import (
     CancelSerializer,
+    RedemoCloseSerializer,
     RedemoRemarksSerializer,
     RedemoRequestSerializer,
     RedemoScheduleSerializer,
@@ -123,6 +134,8 @@ class BookingListView(APIView):
     def get(self, request, booking_type, *args, **kwargs):
         rows = _bookings(booking_type)
         filters, invalid = coordination.parse_filters(request.query_params)
+        if filters.get('status') == coordination.REDEMO_FILTER and rows.model is not DemoBooking:
+            invalid.append('status')
         if invalid:
             return _error('INVALID_INPUT', 'Check the booking filters.', status.HTTP_400_BAD_REQUEST, fields=invalid)
         now = timezone.now()
@@ -255,6 +268,10 @@ class BookingHistoryView(APIView):
     GET /api/bookings/<type>/<id>/history/
     The booking's timeline (coordination.booking_history): the events of every
     booking in its reschedule chain, oldest first, with who made each change.
+    GET /api/bookings/<type>/<id>/history/?scope=student
+    The History of the student it is for (bookings.timeline): every event of
+    all their bookings, oldest first, with this booking's reschedule chain
+    named (``chain_ids``) for its "This booking" view.
     """
     permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS]
 
@@ -262,6 +279,17 @@ class BookingHistoryView(APIView):
         booking = _bookings(booking_type).filter(pk=pk).first()
         if booking is None:
             return _no_booking()
+        scope = (request.query_params.get('scope') or '').strip().lower()
+        if scope not in ('', 'student'):
+            return _error('INVALID_INPUT', 'Check the history scope.', status.HTTP_400_BAD_REQUEST, fields=['scope'])
+        if scope == 'student':
+            bookings = timeline.lead_bookings(booking.lead)
+            entries = timeline.rows(timeline.events_of(bookings), bookings, timeline.ADMIN)
+            chain = [item.pk for item in coordination.chain_of(booking)]
+            return Response(
+                timeline.payload(entries, bookings, timeline.ADMIN, lead=booking.lead, current=booking, chain=chain),
+                status=status.HTTP_200_OK,
+            )
         return Response(coordination.booking_history(booking, timezone.now()), status=status.HTTP_200_OK)
 
 
@@ -423,36 +451,78 @@ def _no_redemo():
 
 class RedemoListView(APIView):
     """
-    GET /api/bookings/redemos/?q=&status=&page=&page_size=
-    Every Re-Demo request, newest first, always paged: {"results", "count",
-    "page", "page_size", "timezone"}. ``q`` is the enquiry search (parent or
-    child name, phone digits); ``status`` one of ReDemoStatus -- an unknown
-    one answers 400 INVALID_INPUT. Where a request stands is read from its
-    rows (bookings.redemo_chain), so the status filter reads every request
-    the search leaves: Re-Demos are few.
+    GET /api/bookings/redemos/?q=&status=&owner=&from=&to=&lead=&booking=&page=&page_size=
+    Every Re-Demo request, always paged: {"results", "count", "page",
+    "page_size", "timezone", "counts", "owners"}, an administrator's steps
+    first (bookings.redemos.worklist: to schedule, or a Re-Demo whose slot
+    ended unstarted, oldest request first), then the Re-Demos to come,
+    soonest first, those taught, and the closed ones. ``q`` is the enquiry
+    search (parent or child name, phone digits); ``status`` one of
+    ReDemoStatus or ATTENTION (open requests with something to look at);
+    ``owner`` the lead's BDE (an account id, or ``none``); ``from`` / ``to``
+    the Indian dates it was requested on; ``lead`` one lead; ``booking`` the
+    Demo a request teaches again or any Demo booked for it. ``counts`` says
+    how many stand at each status before ``status`` narrows them, and
+    ``owners`` names the BDEs to filter by. An unknown value answers 400
+    INVALID_INPUT naming the parameters. Where a request stands is read from
+    its rows (bookings.redemo_chain), so the list reads every request the
+    other filters leave: Re-Demos are few.
     """
     permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS]
 
     def get(self, request, *args, **kwargs):
-        wanted = (request.query_params.get('status') or '').strip().upper()
-        if wanted and wanted not in ReDemoStatus.values:
-            return _error('INVALID_INPUT', 'Check the Re-Demo filters.', status.HTTP_400_BAD_REQUEST, fields=['status'])
-        q = (request.query_params.get('q') or '').strip()
+        params = request.query_params
+        invalid = []
+        wanted = (params.get('status') or '').strip().upper()
+        if wanted and wanted not in redemos.STATUS_FILTERS:
+            invalid.append('status')
+        q = (params.get('q') or '').strip()
         if len(q) > coordination.MAX_SEARCH_LENGTH:
-            return _error('INVALID_INPUT', 'Check the Re-Demo filters.', status.HTTP_400_BAD_REQUEST, fields=['q'])
+            invalid.append('q')
+        filters = {}
+        owner = (params.get('owner') or '').strip()
+        if owner.lower() == 'none':
+            filters['no_owner'] = True
+        elif owner:
+            filters['owner'] = _uuid(owner, 'owner', invalid)
+        for name, key in (('lead', 'lead_id'), ('booking', 'booking_id')):
+            value = (params.get(name) or '').strip()
+            if value:
+                filters[key] = _uuid(value, name, invalid)
+        for name, key in (('from', 'requested_from'), ('to', 'requested_to')):
+            try:
+                filters[key] = redemos.parse_day(params.get(name))
+            except ValueError:
+                invalid.append(name)
+        if filters.get('requested_from') and filters.get('requested_to') and filters['requested_from'] > filters['requested_to']:
+            invalid.append('to')
+        if invalid:
+            return _error('INVALID_INPUT', 'Check the Re-Demo filters.', status.HTTP_400_BAD_REQUEST, fields=invalid)
         now = timezone.now()
-        found = redemos.search(_redemos(), q).order_by('-requested_at', 'id')
+        found = list(redemos.narrowed(redemos.search(_redemos(), q), **filters))
+        rows, counts = redemos.worklist(found, now, status=wanted or None)
         page, page_size = page_params(request)
         offset = (page - 1) * page_size
-        if wanted:
-            rows = redemos.redemo_rows(found, now, status=wanted)
-            count, results = len(rows), rows[offset:offset + page_size]
-        else:
-            count, results = found.count(), redemos.redemo_rows(found[offset:offset + page_size], now)
         return Response(
-            {'results': results, 'count': count, 'page': page, 'page_size': page_size, 'timezone': BOOKING_TIMEZONE_NAME},
+            {
+                'results': rows[offset:offset + page_size],
+                'count': len(rows),
+                'page': page,
+                'page_size': page_size,
+                'timezone': BOOKING_TIMEZONE_NAME,
+                'counts': counts,
+                'owners': redemos.owners(redemos.listed()),
+            },
             status=status.HTTP_200_OK,
         )
+
+
+def _uuid(value, name, invalid):
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        invalid.append(name)
+        return None
 
 
 class RedemoDetailView(APIView):
@@ -481,13 +551,15 @@ class RedemoTutorsView(APIView):
         if redemo is None:
             return _no_redemo()
         schedulable, refusal = redemos.schedulable(redemo)
+        now = timezone.now()
         return Response(
             {
                 'redemo_id': str(redemo.id),
                 'timezone': BOOKING_TIMEZONE_NAME,
+                **redemos.clock(redemo.lead, now),
                 'schedulable': schedulable,
                 'refusal': refusal,
-                'tutors': redemos.tutor_options(redemo, timezone.now()),
+                'tutors': redemos.tutor_options(redemo, now),
             },
             status=status.HTTP_200_OK,
         )
@@ -512,18 +584,92 @@ class RedemoSlotsView(APIView):
         tutor = User.objects.filter(pk=serializer.validated_data['tutor_id']).first() if serializer.is_valid() else None
         if not is_assignable_tutor(tutor):
             return _error(TutorNotAssignable.code, TutorNotAssignable.message, TutorNotAssignable.http_status)
-        if tutor.pk == redemo.demo_booking.assigned_tutor_id:
-            return _error(RedemoOriginalTutor.code, RedemoOriginalTutor.message, RedemoOriginalTutor.http_status)
+        try:
+            check_redemo_tutor(redemo, tutor.pk)
+        except BookingError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
         schedulable, refusal = redemos.schedulable(redemo)
+        now = timezone.now()
         return Response(
             {
                 'redemo_id': str(redemo.id),
                 'timezone': BOOKING_TIMEZONE_NAME,
+                **redemos.clock(redemo.lead, now),
                 'tutor': {'id': str(tutor.pk), 'full_name': tutor.full_name or tutor.email,
                           'tutor_meet_link': tutor.tutor_meet_link},
                 'schedulable': schedulable,
                 'refusal': refusal,
-                'dates': redemos.slot_options(redemo, tutor, timezone.now()),
+                'dates': redemos.slot_options(redemo, tutor, now),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class RedemoTimesView(APIView):
+    """
+    GET /api/bookings/redemos/<id>/times/
+    Scheduling by time (bookings.redemos.time_options): the Demo slots the
+    Re-Demo may be booked in for the lead, each with how many tutors who may
+    teach it are free then -- one with none refused as NO_TUTOR_FREE -- and
+    the student's own date and time of it, beside its Indian date and time.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, ASSIGN_BOOKING_TUTOR]
+
+    def get(self, request, pk, *args, **kwargs):
+        redemo = _redemos().filter(pk=pk).first()
+        if redemo is None:
+            return _no_redemo()
+        schedulable, refusal = redemos.schedulable(redemo)
+        now = timezone.now()
+        return Response(
+            {
+                'redemo_id': str(redemo.id),
+                'timezone': BOOKING_TIMEZONE_NAME,
+                **redemos.clock(redemo.lead, now),
+                'schedulable': schedulable,
+                'refusal': refusal,
+                'dates': redemos.time_options(redemo, now),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class RedemoSlotTutorsView(APIView):
+    """
+    GET /api/bookings/redemos/<id>/slot-tutors/?date=YYYY-MM-DD&time=HH:MM
+    Scheduling by time, once the Demo slot at that Indian date and time is
+    chosen (bookings.redemos.slot_tutor_options): the slot and every active
+    tutor, AVAILABLE or UNAVAILABLE for it with why. 400 VALIDATION_ERROR,
+    DATE_OUT_OF_WINDOW or SLOT_UNAVAILABLE for a slot the pages do not offer.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, ASSIGN_BOOKING_TUTOR]
+
+    def get(self, request, pk, *args, **kwargs):
+        redemo = _redemos().filter(pk=pk).first()
+        if redemo is None:
+            return _no_redemo()
+        try:
+            local_date = redemos.parse_day(request.query_params.get('date'))
+            local_time = datetime.strptime((request.query_params.get('time') or '').strip(), '%H:%M').time()
+        except ValueError:
+            local_date = None
+        if local_date is None:
+            return _error('VALIDATION_ERROR', 'Choose a date and a time.', status.HTTP_400_BAD_REQUEST,
+                          fields=['date', 'time'])
+        schedulable, refusal = redemos.schedulable(redemo)
+        now = timezone.now()
+        try:
+            options = redemos.slot_tutor_options(redemo, local_date, local_time, now)
+        except BookingError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return Response(
+            {
+                'redemo_id': str(redemo.id),
+                'timezone': BOOKING_TIMEZONE_NAME,
+                **redemos.clock(redemo.lead, now),
+                'schedulable': schedulable,
+                'refusal': refusal,
+                **options,
             },
             status=status.HTTP_200_OK,
         )
@@ -554,6 +700,10 @@ class RedemoScheduleView(APIView):
             return _error('VALIDATION_ERROR', 'Choose a tutor, a date and a time.', status.HTTP_400_BAD_REQUEST,
                           fields=serializer.errors)
         data = serializer.validated_data
+        # The instant the picker showed -- on the student's clock -- must be the slot booked.
+        if 'starts_at' in data and data['starts_at'] != slot_instants(data['date'], data['time'])[0]:
+            return _error('SLOT_MISMATCH', 'That time is not the slot chosen. Choose the slot again.',
+                          status.HTTP_400_BAD_REQUEST, fields=['starts_at'])
         tutor = User.objects.filter(pk=data['tutor_id']).first()
         if tutor is None:
             return _error(TutorNotAssignable.code, TutorNotAssignable.message, TutorNotAssignable.http_status)
@@ -593,6 +743,59 @@ class RedemoRemarksView(APIView):
         try:
             redemo, changed = redemos.set_remarks(redemo, serializer.validated_data['remarks'], request.user,
                                                  request=request)
+        except BookingError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return Response(
+            {**redemos.redemo_detail(_redemos().get(pk=redemo.pk), timezone.now(), request.user, request),
+             'changed': changed},
+            status=status.HTTP_200_OK,
+        )
+
+
+class RedemoCloseView(APIView):
+    """
+    POST /api/bookings/redemos/<id>/close/ {"reason": <RedemoCloseReason>}
+    Close the request, with nothing booked for it (booking_service.close_redemo):
+    its Demo reads Completed again. Answers the request in full with
+    ``changed`` (an already closed one changes nothing). 400 VALIDATION_ERROR;
+    409 REDEMO_SCHEDULED or REDEMO_COMPLETED.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, RESCHEDULE_BOOKING]
+
+    def post(self, request, pk, *args, **kwargs):
+        redemo = _redemos().filter(pk=pk).first()
+        if redemo is None:
+            return _no_redemo()
+        serializer = RedemoCloseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', 'Choose why it is closed.', status.HTTP_400_BAD_REQUEST,
+                          fields=serializer.errors)
+        try:
+            redemo, changed = close_redemo(redemo, serializer.validated_data['reason'], actor=request.user)
+        except BookingError as exc:
+            return _error(exc.code, exc.message, exc.http_status)
+        return Response(
+            {**redemos.redemo_detail(_redemos().get(pk=redemo.pk), timezone.now(), request.user, request),
+             'changed': changed},
+            status=status.HTTP_200_OK,
+        )
+
+
+class RedemoReopenView(APIView):
+    """
+    POST /api/bookings/redemos/<id>/reopen/
+    Open a closed request again (booking_service.reopen_redemo): its Demo is
+    Re-Demo required once more and the request waits to be scheduled. Answers
+    the request in full with ``changed`` (an open one changes nothing).
+    """
+    permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, RESCHEDULE_BOOKING]
+
+    def post(self, request, pk, *args, **kwargs):
+        redemo = _redemos().filter(pk=pk).first()
+        if redemo is None:
+            return _no_redemo()
+        try:
+            redemo, changed = reopen_redemo(redemo, actor=request.user)
         except BookingError as exc:
             return _error(exc.code, exc.message, exc.http_status)
         return Response(

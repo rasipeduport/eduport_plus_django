@@ -131,11 +131,13 @@ class ScopeTests(EnquiryTestCase):
             # What the owner BDE may do with it (Q22), who teaches it where
             # (Phase 1: tutor, tutor_meet_link), the parent's answer (Phase 3.1) and
             # whether its tutor started it, read-only, and the zone the student books
-            # from (Student Local Time) -- but never who cancelled it or why.
+            # from (Student Local Time), and a Re-Demo's messages to send by hand (null for
+            # any other booking) -- but never who cancelled it or why.
             self.assertEqual(set(row), {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'ended',
                                         'activity_state', 'started_at', 'booked_at', 'cancelled_at', 'tutor',
                                         'tutor_meet_link', 'parent_confirmation', 'redemo', 'redemo_from', 'actions',
-                                        'student_timezone'})
+                                        'student_timezone', 'parent_messages'})
+            self.assertIsNone(row['parent_messages'])
         self.assertNotIn('Parent asked', response.content.decode())
         self.assertNotIn('owner_bde', data)
 

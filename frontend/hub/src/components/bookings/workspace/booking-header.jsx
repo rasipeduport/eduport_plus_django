@@ -106,8 +106,10 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
       </Note>
     );
   }
-  // The Re-Demo this Demo was sent for: its report and history stay, the new Demo is booked separately.
+  // The Re-Demo this Demo was sent for: its report and history stay, the new Demo is booked separately --
+  // reached from here, as is the request (a closed one too: its Demo reads Completed again).
   if (booking.redemo_request) {
+    const redemoBooking = booking.redemo_request.booking;
     notes.push(
       <Note key="redemo" icon={RotateCcwIcon}>
         <span>Re-Demo</span>
@@ -116,6 +118,15 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
           requested on {formatDay(booking.redemo_request.requested_at)} by{' '}
           {booking.redemo_request.requested_by?.full_name ?? '—'}
         </span>
+        {redemoBooking && redemoBooking.status !== 'CANCELLED' ? (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span>Booked for {slotLabel(redemoBooking.slot)}</span>
+            <InlineLink onClick={() => onOpenBooking(redemoBooking.id)} label="Open the Re-Demo booking">
+              Open Re-Demo
+            </InlineLink>
+          </>
+        ) : null}
         <InlineLink onClick={() => onOpenRedemo(booking.redemo_request.id)}>Open request</InlineLink>
       </Note>
     );
@@ -163,8 +174,8 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
  * (BookingDetails); WhatsApp and `actions` (the booking's own, which the
  * workspace offers only as its state and the caller's permissions allow) on
  * the right; then what has happened to the booking (Notes). A booking of its
- * chain opens in its own workspace (`onOpenBooking(id)`), a Re-Demo request
- * on Demo Bookings' Re-Demo tab (`onOpenRedemo(id)`).
+ * chain opens in its own workspace (`onOpenBooking(id)`), and so does a
+ * Re-Demo request (`onOpenRedemo(id)`).
  */
 export function BookingHeader({ booking, actions, onOpenBooking, onOpenRedemo }) {
   const lead = booking.lead ?? {};

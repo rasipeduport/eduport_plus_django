@@ -19,7 +19,7 @@ import { RecordOutcomeDialog } from '@/components/enquiries/follow-up-dialogs';
 import { ConfirmationRequestDialog } from '@/components/communications/confirmation-request-dialog';
 import { ParentAnswerDialog } from '@/components/communications/parent-answer-dialog';
 import { confirmationRequestNotice, istMoment, istParts, joined, parentAnswerNotice } from '@/lib/communications';
-import { phoneLinks, slotLabel } from '@/lib/enquiries';
+import { phoneLinks, slotLabel, whatsAppUrl } from '@/lib/enquiries';
 import { FOLLOW_UP_STATE_VARIANTS, followUpPath, followUpTask } from '@/lib/follow-ups';
 
 const TYPE_ICONS = {
@@ -87,12 +87,18 @@ function Due({ value }) {
  * What the BDE does on a reminder -- each action offered only when the API
  * says the caller may take it, or the page where it is done: the enquiry, or
  * its tutor feedback, where the report is sent -- with calling or messaging
- * the parent.
+ * the parent. A Re-Demo's confirmation is the BDE's by hand: WhatsApp opens
+ * with the confirmation request's own wording filled in for it (the API's
+ * `parent_messages`), its time on the student's clock, for the BDE to send.
  */
 function Actions({ followUp, from, inEnquiry, onAct, className }) {
   const { actions, enquiry } = followUp;
   const links = phoneLinks(enquiry.phone_dial_code, enquiry.phone_number);
   const who = enquiry.parent_name;
+  const prefilled =
+    followUp.type === 'REDEMO_CONFIRMATION' ? followUp.parent_messages?.confirmation_request?.text ?? null : null;
+  const whatsapp = prefilled ? whatsAppUrl(enquiry.phone_dial_code, enquiry.phone_number, prefilled) : links?.whatsapp;
+  const whatsappLabel = prefilled ? `WhatsApp ${who} the Re-Demo date and time` : `WhatsApp ${who}`;
   const whose = `${enquiry.student_name}’s ${followUp.type_label.toLowerCase()}`;
   const report = followUp.type === 'TUTOR_REPORT';
   const act = (kind) => () => onAct(kind, followUp);
@@ -169,8 +175,8 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
               </a>
             </Button>
             <Button variant="ghost" size="icon" className="size-8" asChild>
-              <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${who}`}
-                title={`WhatsApp ${who}`}>
+              <a href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label={whatsappLabel}
+                title={whatsappLabel}>
                 <MessageCircleIcon className="size-4" />
               </a>
             </Button>

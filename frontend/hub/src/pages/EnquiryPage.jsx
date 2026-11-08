@@ -4,15 +4,24 @@ import { ArrowLeftIcon, ReceiptIndianRupeeIcon, SearchXIcon } from 'lucide-react
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import { bdeBookingCancelUrl, bdeRedemoUrl, readBookingType } from '@/lib/bookings';
+import {
+  bdeBookingCancelUrl,
+  bdeEnquiryHistoryUrl,
+  bdeRedemoCloseUrl,
+  bdeRedemoReopenUrl,
+  bdeRedemoUrl,
+  readBookingType,
+} from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, enquiryTimezoneUrl, enquiryUrl, slotLabel } from '@/lib/enquiries';
 import { COMING_SOON } from '@/lib/navigation';
 import { savedTimezoneLabel } from '@/lib/timezone';
+import { useHistory } from '@/hooks/use-history';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { RedemoCloseDialog } from '@/components/bookings/redemo-close-dialog';
 import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
 import { BookingCommunicationSheet } from '@/components/communications/communication-sheet';
 import { StudentTimezoneDialog } from '@/components/leads/student-timezone-dialog';
@@ -24,6 +33,7 @@ import { EnquiryFollowUps } from '@/components/enquiries/workspace/enquiry-follo
 import { EnquiryHeader } from '@/components/enquiries/workspace/enquiry-header';
 import { EnquiryNotes } from '@/components/enquiries/workspace/enquiry-notes';
 import { EnquiryOverview } from '@/components/enquiries/workspace/enquiry-overview';
+import { HistoryTimeline } from '@/components/history/history-timeline';
 
 function EnquirySkeleton() {
   return (
@@ -66,9 +76,12 @@ function Unavailable({ failure }) {
  * the calls and parent messages still to do (Follow-ups, for holders of
  * accounts.view_own_lead_communications), Sales & Payment, still to come, and
  * the notes staff keep on it -- the BDE, the tutors teaching its bookings and
- * the administrators (Notes, never the parent's). The parent is called or
- * messaged from here, and sent the BDE's own Demo or Diagnostic booking link on
- * WhatsApp.
+ * the administrators (Notes, never the parent's) -- and every change to its
+ * bookings, oldest first, with who made it and why (History, backend
+ * bookings.timeline). The parent is called or messaged from here, and sent the
+ * BDE's own Demo or Diagnostic booking link on WhatsApp. A Demo sent for a
+ * Re-Demo may have its request closed while nothing is booked for it, and
+ * reopened.
  *
  * The URL keeps where the BDE is: `tab` (Overview when absent), `highlight`
  * (the booking a link opened the workspace for, on Bookings) and, for holders
@@ -90,7 +103,12 @@ export default function EnquiryPage({ user }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [cancelling, setCancelling] = useState(null);
   const [requestingRedemo, setRequestingRedemo] = useState(null);
+  // Closing or reopening a Demo's Re-Demo request: { mode: 'close' | 'reopen', booking }, kept while its dialog closes.
+  const [changingRedemo, setChangingRedemo] = useState(null);
+  const [redemoDialogOpen, setRedemoDialogOpen] = useState(false);
   const [changingTimezone, setChangingTimezone] = useState(false);
+  // Bumped by every change made here, so History reads the enquiry's bookings again.
+  const [historyKey, setHistoryKey] = useState(0);
   const [notice, setNotice] = useState(null);
   const canSeeCommunication = can(user, PERMISSIONS.viewOwnLeadCommunications);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
@@ -109,6 +127,7 @@ export default function EnquiryPage({ user }) {
     ...(canSeeCommunication ? [{ key: 'follow-ups', label: 'Follow-ups' }] : []),
     { key: 'sales', label: 'Sales & Payment' },
     { key: 'notes', label: 'Notes' },
+    { key: 'history', label: 'History' },
   ];
   const requested = searchParams.get('tab') || (openId && openType ? 'bookings' : 'overview');
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
@@ -128,11 +147,17 @@ export default function EnquiryPage({ user }) {
     setSearchParams(params, { replace: true });
   };
 
+  /** The enquiry as an action here answered it: its bookings, and so its History, as they now stand. */
+  const changedTo = (updated) => {
+    setEnquiry(updated);
+    setHistoryKey((key) => key + 1);
+  };
+
   /** The enquiry as it now stands, read in place -- after an action in a booking's communication sheet. */
   const refreshEnquiry = () => {
     api
       .get(enquiryUrl(enquiryId))
-      .then((response) => setEnquiry(response.data))
+      .then((response) => changedTo(response.data))
       .catch((err) => setFailure(enquiryError(err, 'Could not load this enquiry.')));
   };
 
@@ -149,6 +174,9 @@ export default function EnquiryPage({ user }) {
     }
     setSearchParams(params);
   };
+
+  // Read only while History is open; again after each change made here.
+  const history = useHistory(tab === 'history' ? bdeEnquiryHistoryUrl(enquiryId) : null, `${reloadKey}:${historyKey}`);
 
   useEffect(() => {
     let active = true;
@@ -210,6 +238,15 @@ export default function EnquiryPage({ user }) {
               onRequestRedemo={(booking) =>
                 setRequestingRedemo({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
               }
+              onCloseRedemo={(booking) => {
+                setChangingRedemo({ mode: 'close', booking });
+                setRedemoDialogOpen(true);
+              }}
+              onReopenRedemo={(booking) => {
+                setChangingRedemo({ mode: 'reopen', booking });
+                setRedemoDialogOpen(true);
+              }}
+              onShowBooking={showBooking}
             />
           </TabsContent>
 
@@ -222,7 +259,7 @@ export default function EnquiryPage({ user }) {
           {canSeeCommunication ? (
             <TabsContent value="follow-ups">
               {/* Opening one keeps the workspace's own way back. */}
-              <EnquiryFollowUps enquiryId={enquiry.id} from={location.state?.from ?? null} />
+              <EnquiryFollowUps enquiryId={enquiry.id} from={location.state?.from ?? null} onChanged={refreshEnquiry} />
             </TabsContent>
           ) : null}
           {/* Still to come: says so. */}
@@ -239,6 +276,13 @@ export default function EnquiryPage({ user }) {
           </TabsContent>
           <TabsContent value="notes">
             <EnquiryNotes enquiryId={enquiry.id} />
+          </TabsContent>
+          <TabsContent value="history">
+            <HistoryTimeline
+              state={history}
+              subtitle="Every change to this enquiry's bookings, oldest first, in Indian time (IST), with who made it"
+              emptyMessage="Nothing has happened to this enquiry's bookings yet."
+            />
           </TabsContent>
         </Tabs>
       </>
@@ -264,7 +308,7 @@ export default function EnquiryPage({ user }) {
         cancelUrl={(booking) => bdeBookingCancelUrl(booking.booking_type, booking.id)}
         onCancelled={(updated) => {
           // The API answers the enquiry as it now stands.
-          setEnquiry(updated);
+          changedTo(updated);
           setNotice(
             `Cancelled ${updated.student_name}'s ${bookingTypeLabel(cancelling.booking_type).toLowerCase()} on ${slotLabel(cancelling.slot)}.`
           );
@@ -279,10 +323,47 @@ export default function EnquiryPage({ user }) {
         requestUrl={requestingRedemo ? bdeRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
         onRequested={(updated) => {
           // The API answers the enquiry as it now stands.
-          setEnquiry(updated);
+          changedTo(updated);
           setNotice(
             `Asked for a Re-Demo of ${updated.student_name}'s demo on ${slotLabel(requestingRedemo.slot)}. An administrator schedules it; then tell the parent the date and time shown here.`
           );
+        }}
+      />
+      <RedemoCloseDialog
+        mode={changingRedemo?.mode ?? 'close'}
+        subject={
+          changingRedemo && enquiry ? `${enquiry.student_name} · Demo · ${slotLabel(changingRedemo.booking)}` : null
+        }
+        open={redemoDialogOpen && Boolean(changingRedemo)}
+        onOpenChange={setRedemoDialogOpen}
+        // Refused (an administrator scheduled it, or another change landed): show the enquiry as it is now.
+        onRefused={refreshEnquiry}
+        url={
+          changingRedemo
+            ? (changingRedemo.mode === 'reopen' ? bdeRedemoReopenUrl : bdeRedemoCloseUrl)(
+                changingRedemo.booking.booking_type,
+                changingRedemo.booking.id
+              )
+            : ''
+        }
+        onDone={(updated) => {
+          // The API answers the enquiry as it now stands.
+          const { changed, ...shown } = updated;
+          changedTo(shown);
+          const slot = slotLabel(changingRedemo.booking);
+          if (changingRedemo.mode === 'reopen') {
+            setNotice(
+              changed === false
+                ? `The Re-Demo request for ${shown.student_name}'s demo on ${slot} was already open.`
+                : `Reopened the Re-Demo request for ${shown.student_name}'s demo on ${slot}. An administrator schedules it; then tell the parent the date and time shown here.`
+            );
+          } else {
+            setNotice(
+              changed === false
+                ? `The Re-Demo request for ${shown.student_name}'s demo on ${slot} was already closed.`
+                : `Closed the Re-Demo request for ${shown.student_name}'s demo on ${slot}. The demo reads Completed again; reopen the request if the parent wants the Re-Demo after all.`
+            );
+          }
         }}
       />
       {canChangeTimezone && enquiry ? (
@@ -293,7 +374,7 @@ export default function EnquiryPage({ user }) {
           onOpenChange={setChangingTimezone}
           onSaved={(updated) => {
             // The API answers the enquiry as it now stands: every booking's Student Time follows.
-            setEnquiry(updated);
+            changedTo(updated);
             setNotice(
               updated.student_timezone
                 ? `${updated.student_name}'s timezone is now ${savedTimezoneLabel(updated.student_timezone)}.`

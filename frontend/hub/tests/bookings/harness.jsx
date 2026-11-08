@@ -13,6 +13,7 @@ import { createRoot } from 'react-dom/client';
 import { Navigate, RouterProvider, createMemoryRouter, useLocation } from 'react-router-dom';
 import BookingSlotsPage from '@/pages/BookingSlotsPage';
 import BookingsPage from '@/pages/BookingsPage';
+import BookingWorkspacePage from '@/pages/BookingWorkspacePage';
 import BdeBookingsPage from '@/pages/BdeBookingsPage';
 import TutorBookingsPage from '@/pages/TutorBookingsPage';
 import TutorBookingWorkspacePage from '@/pages/TutorBookingWorkspacePage';
@@ -35,6 +36,9 @@ export async function mount(path, user) {
       { path: '/bookings', element: <LegacyBookings /> },
       { path: '/bookings/demo', element: <BookingsPage key="DEMO" user={user} type="DEMO" /> },
       { path: '/bookings/diagnostic', element: <BookingsPage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" /> },
+      // An administrator's booking workspace, as App.jsx routes it: each booking a page of its own.
+      { path: '/bookings/demo/:bookingId', element: <BookingWorkspacePage key="DEMO" user={user} type="DEMO" /> },
+      { path: '/bookings/diagnostic/:bookingId', element: <BookingWorkspacePage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" /> },
       { path: '/my-bookings', element: <TutorBookingsPage /> },
       { path: '/my-bookings/demo', element: <TutorBookingsPage key="DEMO" type="DEMO" /> },
       { path: '/my-bookings/diagnostic', element: <TutorBookingsPage key="DIAGNOSTIC" type="DIAGNOSTIC" /> },

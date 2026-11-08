@@ -30,6 +30,8 @@ export const bookingHistoryUrl = (type, id) => `${bookingUrl(type, id)}history/`
 export const bookingRescheduleOptionsUrl = (type, id) => `${bookingUrl(type, id)}reschedule-options/`;
 export const bookingRescheduleUrl = (type, id) => `${bookingUrl(type, id)}reschedule/`;
 export const bookingCancelUrl = (type, id) => `${bookingUrl(type, id)}cancel/`;
+// The History of the booking's student, this booking's chain named (backend bookings.timeline).
+export const bookingStudentHistoryUrl = (type, id) => `${bookingHistoryUrl(type, id)}?scope=student`;
 // A Diagnostic's Demo invitation for its parent (backend bookings.demo_invites): the Admin's, and a BDE's for their own lead.
 export const bookingDemoInviteUrl = (type, id) => `${bookingUrl(type, id)}demo-invite/`;
 // Asking for a completed Demo to be taught again (backend bookings.redemos): the Admin's, and a BDE's for their own lead.
@@ -42,6 +44,11 @@ export const bdeBookingUrl = (type, id) => `/api/bde/bookings/${typePath(type)}/
 export const bdeBookingCancelUrl = (type, id) => `${bdeBookingUrl(type, id)}cancel/`;
 export const bdeDemoInviteUrl = (type, id) => `${bdeBookingUrl(type, id)}demo-invite/`;
 export const bdeRedemoUrl = (type, id) => `${bdeBookingUrl(type, id)}redemo/`;
+// Closing that request while nothing is booked for it, and reopening it (backend bookings.views).
+export const bdeRedemoCloseUrl = (type, id) => `${bdeRedemoUrl(type, id)}close/`;
+export const bdeRedemoReopenUrl = (type, id) => `${bdeRedemoUrl(type, id)}reopen/`;
+// The History of a BDE's own enquiry: every change to its bookings, with who and why (backend bookings.timeline).
+export const bdeEnquiryHistoryUrl = (id) => `/api/bde/enquiries/${id}/history/`;
 
 // Re-Demo requests for administrators (backend bookings/management_views.py, bookings/redemos.py): the
 // Demo Bookings page's Re-Demo tab (REDEMO_VIEW, below; REDEMO_TAB is the former single Bookings page's
@@ -54,12 +61,19 @@ export const redemoTutorsUrl = (id) => `${redemoUrl(id)}tutors/`;
 export const redemoSlotsUrl = (id) => `${redemoUrl(id)}slots/`;
 export const redemoScheduleUrl = (id) => `${redemoUrl(id)}schedule/`;
 export const redemoRemarksUrl = (id) => `${redemoUrl(id)}remarks/`;
+// Scheduling by time: every slot with how many tutors may teach it then, and one slot's tutors (?date=&time=).
+export const redemoTimesUrl = (id) => `${redemoUrl(id)}times/`;
+export const redemoSlotTutorsUrl = (id) => `${redemoUrl(id)}slot-tutors/`;
+// Closing a request while nothing is booked for it, and reopening it.
+export const redemoCloseUrl = (id) => `${redemoUrl(id)}close/`;
+export const redemoReopenUrl = (id) => `${redemoUrl(id)}reopen/`;
 
 // Where a Re-Demo request stands (backend models.ReDemoStatus, read from its rows by bookings.redemo_chain).
 export const REDEMO_STATUSES = [
   { value: 'AWAITING_SCHEDULING', label: 'Awaiting scheduling', variant: 'warning' },
   { value: 'SCHEDULED', label: 'Re-Demo scheduled', variant: 'success' },
   { value: 'COMPLETED', label: 'Re-Demo completed', variant: 'secondary' },
+  { value: 'CLOSED', label: 'Closed', variant: 'outline' },
 ];
 
 /** `{ label, variant }` for a Re-Demo request's status. */
@@ -67,10 +81,29 @@ export function redemoStatus(status) {
   return REDEMO_STATUSES.find((option) => option.value === status) ?? { label: status ?? '—', variant: 'outline' };
 }
 
-/** `value` if it is a Re-Demo status, else ''. */
+// The Re-Demo list's status chips: every request, the open ones with something to look at, then each status.
+export const REDEMO_ATTENTION = 'ATTENTION';
+export const REDEMO_STATUS_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'AWAITING_SCHEDULING', label: 'Awaiting scheduling' },
+  { value: REDEMO_ATTENTION, label: 'Needs attention' },
+  { value: 'SCHEDULED', label: 'Scheduled' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CLOSED', label: 'Closed' },
+];
+
+/** `value` if it is a Re-Demo status or Needs attention, else ''. */
 export function readRedemoStatus(value) {
-  return REDEMO_STATUSES.some((option) => option.value === value) ? value : '';
+  return REDEMO_STATUS_FILTERS.some((option) => option.value && option.value === value) ? value : '';
 }
+
+// Why a Re-Demo request was closed (backend models.RedemoCloseReason): a code, never free text.
+export const REDEMO_CLOSE_REASONS = [
+  { value: 'PARENT_DECLINED', label: 'Parent declined' },
+  { value: 'REQUESTED_BY_MISTAKE', label: 'Requested by mistake' },
+  { value: 'BOOKED_SEPARATELY', label: 'Booked separately' },
+  { value: 'OTHER', label: 'Other' },
+];
 
 // A Re-Demo reason is staff's own words (required), the remarks the administrators' (backend limits).
 export const REDEMO_REASON_MAX_LENGTH = 1000;
@@ -89,6 +122,21 @@ export const REDEMO_VIEW = 'redemo';
 /** One booking's workspace, the administrators' page for it in full: /bookings/<type>/<id>. */
 export function bookingPagePath(type, id) {
   return `${bookingsPagePath(type)}/${id}`;
+}
+
+/**
+ * One Re-Demo request's workspace (pages/RedemoWorkspacePage): /bookings/demo/redemos/<id>, opened on `tab`
+ * (overview, scheduling, history or attempts; Overview when left out).
+ */
+export function redemoPagePath(id, tab = '') {
+  return `${bookingsPagePath(DEFAULT_TYPE)}/redemos/${id}${tab ? `?tab=${tab}` : ''}`;
+}
+
+/** Demo Bookings' Re-Demo requests, the request `id` highlighted: where a request's workspace leads back to. */
+export function redemoListPath(id = '') {
+  const params = new URLSearchParams({ tab: REDEMO_VIEW });
+  if (id) params.set('highlight', id);
+  return `${bookingsPagePath(DEFAULT_TYPE)}?${params}`;
 }
 
 /**
@@ -132,9 +180,15 @@ export const BOOKING_STATUSES = [
   { value: 'COMPLETED', label: 'Completed' },
   // A completed Demo sent for a Re-Demo (backend bookings.redemos).
   { value: 'REDEMO_REQUIRED', label: 'Re-Demo required' },
+  // Not a status: the Demos booked as Re-Demos, whatever theirs (backend coordination.REDEMO_FILTER).
+  { value: 'REDEMO', label: 'Re-Demo bookings' },
   { value: 'RESCHEDULED', label: 'Rescheduled' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
+// The statuses only a Demo list offers: a Re-Demo is only ever a Demo's.
+export const DEMO_ONLY_STATUSES = new Set(['REDEMO_REQUIRED', 'REDEMO']);
+// A class that has been taught: its slot is usually over, so its list reads every date, not just the upcoming ones.
+export const TAUGHT_STATUSES = new Set(['COMPLETED', 'REDEMO_REQUIRED']);
 export const ASSIGNMENT_FILTERS = [
   { value: 'false', label: 'Needs a tutor' },
   { value: 'true', label: 'Tutor assigned' },
@@ -186,6 +240,8 @@ export const tutorBookingUrl = (type, id) => `${TUTOR_BOOKINGS_URL}${typePath(ty
 export const tutorBookingStartUrl = (type, id) => `${tutorBookingUrl(type, id)}start/`;
 // The notes staff keep on the booking's enquiry, shared with its BDE and the administrators (backend bookings.notes).
 export const tutorBookingNotesUrl = (type, id) => `${tutorBookingUrl(type, id)}notes/`;
+// Its History, and its chain's: what happened to it, with who and why (backend bookings.timeline).
+export const tutorBookingHistoryUrl = (type, id) => `${tutorBookingUrl(type, id)}history/`;
 
 /** "Start Demo" or "Start Diagnostic". */
 export function startLabel(type) {

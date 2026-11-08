@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 
-import { cancelReasonLabel, rescheduleReasonLabel } from './bookings';
+import { REDEMO_CLOSE_REASONS, cancelReasonLabel, rescheduleReasonLabel } from './bookings';
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
 import { reportFieldsText } from './reports';
@@ -82,6 +82,9 @@ export const ACTION_LABELS = {
   // Re-Demos (backend bookings.redemos): ids only, never the reason or the remarks.
   'redemo.request': 'Re-Demo requested',
   'redemo.remarks': 'Re-Demo remarks updated',
+  // Closed with nothing booked for it, for a reason code, and opened again.
+  'redemo.close': 'Re-Demo request closed',
+  'redemo.reopen': 'Re-Demo request reopened',
   // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
   'report.submit': 'Report submitted',
   'report.edit': 'Report edited',
@@ -369,6 +372,13 @@ export function describeActivity(row) {
       return 'Asked for a completed Demo to be taught again';
     case 'redemo.remarks':
       return row.context?.cleared ? "Cleared the Re-Demo's remarks" : "Updated the Re-Demo's remarks";
+    // A code from the list, never words (backend booking_service.close_redemo).
+    case 'redemo.close': {
+      const reason = REDEMO_CLOSE_REASONS.find((option) => option.value === row.context?.reason_code)?.label;
+      return reason ? `Closed a Re-Demo request — ${reason}` : 'Closed a Re-Demo request';
+    }
+    case 'redemo.reopen':
+      return 'Reopened a Re-Demo request';
     case 'booking.cancel': {
       // A reason code since P3; entries from before carry the text they were given.
       const reason = cancelReasonLabel(row.context?.reason_code) || reasonOf(row);

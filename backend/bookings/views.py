@@ -13,12 +13,14 @@ from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
-from . import bde_activity, coordination, enquiries, notes, student_timezones
-from .booking_service import BookingBusy, BookingError, cancel_booking, request_redemo, set_slots_closed
+from . import bde_activity, coordination, enquiries, notes, redemo_chain, student_timezones, timeline
+from .booking_service import (
+    BookingBusy, BookingError, cancel_booking, close_redemo, reopen_redemo, request_redemo, set_slots_closed,
+)
 from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
-from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, Lead, LeadNoteRole, SlotTime, booking_model
+from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, DemoBooking, Lead, LeadNoteRole, SlotTime, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
 from .serializers import (
@@ -26,6 +28,7 @@ from .serializers import (
     CancelSerializer,
     EnquiryCreateSerializer,
     LeadNoteSerializer,
+    RedemoCloseSerializer,
     RedemoRequestSerializer,
     SlotChangeSerializer,
     StudentTimezoneSerializer,
@@ -326,6 +329,8 @@ class BdeBookingsView(BdeWorkspaceView):
             raise NotFound()
         params = {name: request.query_params.get(name) for name in BDE_BOOKING_FILTERS if name in request.query_params}
         filters, invalid = coordination.parse_filters(params)
+        if filters.get('status') == coordination.REDEMO_FILTER and model is not DemoBooking:
+            invalid.append('status')
         if invalid:
             return _bde_error('INVALID_INPUT', 'Check the booking filters.', status.HTTP_400_BAD_REQUEST, fields=invalid)
         now = timezone.now()
@@ -510,6 +515,105 @@ class BdeRedemoView(BdeWorkspaceView):
         now = timezone.now()
         lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
         return Response(_enquiry(request, lead, now), status=status.HTTP_201_CREATED)
+
+
+class BdeRedemoCloseView(BdeWorkspaceView):
+    """
+    POST /api/bde/bookings/demo/<id>/redemo/close/ {"reason": <RedemoCloseReason>}
+    Close the Re-Demo request of a Demo of the caller's own lead, with nothing
+    booked for it (booking_service.close_redemo): the Demo reads Completed
+    again. Answers the enquiry in full with ``changed``. 400
+    VALIDATION_ERROR; 409 REDEMO_SCHEDULED or REDEMO_COMPLETED.
+
+    Ownership is enforced here and again under the lead's lock, as for asking
+    for one: another BDE's lead, one nobody owns, a Diagnostic, a Demo with no
+    request and one that does not exist are all 404 "No such booking". Needs
+    accounts.view_own_enquiries and accounts.create_demo_booking.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CREATE_DEMO_BOOKING)]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        booking = _own_demo(request, booking_type, pk)
+        redemo = redemo_chain.request_of(booking) if booking is not None else None
+        if redemo is None:
+            return _no_booking()
+        serializer = RedemoCloseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _bde_error('VALIDATION_ERROR', 'Choose why it is closed.', status.HTTP_400_BAD_REQUEST,
+                              fields=serializer.errors)
+        try:
+            _, changed = close_redemo(
+                redemo, serializer.validated_data['reason'], actor=request.user, owner_bde=request.user,
+            )
+        except BookingError as exc:
+            return _bde_error(exc.code, exc.message, exc.http_status)
+        return _enquiry_changed(request, booking, changed)
+
+
+class BdeRedemoReopenView(BdeWorkspaceView):
+    """
+    POST /api/bde/bookings/demo/<id>/redemo/reopen/
+    Open again the closed Re-Demo request of a Demo of the caller's own lead
+    (booking_service.reopen_redemo): the Demo is Re-Demo required once more
+    and an administrator schedules it. Answers the enquiry in full with
+    ``changed``. Ownership and permissions as for closing it.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CREATE_DEMO_BOOKING)]
+
+    def post(self, request, booking_type, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        booking = _own_demo(request, booking_type, pk)
+        redemo = redemo_chain.request_of(booking) if booking is not None else None
+        if redemo is None:
+            return _no_booking()
+        try:
+            _, changed = reopen_redemo(redemo, actor=request.user, owner_bde=request.user)
+        except BookingError as exc:
+            return _bde_error(exc.code, exc.message, exc.http_status)
+        return _enquiry_changed(request, booking, changed)
+
+
+def _enquiry_changed(request, booking, changed):
+    now = timezone.now()
+    lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=booking.lead_id), now).get()
+    return Response({**_enquiry(request, lead, now), 'changed': changed}, status=status.HTTP_200_OK)
+
+
+class BdeEnquiryHistoryView(BdeWorkspaceView):
+    """
+    GET /api/bde/enquiries/<id>/history/
+    The History of one of the caller's own enquiries (bookings.timeline):
+    every change to its bookings, oldest first, each with who made it -- staff
+    by name and role -- what changed and, for a cancellation, move, parent
+    non-confirmation or Re-Demo closure, its reason code. The parent's answers
+    are left out without accounts.view_own_lead_communications -- a
+    cancellation's "Parent did not confirm" reason included -- and report
+    edits without accounts.view_own_lead_reports. Another BDE's enquiry, one
+    nobody owns and one that does not exist are all 404.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
+
+    def get(self, request, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        lead = enquiries.own_leads(request.user).filter(pk=pk).first()
+        if lead is None:
+            return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
+        bookings = timeline.lead_bookings(lead)
+        show_communication = has_app_permission(request.user, VIEW_OWN_LEAD_COMMUNICATIONS, request)
+        events = timeline.visible(
+            timeline.events_of(bookings), timeline.BDE,
+            show_communication=show_communication,
+            show_reports=has_app_permission(request.user, VIEW_OWN_LEAD_REPORTS, request),
+        )
+        entries = timeline.rows(events, bookings, timeline.BDE, show_communication=show_communication)
+        return Response(timeline.payload(entries, bookings, timeline.BDE, lead=lead), status=status.HTTP_200_OK)
 
 
 def _own_demo(request, booking_type, pk):

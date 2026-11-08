@@ -29,7 +29,7 @@ from .leads import InvalidLeadDetails
 from .lifecycle import activity_state
 from .models import (
     BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, DemoBooking, Lead,
-    LeadSource, ReDemoStatus,
+    LeadSource, RedemoCloseReason, ReDemoStatus,
 )
 from .scheduling import BOOKING_TIMEZONE_NAME, indian_today
 
@@ -222,18 +222,23 @@ def _booking_entry(booking, now, can_cancel, show_confirmation, can_invite, zone
         **_teaching(booking),
         'parent_confirmation': booking.parent_confirmation if show_confirmation else None,
         # The Re-Demo it was sent for, or the one it was scheduled for (bookings.redemos).
-        'redemo': _redemo(redemo_state),
+        'redemo': _redemo(redemo_state, now, can_invite),
         'redemo_from': _redemo_from(booking),
-        'actions': _booking_actions(booking, now, can_cancel, can_invite),
+        # A Re-Demo still to come: the Demo messages' wording filled in, for the BDE to send by hand.
+        'parent_messages': _parent_messages(booking, now),
+        'actions': _booking_actions(booking, now, can_cancel, can_invite, redemo_state is not None),
     }
 
 
-def _redemo(redemo_state):
+def _redemo(redemo_state, now, can_manage=False):
     """
     A Demo's Re-Demo request as its owner BDE sees it: where it stands, why
     and by whom it was asked for, and the Demo an administrator scheduled for
-    it, with its tutor -- what the BDE tells the parent. Never the
-    administrators' remarks.
+    it, with its tutor and status -- what the BDE tells the parent -- and,
+    closed, when and why. Never the administrators' remarks. ``actions``: the
+    BDE may close it while nothing is booked for it, and reopen it, with
+    accounts.create_demo_booking (``can_manage``), the permission they ask
+    for one with.
     """
     if redemo_state is None:
         return None
@@ -247,8 +252,26 @@ def _redemo(redemo_state):
         'requested_by': {'full_name': redemo.requested_by.full_name or redemo.requested_by.email},
         'reason': redemo.reason,
         'tutor': {'full_name': tutor.full_name or tutor.email} if tutor is not None else None,
-        'booking': booking_brief(booking) if booking is not None else None,
+        'booking': {**booking_brief(booking), 'status': booking.status} if booking is not None else None,
+        'closed': {
+            'at': redemo.closed_at.isoformat(),
+            'reason': {'code': redemo.close_reason_code, 'label': RedemoCloseReason(redemo.close_reason_code).label},
+        } if redemo.closed_at else None,
+        'actions': {
+            'close': can_manage and redemo_state.status == ReDemoStatus.AWAITING_SCHEDULING,
+            'reopen': can_manage and redemo_state.status == ReDemoStatus.CLOSED,
+        },
     }
+
+
+def _parent_messages(booking, now):
+    """A Re-Demo's parent messages to send by hand (communications.redemo_messages), or None."""
+    if not getattr(booking, 'redemo_for_id', None):
+        return None
+    # The communications app reads bookings; imported here so neither loads the other first.
+    from communications.redemo_messages import redemo_messages
+
+    return redemo_messages(booking, now)
 
 
 def _redemo_from(booking):
@@ -272,14 +295,18 @@ def _teaching(booking):
     return {'tutor': {'full_name': tutor.full_name or tutor.username}, 'tutor_meet_link': booking.tutor_meet_link}
 
 
-def _booking_actions(booking, now, can_cancel, can_invite=False):
+def _booking_actions(booking, now, can_cancel, can_invite=False, has_redemo=False):
     cancel = can_cancel and booking.status == BookingStatus.BOOKED
     return {
         'cancel': cancel,
         'no_show': cancel and booking.slot.starts_at <= now,
         'demo_invite': can_invite and invitable(booking, now),
         # A completed Demo of their own lead, to be taught again: an administrator then schedules it.
-        'request_redemo': can_invite and isinstance(booking, DemoBooking) and booking.status == BookingStatus.COMPLETED,
+        # Once per Demo: one whose request was closed is reopened instead (``redemo.actions``).
+        'request_redemo': (
+            can_invite and isinstance(booking, DemoBooking) and booking.status == BookingStatus.COMPLETED
+            and not has_redemo
+        ),
     }
 
 
