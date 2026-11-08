@@ -14,7 +14,6 @@ import {
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import {
-  REDEMO_VIEW,
   bookingDemoInviteUrl,
   bookingError,
   bookingPagePath,
@@ -24,6 +23,7 @@ import {
   bookingsPagePath,
   cancelReasonLabel,
   conducted,
+  redemoPagePath,
   tutorChangeable,
 } from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, slotLabel } from '@/lib/enquiries';
@@ -191,13 +191,9 @@ export default function BookingWorkspacePage({ user, type }) {
 
   // Another booking of the chain or the child's, in its own workspace, with the same way back.
   const openBooking = (id, bookingType = type) => navigate(bookingPagePath(bookingType, id), { state: location.state });
-  // A Re-Demo request, on Demo Bookings' Re-Demo tab: this student's requests only, the request open and
-  // highlighted, and the way back to this booking (?schedule=1: straight into scheduling it).
+  // A Re-Demo request, in its own workspace, with the way back to this booking (`schedule`: on its Scheduling tab).
   const openRedemo = (id, { schedule = false } = {}) => {
-    const params = new URLSearchParams({ tab: REDEMO_VIEW, redemo: id });
-    if (shown?.lead?.id) params.set('lead', shown.lead.id);
-    if (schedule) params.set('schedule', '1');
-    navigate(`${bookingsPagePath('DEMO')}?${params}`, {
+    navigate(redemoPagePath(id, schedule ? 'scheduling' : ''), {
       state: { from: { to: `${location.pathname}${location.search}`, label: `${shown?.student_name ?? 'The'}'s booking` } },
     });
   };

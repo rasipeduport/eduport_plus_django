@@ -60,18 +60,25 @@ const THIS = 'this';
  * A student's History (lib/history), oldest first, as a timeline: each change
  * with when (IST), who and what changed. With `chain_ids` -- opened from one
  * booking's workspace -- it starts on "This booking" (that booking and the
- * ones it replaced) with All bookings a choice away; the filter also lists
- * each of the student's bookings. `state` is useHistory's.
+ * ones it replaced) with All bookings a choice away -- or, `allByDefault`
+ * (a Re-Demo request's, spanning several bookings), on All bookings; the
+ * filter also lists each of the student's bookings. `state` is useHistory's.
  */
-export function HistoryTimeline({ state, title = 'History', subtitle, emptyMessage = 'Nothing has happened yet.' }) {
+export function HistoryTimeline({
+  state,
+  title = 'History',
+  subtitle,
+  emptyMessage = 'Nothing has happened yet.',
+  allByDefault = false,
+}) {
   const { data, failure, retry } = state;
   const chain = data?.chain_ids ?? [];
   // '' is every booking of the student; THIS the opened booking's chain; else one booking's id.
-  const [scope, setScope] = useState(chain.length ? THIS : '');
+  const [scope, setScope] = useState(chain.length && !allByDefault ? THIS : '');
   const [prevBooking, setPrevBooking] = useState(data?.booking_id ?? null);
   if ((data?.booking_id ?? null) !== prevBooking) {
     setPrevBooking(data?.booking_id ?? null);
-    setScope(data?.chain_ids?.length ? THIS : '');
+    setScope(data?.chain_ids?.length && !allByDefault ? THIS : '');
   }
 
   let body;

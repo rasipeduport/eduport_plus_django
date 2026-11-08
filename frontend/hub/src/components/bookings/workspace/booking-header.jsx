@@ -174,8 +174,8 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
  * (BookingDetails); WhatsApp and `actions` (the booking's own, which the
  * workspace offers only as its state and the caller's permissions allow) on
  * the right; then what has happened to the booking (Notes). A booking of its
- * chain opens in its own workspace (`onOpenBooking(id)`), a Re-Demo request
- * on Demo Bookings' Re-Demo tab (`onOpenRedemo(id)`).
+ * chain opens in its own workspace (`onOpenBooking(id)`), and so does a
+ * Re-Demo request (`onOpenRedemo(id)`).
  */
 export function BookingHeader({ booking, actions, onOpenBooking, onOpenRedemo }) {
   const lead = booking.lead ?? {};

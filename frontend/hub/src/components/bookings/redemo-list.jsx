@@ -87,8 +87,9 @@ const requester = (redemo) =>
  * the original Demo and the Re-Demo booked for it (Indian time with the
  * student's beside it, the tutor and the parent's answer), where it stands
  * with anything to look at, and its one action -- Schedule while it waits
- * (`onSchedule`, with accounts.assign_booking_tutor), else Open (`onOpen`,
- * the side sheet). `highlightedId` marks the request a link opened. A table
+ * (`onSchedule`, with accounts.assign_booking_tutor), else Open (`onOpen`) --
+ * each into the request's workspace. `highlightedId` marks the request last
+ * opened, or the one a link named. A table
  * where it fits, a card per request on a phone or a narrow screen.
  */
 export function RedemoList({

@@ -125,6 +125,21 @@ export function bookingPagePath(type, id) {
 }
 
 /**
+ * One Re-Demo request's workspace (pages/RedemoWorkspacePage): /bookings/demo/redemos/<id>, opened on `tab`
+ * (overview, scheduling, history or attempts; Overview when left out).
+ */
+export function redemoPagePath(id, tab = '') {
+  return `${bookingsPagePath(DEFAULT_TYPE)}/redemos/${id}${tab ? `?tab=${tab}` : ''}`;
+}
+
+/** Demo Bookings' Re-Demo requests, the request `id` highlighted: where a request's workspace leads back to. */
+export function redemoListPath(id = '') {
+  const params = new URLSearchParams({ tab: REDEMO_VIEW });
+  if (id) params.set('highlight', id);
+  return `${bookingsPagePath(DEFAULT_TYPE)}?${params}`;
+}
+
+/**
  * Where a link to the former single Bookings page (/bookings?type=<TYPE>&...)
  * leads now: its type's page -- Demo unless it said Diagnostic -- or Demo's
  * Re-Demo tab for type=REDEMO, with every other parameter kept.

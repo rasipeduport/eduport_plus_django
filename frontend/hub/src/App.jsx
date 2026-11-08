@@ -17,6 +17,7 @@ import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
 import BookingWorkspacePage from './pages/BookingWorkspacePage';
+import RedemoWorkspacePage from './pages/RedemoWorkspacePage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
 import TutorBookingWorkspacePage from './pages/TutorBookingWorkspacePage';
 import TutorMainDashboardPage from './pages/TutorMainDashboardPage';
@@ -145,6 +146,12 @@ function HubRoutes({ user, logout }) {
         <Route
           path="/bookings/demo/:bookingId"
           element={page('/bookings/demo', <BookingWorkspacePage key="DEMO" user={user} type="DEMO" />)}
+        />
+        {/* One Re-Demo request in full, its workspace: opened from Demo Bookings' Re-Demo requests or a
+            booking's workspace (a former ?tab=redemo&redemo=<id> link lands here too), on the same permission. */}
+        <Route
+          path="/bookings/demo/redemos/:redemoId"
+          element={page('/bookings/demo', <RedemoWorkspacePage user={user} />)}
         />
         <Route
           path="/bookings/diagnostic/:bookingId"
