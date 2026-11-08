@@ -13,14 +13,13 @@ import {
 } from 'lucide-react';
 
 import api from '@/lib/api';
-import { PERMISSIONS, can, canOpenPage } from '@/lib/access';
+import { PERMISSIONS, can } from '@/lib/access';
 import {
   REDEMO_VIEW,
   bookingDemoInviteUrl,
   bookingError,
   bookingPagePath,
   bookingRedemoUrl,
-  bookingTutorUrl,
   bookingUrl,
   bookingsPagePath,
   cancelReasonLabel,
@@ -30,7 +29,6 @@ import {
 import { bookingTypeLabel, enquiryError, slotLabel } from '@/lib/enquiries';
 import { leadNotesUrl, leadUrl } from '@/lib/leads';
 import { useBookingCommunication } from '@/hooks/use-booking-communication';
-import { FormDialog } from '@/components/form-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,12 +37,11 @@ import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
 import { BookingEvents, useBookingHistory } from '@/components/bookings/booking-history';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { DemoInviteButton } from '@/components/bookings/demo-invite-button';
-import { MeetLinkDialog } from '@/components/bookings/meet-link-dialog';
 import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
 import { RescheduleBookingDialog } from '@/components/bookings/reschedule-booking-dialog';
 import { BookingHeader } from '@/components/bookings/workspace/booking-header';
 import { BookingOverview } from '@/components/bookings/workspace/booking-overview';
-import { BookingTutor } from '@/components/bookings/workspace/booking-tutor';
+import { BookingsTab } from '@/components/bookings/workspace/bookings-tab';
 import { CommunicationSection } from '@/components/communications/communication-section';
 import { LeadNotes } from '@/components/notes/lead-notes';
 import { EmptyState, Page } from '@/components/page/page';
@@ -78,10 +75,14 @@ function WorkspaceSkeleton() {
  *                   booking's own facts -- its slot in IST, where it stands,
  *                   its start, seat, how it came in, any move, cancellation
  *                   or Re-Demo -- head the page, in BookingHeader)
- *   Tutor           its tutor, Meet link and assignment, who is free for its
- *                   slot, and the assignment's history
- *   Communication   the parent's confirmation, the communication steps and
- *                   every message (accounts.view_all_communications)
+ *   Bookings        every Demo and Diagnostic booking made for the child, as
+ *                   a BDE's enquiry lists them -- when, type, status, the
+ *                   parent's confirmation, the tutor and Meet link, when
+ *                   booked -- this one highlighted (accounts.view_all_leads)
+ *   Communication   the parent's confirmation, the communication workflow
+ *                   and every message, call and task, as the BDE's
+ *                   communication sheet lays them out, to read only
+ *                   (accounts.view_all_communications)
  *   Notes           the enquiry's notes, shared with its BDE and its tutors
  *                   (bookings.LeadNote, accounts.view_all_leads)
  *   Tutor Feedback  its report, read-only, with its PDF and every version
@@ -102,11 +103,8 @@ export default function BookingWorkspacePage({ user, type }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const canAssign = can(user, PERMISSIONS.assignBookingTutor);
-  // A tutor's permanent Meet link belongs to their account: team managers set it (backend accounts.team).
-  const canEditMeetLink = can(user, PERMISSIONS.manageTeam);
   const canViewCommunication = can(user, PERMISSIONS.viewAllCommunications);
   const canViewLead = can(user, PERMISSIONS.viewAllLeads);
-  const canOpenTeam = canOpenPage(user, '/team');
   const back = location.state?.from ?? { to: bookingsPagePath(type), label: LISTS[type] };
 
   const [booking, setBooking] = useState(null);
@@ -116,10 +114,6 @@ export default function BookingWorkspacePage({ user, type }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [notice, setNotice] = useState(null);
   const [assigning, setAssigning] = useState(null);
-  const [unassignOpen, setUnassignOpen] = useState(false);
-  const [unassignError, setUnassignError] = useState(null);
-  const [unassigning, setUnassigning] = useState(false);
-  const [meetLinkOpen, setMeetLinkOpen] = useState(false);
   const [cancelling, setCancelling] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
   const [requestingRedemo, setRequestingRedemo] = useState(null);
@@ -175,7 +169,7 @@ export default function BookingWorkspacePage({ user, type }) {
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
-    { key: 'tutor', label: 'Tutor & Assignment' },
+    { key: 'bookings', label: 'Bookings' },
     ...(canViewCommunication ? [{ key: 'communication', label: 'Communication' }] : []),
     ...(canViewLead ? [{ key: 'notes', label: 'Notes' }] : []),
     { key: 'feedback', label: 'Tutor Feedback' },
@@ -194,21 +188,6 @@ export default function BookingWorkspacePage({ user, type }) {
   const openBooking = (id, bookingType = type) => navigate(bookingPagePath(bookingType, id), { state: location.state });
   const openRedemo = (id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ tab: REDEMO_VIEW, redemo: id })}`);
   const typeOf = (entry) => bookingTypeLabel(entry.booking_type).toLowerCase();
-
-  async function unassign() {
-    setUnassigning(true);
-    setUnassignError(null);
-    try {
-      const response = await api.delete(bookingTutorUrl(type, bookingId));
-      setBooking(response.data);
-      setUnassignOpen(false);
-      changed(`Unassigned the tutor from ${response.data.student_name}'s booking.`);
-    } catch (err) {
-      setUnassignError(bookingError(err, 'Could not unassign the tutor.').message);
-    } finally {
-      setUnassigning(false);
-    }
-  }
 
   // A move answers the replacement booking, opened next (Q24: whether the tutor came too).
   const moved = ({ booking: replacement, tutor }) => {
@@ -308,24 +287,21 @@ export default function BookingWorkspacePage({ user, type }) {
             />
           </TabsContent>
 
-          <TabsContent value="tutor">
-            <BookingTutor
+          <TabsContent value="bookings">
+            {/* To read only: the booking's tutor is given or changed from the header. */}
+            <BookingsTab
               booking={shown}
-              history={history}
-              reloadKey={reloadKey}
-              canAssign={canAssign}
-              canEditMeetLink={canEditMeetLink}
-              canOpenTeam={canOpenTeam}
-              onAssign={() => setAssigning(shown)}
-              onUnassign={() => setUnassignOpen(true)}
-              onEditMeetLink={() => setMeetLinkOpen(true)}
+              lead={shownLead}
+              leadFailure={leadFailure}
+              onRetryLead={reload}
+              showLead={canViewLead}
+              showConfirmation={canViewCommunication}
             />
           </TabsContent>
 
           {canViewCommunication ? (
             <TabsContent value="communication">
-              {/* The parent's answer may cancel the booking: everything is read again. */}
-              <CommunicationSection state={communication} onChanged={reload} />
+              <CommunicationSection state={communication} />
             </TabsContent>
           ) : null}
 
@@ -390,37 +366,6 @@ export default function BookingWorkspacePage({ user, type }) {
             if (!open) setAssigning(null);
           }}
           onAssigned={(updated) => changed(`${updated.tutor?.full_name} now teaches ${updated.student_name}'s ${typeOf(updated)}.`)}
-        />
-      ) : null}
-
-      <FormDialog
-        open={unassignOpen}
-        onOpenChange={(next) => {
-          setUnassignOpen(next);
-          if (!next) setUnassignError(null);
-        }}
-        title="Unassign tutor"
-        description={
-          shown?.tutor
-            ? `${shown.tutor.full_name} will no longer teach ${shown.student_name}'s booking. You can assign a tutor again later.`
-            : null
-        }
-        error={unassignError}
-        onConfirm={unassign}
-        confirmLabel="Unassign"
-        pendingLabel="Unassigning…"
-        confirmVariant="destructive"
-        pending={unassigning}
-      />
-
-      {canEditMeetLink && shown?.tutor ? (
-        <MeetLinkDialog
-          tutor={shown.tutor}
-          link={shown.tutor_meet_link}
-          open={meetLinkOpen}
-          onOpenChange={setMeetLinkOpen}
-          // The booking took the tutor's new link (backend set_tutor_meet_link): read it again.
-          onSaved={reload}
         />
       ) : null}
 

@@ -22,7 +22,7 @@ const MIN_TABLE_WIDTH = 1150;
  * API shows them for a booked or completed booking only, and the BDE changes
  * neither: an administrator sets the tutor and the tutor's link.
  */
-function Teaching({ booking }) {
+export function Teaching({ booking }) {
   if (!booking.tutor) {
     return booking.status === 'BOOKED' && !booking.ended ? (
       <span className="text-muted-foreground">Not assigned yet</span>
@@ -57,7 +57,7 @@ function RedemoLine({ redemo }) {
 }
 
 /** Where the booking stands as a class, read-only: only its tutor starts it, never its scheduled time. */
-function BookingStatus({ booking }) {
+export function BookingStatus({ booking }) {
   const state = bookingState(booking);
   return (
     <div className="flex flex-col items-start gap-1">
