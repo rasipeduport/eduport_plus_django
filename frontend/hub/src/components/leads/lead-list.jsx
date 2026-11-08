@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronRightIcon, InboxIcon, SearchXIcon, XIcon } from 'lucide-react';
+import { ChevronRightIcon, InboxIcon, SearchXIcon, UserRoundPlusIcon, XIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/page/page';
@@ -74,11 +74,12 @@ function Owner({ lead, onAssign }) {
       )}
       {onAssign ? (
         <Button
-          variant={lead.owner ? 'ghost' : 'outline'}
+          variant="outline"
           size="sm"
           onClick={() => onAssign(lead)}
           aria-label={`${lead.owner ? 'Reassign' : 'Assign'} the lead for ${lead.student_name}`}
         >
+          <UserRoundPlusIcon />
           {lead.owner ? 'Reassign' : 'Assign'}
         </Button>
       ) : null}

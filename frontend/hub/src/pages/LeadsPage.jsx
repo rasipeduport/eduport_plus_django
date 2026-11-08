@@ -156,7 +156,13 @@ export default function LeadsPage({ user }) {
         description="Every lead from the booking pages, the website, the landing page and manual entry, and the BDE who owns it."
         actions={
           canAdd ? (
-            <Button onClick={() => setAddOpen(true)}>
+            // Neutral, not blue: white with a subtle border on the light page,
+            // white with the page's dark text on the dark one.
+            <Button
+              variant="outline"
+              className="bg-card dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 dark:hover:text-background"
+              onClick={() => setAddOpen(true)}
+            >
               <PlusIcon />
               Add Lead
             </Button>
