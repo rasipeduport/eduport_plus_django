@@ -4,7 +4,7 @@ administrators' Leads API (bookings.lead_admin), giving a lead to a BDE
 (bookings.ownership) and the status every lead shows (bookings.lead_status).
 """
 import uuid
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from unittest import mock
 
 from django.core.cache import cache
@@ -315,8 +315,28 @@ class AdminLeadListTests(AdminLeadsTestCase):
         Lead.objects.filter(pk=self.landing.pk).update(parent_email='parent@land.example')
         self.assertEqual(self.ids(self.client.get(LEADS, {'q': 'land.example'})), [str(self.landing.id)])
 
+    def test_the_dates_a_lead_came_in_on_are_indian_dates(self):
+        today = timezone.now().astimezone(BOOKING_TIMEZONE).date()
+        midnight = datetime.combine(today, time.min, tzinfo=BOOKING_TIMEZONE)
+        # Just before midnight in India came in yesterday; just after, today -- whatever the server's zone.
+        Lead.objects.filter(pk=self.website.pk).update(created_at=midnight - timedelta(minutes=5))
+        Lead.objects.filter(pk=self.landing.pk).update(created_at=midnight + timedelta(minutes=5))
+        Lead.objects.exclude(pk__in=[self.website.pk, self.landing.pk]).update(created_at=midnight - timedelta(days=9))
+        yesterday, iso = (today - timedelta(days=1)).isoformat(), today.isoformat()
+        cases = [
+            ({'from': iso, 'to': iso}, [self.landing]),
+            ({'from': yesterday, 'to': yesterday}, [self.website]),
+            ({'from': yesterday}, [self.website, self.landing]),
+            ({'to': yesterday, 'source': 'WEBSITE'}, [self.website]),
+            ({'to': (today - timedelta(days=9)).isoformat()}, [self.from_link, self.unlinked, self.by_hand]),
+        ]
+        for params, expected in cases:
+            with self.subTest(params=params):
+                self.assertEqual(set(self.ids(self.client.get(LEADS, params))), {str(each.id) for each in expected})
+
     def test_unknown_filters_are_refused(self):
-        for params in ({'status': 'DONE'}, {'source': 'SALESFORCE'}, {'owner': 'someone'}):
+        for params in ({'status': 'DONE'}, {'source': 'SALESFORCE'}, {'owner': 'someone'}, {'from': '08-11-2026'},
+                       {'to': '2026-02-30'}, {'from': '2026-11-08', 'to': '2026-11-01'}):
             with self.subTest(params=params):
                 res = self.client.get(LEADS, params)
                 self.assertEqual((res.status_code, res.json()['error']), (400, 'INVALID_INPUT'))

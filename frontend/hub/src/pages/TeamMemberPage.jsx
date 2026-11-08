@@ -10,6 +10,7 @@ import { MemberActivityTab } from '@/components/team/member-activity-tab';
 import { MemberBadges } from '@/components/team/member-badges';
 import { MemberDetailsForm } from '@/components/team/member-details-form';
 import { MemberStatusDialog } from '@/components/team/member-status-dialog';
+import { Page } from '@/components/page/page';
 import { getInitials } from '@/lib/utils';
 import {
   TEAM_PERMISSIONS_URL,
@@ -132,8 +133,8 @@ export default function TeamMemberPage({ user }) {
     let message = failure.message;
     if (failure.status === 404) message = 'This staff account does not exist.';
     return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="rounded-xl border px-6 py-12 text-center">
+      <Page>
+        <div className="bg-card rounded-xl border px-6 py-12 text-center">
           <p className="text-sm">{message}</p>
           <div className="mt-4 flex justify-center gap-2">
             {failure.status !== 404 && failure.status !== 403 ? (
@@ -146,7 +147,7 @@ export default function TeamMemberPage({ user }) {
             </Button>
           </div>
         </div>
-      </div>
+      </Page>
     );
   }
 
@@ -154,7 +155,7 @@ export default function TeamMemberPage({ user }) {
   const restriction = canManage ? changeRestriction(user, shown) : READ_ONLY_VIEWER;
 
   return (
-    <div className="container mx-auto flex flex-col gap-6 px-4 py-16">
+    <Page>
       <div className="flex flex-col gap-4">
         <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2 w-fit" asChild>
           <Link to="/team">
@@ -169,7 +170,7 @@ export default function TeamMemberPage({ user }) {
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-xl font-semibold">{name}</h1>
+              <h1 className="truncate text-2xl font-semibold tracking-tight">{name}</h1>
               <MemberBadges member={shown} viewer={user} detailed={canManage} withRole={false} />
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -244,6 +245,6 @@ export default function TeamMemberPage({ user }) {
           onDone={handleStatusChanged}
         />
       ) : null}
-    </div>
+    </Page>
   );
 }

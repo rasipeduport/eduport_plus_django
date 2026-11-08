@@ -8,6 +8,7 @@
  */
 const breadcrumbConfig = {
   '/dashboard': [{ label: 'Dashboard' }],
+  '/academics-dashboard': [{ label: 'Academics Dashboard' }],
   '/students': [{ label: 'Students' }],
   '/sessions': [{ label: 'Sessions' }],
   '/exams': [{ label: 'Exams' }],
@@ -20,8 +21,18 @@ const breadcrumbConfig = {
   '/sales': [{ label: 'My Sales' }],
   '/plans': [{ label: 'Plans & Pricing' }],
   '/leads': [{ label: 'Leads' }],
+  '/admissions': [{ label: 'Admissions Dashboard' }],
   '/bookings': [{ label: 'Bookings' }],
+  '/bookings/demo': [{ label: 'Demo Bookings' }],
+  '/bookings/diagnostic': [{ label: 'Diagnostic Bookings' }],
+  '/booking-slots': [{ label: 'Booking Slots' }],
   '/my-bookings': [{ label: 'My Bookings' }],
+  '/team': [{ label: 'Team' }],
+  '/sales-dashboard': [{ label: 'Sales Dashboard' }],
+  '/sales-module': [{ label: 'Sales Module' }],
+  '/sales-punching': [{ label: 'Sales Punching' }],
+  '/sales-syllabus': [{ label: 'Sales Syllabus' }],
+  '/tutor-earnings': [{ label: 'Tutor Earnings' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
   // heading (the activity log's, or a BDE's Activity), so the crumb only repeated it.
 };
@@ -35,6 +46,11 @@ const breadcrumbPatterns = [
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
   { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
   { pattern: /^\/leads\/[^/]+$/, trail: [{ label: 'Leads', href: '/leads' }, { label: 'Lead' }] },
+  { pattern: /^\/bookings\/demo\/[^/]+$/, trail: [{ label: 'Demo Bookings', href: '/bookings/demo' }, { label: 'Booking' }] },
+  {
+    pattern: /^\/bookings\/diagnostic\/[^/]+$/,
+    trail: [{ label: 'Diagnostic Bookings', href: '/bookings/diagnostic' }, { label: 'Booking' }],
+  },
   {
     pattern: /^\/my-bookings\/(demo|diagnostic)\/[^/]+\/report$/,
     trail: [{ label: 'My Bookings', href: '/my-bookings' }, { label: 'Report' }],

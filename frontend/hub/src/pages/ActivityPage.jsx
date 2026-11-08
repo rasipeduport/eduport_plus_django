@@ -3,8 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
+import { usesRefreshedDesign } from '@/lib/design';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ActivityFeed } from '@/components/activity/activity-feed';
+import { ActivityLog } from '@/components/activity/activity-log';
+import { Page, PageHeader } from '@/components/page/page';
+import { ErrorState } from '@/components/page/states';
 
 const PAGE_SIZE = 25;
 const FEED_ROWS = Array.from({ length: 10 }, (_, i) => i);
@@ -25,6 +29,9 @@ function FeedSkeleton() {
 
 // The caller's permissions only decide the copy and which filters are
 // offered: the API already returns each caller their own slice of the log.
+// An account on the refreshed design (lib/design: the Admin's) gets the log
+// redesigned (components/activity/activity-log); every other role keeps the
+// current page until its own redesign.
 export default function ActivityPage({ user }) {
   const isAdmin = can(user, PERMISSIONS.viewAllActivity);
   const [searchParams] = useSearchParams();
@@ -77,15 +84,45 @@ export default function ActivityPage({ user }) {
     };
   }, [page, action, entity, actor, q, from, to]);
 
+  const description = isAdmin
+    ? 'A record of who changed what across students, sessions, invitations, and users.'
+    : 'A record of your activity across students, sessions, and interactions.';
+
+  if (usesRefreshedDesign(user)) {
+    return (
+      <Page>
+        <PageHeader
+          title="Activity Log"
+          description={
+            isAdmin
+              ? 'Who changed what across admissions, students, sessions, invitations and staff accounts.'
+              : description
+          }
+        />
+        {error ? <ErrorState message={error} /> : null}
+        {loading ? (
+          <FeedSkeleton />
+        ) : (
+          <ActivityLog
+            rows={data.results ?? []}
+            total={data.count ?? 0}
+            page={page}
+            pageSize={PAGE_SIZE}
+            actorOptions={data.actor_options ?? []}
+            filters={{ q, action, entity, actor, from, to }}
+            pending={pending}
+            canFilterByActor={can(user, PERMISSIONS.viewActivityActors)}
+          />
+        )}
+      </Page>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-16">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Activity log</h1>
-        <p className="text-muted-foreground text-sm">
-          {isAdmin
-            ? 'A record of who changed what across students, sessions, invitations, and users.'
-            : 'A record of your activity across students, sessions, and interactions.'}
-        </p>
+        <p className="text-muted-foreground text-sm">{description}</p>
       </div>
 
       {error && <p className="text-destructive mb-4 text-sm">{error}</p>}

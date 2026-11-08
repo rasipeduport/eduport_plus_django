@@ -3,9 +3,10 @@
 // role's ceiling; superusers hold every one). One place for the No Access
 // gate, the route guards, the sidebar and every in-page action, so they can
 // never disagree. The API enforces the same permissions on every request; this
-// only decides what the Hub offers. Only the BDE workspace and a tutor's My
-// Bookings read the role as well (see canOpenPage, isBde and isTutor): an
-// account holding no permission gets no pages at all, whatever its role.
+// only decides what the Hub offers. Only the BDE workspace, a tutor's My
+// Bookings and the Admin Hub's modules still to come read the role as well
+// (see canOpenPage, isBde, isTutor and isAdmin): an account holding no
+// permission gets no pages at all, whatever its role.
 // What the sidebar lists is lib/navigation's, filtered through canOpenPage.
 
 export const PERMISSIONS = {
@@ -95,6 +96,9 @@ export const PAGE_PERMISSIONS = {
   // The staff dashboard, or a BDE's own (App.jsx picks by isBde). A BDE's
   // booking links are shared from it, so holding them opens it too.
   '/dashboard': [P.viewStaffDashboard, P.viewOwnEnquiries, P.viewOwnBookingLinks],
+  // The staff dashboard under its Admin Hub name, Academics Dashboard (administrators only:
+  // the Admin Hub's /dashboard is its common dashboard, still to come).
+  '/academics-dashboard': [P.viewStaffDashboard],
   '/students': STUDENT_VIEW,
   '/sessions': SESSION_VIEW,
   '/exams': EXAM_VIEW,
@@ -106,8 +110,13 @@ export const PAGE_PERMISSIONS = {
   '/activity': [...ACTIVITY_VIEW, P.viewOwnEnquiries],
   // Every lead, whatever brought it in, and the BDE who owns it, for administrators.
   '/leads': [P.viewAllLeads],
-  // Every Demo and Diagnostic booking and the tutor teaching it, for administrators.
+  // The admissions pipeline at a glance -- leads, bookings and what awaits action -- for administrators.
+  '/admissions': [P.viewAllLeads],
+  // Every Demo and Diagnostic booking and the tutor teaching it, for administrators:
+  // a page per type (/bookings itself sends to Demo).
   '/bookings': [P.viewAllBookings],
+  '/bookings/demo': [P.viewAllBookings],
+  '/bookings/diagnostic': [P.viewAllBookings],
   // The Demo and Diagnostic slots parents book, for administrators.
   '/booking-slots': [P.manageBookingSlots],
   // The Demo and Diagnostic bookings a tutor is assigned to teach, their own only.
@@ -123,11 +132,30 @@ export const PAGE_PERMISSIONS = {
   '/follow-ups': [P.viewOwnLeadCommunications],
   '/sales': [P.viewOwnEnquiries],
   '/plans': [P.viewOwnEnquiries],
+  // The Admin Hub's Sales & Finance modules, still to come: each a Coming Soon
+  // page with nothing behind it yet, for whoever holds the staff dashboard.
+  '/sales-dashboard': [P.viewStaffDashboard],
+  '/sales-module': [P.viewStaffDashboard],
+  '/sales-punching': [P.viewStaffDashboard],
+  '/sales-syllabus': [P.viewStaffDashboard],
+  '/tutor-earnings': [P.viewStaffDashboard],
 };
 
 // Pages for BDE accounts only. A superuser holds their permissions too (D1)
 // but owns no links or enquiries, so these pages read the role as well.
 const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
+
+// Pages for administrators only: the Admin Hub's Academics Dashboard and its
+// modules still to come. A mentor or tutor holds view_staff_dashboard too, so
+// these read the role as well.
+const ADMIN_PAGES = new Set([
+  '/academics-dashboard',
+  '/sales-dashboard',
+  '/sales-module',
+  '/sales-punching',
+  '/sales-syllabus',
+  '/tutor-earnings',
+]);
 
 // Pages for tutors only. A superuser holds accounts.view_assigned_bookings too
 // (D1) but is assigned no booking unless they are a tutor, so My Bookings reads
@@ -144,6 +172,11 @@ export function isTutor(user) {
   return user?.role === 'TUTOR';
 }
 
+/** Whether `user` is an administrator: the Hub then offers the Admin Hub's workspace. */
+export function isAdmin(user) {
+  return user?.role === 'ADMIN';
+}
+
 /** Whether the student action menu (components/students/action-cell) offers `user` anything. */
 export function hasStudentActions(user) {
   return canAny(user, [P.changeStudentDetails, P.reassignStudentStaff, P.purgeStudent, ...SESSION_VIEW, ...EXAM_VIEW]);
@@ -153,6 +186,7 @@ export function hasStudentActions(user) {
 export function canOpenPage(user, path) {
   if (BDE_PAGES.has(path) && !isBde(user)) return false;
   if (TUTOR_PAGES.has(path) && !isTutor(user)) return false;
+  if (ADMIN_PAGES.has(path) && !isAdmin(user)) return false;
   const permissions = PAGE_PERMISSIONS[path];
   return Boolean(permissions) && canAny(user, permissions);
 }

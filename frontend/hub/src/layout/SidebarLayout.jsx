@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { AppSidebar } from '@/components/app-sidebar';
 import AppHeader from '@/components/app-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { REFRESH_ATTRIBUTE_VALUE, usesRefreshedDesign } from '@/lib/design';
+import { REFRESH_ATTRIBUTE_VALUE, refreshedAt } from '@/lib/design';
 import { getInitials } from '@/lib/utils';
 
 // Routes already migrated to the shadcn design system. Everything else still
@@ -13,6 +13,8 @@ import { getInitials } from '@/lib/utils';
 // set's complement — i.e. add it here — as each page is ported.
 const PORTED_PATHS = new Set([
   '/dashboard',
+  // The staff dashboard under its Admin Hub name.
+  '/academics-dashboard',
   '/students',
   '/invitations',
   '/activity',
@@ -22,6 +24,13 @@ const PORTED_PATHS = new Set([
   '/my-bookings',
   '/enquiries',
   '/leads',
+  // The Admin Hub redesign's new pages, built on the design tokens from the start.
+  '/admissions',
+  '/sales-dashboard',
+  '/sales-module',
+  '/sales-punching',
+  '/sales-syllabus',
+  '/tutor-earnings',
   // The BDE workspace's pages, built on the design tokens from the start.
   '/demo-bookings',
   '/diagnostic-bookings',
@@ -38,7 +47,8 @@ const defaultSidebarOpen = () => (typeof window === 'undefined' ? true : window.
 /**
  * Mark the page for the refreshed design while `refreshed` (lib/design.js),
  * before the browser paints, so neither the page nor a dialog portalled to
- * <body> flashes the old colours; signing out or another account clears it.
+ * <body> flashes the old colours; signing out, another account or a page kept
+ * in the current look clears it.
  */
 function useDesign(refreshed) {
   useLayoutEffect(() => {
@@ -54,7 +64,7 @@ function useDesign(refreshed) {
 // Protected layout: collapsible sidebar + breadcrumb header.
 export default function SidebarLayout({ user, logout, children }) {
   const { pathname } = useLocation();
-  useDesign(usesRefreshedDesign(user));
+  useDesign(refreshedAt(user, pathname));
 
   const userData = {
     name: user?.full_name ?? '',
@@ -67,7 +77,8 @@ export default function SidebarLayout({ user, logout, children }) {
   };
 
   // The student profile (/students/<id>), a staff member's page (/team/<id>),
-  // an enquiry (/enquiries/<id>), a lead (/leads/<id>) and a tutor's report
+  // an enquiry (/enquiries/<id>), a lead (/leads/<id>), the Demo and Diagnostic
+  // bookings (/bookings/<type>) and a tutor's report
   // (/my-bookings/<type>/<id>/report) are built on the design tokens like the
   // lists they open from, so they take the raw layout too.
   const isPorted =
@@ -76,6 +87,7 @@ export default function SidebarLayout({ user, logout, children }) {
     pathname.startsWith('/team/') ||
     pathname.startsWith('/enquiries/') ||
     pathname.startsWith('/leads/') ||
+    pathname.startsWith('/bookings/') ||
     pathname.startsWith('/my-bookings/');
 
   return (

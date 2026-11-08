@@ -30,7 +30,7 @@ export function EnquiryHeader({ enquiry, canShareLinks }) {
             {enquiry.grade ? <span>{enquiry.grade}</span> : null}
             <span>Parent: {enquiry.parent_name}</span>
             <span className="tabular-nums">{enquiry.phone}</span>
-            <span>Source: {enquiry.source_label}</span>
+            <span>Original enquiry source: {enquiry.source_label}</span>
           </p>
         </div>
       </div>

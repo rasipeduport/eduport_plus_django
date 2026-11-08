@@ -1,387 +1,292 @@
-import { useState } from 'react';
-import { CalendarIcon, ChevronDownIcon, XIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarCheck, ChevronRightIcon, ClipboardCheck, SearchXIcon, UserRoundPlusIcon, XIcon } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import {
-  ASSIGNMENT_FILTERS,
-  BOOKING_STATUSES,
-  BOOKING_TYPES,
-  CLEARED_FILTERS,
-  DEFAULT_TYPE,
-  DEFAULT_WHEN,
-  REDEMO_TAB,
-  REPORT_DUE,
-  REPORT_FILTERS,
-  WHEN_FILTERS,
-  tutorChangeable,
-} from '@/lib/bookings';
-import { slotParts } from '@/lib/enquiries';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/page/page';
+import { FilterSelect, SearchField } from '@/components/page/list-toolbar';
+import { Pagination } from '@/components/page/pagination';
+import { ResponsiveList } from '@/components/page/responsive-list';
+import { ASSIGNMENT_FILTERS, DEFAULT_WHEN, REPORT_DUE, REPORT_FILTERS, tutorChangeable } from '@/lib/bookings';
+import { SCHEDULE_OPTIONS } from '@/lib/bde-booking-filters';
+import { CLEARED_ADMIN_FILTERS } from '@/lib/admin-booking-filters';
+import { slotLabel, slotParts } from '@/lib/enquiries';
 import { reportBadge } from '@/lib/reports';
 import { BookingStateBadge, RedemoBadge, TutorName } from './booking-badges';
+import { ClassDateFilter } from './class-date-filter';
 
-const ALL = '__all__';
-const pad = (value) => String(value).padStart(2, '0');
-
-// The calendar works in this device's dates; the filter in the slots' Indian dates (YYYY-MM-DD).
-function toPickerDate(iso) {
-  if (!iso) return undefined;
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function fromPickerDate(date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function rangeLabel(from, to) {
-  if (!from && !to) return 'Any date';
-  const label = (iso) => format(toPickerDate(iso), 'd MMM yyyy');
-  if (from && to) return from === to ? label(from) : `${label(from)} – ${label(to)}`;
-  return from ? `From ${label(from)}` : `Until ${label(to)}`;
-}
-
-// The Bookings page's tabs: each booking type's own list, and the Re-Demo requests (lib/bookings REDEMO_TAB).
-const TABS = [...BOOKING_TYPES, { value: REDEMO_TAB, label: 'Re-Demo' }];
+// The schedule select offers its default, Upcoming, as its empty value.
+const OTHER_SCHEDULES = SCHEDULE_OPTIONS.filter((option) => option.value !== DEFAULT_WHEN);
+const ICONS = { DEMO: CalendarCheck, DIAGNOSTIC: ClipboardCheck };
 
 /**
- * The tabs above the Bookings page's lists: Demo, Diagnostic and Re-Demo.
- * Moving between the two booking types keeps the filters; moving to or from
- * Re-Demo, a list of its own, clears them. `onChange` receives what changed.
+ * The administrators' Demo and Diagnostic Bookings filters: the class date
+ * (ClassDateFilter, as a BDE's lists have it), then search, booking status
+ * (`statuses`), tutor assignment, report and schedule, and Clear all filters
+ * while any is off its default. Reports are due only on slots that are over:
+ * choosing Report due turns Upcoming into Past, and choosing Upcoming drops
+ * Report due, so the two never empty the list together. `filters` are
+ * readAdminBookingFilters'; `onChange(updates)` takes URL values (null for a
+ * default) and `onClear()` puts every one back.
  */
-export function BookingTabs({ value, onChange }) {
-  return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => {
-        const type = next === DEFAULT_TYPE ? null : next;
-        if (next === REDEMO_TAB || value === REDEMO_TAB) {
-          onChange({ ...CLEARED_FILTERS, type, booking: null, redemo: null });
-        } else {
-          onChange({ type, booking: null, page: null });
-        }
-      }}
-    >
-      <TabsList>
-        {TABS.map((tab) => (
-          <TabsTrigger key={tab.value} value={tab.value}>
-            {tab.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-}
-
-/**
- * Every Demo and Diagnostic booking, as administrators manage them: a tab per
- * type -- each its own list -- and the search, status / tutor / report / date
- * filters and paging the API applies (lib/bookings), and per row its report
- * (the version submitted, or Report due), a way to open the booking and, for
- * holders of accounts.assign_booking_tutor, to assign or change its tutor.
- * The page keeps the tab and the filters in the URL; `onChange` receives what
- * changed. Changing tab keeps the filters, closes the open booking (it is of
- * the other type) and starts again at page 1. Reports are due only on slots
- * that are over: choosing Report due turns Upcoming into Past, and choosing
- * Upcoming drops Report due, so the two never empty the list together.
- */
-export function BookingList({ rows, total, page, pageSize, filters, pending, canAssign, onChange, onOpen, onAssign }) {
-  const [q, setQ] = useState(filters.q);
-  const [rangeOpen, setRangeOpen] = useState(false);
-  const [range, setRange] = useState(undefined);
-
-  // Keep the box in step when the URL changes underneath it (Clear, back).
-  const [prevQ, setPrevQ] = useState(filters.q);
-  if (filters.q !== prevQ) {
-    setPrevQ(filters.q);
-    setQ(filters.q);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const endRow = Math.min(page * pageSize, total);
-  const filtered = Boolean(
-    filters.q ||
-      filters.status ||
-      filters.assigned ||
-      filters.report ||
-      filters.from ||
-      filters.to ||
-      filters.when !== DEFAULT_WHEN
-  );
-  const typeLabel = BOOKING_TYPES.find((type) => type.value === filters.type)?.label ?? '';
-
-  const openRange = (open) => {
-    setRangeOpen(open);
-    if (open) setRange({ from: toPickerDate(filters.from), to: toPickerDate(filters.to) });
-  };
-
+export function AdminBookingFilters({ filters, statuses, onChange, onClear }) {
   return (
     <div className="flex flex-col gap-3">
-      <BookingTabs value={filters.type} onChange={onChange} />
-
+      <ClassDateFilter filters={filters} onChange={onChange} />
       <div className="flex flex-wrap items-center gap-2">
-        <form
-          className="min-w-0 flex-1 basis-full sm:flex-none sm:basis-auto"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onChange({ q: q.trim() || null });
-          }}
-        >
-          <Input
-            placeholder="Search student, parent or phone…"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            className="w-full sm:w-72"
-            aria-label="Search bookings"
-          />
-        </form>
+        <SearchField
+          value={filters.q}
+          onSearch={(text) => onChange({ q: text || null })}
+          label="Search bookings"
+          placeholder="Search student, parent or phone…"
+        />
         <FilterSelect
-          label="Filter by status"
+          label="Filter by booking status"
           placeholder="All statuses"
-          value={filters.status || ALL}
-          onChange={(value) => onChange({ status: value === ALL ? null : value })}
-          options={BOOKING_STATUSES}
+          value={filters.status}
+          onChange={(value) => onChange({ status: value || null })}
+          options={statuses}
         />
         <FilterSelect
           label="Filter by tutor assignment"
           placeholder="All tutors"
-          value={filters.assigned || ALL}
-          onChange={(value) => onChange({ assigned: value === ALL ? null : value })}
+          value={filters.assigned}
+          onChange={(value) => onChange({ assigned: value || null })}
           options={ASSIGNMENT_FILTERS}
         />
         <FilterSelect
           label="Filter by report"
           placeholder="All reports"
-          value={filters.report || ALL}
+          value={filters.report}
           onChange={(value) => {
-            const report = value === ALL ? null : value;
+            const report = value || null;
             onChange(report === REPORT_DUE && filters.when === DEFAULT_WHEN ? { report, when: 'past' } : { report });
           }}
           options={REPORT_FILTERS}
         />
-        <Select
-          value={filters.when}
-          onValueChange={(value) =>
-            onChange(
-              value === DEFAULT_WHEN && filters.report === REPORT_DUE
-                ? { when: null, report: null }
-                : { when: value === DEFAULT_WHEN ? null : value }
-            )
-          }
-        >
-          <SelectTrigger
-            size="sm"
-            aria-label="Filter by when"
-            className="min-w-0 flex-1 basis-32 sm:w-[140px] sm:flex-none sm:basis-auto"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {WHEN_FILTERS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Popover open={rangeOpen} onOpenChange={openRange}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-w-0 flex-1 basis-44 justify-between font-normal sm:flex-none sm:basis-auto"
-              aria-label="Filter by date range"
-            >
-              <CalendarIcon />
-              <span className="truncate">{rangeLabel(filters.from, filters.to)}</span>
-              <ChevronDownIcon className="shrink-0" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-            <Calendar
-              mode="range"
-              selected={range}
-              defaultMonth={range?.from}
-              onSelect={(picked) => {
-                setRange(picked);
-                if (picked?.from && picked?.to) {
-                  onChange({ from: fromPickerDate(picked.from), to: fromPickerDate(picked.to) });
-                  setRangeOpen(false);
-                }
-              }}
-            />
-            {filters.from || filters.to ? (
-              <div className="border-t p-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    onChange({ from: null, to: null });
-                    setRangeOpen(false);
-                  }}
-                >
-                  Any date
-                </Button>
-              </div>
-            ) : null}
-          </PopoverContent>
-        </Popover>
-        {filtered ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            onClick={() =>
-              onChange({ q: null, status: null, assigned: null, report: null, from: null, to: null, when: null })
-            }
-          >
+        <FilterSelect
+          label="Filter by schedule"
+          placeholder="Upcoming"
+          value={filters.when === DEFAULT_WHEN ? '' : filters.when}
+          onChange={(value) => onChange(value || filters.report !== REPORT_DUE ? { when: value || null } : { when: null, report: null })}
+          options={OTHER_SCHEDULES}
+        />
+        {filters.filtered ? (
+          <Button variant="ghost" className="text-muted-foreground" onClick={onClear}>
             <XIcon className="size-4" />
-            Clear
+            Clear all filters
           </Button>
         ) : null}
-      </div>
-
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When (IST)</TableHead>
-              <TableHead>Student</TableHead>
-              <TableHead className="hidden xl:table-cell">Parent</TableHead>
-              <TableHead>Tutor</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Report</TableHead>
-              <TableHead className="w-px">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody className={pending ? 'opacity-60' : undefined}>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  {filtered ? 'No bookings match these filters.' : `No upcoming ${typeLabel.toLowerCase()} bookings.`}
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((booking) => {
-                const when = slotParts(booking.slot.date, booking.slot.time);
-                const report = reportBadge(booking);
-                return (
-                  <TableRow key={booking.id}>
-                    <TableCell className="whitespace-nowrap">
-                      <p className="font-medium">{when.day}</p>
-                      <p className="text-muted-foreground text-xs">{when.time}</p>
-                    </TableCell>
-                    <TableCell className="min-w-28 whitespace-normal">
-                      <p className="font-medium break-words">{booking.student_name}</p>
-                      {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
-                      {booking.redemo_for_id ? <RedemoBadge /> : null}
-                    </TableCell>
-                    <TableCell className="hidden min-w-32 whitespace-normal xl:table-cell">
-                      <p className="break-words">{booking.parent_name}</p>
-                      <p className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">{booking.phone}</p>
-                    </TableCell>
-                    <TableCell className="whitespace-normal">
-                      <TutorName booking={booking} />
-                    </TableCell>
-                    <TableCell>
-                      <BookingStateBadge booking={booking} />
-                    </TableCell>
-                    <TableCell>
-                      {report ? (
-                        <Badge variant={report.variant}>{report.label}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onOpen(booking.id)}
-                          aria-label={`View the booking for ${booking.student_name}`}
-                        >
-                          View
-                        </Button>
-                        {canAssign && tutorChangeable(booking) ? (
-                          <Button
-                            variant={booking.tutor ? 'ghost' : 'default'}
-                            size="sm"
-                            onClick={() => onAssign(booking)}
-                            aria-label={`${booking.tutor ? 'Change' : 'Assign'} the tutor for ${booking.student_name}`}
-                          >
-                            {booking.tutor ? 'Change' : 'Assign'}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-sm whitespace-nowrap">
-          {total === 0 ? 'No results' : `Showing ${startRow}–${endRow} of ${total}`}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || pending}
-            onClick={() => onChange({ page: String(page - 1) })}
-          >
-            Previous
-          </Button>
-          <span className="text-sm whitespace-nowrap">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || pending}
-            onClick={() => onChange({ page: String(page + 1) })}
-          >
-            Next
-          </Button>
-        </div>
       </div>
     </div>
   );
 }
 
-function FilterSelect({ label, placeholder, value, onChange, options }) {
+function Report({ booking }) {
+  const report = reportBadge(booking);
+  return report ? <Badge variant={report.variant}>{report.label}</Badge> : <span className="text-muted-foreground">—</span>;
+}
+
+/**
+ * A row's actions, in the BDE booking lists' outline buttons: Assign, for a
+ * booking with no tutor that may still take one (holders of
+ * accounts.assign_booking_tutor), and View, which opens the booking's
+ * workspace -- where a tutor already assigned is changed.
+ */
+function Actions({ booking, canAssign, onOpen, onAssign, className }) {
+  const assignable = canAssign && !booking.tutor && tutorChangeable(booking);
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
+    <div className={className ?? 'flex justify-end gap-2'}>
+      {assignable ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onAssign(booking)}
+          aria-label={`Assign the tutor for ${booking.student_name}`}
+        >
+          <UserRoundPlusIcon />
+          Assign
+        </Button>
+      ) : null}
+      <Button
+        variant="outline"
         size="sm"
-        aria-label={label}
-        className="min-w-0 flex-1 basis-36 sm:w-[160px] sm:flex-none sm:basis-auto"
+        onClick={() => onOpen(booking.id)}
+        aria-label={`View the booking for ${booking.student_name}`}
       >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>{placeholder}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        View
+        <ChevronRightIcon />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Every booking of one type, as administrators manage them: when, the child
+ * and parent, who teaches it, where it stands and its report (the version
+ * submitted, or Report due), with a way to open it and, for holders of
+ * accounts.assign_booking_tutor, to assign a tutor to one that has none (a
+ * tutor already assigned is changed in the booking's workspace) -- a table
+ * where it fits, a card per booking on a phone or a narrow screen. Empty, it
+ * says why and offers the way on; the API pages it. `noun` names the type's
+ * bookings ("demo classes"); `onChange` receives what changed in the URL.
+ */
+export function BookingList({ rows, total, page, pageSize, filters, pending, canAssign, noun, onChange, onClear, onOpen, onAssign }) {
+  const columns = [
+    {
+      key: 'when',
+      header: 'Date & Time',
+      className: 'whitespace-nowrap',
+      cell: (booking) => {
+        const when = slotParts(booking.slot.date, booking.slot.time);
+        return (
+          <>
+            <p className="font-medium">{when.day}</p>
+            <p className="text-muted-foreground text-xs">{when.time} IST</p>
+          </>
+        );
+      },
+    },
+    {
+      key: 'student',
+      header: 'Student',
+      className: 'min-w-28 whitespace-normal',
+      cell: (booking) => (
+        <>
+          <p className="font-medium break-words">{booking.student_name}</p>
+          {booking.grade ? <p className="text-muted-foreground text-xs">{booking.grade}</p> : null}
+          {booking.redemo_for_id ? <RedemoBadge /> : null}
+        </>
+      ),
+    },
+    {
+      key: 'parent',
+      header: 'Parent',
+      className: 'min-w-32 whitespace-normal',
+      cell: (booking) => (
+        <>
+          <p className="break-words">{booking.parent_name}</p>
+          <p className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">{booking.phone}</p>
+        </>
+      ),
+    },
+    { key: 'tutor', header: 'Tutor', className: 'whitespace-normal', cell: (booking) => <TutorName booking={booking} /> },
+    { key: 'status', header: 'Status', cell: (booking) => <BookingStateBadge booking={booking} /> },
+    { key: 'report', header: 'Report', cell: (booking) => <Report booking={booking} /> },
+    {
+      key: 'actions',
+      header: { srOnly: 'Actions' },
+      headerClassName: 'w-px',
+      cell: (booking) => <Actions booking={booking} canAssign={canAssign} onOpen={onOpen} onAssign={onAssign} />,
+    },
+  ];
+
+  const renderCard = (booking) => (
+    <article className="bg-card flex h-full flex-col gap-3 rounded-xl border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate font-medium">{booking.student_name}</h2>
+          <p className="text-muted-foreground truncate text-sm">
+            {[booking.grade, booking.parent_name].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        <span className="flex flex-wrap justify-end gap-1">
+          <BookingStateBadge booking={booking} />
+          {booking.redemo_for_id ? <RedemoBadge /> : null}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="col-span-2 min-w-0">
+          <p className="text-muted-foreground text-xs">Date & Time</p>
+          <p className="truncate">{slotLabel(booking.slot)}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs">Tutor</p>
+          <TutorName booking={booking} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs">Report</p>
+          <Report booking={booking} />
+        </div>
+        <div className="col-span-2 min-w-0">
+          <p className="text-muted-foreground text-xs">Parent&apos;s phone</p>
+          <p className="truncate tabular-nums">{booking.phone}</p>
+        </div>
+      </div>
+      <Actions
+        booking={booking}
+        canAssign={canAssign}
+        onOpen={onOpen}
+        onAssign={onAssign}
+        className="mt-auto flex flex-wrap gap-2 border-t pt-3"
+      />
+    </article>
+  );
+
+  let body;
+  if (rows.length) {
+    body = (
+      <ResponsiveList
+        label={`${noun[0].toUpperCase()}${noun.slice(1)}`}
+        columns={columns}
+        rows={rows}
+        pending={pending}
+        minTableWidth={980}
+        renderCard={renderCard}
+      />
+    );
+  } else if (total > 0) {
+    body = (
+      <EmptyState
+        icon={SearchXIcon}
+        title="Nothing on this page"
+        description="This page is past the last one."
+        action={
+          <Button variant="outline" onClick={() => onChange({ page: null })}>
+            Go to the first page
+          </Button>
+        }
+      />
+    );
+  } else if (filters.filtered) {
+    body = (
+      <EmptyState
+        icon={SearchXIcon}
+        title={`No ${noun} match these filters`}
+        description="Try another search, status or dates, or clear the filters."
+        action={
+          <Button variant="outline" onClick={onClear}>
+            Clear all filters
+          </Button>
+        }
+      />
+    );
+  } else {
+    body = (
+      <EmptyState
+        icon={ICONS[filters.type]}
+        title={`No upcoming ${noun}`}
+        description={`Upcoming ${noun} parents book appear here. Earlier ones are under All Schedules.`}
+        action={
+          <Button variant="outline" onClick={() => onChange({ ...CLEARED_ADMIN_FILTERS, when: 'all' })}>
+            Show all schedules
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <>
+      {body}
+      {total > 0 ? (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          pending={pending}
+          onPageChange={(next) => onChange({ page: String(next) })}
+        />
+      ) : null}
+    </>
   );
 }

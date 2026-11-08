@@ -65,6 +65,8 @@ urlpatterns = [
     path('api/booking-slots/', include('bookings.slot_urls', namespace='booking_slots')),
     # Every lead, for administrators: list, add by hand, assign to a BDE.
     path('api/leads/', include('bookings.lead_urls', namespace='leads')),
+    # The admissions pipeline at a glance, for administrators: leads, bookings and what awaits action.
+    path('api/admissions/', include('bookings.admissions_urls', namespace='admissions')),
     # Booking management for administrators: every booking, and the tutor teaching it.
     path('api/bookings/', include('bookings.booking_urls', namespace='booking_management')),
     # Each booking's report, for administrators to read (P6).

@@ -58,7 +58,7 @@ function DetailHeading({ children }) {
   return <h4 className="mb-1.5 text-xs font-semibold">{children}</h4>;
 }
 
-function Empty({ children }) {
+export function Empty({ children }) {
   return <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">{children}</p>;
 }
 
@@ -67,7 +67,7 @@ function Empty({ children }) {
  * it stands, who recorded it and why not, and asking for it and recording it
  * where the API's `actions` allow -- with what the last of those did.
  */
-function ParentConfirmationCard({ communication, notice, onRequestConfirmation, onRecordAnswer }) {
+export function ParentConfirmationCard({ communication, notice, onRequestConfirmation, onRecordAnswer }) {
   const headingId = useId();
   const { booking, parent_confirmation: confirmation, actions = {} } = communication;
   const canRequest = Boolean(actions.request_confirmation && onRequestConfirmation);
@@ -147,7 +147,7 @@ function stepNote(state, message) {
  * moment and what its message adds, the first still open highlighted as the
  * current step. Nothing to act on here.
  */
-function WorkflowTimeline({ communication }) {
+export function WorkflowTimeline({ communication }) {
   const { booking, tasks, messages } = communication;
   const latest = latestMessages(messages);
   const current = tasks.find((task) => task.status === 'OPEN');
@@ -279,7 +279,7 @@ function MessageDetails({ id, message }) {
 }
 
 /** One WhatsApp message: its step, a preview, its state and moment, why it failed (in the row), and its details on demand. */
-function MessageRow({ message }) {
+export function MessageRow({ message }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const label = stepLabel(message);
@@ -331,7 +331,7 @@ function MessageRow({ message }) {
  * and the outcome the BDE recorded for it -- the call's task shows the latest
  * (backend communications.services.record_call_outcome) -- or that there is none.
  */
-function CallOutcomes({ communication }) {
+export function CallOutcomes({ communication }) {
   const { booking, tasks } = communication;
   const calls = tasks.filter((task) => task.step === 'PRE_ACTIVITY_CALL');
   if (!calls.length) return <Empty>No call is planned for this booking.</Empty>;
@@ -375,7 +375,7 @@ function CallOutcomes({ communication }) {
 }
 
 /** Each step's task in full: who acts on it, from when, by when, until when, and how it closed. */
-function TaskDetails({ communication }) {
+export function TaskDetails({ communication }) {
   const { tasks } = communication;
   if (!tasks.length) return <Empty>No tasks for this booking.</Empty>;
   return (

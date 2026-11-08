@@ -100,7 +100,7 @@ export function AdminReportSection({ booking, reloadKey }) {
   }
 
   return (
-    <section className="rounded-lg border p-4">
+    <section className="bg-card rounded-xl border p-4">
       <div className="mb-1 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Report</h3>
         {hasReport ? (

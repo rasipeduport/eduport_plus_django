@@ -95,6 +95,49 @@ export const ACTION_LABELS = {
   tampered: 'Tampered entry',
 };
 
+// What the log's entries are about, as its type filter offers them.
+export const ACTIVITY_ENTITY_TYPES = [
+  { value: 'student', label: 'Student' },
+  { value: 'student_note', label: 'Student note' },
+  { value: 'session', label: 'Session' },
+  { value: 'exam', label: 'Exam' },
+  { value: 'additional_exam', label: 'Additional exam' },
+  { value: 'homework', label: 'Homework' },
+  { value: 'invitation', label: 'Invitation' },
+  { value: 'profile', label: 'User' },
+  { value: 'booking_link', label: 'Booking link' },
+  { value: 'booking', label: 'Booking' },
+  { value: 'lead', label: 'Enquiry' },
+];
+
+// How an entry names what it is about, before its label ("Booking: Class 8 demo").
+export const ENTITY_NOUN = {
+  student: 'Student',
+  student_note: 'Note on',
+  session: 'Session',
+  exam: 'Exam',
+  additional_exam: 'Additional exam',
+  homework: 'Homework',
+  invitation: 'Invitation',
+  profile: 'User',
+  booking_link: 'Booking link',
+  booking: 'Booking',
+  demo_invite: 'Demo invitation',
+  report: 'Report',
+  booking_slot: 'Slot',
+  booking_schedule: 'Schedule',
+  lead: 'Enquiry',
+};
+
+/** Who made an entry: their name or email -- or, with no account behind it, the page a parent used. */
+export function actorLabel(row) {
+  const named = row.actor_name ?? row.actor_email;
+  if (named != null) return named;
+  if (row.context?.via === 'public_booking') return 'Booking page';
+  if (row.context?.via === 'demo_invite') return 'Invitation page';
+  return 'Unknown';
+}
+
 export function actionLabel(action) {
   return ACTION_LABELS[action] ?? humanize(action);
 }

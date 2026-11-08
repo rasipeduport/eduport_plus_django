@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AuthProvider from './context/AuthProvider';
 import SidebarLayout from './layout/SidebarLayout';
 import LoginPage from './pages/LoginPage';
@@ -16,6 +16,7 @@ import TeamPage from './pages/TeamPage';
 import TeamMemberPage from './pages/TeamMemberPage';
 import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
+import BookingWorkspacePage from './pages/BookingWorkspacePage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
 import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
@@ -27,7 +28,15 @@ import BdeBookingsPage from './pages/BdeBookingsPage';
 import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
-import { canOpenPage, homePage, isBde } from './lib/access';
+import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
+import { canOpenPage, homePage, isAdmin, isBde } from './lib/access';
+import { legacyBookingsPath } from './lib/bookings';
+
+/** A link to the former single Bookings page, sent on to its type's page (lib/bookings legacyBookingsPath). */
+function LegacyBookings() {
+  const { search } = useLocation();
+  return <Navigate to={legacyBookingsPath(search)} replace />;
+}
 
 /**
  * Everything behind sign-in. The account comes from AuthProvider's /me
@@ -50,11 +59,24 @@ function HubRoutes({ user, logout }) {
   return (
     <SidebarLayout user={user} logout={logout}>
       <Routes>
-        {/* A BDE's dashboard is their own enquiries and bookings; everyone else's the staff one. */}
+        {/* A BDE's dashboard is their own enquiries and bookings; an administrator's
+            the Admin Hub's common dashboard, still to come (their academics
+            dashboard is /academics-dashboard); everyone else's the staff one. */}
         <Route
           path="/dashboard"
-          element={page('/dashboard', isBde(user) ? <BdeDashboardPage user={user} /> : <DashboardPage user={user} />)}
+          element={page(
+            '/dashboard',
+            isBde(user) ? (
+              <BdeDashboardPage user={user} />
+            ) : isAdmin(user) ? (
+              <ComingSoonPage module="dashboard" />
+            ) : (
+              <DashboardPage user={user} />
+            )
+          )}
         />
+        {/* The staff dashboard as it is, for administrators: the Admin Hub's Academics Dashboard. */}
+        <Route path="/academics-dashboard" element={page('/academics-dashboard', <DashboardPage user={user} />)} />
         <Route path="/students" element={page('/students', <StudentsPage user={user} />)} />
         {/* One student's full record. Scoped by the API: a mentor or tutor
             opening someone else's student gets a 404. */}
@@ -82,11 +104,32 @@ function HubRoutes({ user, logout }) {
           element={page('/activity', isBde(user) ? <BdeActivityPage /> : <ActivityPage user={user} />)}
         />
         {/* Demo and Diagnostic bookings for administrators: every booking and
-            the tutor teaching it, a tab per type (?type=DIAGNOSTIC; Demo by
-            default), one opened at ?booking=<id>. The API enforces
-            accounts.view_all_bookings, and accounts.assign_booking_tutor for
-            changing a tutor. */}
-        <Route path="/bookings" element={page('/bookings', <BookingsPage user={user} />)} />
+            the tutor teaching it, a page per type (Demo's with its Re-Demo
+            requests at ?tab=redemo), each booking opening in its own workspace
+            (/bookings/<type>/<id>, below). Each is
+            keyed by its type, so moving between them never shows the other's
+            rows; the former single page's links (/bookings?type=...) land on
+            their type's. The API enforces accounts.view_all_bookings, and
+            accounts.assign_booking_tutor for changing a tutor. */}
+        <Route path="/bookings" element={page('/bookings', <LegacyBookings />)} />
+        <Route
+          path="/bookings/demo"
+          element={page('/bookings/demo', <BookingsPage key="DEMO" user={user} type="DEMO" />)}
+        />
+        <Route
+          path="/bookings/diagnostic"
+          element={page('/bookings/diagnostic', <BookingsPage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" />)}
+        />
+        {/* One booking in full, its workspace: opened from its type's list (a
+            former ?booking=<id> link lands here too), on the same permission. */}
+        <Route
+          path="/bookings/demo/:bookingId"
+          element={page('/bookings/demo', <BookingWorkspacePage key="DEMO" user={user} type="DEMO" />)}
+        />
+        <Route
+          path="/bookings/diagnostic/:bookingId"
+          element={page('/bookings/diagnostic', <BookingWorkspacePage key="DIAGNOSTIC" user={user} type="DIAGNOSTIC" />)}
+        />
         {/* Booking slots for administrators: close or reopen the Demo and
             Diagnostic slots parents book. The API enforces the same permission
             and keeps every booking. */}
@@ -109,6 +152,9 @@ function HubRoutes({ user, logout }) {
         {/* Every lead and its owner BDE, for administrators. */}
         <Route path="/leads" element={page('/leads', <LeadsPage user={user} />)} />
         <Route path="/leads/:leadId" element={page('/leads', <LeadPage user={user} />)} />
+        {/* The admissions pipeline for administrators: leads and bookings over
+            a date range, today's bookings and what awaits action. */}
+        <Route path="/admissions" element={page('/admissions', <AdmissionsDashboardPage user={user} />)} />
         {/* A BDE's own enquiries (My Enquiries). The API serves each BDE only theirs:
             another BDE's enquiry is answered as one that does not exist. */}
         <Route path="/enquiries" element={page('/enquiries', <EnquiriesPage user={user} />)} />
@@ -127,6 +173,12 @@ function HubRoutes({ user, logout }) {
         <Route path="/follow-ups" element={page('/follow-ups', <FollowUpsPage />)} />
         <Route path="/sales" element={page('/sales', <ComingSoonPage module="sales" />)} />
         <Route path="/plans" element={page('/plans', <ComingSoonPage module="plans" />)} />
+        {/* The Admin Hub's Sales & Finance modules, still to come: nothing behind them yet. */}
+        <Route path="/sales-dashboard" element={page('/sales-dashboard', <ComingSoonPage module="salesDashboard" />)} />
+        <Route path="/sales-module" element={page('/sales-module', <ComingSoonPage module="salesModule" />)} />
+        <Route path="/sales-punching" element={page('/sales-punching', <ComingSoonPage module="salesPunching" />)} />
+        <Route path="/sales-syllabus" element={page('/sales-syllabus', <ComingSoonPage module="salesSyllabus" />)} />
+        <Route path="/tutor-earnings" element={page('/tutor-earnings', <ComingSoonPage module="tutorEarnings" />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

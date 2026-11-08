@@ -10,43 +10,18 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ACTION_LABELS, actionLabel, describeActivity } from '@/lib/activity-format';
+import {
+  ACTION_LABELS,
+  ACTIVITY_ENTITY_TYPES as ENTITY_TYPES,
+  ENTITY_NOUN,
+  actionLabel,
+  actorLabel,
+  describeActivity,
+} from '@/lib/activity-format';
 import { cn } from '@/lib/utils';
 import { ChangesTable } from './changes-table';
 
 const ALL = '__all__';
-
-const ENTITY_TYPES = [
-  { value: 'student', label: 'Student' },
-  { value: 'student_note', label: 'Student note' },
-  { value: 'session', label: 'Session' },
-  { value: 'exam', label: 'Exam' },
-  { value: 'additional_exam', label: 'Additional exam' },
-  { value: 'homework', label: 'Homework' },
-  { value: 'invitation', label: 'Invitation' },
-  { value: 'profile', label: 'User' },
-  { value: 'booking_link', label: 'Booking link' },
-  { value: 'booking', label: 'Booking' },
-  { value: 'lead', label: 'Enquiry' },
-];
-
-const ENTITY_NOUN = {
-  student: 'Student',
-  student_note: 'Note on',
-  session: 'Session',
-  exam: 'Exam',
-  additional_exam: 'Additional exam',
-  homework: 'Homework',
-  invitation: 'Invitation',
-  profile: 'User',
-  booking_link: 'Booking link',
-  booking: 'Booking',
-  demo_invite: 'Demo invitation',
-  report: 'Report',
-  booking_slot: 'Slot',
-  booking_schedule: 'Schedule',
-  lead: 'Enquiry',
-};
 
 export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filters, pending = false, canFilterByActor = false }) {
   // Mentors and tutors are pinned to their own entries by the API, so the
@@ -201,15 +176,7 @@ export function ActivityFeed({ rows, total, page, pageSize, actorOptions, filter
                         {format(new Date(row.created_at), 'd MMM yyyy, h:mm a')}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">
-                          {row.actor_name ??
-                            row.actor_email ??
-                            (row.context?.via === 'public_booking'
-                              ? 'Booking page'
-                              : row.context?.via === 'demo_invite'
-                                ? 'Invitation page'
-                                : 'Unknown')}
-                        </div>
+                        <div className="font-medium">{actorLabel(row)}</div>
                         {row.actor_role ? (
                           <div className="text-muted-foreground text-xs capitalize">{row.actor_role.toLowerCase()}</div>
                         ) : null}

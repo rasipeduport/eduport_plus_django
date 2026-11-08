@@ -1,11 +1,14 @@
 // The administrators' Leads page: the /api/leads/ contract (backend
 // bookings/lead_views.py) as the Hub uses it. Rows, statuses and sources read
 // as a BDE's My Enquiries does (lib/enquiries.js); the API enforces every rule.
+import { bookingPagePath } from '@/lib/bookings';
 
 export const LEADS_URL = '/api/leads/';
 export const LEAD_BDES_URL = '/api/leads/bdes/';
 export const leadUrl = (id) => `${LEADS_URL}${id}/`;
 export const leadOwnerUrl = (id) => `${LEADS_URL}${id}/owner/`;
+// Staff's notes on a lead, shared with its owner BDE and its tutors (backend bookings/notes.py).
+export const leadNotesUrl = (id) => `${LEADS_URL}${id}/notes/`;
 
 // The owner filter's value for the leads nobody owns yet.
 export const UNASSIGNED = 'unassigned';
@@ -18,10 +21,9 @@ export function ownerOptions(bdes) {
   ];
 }
 
-/** Where a lead's booking opens on the Bookings page: its type's list, any date, its sheet open. */
+/** Where a lead's booking opens: its workspace. */
 export function bookingPageUrl(booking) {
-  const params = new URLSearchParams({ type: booking.booking_type, when: 'all', booking: booking.id });
-  return `/bookings?${params}`;
+  return bookingPagePath(booking.booking_type, booking.id);
 }
 
 // The utm_* parameters a lead form's page carried (backend Lead.source_details), as the lead page labels them.

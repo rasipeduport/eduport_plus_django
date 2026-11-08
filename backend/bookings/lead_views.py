@@ -8,6 +8,7 @@ The administrators' Leads API (bookings.lead_admin):
     PUT  /api/leads/<id>/owner/      give the lead to a BDE (bookings.ownership)
     GET  /api/leads/<id>/notes/      staff's notes on the lead (bookings.notes)
     POST /api/leads/<id>/notes/      add one, as an administrator
+    GET  /api/admissions/dashboard/  the admissions pipeline at a glance (bookings.admissions)
 
 Reading needs accounts.view_all_leads, adding accounts.add_lead and
 assigning accounts.assign_lead_owner -- all three the ADMIN role's alone (a
@@ -27,8 +28,9 @@ from rest_framework.views import APIView
 from accounts.authz import has_app_permission
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
+from core.querysets import ACTIVITY_VIEW_PERMISSIONS
 
-from . import enquiries, lead_admin, notes
+from . import admissions, enquiries, lead_admin, notes
 from .booking_service import BookingBusy
 from .lead_intake import LeadExists
 from .lead_status import statuses_for
@@ -41,6 +43,7 @@ VIEW_ALL_LEADS = 'accounts.view_all_leads'
 ADD_LEAD = 'accounts.add_lead'
 ASSIGN_LEAD_OWNER = 'accounts.assign_lead_owner'
 VIEW_ALL_COMMUNICATIONS = 'accounts.view_all_communications'
+VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
 
 
 def _error(code, message, http_status, **extra):
@@ -68,13 +71,14 @@ def _read(request, pk, now):
 
 class LeadsView(APIView):
     """
-    GET  /api/leads/?q=&source=&status=&owner=&page=&page_size=
+    GET  /api/leads/?q=&source=&status=&owner=&from=&to=&page=&page_size=
          Every lead, the latest received first, always paged:
          {"results", "count", "page", "page_size"}. ``q`` matches the
          parent's or student's name, the parent's email or the phone number;
          ``source`` is one of enquiries.SOURCE_FILTERS, ``status`` a
          LeadStatus or a stage of either type (lead_status.STAGES), ``owner``
-         a BDE account's id or "unassigned".
+         a BDE account's id or "unassigned"; ``from`` and ``to`` the Indian
+         dates (YYYY-MM-DD, inclusive) it came in on.
     POST /api/leads/
          Add a lead by hand (LeadCreateSerializer), owned by nobody: 201 with
          the lead, or 409 LEAD_EXISTS with ``lead_id`` when the phone number
@@ -100,6 +104,9 @@ class LeadsView(APIView):
                 owner = uuid.UUID(owner)
             except ValueError:
                 return _invalid('owner', 'Unknown owner.')
+        (received_from, received_to), invalid = lead_admin.received_dates(params)
+        if invalid:
+            return _invalid(invalid[0], 'Check the dates: YYYY-MM-DD, the first on or before the last.')
 
         now = timezone.now()
         leads = enquiries.search(Lead.objects.all(), params.get('q'))
@@ -107,6 +114,7 @@ class LeadsView(APIView):
             leads = enquiries.filter_source(leads, source)
         if owner:
             leads = lead_admin.filter_owner(leads, owner)
+        leads = lead_admin.received_between(leads, received_from, received_to)
         leads = lead_admin.listed(leads, now)
         if state:
             leads = leads.filter(lead_status__in=statuses)
@@ -217,3 +225,40 @@ class LeadNotesView(APIView):
             return _error('VALIDATION_ERROR', notes.INVALID_NOTE, status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
         notes.add_note(lead, request.user, LeadNoteRole.ADMIN, serializer.validated_data['body'])
         return Response(notes.notes_of(lead), status=status.HTTP_201_CREATED)
+
+
+class AdmissionsDashboardView(APIView):
+    """
+    GET /api/admissions/dashboard/?from=&to=
+    The admissions pipeline at a glance (bookings.admissions.dashboard): over
+    the Indian dates ``from`` to ``to`` (both or neither: the last seven days),
+    the leads that came in and where each stands now, and the Demo and
+    Diagnostic bookings for those dates; then today's bookings, what awaits an
+    administrator, the latest leads and the latest admissions activity. Bad
+    dates answer 400 INVALID_INPUT naming them. The booking parts are null
+    without accounts.view_all_bookings, the parents' confirmations without
+    accounts.view_all_communications as well, and the activity without
+    permission to read the activity log (scoped as the log is).
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS)]
+
+    def get(self, request, *args, **kwargs):
+        now = timezone.now()
+        (date_from, date_to), invalid = admissions.span(request.query_params, now)
+        if invalid:
+            return _error('INVALID_INPUT', f'Check the dates: YYYY-MM-DD, at most {admissions.MAX_DAYS} days.',
+                          status.HTTP_400_BAD_REQUEST, fields=invalid)
+
+        def holds(permission):
+            return has_app_permission(request.user, permission, request)
+
+        show_bookings = holds(VIEW_ALL_BOOKINGS)
+        return Response(
+            admissions.dashboard(
+                now, date_from, date_to, user=request.user, request=request,
+                show_bookings=show_bookings,
+                show_confirmation=show_bookings and holds(VIEW_ALL_COMMUNICATIONS),
+                show_activity=any(holds(permission) for permission in ACTIVITY_VIEW_PERMISSIONS),
+            ),
+            status=status.HTTP_200_OK,
+        )
