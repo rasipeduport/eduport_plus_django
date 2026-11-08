@@ -284,6 +284,51 @@ export function reportActions(booking) {
   };
 }
 
+// What the tutor's screens call a booking's report: a Demo's is the tutor's
+// feedback, a Diagnostic's the test's results. The report and its PDF keep
+// their own titles (Demo Report, Academic Report).
+export const REPORT_WORDS = {
+  DEMO: {
+    tab: 'Feedback',
+    noun: 'feedback',
+    page: 'Demo feedback',
+    write: 'Submit Feedback',
+    edit: 'Edit feedback',
+    submit: 'Submit feedback',
+  },
+  DIAGNOSTIC: {
+    tab: 'Results',
+    noun: 'results',
+    page: 'Diagnostic results',
+    write: 'Enter Results',
+    edit: 'Edit results',
+    submit: 'Submit results',
+  },
+};
+
+/** The tutor's words for `type`'s report (REPORT_WORDS), Demo's for an unknown type. */
+export const reportWords = (type) => REPORT_WORDS[type] ?? REPORT_WORDS.DEMO;
+
+/**
+ * Where a booking's feedback (a Demo's) or results (a Diagnostic's) stand,
+ * for its tutor: Submitted, at the report's version; Pending once the tutor
+ * has started the class and no report is in -- `due` once the slot is over
+ * (the API's report_due); After the class while a booked class has not been
+ * started; and none (null) for a booking no report can follow: cancelled,
+ * moved, or a slot that ended unstarted. Nothing is kept in between: the
+ * report is saved whole, on submit, so there are no drafts.
+ */
+export function feedbackState(booking) {
+  if (booking.has_report) return { key: 'submitted', label: 'Submitted', variant: 'success', version: booking.report_version };
+  if (booking.report_due || reportActions(booking).write) {
+    return { key: 'pending', label: 'Pending', variant: 'warning', due: Boolean(booking.report_due) };
+  }
+  if (booking.status === 'BOOKED' && booking.activity_state !== 'NOT_STARTED') {
+    return { key: 'later', label: 'After the class', variant: 'outline' };
+  }
+  return null;
+}
+
 /** The Admin list's report column: the report's version, Report due, or nothing. */
 export function reportBadge(booking) {
   if (booking.has_report) return { label: `Report v${booking.report_version}`, variant: 'success' };

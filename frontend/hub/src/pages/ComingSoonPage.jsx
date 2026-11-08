@@ -17,7 +17,8 @@ import { Page } from '@/components/page/page';
 import { ComingSoon } from '@/components/page/coming-soon';
 
 // The modules still to come -- the BDE workspace's, then the Admin Hub's
-// common Dashboard and Sales & Finance -- each offered in the sidebar, and
+// common Dashboard and Sales & Finance, and the Tutor Hub's Hourly Earnings --
+// each offered in the sidebar, and
 // nothing behind it yet but this page. `variant` picks the card beside the
 // mascot (components/page/coming-soon): a chart filling in, or plans. The page
 // leads back to the Dashboard, or -- for the Dashboard itself -- on to `next`.
@@ -69,6 +70,12 @@ const MODULES = {
     icon: Wallet,
     title: 'Tutor Earnings',
     description: 'What each tutor has earned for the classes they taught, month by month.',
+    variant: 'sales',
+  },
+  hourlyEarnings: {
+    icon: Wallet,
+    title: 'Hourly Earnings',
+    description: 'The hours you have taught, across classes, demos and diagnostic tests, and what you earned for them, month by month.',
     variant: 'sales',
   },
 };

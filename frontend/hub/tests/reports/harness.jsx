@@ -33,8 +33,9 @@ export async function render(element) {
 }
 
 /**
- * The tutor's report page at ``path`` for ``user``. My Bookings is a marker
- * here: where Back and Cancel lead is read from the router's location.
+ * The tutor's report page at ``path`` for ``user``. The bookings lists and a
+ * booking's workspace are markers here: where Back and Cancel lead is read
+ * from the router's location.
  */
 export async function mountPage(path, user) {
   const container = document.createElement('div');
@@ -43,6 +44,8 @@ export async function mountPage(path, user) {
   const router = createMemoryRouter(
     [
       { path: '/my-bookings', element: <p>My Bookings</p> },
+      { path: '/my-bookings/:bookingType', element: <p>Bookings</p> },
+      { path: '/my-bookings/:bookingType/:bookingId', element: <p>Booking</p> },
       { path: '/my-bookings/:bookingType/:bookingId/report', element: <TutorReportPage user={user} /> },
     ],
     { initialEntries: [path] }

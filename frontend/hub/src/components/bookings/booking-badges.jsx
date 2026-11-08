@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { bookingState, conducted, redemoStatus } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
-import { reportState } from '@/lib/reports';
+import { feedbackState, reportState } from '@/lib/reports';
 
 /** Where the booking stands as a class, as the API says (lib/bookings bookingState). */
 export function BookingStateBadge({ booking }) {
@@ -27,6 +27,22 @@ export function RedemoBadge({ number }) {
 export function ReportStateBadge({ booking }) {
   const state = reportState(booking);
   return <Badge variant={state.variant}>{state.label}</Badge>;
+}
+
+/**
+ * Where a tutor's booking stands with its feedback (a Demo's) or results (a
+ * Diagnostic's), lib/reports feedbackState: Submitted with its version,
+ * Pending, After the class -- or a dash when no report can follow.
+ */
+export function FeedbackBadge({ booking }) {
+  const state = feedbackState(booking);
+  if (!state) return <span className="text-muted-foreground">—</span>;
+  return (
+    <Badge variant={state.variant}>
+      {state.label}
+      {state.version ? <span className="font-normal opacity-80">v{state.version}</span> : null}
+    </Badge>
+  );
 }
 
 /**

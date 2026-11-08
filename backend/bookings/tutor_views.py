@@ -62,11 +62,12 @@ def _assigned_booking(request, booking_type, pk):
 
 class TutorBookingListView(APIView):
     """
-    GET /api/tutor/bookings/?type=&when=&page=&page_size=
+    GET /api/tutor/bookings/?type=&when=&status=&from=&to=&report=&q=&page=&page_size=
     The caller's bookings, upcoming by default, soonest slot first
-    (``when=past``: most recent first), always paged: {"results", "count",
-    "page", "page_size", "timezone"}. An unknown filter value answers 400
-    INVALID_INPUT naming the parameters.
+    (``when=past`` or ``completed``: most recent first), always paged:
+    {"results", "count", "page", "page_size", "timezone"}. ``q`` searches the
+    student's name only (tutor_bookings.parse_filters). An unknown filter
+    value answers 400 INVALID_INPUT naming the parameters.
     """
     permission_classes = [IsAuthenticated, VIEW_ASSIGNED_BOOKINGS]
 

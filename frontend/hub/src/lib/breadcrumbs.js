@@ -9,6 +9,7 @@
 const breadcrumbConfig = {
   '/dashboard': [{ label: 'Dashboard' }],
   '/academics-dashboard': [{ label: 'Academics Dashboard' }],
+  '/admissions-dashboard': [{ label: 'Admissions Dashboard' }],
   '/students': [{ label: 'Students' }],
   '/sessions': [{ label: 'Sessions' }],
   '/exams': [{ label: 'Exams' }],
@@ -27,6 +28,9 @@ const breadcrumbConfig = {
   '/bookings/diagnostic': [{ label: 'Diagnostic Bookings' }],
   '/booking-slots': [{ label: 'Booking Slots' }],
   '/my-bookings': [{ label: 'My Bookings' }],
+  '/my-bookings/demo': [{ label: 'Demo Bookings' }],
+  '/my-bookings/diagnostic': [{ label: 'Diagnostic Bookings' }],
+  '/hourly-earnings': [{ label: 'Hourly Earnings' }],
   '/team': [{ label: 'Team' }],
   '/sales-dashboard': [{ label: 'Sales Dashboard' }],
   '/sales-module': [{ label: 'Sales Module' }],
@@ -40,7 +44,8 @@ const breadcrumbConfig = {
 // Routes whose trail cannot be a fixed string because the path carries an id.
 // The page itself names the record (the student profile shows the student's
 // name in its header), so the crumb stays generic rather than waiting on a
-// fetch to render the chrome.
+// fetch to render the chrome. A trail may be worked out from the path's match
+// (a tutor's report links back to its own booking).
 const breadcrumbPatterns = [
   { pattern: /^\/students\/[^/]+$/, trail: [{ label: 'Students', href: '/students' }, { label: 'Profile' }] },
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
@@ -52,13 +57,29 @@ const breadcrumbPatterns = [
     trail: [{ label: 'Diagnostic Bookings', href: '/bookings/diagnostic' }, { label: 'Booking' }],
   },
   {
-    pattern: /^\/my-bookings\/(demo|diagnostic)\/[^/]+\/report$/,
-    trail: [{ label: 'My Bookings', href: '/my-bookings' }, { label: 'Report' }],
+    pattern: /^\/my-bookings\/demo\/[^/]+$/,
+    trail: [{ label: 'Demo Bookings', href: '/my-bookings/demo' }, { label: 'Booking' }],
+  },
+  {
+    pattern: /^\/my-bookings\/diagnostic\/[^/]+$/,
+    trail: [{ label: 'Diagnostic Bookings', href: '/my-bookings/diagnostic' }, { label: 'Booking' }],
+  },
+  {
+    pattern: /^\/my-bookings\/(demo|diagnostic)\/([^/]+)\/report$/,
+    trail: ([, segment, id]) => [
+      { label: segment === 'demo' ? 'Demo Bookings' : 'Diagnostic Bookings', href: `/my-bookings/${segment}` },
+      { label: 'Booking', href: `/my-bookings/${segment}/${id}` },
+      { label: segment === 'demo' ? 'Feedback' : 'Results' },
+    ],
   },
 ];
 
 export function getBreadcrumbs(pathname) {
   const exact = breadcrumbConfig[pathname];
   if (exact) return exact;
-  return breadcrumbPatterns.find((entry) => entry.pattern.test(pathname))?.trail ?? [];
+  for (const entry of breadcrumbPatterns) {
+    const match = entry.pattern.exec(pathname);
+    if (match) return typeof entry.trail === 'function' ? entry.trail(match) : entry.trail;
+  }
+  return [];
 }

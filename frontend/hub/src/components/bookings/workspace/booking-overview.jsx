@@ -130,9 +130,10 @@ function StepMark({ step, latest }) {
  * booking made, started, completed, cancelled, moved or sent for a Re-Demo, to
  * the booking still to come), each with what it was and when (IST) where the
  * API gives a moment. What has happened is checked off, the latest of it
- * marked; the booking to come is an open ring.
+ * marked; the booking to come is an open ring. A tutor's booking workspace
+ * draws its enquiry's journey with it too.
  */
-function JourneyCard({ lead }) {
+export function JourneyCard({ lead }) {
   const owner = lead.owner;
   const steps = enquiryJourney(lead, owner ? `Assigned to ${owner.full_name}` : 'Assigned to a BDE');
   // The last step that has happened (the booking to come, if any, follows it).
