@@ -28,6 +28,7 @@ from .booking_service import (
     BookingStarted,
     CancelledNotMovable,
     LeadAlreadyBooked,
+    RedemoEarlierTutor,
     RedemoOriginalTutor,
     SlotEnded,
     StartedNotMovable,
@@ -35,6 +36,7 @@ from .booking_service import (
     is_assignable_tutor,
     lead_commitments,
     live_booking,
+    redemo_excluded_tutor_ids,
     redemo_original_tutor_id,
     tutor_commitments,
     tutor_conflicts,
@@ -51,6 +53,7 @@ from .models import (
     DemoInvite,
     Lead,
     NotConfirmedReason,
+    RedemoCloseReason,
     ReDemoStatus,
     RescheduleReason,
 )
@@ -64,6 +67,10 @@ SEND_LEAD_COMMUNICATIONS = 'accounts.send_lead_communications'
 AVAILABLE, UNAVAILABLE = 'AVAILABLE', 'UNAVAILABLE'
 # Why a Re-Demo's pickers offer no tutor who taught the Demo it repeats (booking_service.RedemoOriginalTutor).
 ORIGINAL_TUTOR_REASON = 'Taught the Demo being repeated, so cannot teach its Re-Demo.'
+# ... nor anyone who taught an earlier Demo of its chain (booking_service.RedemoEarlierTutor).
+EARLIER_TUTOR_REASON = 'Taught an earlier Demo of this Re-Demo chain, so cannot teach this Re-Demo.'
+# The status filter's one value that is not a booking status: the Demos booked as Re-Demos, whatever their status.
+REDEMO_FILTER = 'REDEMO'
 UPCOMING, PAST = 'upcoming', 'past'
 BOOLEANS = {'true': True, 'false': False}
 REPORT_FILTERS = {'submitted': True, 'missing': False}
@@ -81,6 +88,7 @@ def parse_filters(params):
     booking type is the list's own (its URL), never a parameter.
 
         status    BOOKED | COMPLETED | REDEMO_REQUIRED | CANCELLED | RESCHEDULED
+                  | REDEMO (the Demos booked as Re-Demos; Demo lists only)
         assigned  true | false             (whether a tutor is assigned)
         tutor     <account id>             (the assigned tutor)
         slot      <slot id>
@@ -103,7 +111,7 @@ def parse_filters(params):
             else:
                 invalid.append(name)
 
-    choice('status', BookingStatus.values, 'status')
+    choice('status', [*BookingStatus.values, REDEMO_FILTER], 'status')
 
     assigned = text('assigned').lower()
     if assigned:
@@ -171,7 +179,9 @@ def filtered(bookings, now, status=None, assigned=None, tutor_id=None, slot_id=N
     ``bookings`` narrowed by ``parse_filters``' filters, soonest slot first --
     except ``when=past``, most recent first.
     """
-    if status:
+    if status == REDEMO_FILTER:
+        bookings = bookings.filter(redemo_for__isnull=False)
+    elif status:
         bookings = bookings.filter(status=status)
     if assigned is not None:
         bookings = bookings.filter(assigned_tutor__isnull=not assigned)
@@ -405,14 +415,20 @@ def booking_actions(booking, now, user=None, request=None):
         'no_show': cancel and booking.slot.starts_at <= now,
         'reschedule': booked and holds(RESCHEDULE_BOOKING) and move_refusal(booking, now) is None,
         'demo_invite': holds(SEND_LEAD_COMMUNICATIONS) and invitable(booking, now),
+        # Once per Demo: one whose request was closed reads COMPLETED again, and is reopened instead.
         'request_redemo': (
             isinstance(booking, DemoBooking) and booking.status == BookingStatus.COMPLETED and holds(RESCHEDULE_BOOKING)
+            and redemo_chain.request_of(booking) is None
         ),
     }
 
 
 def redemo_request(booking, now):
-    """The Re-Demo request ``booking`` was sent for (it is RE-DEMO REQUIRED): where it stands, who asked and when -- or None."""
+    """
+    The Re-Demo request ``booking`` was sent for: where it stands, who asked
+    and when, and the Demo booked for it last (``booking``, a chain link) --
+    or None. A closed request is shown too: its Demo reads COMPLETED again.
+    """
     redemo = redemo_chain.request_of(booking)
     if redemo is None:
         return None
@@ -423,6 +439,8 @@ def redemo_request(booking, now):
         'status_label': ReDemoStatus(current.status).label,
         'requested_at': redemo.requested_at.isoformat(),
         'requested_by': _person(redemo.requested_by),
+        'booking': _chain_link(current.booking, now),
+        'closed_at': _when(redemo.closed_at),
     }
 
 
@@ -518,19 +536,23 @@ def tutor_availability(slot, booking=None):
     Every active tutor -- the accounts booking_service.assign_tutor accepts --
     each AVAILABLE or UNAVAILABLE for ``slot`` with the reason, and which one
     teaches ``booking`` now (its own assignment does not count against them).
-    For a Re-Demo, the tutor who taught the Demo it repeats is UNAVAILABLE
-    whatever their time (REDEMO_ORIGINAL_TUTOR). What a picker shows; the
-    assignment itself checks again under its locks.
+    For a Re-Demo, everyone who taught a Demo of its chain is UNAVAILABLE
+    whatever their time (REDEMO_ORIGINAL_TUTOR): the Demo it repeats, and any
+    earlier one. What a picker shows; the assignment itself checks again
+    under its locks.
     """
     tutors = list(assignable_tutors().order_by('full_name', 'email', 'id'))
     conflicts = tutor_conflicts(tutors, slot.starts_at, slot.ends_at, exclude_booking=booking)
     current = booking.assigned_tutor_id if booking is not None else None
     original = redemo_original_tutor_id(booking) if booking is not None else None
+    excluded = redemo_excluded_tutor_ids(booking) if booking is not None else set()
     rows = []
     for tutor in tutors:
         conflict = conflicts.get(tutor.pk)
         if tutor.pk == original:
             reason = {'code': RedemoOriginalTutor.code, 'message': ORIGINAL_TUTOR_REASON}
+        elif tutor.pk in excluded:
+            reason = {'code': RedemoEarlierTutor.code, 'message': EARLIER_TUTOR_REASON}
         else:
             reason = conflict_reason(conflict) if conflict else None
         rows.append({
@@ -700,7 +722,10 @@ def booking_history(booking, now):
     slot_ids = {e.data.get(key) for e in events for key in EVENT_SLOT_KEYS if e.data.get(key)}
     tutors = {str(u.pk): u for u in User.objects.filter(pk__in=tutor_ids)}
     slots = {str(slot.pk): slot for slot in BookingSlot.objects.filter(pk__in=slot_ids)}
-    reasons = {'CANCELLED': CancelReason, 'RESCHEDULED': RescheduleReason, 'PARENT_NOT_CONFIRMED': NotConfirmedReason}
+    reasons = {
+        'CANCELLED': CancelReason, 'RESCHEDULED': RescheduleReason, 'PARENT_NOT_CONFIRMED': NotConfirmedReason,
+        'REDEMO_CLOSED': RedemoCloseReason,
+    }
 
     def details(event):
         data = event.data

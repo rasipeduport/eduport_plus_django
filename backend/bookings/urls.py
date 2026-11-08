@@ -9,8 +9,11 @@ from .views import (
     BdeDemoInviteView,
     BdeEnquiriesView,
     BdeEnquiryDetailView,
+    BdeEnquiryHistoryView,
     BdeEnquiryNotesView,
     BdeEnquiryTimezoneView,
+    BdeRedemoCloseView,
+    BdeRedemoReopenView,
     BdeRedemoView,
 )
 
@@ -21,6 +24,8 @@ urlpatterns = [
     path('dashboard/', BdeDashboardView.as_view(), name='bde-dashboard'),
     path('enquiries/', BdeEnquiriesView.as_view(), name='bde-enquiries'),
     path('enquiries/<uuid:pk>/', BdeEnquiryDetailView.as_view(), name='bde-enquiry'),
+    # The History of the caller's own enquiry: every change to its bookings, with who and why (bookings.timeline).
+    path('enquiries/<uuid:pk>/history/', BdeEnquiryHistoryView.as_view(), name='bde-enquiry-history'),
     # Staff's notes on the caller's own enquiry, shared with its tutors and the administrators (bookings.notes).
     path('enquiries/<uuid:pk>/notes/', BdeEnquiryNotesView.as_view(), name='bde-enquiry-notes'),
     # Correcting the time zone the caller's own enquiry's student books from (bookings.student_timezones).
@@ -39,5 +44,11 @@ urlpatterns = [
     # A Re-Demo of a completed Demo of the caller's own lead (bookings.redemos); ownership checked in the
     # view and the service. An administrator then schedules it.
     path('bookings/<str:booking_type>/<uuid:pk>/redemo/', BdeRedemoView.as_view(), name='bde-redemo'),
+    # Closing that request while nothing is booked for it, and reopening it; ownership checked as for asking.
+    path('bookings/<str:booking_type>/<uuid:pk>/redemo/close/', BdeRedemoCloseView.as_view(), name='bde-redemo-close'),
+    path(
+        'bookings/<str:booking_type>/<uuid:pk>/redemo/reopen/', BdeRedemoReopenView.as_view(),
+        name='bde-redemo-reopen',
+    ),
     # The reports on the caller's own leads, and their PDFs, are reports.bde_urls (P9).
 ]

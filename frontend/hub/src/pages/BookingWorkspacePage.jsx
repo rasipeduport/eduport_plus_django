@@ -5,7 +5,6 @@ import {
   CalendarClockIcon,
   CalendarX2Icon,
   FileTextIcon,
-  HistoryIcon,
   RotateCcwIcon,
   SearchXIcon,
   UserRoundCogIcon,
@@ -20,6 +19,7 @@ import {
   bookingError,
   bookingPagePath,
   bookingRedemoUrl,
+  bookingStudentHistoryUrl,
   bookingUrl,
   bookingsPagePath,
   cancelReasonLabel,
@@ -28,13 +28,12 @@ import {
 } from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, slotLabel } from '@/lib/enquiries';
 import { leadNotesUrl, leadUrl } from '@/lib/leads';
+import { useHistory } from '@/hooks/use-history';
 import { useBookingCommunication } from '@/hooks/use-booking-communication';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Panel } from '@/components/dashboard/dashboard-primitives';
 import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
-import { BookingEvents, useBookingHistory } from '@/components/bookings/booking-history';
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { DemoInviteButton } from '@/components/bookings/demo-invite-button';
 import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
@@ -43,6 +42,7 @@ import { BookingHeader } from '@/components/bookings/workspace/booking-header';
 import { BookingOverview } from '@/components/bookings/workspace/booking-overview';
 import { BookingsTab } from '@/components/bookings/workspace/bookings-tab';
 import { CommunicationSection } from '@/components/communications/communication-section';
+import { HistoryTimeline } from '@/components/history/history-timeline';
 import { LeadNotes } from '@/components/notes/lead-notes';
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
@@ -86,7 +86,11 @@ function WorkspaceSkeleton() {
  *   Tutor Feedback  its report, read-only, with its PDF and every version
  *   Notes           the enquiry's notes, shared with its BDE and its tutors
  *                   (bookings.LeadNote, accounts.view_all_leads)
- *   Activity       its whole timeline, the bookings it replaced included
+ *   History         the student's whole history (backend bookings.timeline):
+ *                   every change to their bookings, with who and why --
+ *                   this booking and the ones it replaced first, every
+ *                   booking a choice away (?tab=activity, its former name,
+ *                   still opens it)
  *
  * The header messages the parent on WhatsApp and offers what the booking allows:
  * one tutor action -- Assign Tutor, or Change Tutor once it has one
@@ -164,7 +168,7 @@ export default function BookingWorkspacePage({ user, type }) {
   }, [canViewLead, leadId, reloadKey]);
   const shownLead = lead && lead.id === leadId ? lead : null;
 
-  const history = useBookingHistory(shown ? type : null, shown?.id, reloadKey);
+  const history = useHistory(shown ? bookingStudentHistoryUrl(type, shown.id) : null, reloadKey);
   const communication = useBookingCommunication(canViewCommunication && shown ? type : null, shown?.id, reloadKey);
 
   const tabs = [
@@ -173,9 +177,10 @@ export default function BookingWorkspacePage({ user, type }) {
     ...(canViewCommunication ? [{ key: 'communication', label: 'Communication' }] : []),
     { key: 'feedback', label: 'Tutor Feedback' },
     ...(canViewLead ? [{ key: 'notes', label: 'Notes' }] : []),
-    { key: 'activity', label: 'Activity' },
+    { key: 'history', label: 'History' },
   ];
-  const requested = searchParams.get('tab');
+  // The History tab was the Activity tab: its links still open it.
+  const requested = searchParams.get('tab') === 'activity' ? 'history' : searchParams.get('tab');
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
   const setTab = (next) => {
     const params = new URLSearchParams(searchParams);
@@ -186,7 +191,16 @@ export default function BookingWorkspacePage({ user, type }) {
 
   // Another booking of the chain or the child's, in its own workspace, with the same way back.
   const openBooking = (id, bookingType = type) => navigate(bookingPagePath(bookingType, id), { state: location.state });
-  const openRedemo = (id) => navigate(`${bookingsPagePath('DEMO')}?${new URLSearchParams({ tab: REDEMO_VIEW, redemo: id })}`);
+  // A Re-Demo request, on Demo Bookings' Re-Demo tab: this student's requests only, the request open and
+  // highlighted, and the way back to this booking (?schedule=1: straight into scheduling it).
+  const openRedemo = (id, { schedule = false } = {}) => {
+    const params = new URLSearchParams({ tab: REDEMO_VIEW, redemo: id });
+    if (shown?.lead?.id) params.set('lead', shown.lead.id);
+    if (schedule) params.set('schedule', '1');
+    navigate(`${bookingsPagePath('DEMO')}?${params}`, {
+      state: { from: { to: `${location.pathname}${location.search}`, label: `${shown?.student_name ?? 'The'}'s booking` } },
+    });
+  };
   const typeOf = (entry) => bookingTypeLabel(entry.booking_type).toLowerCase();
 
   // A move answers the replacement booking, opened next (Q24: whether the tutor came too).
@@ -333,14 +347,8 @@ export default function BookingWorkspacePage({ user, type }) {
             </TabsContent>
           ) : null}
 
-          <TabsContent value="activity">
-            <Panel
-              icon={HistoryIcon}
-              title="Activity"
-              subtitle="Every change to this booking and the bookings it replaced, oldest first, in Indian time (IST)"
-            >
-              <BookingEvents state={history} bookingId={shown.id} />
-            </Panel>
+          <TabsContent value="history">
+            <HistoryTimeline state={history} />
           </TabsContent>
         </Tabs>
       </>
@@ -396,9 +404,16 @@ export default function BookingWorkspacePage({ user, type }) {
           if (!open) setRequestingRedemo(null);
         }}
         requestUrl={requestingRedemo ? bookingRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
-        onRequested={() =>
+        onRequested={(redemo) =>
           changed(
-            `Asked for a Re-Demo of ${requestingRedemo.student_name}'s demo. It is now Re-Demo required; schedule it in Demo Bookings' Re-Demo requests tab.`
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              Asked for a Re-Demo of {requestingRedemo.student_name}&apos;s demo. It is now Re-Demo required.
+              {redemo?.actions?.schedule ? (
+                <Button variant="link" size="sm" className="text-success h-auto p-0 underline" onClick={() => openRedemo(redemo.id, { schedule: true })}>
+                  Schedule it now
+                </Button>
+              ) : null}
+            </span>
           )
         }
       />

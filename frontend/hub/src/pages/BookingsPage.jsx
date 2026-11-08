@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { RefreshCwIcon } from 'lucide-react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeftIcon, RefreshCwIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
@@ -10,9 +10,14 @@ import {
   REDEMO_VIEW,
   bookingError,
   bookingPagePath,
+  bookingUrl,
   bookingsUrl,
+  cancelReasonLabel,
   listParams,
   readRedemoStatus,
+  redemoCloseUrl,
+  redemoReopenUrl,
+  redemoUrl,
 } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { Button } from '@/components/ui/button';
@@ -20,9 +25,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
 import { AdminBookingFilters, BookingList } from '@/components/bookings/booking-list';
+import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
+import { RedemoCloseDialog } from '@/components/bookings/redemo-close-dialog';
 import { RedemoDetailSheet } from '@/components/bookings/redemo-detail-sheet';
 import { RedemoList } from '@/components/bookings/redemo-list';
 import { RedemoScheduleDialog } from '@/components/bookings/redemo-schedule-dialog';
+import { RescheduleBookingDialog } from '@/components/bookings/reschedule-booking-dialog';
 import { Page, PageHeader } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
@@ -90,14 +98,14 @@ function Loaded({ data, failure, pending, onRetry, children }) {
   );
 }
 
-/** The page's URL with `updates` applied; any change but paging or the open Re-Demo request starts again at page 1. */
+/** The page's URL with `updates` applied; any change but paging, the open Re-Demo request or ?schedule starts again at page 1. */
 function nextParams(searchParams, updates) {
   const params = new URLSearchParams(searchParams);
   for (const [key, value] of Object.entries(updates)) {
     if (value === null || value === '') params.delete(key);
     else params.set(key, value);
   }
-  if (!('page' in updates) && !('redemo' in updates)) params.delete('page');
+  if (!('page' in updates) && !('redemo' in updates) && !('schedule' in updates)) params.delete('page');
   return params;
 }
 
@@ -245,14 +253,19 @@ function BookingsView({ user, type }) {
 }
 
 /**
- * Demo Bookings' Re-Demo tab (?tab=redemo): every Re-Demo request, newest first
- * (GET /api/bookings/redemos/), searched (?q=), filtered by where it stands
- * (?status=) and paged by the API. A request opens in a side sheet
- * (?redemo=<id>) with its original Demo, its reason and the Re-Demo
- * scheduled for it -- each Demo opening in its own workspace with its report
- * -- and, for holders of accounts.assign_booking_tutor, Schedule Re-Demo (a
- * dialog of the tutor, the date and time they are free, and remarks for
- * them, which books it at once) and those remarks. Nothing is sent to the
+ * Demo Bookings' Re-Demo tab (?tab=redemo): every Re-Demo request in the
+ * API's order -- an administrator's steps first -- (GET /api/bookings/redemos/),
+ * filtered by status chip (?status=), search (?q=), the lead's BDE (?owner=),
+ * the dates requested (?from=, ?to=) and one student (?lead=, how a booking's
+ * workspace opens its request), and paged by the API. A request opens in a
+ * side sheet (?redemo=<id>, its row highlighted) with everything about it and
+ * what may be done with it now: Schedule Re-Demo (a dialog of the time and
+ * the tutor free then, or the tutor and their times, on the student's own
+ * clock beside IST, and remarks for them, which books it at once; ?schedule=1
+ * opens it straight away), close or reopen the request, and reschedule,
+ * change the tutor of or cancel the Re-Demo booked for it -- each Demo also
+ * opening in its own workspace. Arriving from a workspace
+ * (location.state.from), the page leads back to it. Nothing is sent to the
  * parent: the BDE tells them the time.
  */
 function RedemosView({ user }) {
@@ -263,21 +276,26 @@ function RedemosView({ user }) {
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [scheduling, setScheduling] = useState(null);
+  const [closing, setClosing] = useState(null);
+  // The request the close / reopen dialog was last opened for: kept while it animates closed, so it never
+  // turns into the other dialog on its way out.
+  const [lastClosing, setLastClosing] = useState(null);
+  const [acting, setActing] = useState(null);
   const [notice, setNotice] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const q = (searchParams.get('q') ?? '').trim();
-  const status = readRedemoStatus(searchParams.get('status'));
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const back = location.state?.from ?? null;
+  const filters = readRedemoFilters(searchParams);
+  const { q, status, owner, from, to, lead, page } = filters;
   const openId = searchParams.get('redemo');
+  const scheduleNow = searchParams.get('schedule') === '1';
 
   useEffect(() => {
     let active = true;
     setPending(true);
     const params = { page, page_size: PAGE_SIZE };
-    if (q) params.q = q;
-    if (status) params.status = status;
+    for (const [name, value] of Object.entries({ q, status, owner, from, to, lead })) if (value) params[name] = value;
     api
       .get(REDEMOS_URL, { params })
       .then((response) => {
@@ -294,10 +312,71 @@ function RedemosView({ user }) {
     return () => {
       active = false;
     };
-  }, [q, status, page, reloadKey]);
+  }, [q, status, owner, from, to, lead, page, reloadKey]);
+
+  // A link that asks to schedule (?schedule=1, Request Re-Demo's "Schedule now") opens the dialog once the request is read.
+  useEffect(() => {
+    if (!scheduleNow || !openId || !canSchedule) return undefined;
+    let active = true;
+    api
+      .get(redemoUrl(openId))
+      .then((response) => {
+        if (active && response.data.actions?.schedule) setScheduling(response.data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        // From the URL as it is by then: whatever the administrator changed meanwhile stays.
+        if (!active) return;
+        setSearchParams(
+          (current) => {
+            const params = new URLSearchParams(current);
+            params.delete('schedule');
+            return params;
+          },
+          { replace: true, state: location.state }
+        );
+      });
+    return () => {
+      active = false;
+    };
+    // Only when a link asks for it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleNow, openId, canSchedule]);
 
   const reload = () => setReloadKey((key) => key + 1);
-  const update = (updates) => setSearchParams(nextParams(searchParams, updates));
+  // Filters change the URL; the way back to a workspace stays with it.
+  const update = (updates) => setSearchParams(nextParams(searchParams, updates), { state: location.state });
+  const changed = (message) => {
+    setNotice(message);
+    reload();
+  };
+  const leadLabel = lead ? (data?.results?.[0]?.student_name ?? null) : null;
+  const openClosing = (next) => {
+    setClosing(next);
+    setLastClosing(next);
+  };
+  const shownClosing = closing ?? lastClosing;
+  // Scheduling straight from a list row: the request read in full first, so its remarks are shown -- and kept.
+  const scheduleRow = (row) => {
+    update({ redemo: row.id });
+    api
+      .get(redemoUrl(row.id))
+      .then((response) => {
+        if (response.data.actions?.schedule) setScheduling(response.data);
+      })
+      .catch((err) => setNotice(bookingError(err, 'Could not load this Re-Demo request.').message));
+  };
+
+  // A Re-Demo booked for the request: its full booking for the dialog that changes it.
+  const actOn = (action, bookingId) => {
+    api
+      .get(bookingUrl('DEMO', bookingId))
+      .then((response) => setActing({ action, booking: response.data }))
+      .catch((err) => setNotice(bookingError(err, 'Could not load the Re-Demo booking.').message));
+  };
+  const closeActing = (open) => {
+    if (!open) setActing(null);
+  };
 
   let content;
   if (failure?.status === 403) {
@@ -312,10 +391,15 @@ function RedemosView({ user }) {
             total={data?.count ?? 0}
             page={page}
             pageSize={PAGE_SIZE}
-            filters={{ q, status }}
+            filters={{ ...filters, leadLabel }}
+            counts={data?.counts}
+            owners={data?.owners}
             pending={pending}
+            canSchedule={canSchedule}
+            highlightedId={openId}
             onChange={update}
             onOpen={(id) => update({ redemo: id })}
+            onSchedule={scheduleRow}
           />
         </Loaded>
       </div>
@@ -324,6 +408,14 @@ function RedemosView({ user }) {
 
   return (
     <Page>
+      {back ? (
+        <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2 self-start" asChild>
+          <Link to={back.to}>
+            <ArrowLeftIcon className="size-4" />
+            {back.label}
+          </Link>
+        </Button>
+      ) : null}
       <BookingsHeader type="DEMO" onRefresh={reload} pending={pending} />
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
 
@@ -337,7 +429,10 @@ function RedemosView({ user }) {
         }}
         reloadKey={reloadKey}
         onSchedule={setScheduling}
-        // A Demo of the chain opens in its own workspace, with its own report.
+        onClose={(redemo) => openClosing({ mode: 'close', redemo })}
+        onReopen={(redemo) => openClosing({ mode: 'reopen', redemo })}
+        onBookingAction={actOn}
+        // A Demo of the chain opens in its own workspace, with its own report; back comes here, as filtered.
         onOpenBooking={(id) =>
           navigate(bookingPagePath('DEMO', id), {
             state: { from: { to: `${location.pathname}${location.search}`, label: 'Re-Demo requests' } },
@@ -353,14 +448,92 @@ function RedemosView({ user }) {
           onOpenChange={(open) => {
             if (!open) setScheduling(null);
           }}
-          onScheduled={(redemo) => {
-            setNotice(
+          onScheduled={(redemo) =>
+            changed(
               `${redemo.student_name}'s Re-Demo is booked with ${redemo.tutor?.full_name} on ${slotLabel(redemo.booking?.slot)}. The BDE tells the parent.`
-            );
-            reload();
-          }}
+            )
+          }
         />
       ) : null}
+
+      <RedemoCloseDialog
+        mode={shownClosing?.mode}
+        subject={
+          shownClosing
+            ? `${shownClosing.redemo.student_name} · Re-Demo of the Demo on ${slotLabel(shownClosing.redemo.original?.slot)}`
+            : null
+        }
+        open={Boolean(closing)}
+        onOpenChange={(open) => {
+          if (!open) setClosing(null);
+        }}
+        url={shownClosing ? (shownClosing.mode === 'close' ? redemoCloseUrl : redemoReopenUrl)(shownClosing.redemo.id) : ''}
+        // Refused (booked or closed meanwhile): read the list and the request again, as they are now.
+        onRefused={reload}
+        onDone={(redemo) =>
+          changed(
+            redemo.status === 'CLOSED'
+              ? `Closed ${redemo.student_name}'s Re-Demo request (${redemo.closed?.reason?.label}). Its Demo reads Completed again.`
+              : `Reopened ${redemo.student_name}'s Re-Demo request. It is waiting to be scheduled.`
+          )
+        }
+      />
+
+      <RescheduleBookingDialog
+        booking={acting?.action === 'reschedule' ? acting.booking : null}
+        open={acting?.action === 'reschedule'}
+        onOpenChange={closeActing}
+        onRescheduled={({ booking: replacement }) =>
+          changed(`Moved ${replacement.student_name}'s Re-Demo to ${slotLabel(replacement.slot)}.`)
+        }
+      />
+      {canSchedule ? (
+        <AssignTutorDialog
+          booking={acting?.action === 'change_tutor' ? acting.booking : null}
+          open={acting?.action === 'change_tutor'}
+          onOpenChange={closeActing}
+          onAssigned={(updated) => changed(`${updated.tutor?.full_name} now teaches ${updated.student_name}'s Re-Demo.`)}
+        />
+      ) : null}
+      <CancelBookingDialog
+        booking={acting?.action === 'cancel' ? acting.booking : null}
+        open={acting?.action === 'cancel'}
+        onOpenChange={closeActing}
+        onCancelled={(updated) =>
+          changed(
+            `Cancelled ${updated.student_name}'s Re-Demo (${cancelReasonLabel(updated.cancel_reason_code)}). The request waits to be scheduled again.`
+          )
+        }
+      />
     </Page>
   );
+}
+
+/** Whether `value` is a real YYYY-MM-DD date (not 2026-02-31). */
+function isDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return false;
+  const day = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(day.getTime()) && day.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * The Re-Demo tab's filters from its URL; a value the API would refuse is
+ * dropped -- an impossible date, and a range that ends before it begins
+ * keeps its start -- so a hand-edited link shows a list, never an error.
+ */
+function readRedemoFilters(searchParams) {
+  const date = (name) => (isDate(searchParams.get(name)) ? searchParams.get(name) : '');
+  const id = (name) => (/^[0-9a-f-]{36}$/i.test(searchParams.get(name) ?? '') ? searchParams.get(name) : '');
+  const owner = searchParams.get('owner') === 'none' ? 'none' : id('owner');
+  const from = date('from');
+  const to = date('to');
+  return {
+    q: (searchParams.get('q') ?? '').trim(),
+    status: readRedemoStatus(searchParams.get('status')),
+    owner,
+    from,
+    to: from && to && to < from ? '' : to,
+    lead: id('lead'),
+    page: Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1),
+  };
 }

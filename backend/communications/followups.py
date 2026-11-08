@@ -64,6 +64,7 @@ from bookings.scheduling import BOOKING_TIMEZONE, indian_today
 from reports.models import REPORT_MODELS
 
 from .models import CommunicationTask, Message, Step, TaskStatus
+from .redemo_messages import redemo_messages
 
 
 class FollowUpType(TextChoices):
@@ -303,4 +304,6 @@ def row(item, now):
             'phone_number': lead.phone_number,
         },
         'actions': item.actions or _actions(),
+        # A Re-Demo's confirmation is the BDE's by hand: the Demo messages' wording, filled in for WhatsApp.
+        'parent_messages': redemo_messages(booking, now) if item.type == FollowUpType.REDEMO_CONFIRMATION else None,
     }

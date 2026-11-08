@@ -6,6 +6,7 @@ My Bookings for tutors (bookings.tutor_bookings):
     POST /api/tutor/bookings/<type>/<id>/start/  Start Demo / Start Diagnostic
     GET  /api/tutor/bookings/<type>/<id>/notes/  staff's notes on its lead (bookings.notes)
     POST /api/tutor/bookings/<type>/<id>/notes/  add one, as its tutor
+    GET  /api/tutor/bookings/<type>/<id>/history/  its History, and its chain's (bookings.timeline)
 
 Each one's report -- read, submit, edit, history -- is under ``…/report/``
 (reports.tutor_views).
@@ -31,7 +32,7 @@ from accounts.authz import has_app_permission
 from core.pagination import page_params
 from core.permissions import HasAppPermission
 
-from . import notes, tutor_bookings
+from . import notes, timeline, tutor_bookings
 from .booking_service import BookingError, start_booking
 from .models import LeadNoteRole, booking_model
 from .public_views import PATH_TYPES
@@ -166,3 +167,31 @@ class TutorBookingNotesView(APIView):
             return _error('VALIDATION_ERROR', notes.INVALID_NOTE, status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
         notes.add_note(booking.lead, request.user, LeadNoteRole.TUTOR, serializer.validated_data['body'])
         return Response(notes.notes_of(booking.lead), status=status.HTTP_201_CREATED)
+
+
+class TutorBookingHistoryView(APIView):
+    """
+    GET /api/tutor/bookings/<type>/<id>/history/
+    The History of one of the caller's bookings (bookings.timeline): every
+    change to it and to the bookings it replaced when moved, and for a
+    Re-Demo to the Demos it repeats, oldest first -- each with who made it,
+    what changed and, for a cancellation or a move, its reason code. A
+    Re-Demo request made on the caller's own booking is not theirs and stays
+    out, as do the parent's answers; who asked for or scheduled a Re-Demo is
+    never named. Another tutor's booking is 404.
+    """
+    permission_classes = [IsAuthenticated, VIEW_ASSIGNED_BOOKINGS]
+
+    def get(self, request, booking_type, pk, *args, **kwargs):
+        booking = _assigned_booking(request, booking_type, pk)
+        if booking is None:
+            return _error('NOT_FOUND', 'No such booking.', status.HTTP_404_NOT_FOUND)
+        bookings, own = timeline.tutor_bookings(booking)
+        events = timeline.visible(timeline.events_of(bookings), timeline.TUTOR, own=own)
+        entries = timeline.rows(events, bookings, timeline.TUTOR)
+        return Response(
+            timeline.payload(
+                entries, bookings, timeline.TUTOR, lead=booking.lead, current=booking, chain=sorted(own, key=str),
+            ),
+            status=status.HTTP_200_OK,
+        )

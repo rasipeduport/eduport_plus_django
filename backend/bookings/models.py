@@ -848,6 +848,10 @@ class BookingEventKind(models.TextChoices):
     PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmed'
     PARENT_NOT_CONFIRMED = 'PARENT_NOT_CONFIRMED', 'Parent did not confirm'
     REDEMO_REQUESTED = 'REDEMO_REQUESTED', 'Re-Demo requested'
+    # A Re-Demo request closed with nothing booked for it, and opened again
+    # (bookings.redemos): recorded on the Demo it would teach again.
+    REDEMO_CLOSED = 'REDEMO_CLOSED', 'Re-Demo request closed'
+    REDEMO_REOPENED = 'REDEMO_REOPENED', 'Re-Demo request reopened'
 
 
 class BookingEvent(models.Model):
@@ -1050,6 +1054,15 @@ class ReDemoStatus(models.TextChoices):
     AWAITING_SCHEDULING = 'AWAITING_SCHEDULING', 'Awaiting scheduling'
     SCHEDULED = 'SCHEDULED', 'Re-Demo scheduled'
     COMPLETED = 'COMPLETED', 'Re-Demo completed'
+    CLOSED = 'CLOSED', 'Closed'
+
+
+class RedemoCloseReason(models.TextChoices):
+    """Why a Re-Demo request was closed with nothing booked for it: a code, never free text (as for CancelReason, M1)."""
+    PARENT_DECLINED = 'PARENT_DECLINED', 'Parent declined'
+    REQUESTED_BY_MISTAKE = 'REQUESTED_BY_MISTAKE', 'Requested by mistake'
+    BOOKED_SEPARATELY = 'BOOKED_SEPARATELY', 'Booked separately'
+    OTHER = 'OTHER', 'Other'
 
 
 class ReDemoRequest(models.Model):
@@ -1069,6 +1082,12 @@ class ReDemoRequest(models.Model):
     Re-Demo -> request -> ... The reason and the administrators' remarks are
     staff's words: they reach no booking history, activity log or parent, but
     the tutor teaching the Re-Demo is shown both (bookings.tutor_bookings).
+
+    While nothing is booked for it, the lead's BDE or an administrator may
+    close it, for a reason code (``closed_at``): its Demo reads COMPLETED
+    again until it is reopened, when it is RE-DEMO REQUIRED once more. The
+    request stays the Demo's one request either way; each close and reopen
+    is a booking-history event of that Demo.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='redemo_requests')
@@ -1091,6 +1110,21 @@ class ReDemoRequest(models.Model):
         blank=True,
         related_name='redemo_remarks_updated'
     )
+    # The version the Demo's report had when the request was made: what the
+    # decision was based on (the tutor may edit it later). NULL for requests
+    # from before it was kept.
+    original_report_version = models.IntegerField(null=True, blank=True)
+    # Closed with nothing booked for it (bookings.redemos): when, by whom and
+    # why; cleared when it is reopened. The history keeps every close and reopen.
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='redemos_closed'
+    )
+    close_reason_code = models.CharField(max_length=30, choices=RedemoCloseReason.choices, blank=True, default='')
 
     class Meta:
         db_table = 'redemo_requests'
@@ -1102,6 +1136,14 @@ class ReDemoRequest(models.Model):
             models.CheckConstraint(
                 condition=Q(remarks_updated_by__isnull=True) | Q(remarks_updated_at__isnull=False),
                 name='redemo_requests_remarks_by_needs_at',
+            ),
+            # A closed request says why, and an open one carries no close.
+            models.CheckConstraint(
+                condition=(
+                    Q(closed_at__isnull=False, close_reason_code__in=RedemoCloseReason.values)
+                    | Q(closed_at__isnull=True, closed_by__isnull=True, close_reason_code='')
+                ),
+                name='redemo_requests_close_fields',
             ),
         ]
         indexes = [

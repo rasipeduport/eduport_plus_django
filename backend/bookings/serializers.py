@@ -2,7 +2,10 @@ from rest_framework import serializers
 
 from .booking_service import REDEMO_REASON_MAX_LENGTH, REDEMO_REMARKS_MAX_LENGTH
 from .leads import InvalidLeadDetails, normalize_phone
-from .models import MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RescheduleReason
+from .models import (
+    MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RedemoCloseReason,
+    RescheduleReason,
+)
 from .notes import NOTE_MAX_LENGTH
 from .public_serializers import CLASSES, SYLLABI
 from .services import link_url
@@ -138,3 +141,11 @@ class RedemoScheduleSerializer(serializers.Serializer):
     date = serializers.DateField(input_formats=['%Y-%m-%d'])
     time = serializers.TimeField(input_formats=['%H:%M'])
     remarks = serializers.CharField(max_length=REDEMO_REMARKS_MAX_LENGTH, allow_blank=True, required=False)
+    # The slot's start as the picker showed it -- on the student's clock, an
+    # instant all the same -- which must be the slot at ``date`` / ``time``.
+    starts_at = serializers.DateTimeField(required=False)
+
+
+class RedemoCloseSerializer(serializers.Serializer):
+    """Closing a Re-Demo request (booking_service.close_redemo): why, a code from the list."""
+    reason = serializers.ChoiceField(choices=RedemoCloseReason.choices)

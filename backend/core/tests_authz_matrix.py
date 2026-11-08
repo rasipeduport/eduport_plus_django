@@ -71,8 +71,9 @@ ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
 FOLLOW_UP_ROW_FIELDS = [
     'actions', 'actions.record_answer', 'actions.record_outcome', 'actions.request_confirmation', 'booking', 'due_at',
     'enquiry', 'enquiry.grade', 'enquiry.id', 'enquiry.parent_name', 'enquiry.phone', 'enquiry.phone_dial_code',
-    'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'request', 'state', 'state_label', 'type',
-    'type_label',
+    # parent_messages: a Re-Demo confirmation's messages to send by hand (communications.redemo_messages), else null.
+    'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'parent_messages', 'request', 'state',
+    'state_label', 'type', 'type_label',
 ]
 BDE_WORKSPACE = {
     'bde.booking_links': BDE_OWN_LINKS,
@@ -142,6 +143,16 @@ BDE_WORKSPACE = {
     # ... and asks for a Re-Demo only for their own leads' Demos: booking_a's lead is nobody's.
     'bde.bookings.redemo_request': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                     'fields': ['error', 'message']},
+    # ... and closes and reopens only their own leads' requests (2026-11-08): booking_a's lead is nobody's.
+    'bde.bookings.redemo_close': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                  'fields': ['error', 'message']},
+    'bde.bookings.redemo_reopen': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
+                                   'fields': ['error', 'message']},
+    # Its own enquiry's History (bookings.timeline): lead_a has no booking, so nothing has happened yet.
+    'bde.enquiries.history': {
+        'status': 200, 'records': [],
+        'fields': ['booking_id', 'bookings', 'chain_ids', 'entries', 'student_timezone', 'timezone'],
+    },
     # ... and its communication too (Phase 3.1), which the BDE may neither preview, ask about nor answer for (3.2).
     'communications.booking': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                'fields': ['error', 'message']},

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/page/states';
-import { bookingError, bookingHistoryUrl } from '@/lib/bookings';
+import { REDEMO_CLOSE_REASONS, bookingError, bookingHistoryUrl } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { slotLabel } from '@/lib/enquiries';
 import { reportFieldsText } from '@/lib/reports';
@@ -54,6 +54,15 @@ function describeBookingEvent(event) {
     // A completed Demo sent to be taught again: its report and tutor stay; the reason stays on the request.
     case 'REDEMO_REQUESTED':
       return 'Re-Demo requested — the Demo is now Re-Demo required';
+    // Closed with nothing booked for it, for a reason code (backend models.RedemoCloseReason), and opened again.
+    case 'REDEMO_CLOSED': {
+      const reason = REDEMO_CLOSE_REASONS.find((option) => option.value === d.reason?.code)?.label ?? d.reason?.label;
+      return reason
+        ? `Re-Demo request closed — ${reason}; the Demo reads Completed again`
+        : 'Re-Demo request closed — the Demo reads Completed again';
+    }
+    case 'REDEMO_REOPENED':
+      return 'Re-Demo request reopened — the Demo is Re-Demo required again';
     default:
       return event.kind_label ?? event.kind;
   }
@@ -74,6 +83,8 @@ const TONE = {
   PARENT_NOT_CONFIRMED: 'bg-destructive',
   RESCHEDULED: 'bg-warning',
   REDEMO_REQUESTED: 'bg-warning',
+  REDEMO_CLOSED: 'bg-muted-foreground',
+  REDEMO_REOPENED: 'bg-warning',
 };
 
 /**

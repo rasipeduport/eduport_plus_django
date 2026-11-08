@@ -7,7 +7,7 @@
 // the booking was made. So every span here is a pair of Indian dates, worked
 // out from today's date in India -- whatever zone this device is in -- with
 // plain calendar arithmetic from there.
-import { DEFAULT_WHEN } from '@/lib/bookings';
+import { DEFAULT_WHEN, TAUGHT_STATUSES } from '@/lib/bookings';
 import { utcToZonedWallTime } from '@/lib/timezone';
 
 const INDIA = 'Asia/Kolkata';
@@ -93,7 +93,10 @@ export function readBdeBookingFilters(searchParams, statuses, now = new Date()) 
 
   const q = (searchParams.get('q') ?? '').trim();
   const status = known(statuses, searchParams.get('status')) ? searchParams.get('status') : '';
-  const when = known(SCHEDULE_OPTIONS, searchParams.get('when')) ? searchParams.get('when') : DEFAULT_WHEN;
+  // A class already taught (Completed, Re-Demo required) has a slot that is almost always over: with no
+  // schedule chosen its list reads every date, never an empty Upcoming list.
+  const askedWhen = known(SCHEDULE_OPTIONS, searchParams.get('when')) ? searchParams.get('when') : '';
+  const when = askedWhen || (TAUGHT_STATUSES.has(status) ? 'all' : DEFAULT_WHEN);
   return {
     page: Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1),
     q,

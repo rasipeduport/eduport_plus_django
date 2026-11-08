@@ -3,18 +3,26 @@ import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, SearchXIcon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { bookingError, tutorBookingNotesUrl, tutorBookingPagePath, tutorBookingUrl, tutorBookingsPagePath } from '@/lib/bookings';
+import {
+  bookingError,
+  tutorBookingHistoryUrl,
+  tutorBookingNotesUrl,
+  tutorBookingPagePath,
+  tutorBookingUrl,
+  tutorBookingsPagePath,
+} from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
-import { bookingTypeLabel } from '@/lib/enquiries';
+import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { reportWords } from '@/lib/reports';
+import { useHistory } from '@/hooks/use-history';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TutorBookingActivity } from '@/components/bookings/tutor-workspace/tutor-booking-activity';
 import { TutorBookingHeader } from '@/components/bookings/tutor-workspace/tutor-booking-header';
 import { TutorBookingOverview } from '@/components/bookings/tutor-workspace/tutor-booking-overview';
 import { TutorBookingSession } from '@/components/bookings/tutor-workspace/tutor-booking-session';
 import { TutorFeedbackPanel } from '@/components/bookings/tutor-workspace/tutor-feedback-panel';
+import { HistoryTimeline } from '@/components/history/history-timeline';
 import { LeadNotes } from '@/components/notes/lead-notes';
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
@@ -50,7 +58,9 @@ function WorkspaceSkeleton() {
  *   Feedback / Results  the report once in, as it prints, with its PDF and every
  *                       version; else why it cannot be written yet
  *   Notes               the enquiry's notes, shared with its BDE and the administrators
- *   Activity            the booking as it has gone: the slot, the start, each version
+ *   History             every change to the booking, the bookings it replaced
+ *                       when moved and, for a Re-Demo, the Demos it repeats --
+ *                       with who made it and why (backend bookings.timeline)
  *
  * The header joins the Meet room, starts the class (which opens Meet and
  * records the start its report needs) and opens the report page to write or
@@ -70,6 +80,8 @@ export default function TutorBookingWorkspacePage({ type }) {
   const [booking, setBooking] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // History is read again after a Start made here, which changes the booking without reading it again.
+  const [historyKey, setHistoryKey] = useState(0);
   const [notice, setNotice] = useState(null);
 
   const reload = () => setReloadKey((key) => key + 1);
@@ -95,9 +107,10 @@ export default function TutorBookingWorkspacePage({ type }) {
     { key: 'session', label: 'Bookings' },
     { key: 'feedback', label: words.tab },
     { key: 'notes', label: 'Notes' },
-    { key: 'activity', label: 'Activity' },
+    { key: 'history', label: 'History' },
   ];
-  const requested = searchParams.get('tab');
+  // A link from before History had its name (?tab=activity) opens History.
+  const requested = searchParams.get('tab') === 'activity' ? 'history' : searchParams.get('tab');
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
   const setTab = (next) => {
     const params = new URLSearchParams(searchParams);
@@ -109,9 +122,16 @@ export default function TutorBookingWorkspacePage({ type }) {
   // Nothing of another booking shows while this one loads.
   const shown = booking && booking.id === bookingId && booking.booking_type === type ? booking : null;
 
+  // Read only while History is open, and again with the booking.
+  const history = useHistory(
+    tab === 'history' && shown ? tutorBookingHistoryUrl(type, shown.id) : null,
+    `${reloadKey}:${historyKey}`
+  );
+
   // Started here: show the booking as the API answered it.
   const started = (updated) => {
     setBooking(updated);
+    setHistoryKey((key) => key + 1);
     setNotice(
       `You started the ${bookingTypeLabel(type).toLowerCase()} ${istMoment(updated.started_at) ?? 'now'}. ${words.write} here once you have taught it.`
     );
@@ -210,8 +230,22 @@ export default function TutorBookingWorkspacePage({ type }) {
             />
           </TabsContent>
 
-          <TabsContent value="activity">
-            <TutorBookingActivity booking={shown} reloadKey={reloadKey} />
+          <TabsContent value="history">
+            <div className="flex flex-col gap-4">
+              {/* What is still ahead, beside what has happened: a class to come and when Start opens. */}
+              {shown.status === 'BOOKED' && !shown.started_at && !shown.slot.ended ? (
+                <p className="text-muted-foreground rounded-xl border px-4 py-3 text-sm">
+                  Coming up: the {bookingTypeLabel(type).toLowerCase()} on{' '}
+                  <span className="text-foreground font-medium">{slotLabel(shown.slot)}</span>
+                  {shown.slot.started ? '' : ` · Start opens ${istMoment(shown.start_opens_at)}`}
+                </p>
+              ) : null}
+              <HistoryTimeline
+                state={history}
+                subtitle="Every change to this booking, oldest first, in Indian time (IST), with who made it"
+                emptyMessage="Nothing has happened to this booking yet."
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </>

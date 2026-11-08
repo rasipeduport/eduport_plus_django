@@ -37,6 +37,7 @@ from .booking_service import (
     LeadAlreadyBooked,
     RedemoAlreadyRequested,
     RedemoCompleted,
+    RedemoEarlierTutor,
     RedemoNotEligible,
     RedemoOriginalTutor,
     RedemoReasonRequired,
@@ -414,9 +415,13 @@ class TutorPlatformTests(RedemoTestCase):
                          (1, REASON, REMARKS, {'full_name': 'Tutor Orla'}))
         self.assertEqual((redemo['original']['slot']['date'], redemo['original']['slot']['time']), ('2026-10-28', '19:30'))
         self.assertEqual(set(redemo), {'number', 'reason', 'admin_remarks', 'original'})
-        # Never who asked, nor the original Demo's report.
+        # The original Demo's report, to read (approved 2026-11-08): what its tutor wrote, at its version.
+        report = redemo['original']['report']
+        self.assertEqual((report['version'], report['fields']['assessment_review']),
+                         (self.demo.report.version, self.demo.report.assessment_review))
+        # Never who asked.
         text = json.dumps(shown, default=str)
-        for hidden in ('Bde Anil', 'Admin Ops', self.demo.report.assessment_review):
+        for hidden in ('Bde Anil', 'Admin Ops'):
             self.assertNotIn(hidden, text)
         # The remarks the administrators change later reach the tutor.
         redemos.set_remarks(ReDemoRequest.objects.get(pk=booking.redemo_for_id), 'Bring the worksheet.', self.admin)
@@ -448,15 +453,23 @@ class ChainTests(RedemoTestCase):
         # The Re-Demo, now completed, may be taught again: a second request in the chain.
         later = datetime(2026, 11, 1, 12, 0, tzinfo=BOOKING_TIMEZONE)
         second = request_redemo(booking, 'Still unsure about the tutor.', actor=self.admin, now=later)
-        # Re-Demo 2 repeats Re-Demo 1: its tutor is the one who may not teach it; the first Demo's tutor may.
-        with self.assertRaises(RedemoOriginalTutor):
+        # Re-Demo 2 repeats Re-Demo 1: neither its tutor nor the first Demo's may teach it (every
+        # earlier tutor of the chain is excluded, approved 2026-11-08).
+        with self.assertRaises(RedemoOriginalTutor) as caught:
             schedule_redemo(second, self.tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
-        options = {option['id']: option['eligible'] for option in redemos.tutor_options(second, later)}
-        self.assertEqual((options[str(self.tutor.pk)], options[str(self.original_tutor.pk)]), (False, True))
-        third = schedule_redemo(second, self.original_tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
+        self.assertIs(type(caught.exception), RedemoOriginalTutor)
+        with self.assertRaises(RedemoEarlierTutor):
+            schedule_redemo(second, self.original_tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
+        options = {option['id']: option for option in redemos.tutor_options(second, later)}
+        self.assertEqual((options[str(self.tutor.pk)]['eligible'], options[str(self.original_tutor.pk)]['eligible']),
+                         (False, False))
+        self.assertEqual((options[str(self.tutor.pk)]['original'], options[str(self.original_tutor.pk)]['earlier']),
+                         (True, True))
+        third_tutor = account('tutor_tara', role='TUTOR')
+        third = schedule_redemo(second, third_tutor, date(2026, 11, 4), EVENING, actor=self.admin, now=later)
         self.assertEqual(shown_to_tutor(third)['redemo']['number'], 2)
         self.assertEqual(shown_to_tutor(third)['redemo']['original']['tutor'], {'full_name': 'Tutor Neel'})
-        third = complete(third, self.original_tutor)
+        third = complete(third, third_tutor)
         self.assertEqual(len({self.demo.report.pk, booking.report.pk, third.report.pk}), 3)
         self.assertEqual(DemoBooking.objects.get(pk=booking.pk).status, BookingStatus.REDEMO_REQUIRED)
 
@@ -521,7 +534,8 @@ class AdminApiTests(RedemoApiTestCase):
         self.assertEqual(res.status_code, 201, res.data)
         self.assertEqual((res.data['status'], res.data['reason'], res.data['requested_by']['id'], res.data['original']['id'],
                           res.data['actions']), ('AWAITING_SCHEDULING', REASON, str(self.admin.pk), str(self.demo.pk),
-                                                 {'schedule': True, 'edit_remarks': True}))
+                                                 {'schedule': True, 'edit_remarks': True, 'close': True,
+                                                  'reopen': False}))
         again = self.as_user(self.admin).post(redemo_url(self.demo.pk), {'reason': REASON}, format='json')
         self.assertEqual((again.status_code, again.data['error']), (409, 'REDEMO_ALREADY_REQUESTED'))
         detail = self.as_user(self.admin).get(f'/api/bookings/demo/{self.demo.pk}/').data
@@ -556,7 +570,8 @@ class AdminApiTests(RedemoApiTestCase):
                           format='json')
         self.assertEqual(res.status_code, 201, res.data)
         self.assertEqual((res.data['status'], res.data['tutor']['id'], res.data['admin_remarks'], res.data['actions']),
-                         ('SCHEDULED', str(self.tutor.pk), REMARKS, {'schedule': False, 'edit_remarks': True}))
+                         ('SCHEDULED', str(self.tutor.pk), REMARKS,
+                          {'schedule': False, 'edit_remarks': True, 'close': False, 'reopen': False}))
         booking_id = res.data['booking_id']
         self.assertEqual((res.data['booking']['id'], res.data['booking']['tutor_meet_link']), (booking_id, MEET))
         again = client.post(f'/api/bookings/redemos/{redemo.pk}/schedule/', self.schedule_body(at='10:00'), format='json')
@@ -644,7 +659,9 @@ class AdminApiTests(RedemoApiTestCase):
         group = RoleGroup.objects.select_related('group').get(role='ADMIN').group
         group.permissions.remove(Permission.objects.get(codename='assign_booking_tutor'))
         client = self.as_user(self.admin)
-        self.assertEqual(client.get(base).data['actions'], {'schedule': False, 'edit_remarks': False})
+        # Closing needs the reschedule permission, which the Admin still holds.
+        self.assertEqual(client.get(base).data['actions'],
+                         {'schedule': False, 'edit_remarks': False, 'close': True, 'reopen': False})
         self.assertEqual(client.post(f'{base}schedule/', self.schedule_body(), format='json').status_code, 403)
         self.assertFalse(DemoBooking.objects.filter(redemo_for=redemo).exists())
         self.assertEqual(client.get(f'/api/bookings/redemos/{self.lead.pk}/').status_code, 404)

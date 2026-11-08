@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   AlertCircleIcon,
   CircleSlashIcon,
@@ -10,11 +11,13 @@ import {
   UserRoundIcon,
 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/dashboard/dashboard-primitives';
 import { EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
 import { StudentTimeLine, StudentTimezone } from '@/components/bookings/student-time';
 import { JourneyCard } from '@/components/bookings/workspace/booking-overview';
+import { ReportFieldsView } from '@/components/reports/report-fields-view';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { bookingTypeLabel, formatDay, slotLabel } from '@/lib/enquiries';
 import { istMoment } from '@/lib/communications';
@@ -135,11 +138,42 @@ function NextStep({ booking, onStarted, onRefresh, reportState: linkState }) {
 }
 
 /**
+ * The report on the Demo a Re-Demo repeats, as its tutor last saved it, to
+ * read only -- folded away until asked for. That report is its own tutor's:
+ * nothing here writes to it.
+ */
+function OriginalReport({ report }) {
+  const [open, setOpen] = useState(false);
+  if (!report) return <span className="text-muted-foreground font-normal">No report on that Demo</span>;
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <span className="text-muted-foreground text-xs font-normal">
+        Report on the Demo it repeats (version {report.version}, read-only)
+      </span>
+      <Button
+        variant="link"
+        size="sm"
+        className="h-auto p-0"
+        onClick={() => setOpen((shown) => !shown)}
+        aria-expanded={open}
+      >
+        {open ? 'Hide the report' : 'Read the report'}
+      </Button>
+      {open ? (
+        <div className="w-full rounded-lg border p-3 font-normal">
+          <ReportFieldsView type="DEMO" report={report} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * Why this Re-Demo is taught (the API's `redemo`, backend bookings.redemos),
  * each labelled by where it comes from: the reason given when it was
  * requested (the BDE's, often the parent's words), the administrators'
- * remarks from scheduling it, and the Demo it follows -- when it was and who
- * taught it.
+ * remarks from scheduling it, and the Demo it follows -- when it was, who
+ * taught it and its report, to read.
  */
 function RedemoPanel({ redemo }) {
   const which = redemo.number > 1 ? `Re-Demo ${redemo.number}` : 'Re-Demo';
@@ -169,6 +203,9 @@ function RedemoPanel({ redemo }) {
               {redemo.original.tutor ? `Taught by ${redemo.original.tutor.full_name}` : 'No tutor recorded'}
             </span>
           </span>
+        </Field>
+        <Field label="Demo report">
+          <OriginalReport report={redemo.original.report} />
         </Field>
       </dl>
     </Panel>

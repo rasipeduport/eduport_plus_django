@@ -5,7 +5,7 @@ import { CalendarCheck, ChevronRightIcon, ClipboardCheck, SearchXIcon } from 'lu
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { bdeBookingParams, readBdeBookingFilters } from '@/lib/bde-booking-filters';
-import { BOOKING_STATUSES, DEFAULT_WHEN, bdeBookingsUrl } from '@/lib/bookings';
+import { BOOKING_STATUSES, DEFAULT_WHEN, DEMO_ONLY_STATUSES, bdeBookingsUrl } from '@/lib/bookings';
 import { enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
 import { showsStudentTime } from '@/lib/timezone';
 import { useListParams } from '@/hooks/use-list-params';
@@ -39,7 +39,7 @@ const PAGE_SIZE = 25;
 // A Re-Demo is only ever a Demo's.
 const STATUSES = {
   DEMO: BOOKING_STATUSES,
-  DIAGNOSTIC: BOOKING_STATUSES.filter((option) => option.value !== 'REDEMO_REQUIRED'),
+  DIAGNOSTIC: BOOKING_STATUSES.filter((option) => !DEMO_ONLY_STATUSES.has(option.value)),
 };
 
 function Tutor({ booking }) {

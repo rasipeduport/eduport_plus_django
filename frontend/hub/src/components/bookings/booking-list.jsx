@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/page/page';
 import { FilterSelect, SearchField } from '@/components/page/list-toolbar';
 import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
-import { ASSIGNMENT_FILTERS, DEFAULT_WHEN, REPORT_DUE, REPORT_FILTERS, tutorChangeable } from '@/lib/bookings';
+import { ASSIGNMENT_FILTERS, DEFAULT_WHEN, REPORT_DUE, REPORT_FILTERS, TAUGHT_STATUSES, tutorChangeable } from '@/lib/bookings';
 import { SCHEDULE_OPTIONS } from '@/lib/bde-booking-filters';
 import { CLEARED_ADMIN_FILTERS } from '@/lib/admin-booking-filters';
 import { slotLabel, slotParts } from '@/lib/enquiries';
@@ -69,7 +69,13 @@ export function AdminBookingFilters({ filters, statuses, onChange, onClear }) {
           label="Filter by schedule"
           placeholder="Upcoming"
           value={filters.when === DEFAULT_WHEN ? '' : filters.when}
-          onChange={(value) => onChange(value || filters.report !== REPORT_DUE ? { when: value || null } : { when: null, report: null })}
+          onChange={(value) => {
+            if (!value && filters.report === REPORT_DUE) return onChange({ when: null, report: null });
+            // Upcoming is the default, left out of the URL -- but a taught class reads every date by default,
+            // so for one Upcoming is written out.
+            if (!value && TAUGHT_STATUSES.has(filters.status)) return onChange({ when: DEFAULT_WHEN });
+            return onChange({ when: value || null });
+          }}
           options={OTHER_SCHEDULES}
         />
         {filters.filtered ? (
