@@ -15,9 +15,11 @@ import { ReportFieldsView } from './report-fields-view';
  * (reports.0002): saving an edit adds one and never changes another.
  * ``reportUrl`` is the tutor's report or the Admin's (lib/reports); a change
  * of ``reloadKey`` reads them again (after a save). ``headingAs`` sets the
- * heading's level where the list sits under another heading (a sheet's).
+ * heading's level where the list sits under another heading (a sheet's);
+ * ``showHeading={false}`` leaves the heading to a container that has its own
+ * (the tutor's Version History).
  */
-export function ReportVersions({ type, reportUrl, reloadKey, headingAs: Heading = 'h2' }) {
+export function ReportVersions({ type, reportUrl, reloadKey, headingAs: Heading = 'h2', showHeading = true }) {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -115,6 +117,8 @@ export function ReportVersions({ type, reportUrl, reloadKey, headingAs: Heading 
       </ol>
     );
   }
+
+  if (!showHeading) return <div className="flex flex-col gap-3">{body}</div>;
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="report-versions-heading">
