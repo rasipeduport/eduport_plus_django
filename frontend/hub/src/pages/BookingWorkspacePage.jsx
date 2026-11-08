@@ -83,10 +83,10 @@ function WorkspaceSkeleton() {
  *                   and every message, call and task, as the BDE's
  *                   communication sheet lays them out, to read only
  *                   (accounts.view_all_communications)
+ *   Tutor Feedback  its report, read-only, with its PDF and every version
  *   Notes           the enquiry's notes, shared with its BDE and its tutors
  *                   (bookings.LeadNote, accounts.view_all_leads)
- *   Tutor Feedback  its report, read-only, with its PDF and every version
- *   Activity        its whole timeline, the bookings it replaced included
+ *   Activity       its whole timeline, the bookings it replaced included
  *
  * The header messages the parent on WhatsApp and offers what the booking allows:
  * one tutor action -- Assign Tutor, or Change Tutor once it has one
@@ -171,8 +171,8 @@ export default function BookingWorkspacePage({ user, type }) {
     { key: 'overview', label: 'Overview' },
     { key: 'bookings', label: 'Bookings' },
     ...(canViewCommunication ? [{ key: 'communication', label: 'Communication' }] : []),
-    ...(canViewLead ? [{ key: 'notes', label: 'Notes' }] : []),
     { key: 'feedback', label: 'Tutor Feedback' },
+    ...(canViewLead ? [{ key: 'notes', label: 'Notes' }] : []),
     { key: 'activity', label: 'Activity' },
   ];
   const requested = searchParams.get('tab');
@@ -305,17 +305,6 @@ export default function BookingWorkspacePage({ user, type }) {
             </TabsContent>
           ) : null}
 
-          {canViewLead ? (
-            <TabsContent value="notes">
-              <LeadNotes
-                url={leadNotesUrl(leadBrief.id)}
-                emptyDescription="Notes the BDE, the tutors and the administrators add to this enquiry appear here, oldest first. Its Demo and Diagnostic bookings share them."
-                placeholder="Write a note for the BDE and the tutors…"
-                loadError="Could not load this enquiry's notes."
-              />
-            </TabsContent>
-          ) : null}
-
           <TabsContent value="feedback">
             {/* Only a booked or completed booking has a report to write or read. */}
             {shown.status === 'BOOKED' || conducted(shown) ? (
@@ -332,6 +321,17 @@ export default function BookingWorkspacePage({ user, type }) {
               />
             )}
           </TabsContent>
+
+          {canViewLead ? (
+            <TabsContent value="notes">
+              <LeadNotes
+                url={leadNotesUrl(leadBrief.id)}
+                emptyDescription="Notes the BDE, the tutors and the administrators add to this enquiry appear here, oldest first. Its Demo and Diagnostic bookings share them."
+                placeholder="Write a note for the BDE and the tutors…"
+                loadError="Could not load this enquiry's notes."
+              />
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="activity">
             <Panel
