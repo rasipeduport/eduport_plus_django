@@ -22,6 +22,7 @@ import { formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { istMoment } from '@/lib/communications';
 import { cn } from '@/lib/utils';
 import { RedemoBadge } from '../booking-badges';
+import { StudentTimeLine, StudentTimezone } from '../student-time';
 
 function Field({ label, children }) {
   return (
@@ -175,9 +176,10 @@ function tutorText(entry) {
 
 /**
  * Every Demo and Diagnostic booking made for the child (the lead's bookings,
- * latest slot first, as the API lists them): its type, slot (IST), where it
- * stands, who teaches it and when it was booked, each opening in its own
- * workspace (`onOpenBooking(entry)`) -- this one marked instead.
+ * latest slot first, as the API lists them): its type, slot (IST) with the
+ * student's own time under it where that reads differently, where it stands,
+ * who teaches it and when it was booked, each opening in its own workspace
+ * (`onOpenBooking(entry)`) -- this one marked instead.
  */
 function AllBookingsCard({ lead, bookingId, onOpenBooking }) {
   const bookings = lead.bookings ?? [];
@@ -203,7 +205,11 @@ function AllBookingsCard({ lead, bookingId, onOpenBooking }) {
                 <span>
                   <BookingTypeBadge type={entry.booking_type} />
                 </span>
-                <span className="text-sm font-medium whitespace-nowrap">{slotLabel(entry)}</span>
+                {/* One cell of the grid, the student's time under the slot. */}
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-sm font-medium whitespace-nowrap">{slotLabel(entry)}</span>
+                  <StudentTimeLine startsAt={entry.starts_at} timezone={entry.student_timezone} className="text-xs" />
+                </span>
                 <span className="flex flex-wrap gap-1">
                   <Badge variant={state.variant}>{state.label}</Badge>
                   {entry.redemo_from ? <RedemoBadge /> : null}
@@ -237,8 +243,9 @@ function AllBookingsCard({ lead, bookingId, onOpenBooking }) {
 
 /**
  * The booking at a glance (the administrators' booking workspace, laid out as
- * a BDE's enquiry workspace is): the parent, the student and the enquiry side
- * by side, then -- from the lead in full (`lead`, for holders of
+ * a BDE's enquiry workspace is): the parent (and the student's time zone, to
+ * read here: it is corrected on the lead's page), the student and the enquiry
+ * side by side, then -- from the lead in full (`lead`, for holders of
  * accounts.view_all_leads, `showLead`) -- how the enquiry has moved and every
  * booking made for the child, each opening in its own workspace
  * (`onOpenBooking(id, type)`). The booking's own facts (its slot, seat, start,
@@ -287,6 +294,9 @@ export function BookingOverview({ booking, lead, leadFailure, onRetryLead, showL
               <FromLead loading={loading}>{lead?.parent_email}</FromLead>
             </Field>
             <Field label="Country">{brief.country}</Field>
+            <Field label="Student timezone">
+              <StudentTimezone zone={brief.student_timezone} />
+            </Field>
           </dl>
         </Panel>
 

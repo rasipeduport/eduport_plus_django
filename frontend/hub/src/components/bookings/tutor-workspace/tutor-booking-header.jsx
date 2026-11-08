@@ -5,6 +5,7 @@ import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { FeedbackBadge, RedemoBadge, ReportStateBadge } from '@/components/bookings/booking-badges';
 import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
+import { StudentTimeLine } from '@/components/bookings/student-time';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { isJoinable } from '@/lib/bookings';
 import { slotLabel } from '@/lib/enquiries';
@@ -26,8 +27,9 @@ function Detail({ label, children }) {
 /**
  * The booking a tutor is assigned, as its workspace heads it: the student by
  * name, the booking's type (a Re-Demo marked as one) and where it stands as a
- * class; under it the class, syllabus and school, the slot in Indian time,
- * the Booking ID and where its feedback or results stand. On the right what
+ * class; under it the class, syllabus and school, the slot in Indian time
+ * (with the student's own time under it where that reads differently), the
+ * Booking ID and where its feedback or results stand. On the right what
  * the class needs now: Join Meet (the booking's Google Meet room as the API
  * gives it) while it has a class, to come or taught, or plainly No Meet link
  * without one; Start Demo / Start Diagnostic while the API offers it (which
@@ -67,6 +69,8 @@ export function TutorBookingHeader({ booking, onStarted, onRefresh, reportState 
               <CalendarClockIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
               {slotLabel(booking.slot)}
             </p>
+            {/* Under the slot's text, past its icon. */}
+            <StudentTimeLine startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} className="mt-0.5 pl-5.5" />
             <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <Detail label="Booking ID">
                 <span className="font-mono" title={booking.id}>

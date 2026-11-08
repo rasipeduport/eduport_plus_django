@@ -34,6 +34,7 @@ APPROVED = DATA_DIR / 'approved_changes.json'
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
+    'accounts.change_student_timezone',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',
@@ -59,6 +60,8 @@ BDE_OWN_LINKS = {
 ENQUIRY_ROW_FIELDS = [
     'added_at', 'grade', 'id', 'next_booking', 'parent_name', 'phone', 'source', 'source_label', 'status',
     'status_label', 'student_name',
+    # The zone the student books from (Student Local Time).
+    'student_timezone',
 ]
 ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
     'bookings', 'country', 'created_at', 'parent_email', 'phone_dial_code', 'phone_number', 'school_name', 'syllabus',
@@ -117,6 +120,10 @@ BDE_WORKSPACE = {
         'fields': sorted(['count', 'page', 'page_size', 'results', *(f'results[].{field}' for field in ENQUIRY_ROW_FIELDS)]),
     },
     'bde.enquiries.detail': {'status': 200, 'records': ['lead_a'], 'fields': ENQUIRY_FIELDS},
+    # Correcting their own enquiry's student time zone (Student Local Time): the enquiry in full, and whether it changed.
+    'bde.enquiries.student_timezone': {
+        'status': 200, 'records': ['lead_a'], 'fields': sorted(ENQUIRY_FIELDS + ['changed']),
+    },
     # Rolled back with the scenario, like every write the matrix makes.
     'bde.enquiries.create': {'status': 201, 'records': ['new'], 'fields': ENQUIRY_FIELDS},
     # booking_a's lead is not the BDE's own: answered as a booking that does not exist (Q22).

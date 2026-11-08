@@ -13,6 +13,7 @@ import {
 import { Panel } from '@/components/dashboard/dashboard-primitives';
 import { EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
+import { StudentTimeLine, StudentTimezone } from '@/components/bookings/student-time';
 import { JourneyCard } from '@/components/bookings/workspace/booking-overview';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 import { bookingTypeLabel, formatDay, slotLabel } from '@/lib/enquiries';
@@ -179,10 +180,11 @@ function RedemoPanel({ redemo }) {
  * the BDE's workspaces lay out theirs: what to do next (NextStep), then the
  * parent, the student and the enquiry side by side, and the enquiry's journey
  * under them (the administrators' JourneyCard, from the API's `enquiry`), and
- * for a Re-Demo why it is taught again. Of the parent only the country: the
- * tutor's API carries no contact. The session, its Meet room and its feedback
- * or results are the header's and their own tab's. `reportState` is the report
- * page's way back.
+ * for a Re-Demo why it is taught again. Of the parent only the country and
+ * the student's time zone, to read (its BDE or an administrator corrects it):
+ * the tutor's API carries no contact. The session, its Meet room and its
+ * feedback or results are the header's and their own tab's. `reportState` is
+ * the report page's way back.
  */
 export function TutorBookingOverview({ booking, onStarted, onRefresh, reportState: linkState }) {
   const enquiry = booking.enquiry;
@@ -203,6 +205,9 @@ export function TutorBookingOverview({ booking, onStarted, onRefresh, reportStat
             <Field label="Phone">{NOT_SHARED}</Field>
             <Field label="Email">{NOT_SHARED}</Field>
             <Field label="Country">{booking.country}</Field>
+            <Field label="Student timezone">
+              <StudentTimezone zone={booking.student_timezone} />
+            </Field>
           </dl>
         </Panel>
         <Panel icon={GraduationCapIcon} title="Student">
@@ -217,7 +222,15 @@ export function TutorBookingOverview({ booking, onStarted, onRefresh, reportStat
           <dl className="divide-y">
             <Field label="Original enquiry source">{enquiry?.source_label}</Field>
             <Field label="Status">{enquiry ? <EnquiryStatusBadge enquiry={enquiry} /> : null}</Field>
-            <Field label="Next booking">{next ? slotLabel(next) : null}</Field>
+            <Field label="Next booking">
+              {next ? (
+                <>
+                  {slotLabel(next)}
+                  {/* The enquiry's next booking is this child's: their zone is this booking's. */}
+                  <StudentTimeLine startsAt={next.starts_at} timezone={booking.student_timezone} className="text-xs font-normal" />
+                </>
+              ) : null}
+            </Field>
             <Field label="First received">{enquiry ? formatDay(enquiry.created_at) : null}</Field>
           </dl>
         </Panel>

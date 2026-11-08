@@ -17,7 +17,8 @@ import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
 import { bookingState } from '@/lib/bookings';
 import { enquiryError, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
-import { CAMPAIGN_FIELDS, LEAD_BDES_URL, bookingPageUrl, leadUrl } from '@/lib/leads';
+import { CAMPAIGN_FIELDS, LEAD_BDES_URL, bookingPageUrl, leadTimezoneUrl, leadUrl } from '@/lib/leads';
+import { savedTimezoneLabel, showsStudentTime } from '@/lib/timezone';
 import { getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -25,8 +26,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
+import { StudentTimeCell, StudentTimeLine, StudentTimezone } from '@/components/bookings/student-time';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { AssignOwnerDialog } from '@/components/leads/assign-owner-dialog';
+import { StudentTimezoneDialog } from '@/components/leads/student-timezone-dialog';
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
@@ -41,9 +44,11 @@ function Field({ label, children }) {
 
 /**
  * The lead's bookings, to read: each is managed in its own workspace, which
- * it opens for holders of accounts.view_all_bookings.
+ * it opens for holders of accounts.view_all_bookings. Beside each Indian
+ * time, the student's own while any booking reads differently (Student Time).
  */
 function BookingsPanel({ bookings, canOpen }) {
+  const showStudentTime = showsStudentTime(bookings, (booking) => booking.starts_at, (booking) => booking.student_timezone);
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
       {bookings.length === 0 ? (
@@ -54,6 +59,7 @@ function BookingsPanel({ bookings, canOpen }) {
             <TableHeader>
               <TableRow>
                 <TableHead>When (IST)</TableHead>
+                {showStudentTime ? <TableHead>Student Time</TableHead> : null}
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tutor</TableHead>
@@ -71,6 +77,11 @@ function BookingsPanel({ bookings, canOpen }) {
                 return (
                   <TableRow key={booking.id}>
                     <TableCell className="font-medium whitespace-nowrap">{slotLabel(booking)}</TableCell>
+                    {showStudentTime ? (
+                      <TableCell className="whitespace-nowrap">
+                        <StudentTimeCell startsAt={booking.starts_at} timezone={booking.student_timezone} />
+                      </TableCell>
+                    ) : null}
                     <TableCell>
                       <BookingTypeBadge type={booking.booking_type} />
                     </TableCell>
@@ -122,17 +133,21 @@ function Unavailable({ failure }) {
  * One lead in full, for administrators: the parent and the child, where the
  * lead came from (the website's or landing page's campaign tags included),
  * its status, who owns it, and its bookings -- with the parent to call or
- * message, and the lead to give to a BDE (accounts.assign_lead_owner).
+ * message, the lead to give to a BDE (accounts.assign_lead_owner) and the
+ * student's time zone to set or correct (accounts.change_student_timezone),
+ * which every booking's Student Time follows.
  */
 export default function LeadPage({ user }) {
   const { leadId } = useParams();
   const canAssign = can(user, PERMISSIONS.assignLeadOwner);
   const canOpenBookings = can(user, PERMISSIONS.viewAllBookings);
+  const canChangeTimezone = can(user, PERMISSIONS.changeStudentTimezone);
   const [lead, setLead] = useState(null);
   const [bdes, setBdes] = useState([]);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [assigning, setAssigning] = useState(false);
+  const [changingTimezone, setChangingTimezone] = useState(false);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
@@ -228,6 +243,9 @@ export default function LeadPage({ user }) {
               </Field>
               <Field label="Email">{lead.parent_email}</Field>
               <Field label="Country">{lead.country}</Field>
+              <Field label="Student timezone">
+                <StudentTimezone zone={lead.student_timezone} onChange={canChangeTimezone ? () => setChangingTimezone(true) : null} />
+              </Field>
             </dl>
           </Panel>
           <Panel icon={GraduationCapIcon} title="Student">
@@ -247,7 +265,19 @@ export default function LeadPage({ user }) {
                 </Field>
               ))}
               <Field label="Status">{lead.status_label}</Field>
-              <Field label="Next booking">{lead.next_booking ? slotLabel(lead.next_booking) : null}</Field>
+              <Field label="Next booking">
+                {lead.next_booking ? (
+                  <>
+                    {slotLabel(lead.next_booking)}
+                    {/* The next booking is this lead's: its student's zone is the lead's own. */}
+                    <StudentTimeLine
+                      startsAt={lead.next_booking.starts_at}
+                      timezone={lead.student_timezone}
+                      className="text-xs font-normal"
+                    />
+                  </>
+                ) : null}
+              </Field>
               <Field label="Owner">
                 {lead.owner ? lead.owner.full_name : <span className="text-muted-foreground">Unassigned</span>}
               </Field>
@@ -286,6 +316,23 @@ export default function LeadPage({ user }) {
             setNotice(`${updated.student_name}'s lead is now ${updated.owner?.full_name}'s.`);
           }}
           onStale={() => setReloadKey((key) => key + 1)}
+        />
+      ) : null}
+      {canChangeTimezone && lead ? (
+        <StudentTimezoneDialog
+          lead={lead}
+          url={leadTimezoneUrl(lead.id)}
+          open={changingTimezone}
+          onOpenChange={setChangingTimezone}
+          onSaved={(updated) => {
+            // The API answers the lead as it now stands: every booking's Student Time follows.
+            setLead(updated);
+            setNotice(
+              updated.student_timezone
+                ? `${updated.student_name}'s timezone is now ${savedTimezoneLabel(updated.student_timezone)}.`
+                : `${updated.student_name}'s timezone is no longer set.`
+            );
+          }}
         />
       ) : null}
     </Page>

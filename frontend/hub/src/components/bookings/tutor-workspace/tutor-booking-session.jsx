@@ -8,11 +8,13 @@ import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { FeedbackBadge, RedemoBadge, ReportStateBadge } from '@/components/bookings/booking-badges';
 import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { startLabel } from '@/lib/bookings';
 import { istMoment, istParts } from '@/lib/communications';
 import { slotLabel } from '@/lib/enquiries';
 import { reportActions, reportWords, tutorReportPagePath } from '@/lib/reports';
+import { showsStudentTime } from '@/lib/timezone';
 
 // The width the table needs; narrower areas show the card.
 const MIN_TABLE_WIDTH = 760;
@@ -117,16 +119,21 @@ function SessionAction({ booking, onStarted, onRefresh, reportState }) {
 /**
  * The booking's session, for its tutor to join and teach (the workspace's
  * Session tab), laid out as the other workspaces' Bookings tab lays out
- * theirs: when (IST) and until when, its type, where it stands (and when it
- * was started), its Google Meet room (Join Meet, the API's link, or plainly
- * No Meet link) and what to do now (SessionAction). A table where it fits, a
- * card on a phone or a narrow screen. `onStarted` gets the booking as the
- * Start answers it; `reportState` is the report page's way back.
+ * theirs: when (IST) and until when, the student's own time where it reads
+ * differently (Student Time, from the API's `student_timezone`), its type,
+ * where it stands (and when it was started), its Google Meet room (Join Meet,
+ * the API's link, or plainly No Meet link) and what to do now
+ * (SessionAction). A table where it fits, a card on a phone or a narrow
+ * screen. `onStarted` gets the booking as the Start answers it;
+ * `reportState` is the report page's way back.
  */
 export function TutorBookingSession({ booking, onStarted, onRefresh, reportState }) {
   const action = (entry) => <SessionAction booking={entry} onStarted={onStarted} onRefresh={onRefresh} reportState={reportState} />;
+  const showStudentTime = showsStudentTime([booking], (entry) => entry.slot?.starts_at, (entry) => entry.student_timezone);
+  const studentTime = (entry) => <StudentTimeCell startsAt={entry.slot?.starts_at} timezone={entry.student_timezone} />;
   const columns = [
     { key: 'when', header: 'Date & Time (IST)', className: 'whitespace-nowrap', cell: (entry) => <When booking={entry} /> },
+    ...(showStudentTime ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: studentTime }] : []),
     { key: 'type', header: 'Booking Type', cell: (entry) => <Type booking={entry} /> },
     { key: 'status', header: 'Status', cell: (entry) => <Status booking={entry} /> },
     { key: 'meeting', header: 'Meeting', cell: (entry) => <Meeting booking={entry} /> },
@@ -141,6 +148,12 @@ export function TutorBookingSession({ booking, onStarted, onRefresh, reportState
       </div>
       <Status booking={entry} />
       <div className="grid gap-3 text-sm sm:grid-cols-2">
+        {showStudentTime ? (
+          <div className="min-w-0 sm:col-span-2">
+            <p className="text-muted-foreground mb-1 text-xs">Student Time</p>
+            {studentTime(entry)}
+          </div>
+        ) : null}
         <div className="min-w-0">
           <p className="text-muted-foreground mb-1 text-xs">Meeting</p>
           <Meeting booking={entry} />

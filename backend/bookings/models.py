@@ -348,6 +348,12 @@ class Lead(models.Model):
     grade = models.CharField(max_length=50)
     syllabus = models.CharField(max_length=100)
     country = models.CharField(max_length=100, blank=True, default='')
+    # The IANA zone the student's booking page showed its times in, kept for
+    # showing staff the student's own time (bookings.student_timezones): the
+    # first booking that carried one gave it, and a later one never replaces
+    # it; a BDE or an administrator may set or correct it. Empty: not known.
+    # Display only -- every slot stays in Indian time.
+    student_timezone = models.CharField(max_length=64, blank=True, default='')
     # Optional: no public page asks for it; an administrator may record it.
     parent_email = models.EmailField(max_length=254, blank=True, default='')
     # A lead the booking pages or lead forms create came from them; a BDE or

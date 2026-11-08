@@ -18,6 +18,7 @@ import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { BDE_DASHBOARD_URL, bookingTypeLabel, enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
 import { BDE_FOLLOW_UPS_URL } from '@/lib/follow-ups';
+import { showsStudentTime } from '@/lib/timezone';
 import { cn, getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStateBadge } from '@/components/bookings/booking-badges';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { Page } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
@@ -231,8 +233,14 @@ function RecentEnquiries({ rows, className }) {
   );
 }
 
-// The Upcoming Bookings table; a phone shows each as a card instead (UpcomingCard).
-const UPCOMING_COLUMNS = [
+/** A booking's Student Time, from its own instant and its student's zone (the API's `student_timezone`). */
+function StudentTime({ booking }) {
+  return <StudentTimeCell startsAt={booking.starts_at} timezone={booking.student_timezone} />;
+}
+
+// The Upcoming Bookings table, with the students' own time while any reads differently
+// from India's; a phone shows each as a card instead (UpcomingCard).
+const upcomingColumns = (showStudentTime) => [
   {
     key: 'when',
     header: 'When',
@@ -247,6 +255,9 @@ const UPCOMING_COLUMNS = [
       );
     },
   },
+  ...(showStudentTime
+    ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: (booking) => <StudentTime booking={booking} /> }]
+    : []),
   { key: 'type', header: 'Type', cell: (booking) => <BookingTypeBadge type={booking.booking_type} /> },
   {
     key: 'student',
@@ -273,7 +284,7 @@ const UPCOMING_COLUMNS = [
   },
 ];
 
-function UpcomingCard({ booking }) {
+function UpcomingCard({ booking, showStudentTime }) {
   return (
     <article className="hover:bg-muted/40 relative flex items-center gap-3 rounded-lg border p-3 transition-colors has-[a:focus-visible]:ring-[3px] has-[a:focus-visible]:ring-ring/50">
       <div className="min-w-0 flex-1">
@@ -284,6 +295,14 @@ function UpcomingCard({ booking }) {
           {booking.enquiry.grade ? <span className="text-muted-foreground font-normal"> · {booking.enquiry.grade}</span> : null}
         </p>
         <p className="text-muted-foreground mt-0.5 text-xs">{slotLabel(booking)}</p>
+        {showStudentTime ? (
+          <p className="text-muted-foreground text-xs">
+            Student Time:{' '}
+            <span className="text-foreground">
+              <StudentTime booking={booking} />
+            </span>
+          </p>
+        ) : null}
         <p className="text-muted-foreground truncate text-xs">Parent: {booking.enquiry.parent_name}</p>
       </div>
       <BookingTypeBadge type={booking.booking_type} />
@@ -295,6 +314,7 @@ function UpcomingBookings({ upcoming }) {
   const rows = upcoming?.rows ?? [];
   const total = upcoming?.total ?? 0;
   const subtitle = total > rows.length ? `The next ${rows.length} of ${total} · Indian time (IST)` : 'Indian time (IST)';
+  const showStudentTime = showsStudentTime(rows, (booking) => booking.starts_at, (booking) => booking.student_timezone);
 
   return (
     <Panel icon={CalendarClock} title="Upcoming Bookings" subtitle={subtitle}>
@@ -307,9 +327,9 @@ function UpcomingBookings({ upcoming }) {
       ) : (
         <ResponsiveList
           label="Upcoming bookings"
-          columns={UPCOMING_COLUMNS}
+          columns={upcomingColumns(showStudentTime)}
           rows={rows}
-          renderCard={(booking) => <UpcomingCard booking={booking} />}
+          renderCard={(booking) => <UpcomingCard booking={booking} showStudentTime={showStudentTime} />}
         />
       )}
     </Panel>

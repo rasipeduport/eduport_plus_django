@@ -11261,8 +11261,8 @@
    }
   },
   "/leads/{lead_a} @ su_mentor": {
-   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called.",
-   "note": "An administrator: the Leads page, as the API serves it.",
+   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Student Local Time (accounts.change_student_timezone): a lead's page shows the student's time zone in its Parent panel, read beside each booking's Indian time as its Student Time, with Change beside the zone for holders of accounts.change_student_timezone -- the ADMIN and BDE role groups', a superuser's too (D1) -- which sets, corrects or clears it (PUT /api/leads/<id>/student-timezone/). Booking times stay in IST; only the Student Time shown changes.",
+   "note": "An administrator: the Leads page, as the API serves it. The lead's page also offers Change beside the student's time zone; nothing else changes, and no new request is made.",
    "result": {
     "at": "/leads/{lead_a}",
     "noAccess": false,
@@ -11281,6 +11281,7 @@
     ],
     "buttons": [
      "Assign",
+     "Change",
      "Toggle Sidebar"
     ],
     "links": [

@@ -6,8 +6,14 @@ read, and what a message still needs before it can go (requirements).
 Strict by design. A placeholder with no value never renders as blank text --
 render raises MissingValues -- and one no template of the type may use is
 refused (UnknownPlaceholders). Every value comes from the booking the message
-belongs to: a Demo's message never shows a Diagnostic's details. Dates and
-times are the slot's own, which are Indian time (the templates say "IST").
+belongs to: a Demo's message never shows a Diagnostic's details.
+
+The date and time are the booking's start on the student's own clock
+(bookings.student_timezones.student_time) -- Indian time, which the slots are
+in, for a lead with no zone. The templates write the zone as text after the
+time, "{{demo_time}} IST"; for a student in another zone the message names
+theirs there instead ("5:00 PM UAE", zoned), and the template's own words
+stay as they are.
 
 The sender is the lead's BDE: their name and their mobile number (Team). A
 lead with no BDE -- a booking made without a valid BDE link -- signs with the
@@ -25,11 +31,15 @@ from django.db.models import TextChoices
 from django.utils import timezone
 
 from bookings.models import CONDUCTED, BookingStatus, BookingType, ParentConfirmation
+from bookings.student_timezones import INDIAN_LABEL, student_time
 
 from .chain import EarlierAcknowledgement, earlier_acknowledgement
 from .models import Step
 
 PLACEHOLDER = re.compile(r'\{\{\s*([A-Za-z0-9_]+)\s*\}\}')
+# A time placeholder and the zone the template writes after it: the slots'
+# own, IST. A student in another zone reads theirs in its place (zoned).
+ZONED_TIME = re.compile(r'(\{\{\s*(demo|diagnostic)_time\s*\}\}) IST\b')
 
 _COMMON_VARIABLES = ('parent_name', 'student_name', 'tutor_name', 'meeting_link', 'bde_name', 'bde_phone')
 # The placeholders each booking type's templates may use. Diagnostic tests are
@@ -94,14 +104,21 @@ def sender_contact(lead):
 
 
 def booking_values(booking):
-    """Every placeholder value of ``booking``'s type, read from ``booking``; None where it has none."""
+    """
+    Every placeholder value of ``booking``'s type, read from ``booking``; None
+    where it has none. Its date and time are its start on the student's clock;
+    a student outside India's zone also gets their zone's name, as
+    demo_timezone / diagnostic_timezone -- no template's placeholder, but what
+    zoned() writes in place of the templates' "IST".
+    """
     prefix = 'demo' if booking.booking_type == BookingType.DEMO else 'diagnostic'
     lead = booking.lead
     tutor = booking.assigned_tutor
     bde_name, bde_phone = sender_contact(lead)
-    return {
-        f'{prefix}_date': format_date(booking.slot.local_date),
-        f'{prefix}_time': format_time(booking.slot.local_time),
+    starts, zone = student_time(booking.slot.starts_at, lead)
+    values = {
+        f'{prefix}_date': format_date(starts.date()),
+        f'{prefix}_time': format_time(starts.time()),
         'parent_name': _text(lead.parent_name),
         'student_name': _text(lead.student_name),
         'tutor_name': _text(tutor.full_name) if tutor else None,
@@ -109,10 +126,37 @@ def booking_values(booking):
         'bde_name': bde_name,
         'bde_phone': bde_phone,
     }
+    if zone != INDIAN_LABEL:
+        values[f'{prefix}_timezone'] = zone
+    return values
+
+
+def zoned(body, values):
+    """
+    ``body`` with the "IST" its template writes after the time made the
+    student's zone -- a placeholder for ``values``' demo_timezone /
+    diagnostic_timezone -- where ``values`` has one. Without one (a student in
+    India, a lead with no zone, a message written before zones were kept) the
+    template's own "IST" stays, so those read exactly as they always have.
+    """
+    def zone(match):
+        name = f'{match.group(2)}_timezone'
+        return f'{match.group(1)} {{{{{name}}}}}' if values.get(name) else match.group(0)
+
+    return ZONED_TIME.sub(zone, body)
+
+
+def message_values(body, values):
+    """The ``values`` a message written from ``body`` uses, by name -- the student's zone among them -- to keep with it."""
+    return {name: values[name] for name in placeholders(zoned(body, values))}
 
 
 def render(body, values):
-    """``body`` with every placeholder replaced from ``values``. Raises MissingValues rather than leave one blank."""
+    """
+    ``body`` with every placeholder replaced from ``values``, its time in the
+    student's zone (zoned). Raises MissingValues rather than leave one blank.
+    """
+    body = zoned(body, values)
     missing = [name for name in placeholders(body) if not values.get(name)]
     if missing:
         raise MissingValues(missing)

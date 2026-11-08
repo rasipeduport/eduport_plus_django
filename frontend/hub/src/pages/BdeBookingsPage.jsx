@@ -7,12 +7,14 @@ import { PERMISSIONS, can } from '@/lib/access';
 import { bdeBookingParams, readBdeBookingFilters } from '@/lib/bde-booking-filters';
 import { BOOKING_STATUSES, DEFAULT_WHEN, bdeBookingsUrl } from '@/lib/bookings';
 import { enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
+import { showsStudentTime } from '@/lib/timezone';
 import { useListParams } from '@/hooks/use-list-params';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { BdeBookingFilters } from '@/components/bookings/bde-booking-filters';
 import { BookingStateBadge } from '@/components/bookings/booking-badges';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
@@ -77,6 +79,8 @@ export default function BdeBookingsPage({ user, type }) {
 
   const filters = readBdeBookingFilters(searchParams, statuses);
   const { page, q, status, when, from, to, filtered } = filters;
+  // The student's own time beside the slot's Indian time, where a booking shown reads differently (lib/timezone).
+  const showStudentTime = showsStudentTime(data?.results, (booking) => booking.starts_at, (booking) => booking.student_timezone);
 
   useEffect(() => {
     let active = true;
@@ -123,6 +127,16 @@ export default function BdeBookingsPage({ user, type }) {
         );
       },
     },
+    ...(showStudentTime
+      ? [
+          {
+            key: 'student_time',
+            header: 'Student Time',
+            className: 'whitespace-nowrap',
+            cell: (booking) => <StudentTimeCell startsAt={booking.starts_at} timezone={booking.student_timezone} />,
+          },
+        ]
+      : []),
     {
       key: 'student',
       header: 'Student',
@@ -180,6 +194,14 @@ export default function BdeBookingsPage({ user, type }) {
           <p className="text-muted-foreground text-xs">Date & Time</p>
           <p className="truncate">{slotLabel(booking)}</p>
         </div>
+        {showStudentTime ? (
+          <div className="col-span-2 min-w-0">
+            <p className="text-muted-foreground text-xs">Student Time</p>
+            <p className="truncate">
+              <StudentTimeCell startsAt={booking.starts_at} timezone={booking.student_timezone} />
+            </p>
+          </div>
+        ) : null}
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs">Tutor</p>
           <Tutor booking={booking} />

@@ -242,11 +242,12 @@ class BookingTests(DemoInviteTestCase):
             (self.lead.pk, BookingStatus.BOOKED, BookingChannel.BDE_HANDOFF, self.admin, None, None, None,
              DEMO_DAY, EVENING),
         )
-        # The details a public booking keeps, in its keys, from the lead (export_bookings reads them).
+        # The details a public booking keeps, in its keys, from the lead (export_bookings reads them), and
+        # the zone the invitation page showed the slot in (Student Local Time): none was sent here.
         self.assertEqual(booking.details, {
             'parent_name': 'Asha Nair', 'phone': '+971 501234567', 'student_name': 'Riya',
             'school': 'Delhi Private School', 'student_class': 'Class 8', 'syllabus': 'CBSE',
-            'country': 'United Arab Emirates', 'display_time': '07:30 pm - 08:30 pm',
+            'country': 'United Arab Emirates', 'display_time': '07:30 pm - 08:30 pm', 'student_timezone': '',
         })
         invite = self.fresh(invite)
         self.assertEqual((invite.used_at, invite.demo_booking_id, invite.status(AFTER)),

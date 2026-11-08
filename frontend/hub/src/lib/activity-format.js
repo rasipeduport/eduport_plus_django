@@ -63,6 +63,8 @@ export const ACTION_LABELS = {
   // Leads (backend bookings.lead_intake, bookings.ownership): ids and choices only, never a name.
   'lead.create': 'Lead added',
   'lead.assign_owner': 'Lead assigned',
+  // A lead's student time zone, set or corrected (backend bookings.student_timezones): the old zone and the new.
+  'lead.update_student_timezone': 'Student timezone changed',
   // Demo/Diagnostic bookings. An action is labelled once something logs it:
   // the action filter offers every label here.
   'booking.create': 'Booking received',
@@ -343,6 +345,13 @@ export function describeActivity(row) {
     }
     case 'lead.assign_owner':
       return row.context?.previous_owner_id ? 'Reassigned a lead to another BDE' : 'Assigned a lead to a BDE';
+    // Display only: the lead's bookings stay in Indian time; the zone is null when it was not set, or is cleared.
+    case 'lead.update_student_timezone': {
+      const t = c.student_timezone;
+      return t
+        ? `Changed the student's timezone from ${formatValue(t.old)} to ${formatValue(t.new)}`
+        : "Changed the student's timezone";
+    }
     case 'booking.create': {
       const type = String(row.context?.booking_type ?? '').toLowerCase();
       if (row.context?.via === 'demo_invite') return 'Booked a demo slot with a Demo invitation';

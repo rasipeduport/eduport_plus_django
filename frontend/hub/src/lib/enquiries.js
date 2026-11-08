@@ -10,6 +10,9 @@ export const enquiryUrl = (id) => `${ENQUIRIES_URL}${id}/`;
 // administrators (backend bookings/notes.py): read and added, never edited.
 export const enquiryNotesUrl = (id) => `${enquiryUrl(id)}notes/`;
 export const NOTE_MAX_LENGTH = 2000;
+// The student's time zone on one of the BDE's enquiries, set or corrected
+// (PUT { student_timezone }, backend bookings.student_timezones): it answers the enquiry in full.
+export const enquiryTimezoneUrl = (id) => `${enquiryUrl(id)}student-timezone/`;
 
 /**
  * An enquiry's workspace opened on its Bookings tab with `bookingId`

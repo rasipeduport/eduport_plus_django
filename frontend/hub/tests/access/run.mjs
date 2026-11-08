@@ -326,10 +326,13 @@ const SUPERUSER_COMMUNICATIONS = [...ADMIN_COMMUNICATIONS, VIEW_OWN_LEAD_COMMUNI
 // Lead management (accounts.0018, on the Leads API), laid over the same
 // recorded answers: accounts.view_all_leads, accounts.add_lead and
 // accounts.assign_lead_owner, which the administrator's role group carries
-// and a superuser holds (D1). They are served two leads -- one from the
-// website that nobody owns yet, one a BDE owns -- the BDE accounts to assign
-// to, and the first lead in full, on fixed dates.
-const LEAD_PERMISSIONS = ['accounts.add_lead', 'accounts.assign_lead_owner', 'accounts.view_all_leads'];
+// and a superuser holds (D1) -- and, since Student Local Time,
+// accounts.change_student_timezone, which the BDE's role group carries too:
+// Change beside a lead's student timezone. They are served two leads -- one
+// from the website that nobody owns yet, one a BDE owns -- the BDE accounts
+// to assign to, and the first lead in full, on fixed dates.
+const CHANGE_STUDENT_TIMEZONE = 'accounts.change_student_timezone';
+const LEAD_PERMISSIONS = ['accounts.add_lead', 'accounts.assign_lead_owner', CHANGE_STUDENT_TIMEZONE, 'accounts.view_all_leads'];
 const LEAD_ID = '2c4e6a8b-0d1f-4a3b-8c5d-7e9f0a1b2c3d';
 const LEAD_BDE_ID = '8f7e6d5c-4b3a-4291-8f0e-1d2c3b4a5f6e';
 const LEADS_PATH = '/api/leads/';
@@ -388,9 +391,9 @@ const CALLERS = {
       '/api/bde/bookings/demo/': BDE_DEMO_BOOKINGS, '/api/bde/bookings/diagnostic/': BDE_DIAGNOSTIC_BOOKINGS,
       '/api/bde/follow-ups/': BDE_FOLLOW_UPS, '/api/bde/activity/': BDE_ACTIVITY },
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
-    me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', 'accounts.create_demo_booking', 'accounts.manage_own_conversion',
-      RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report', VIEW_OWN_BOOKING_LINKS,
-      VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports']),
+    me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', CHANGE_STUDENT_TIMEZONE, 'accounts.create_demo_booking',
+      'accounts.manage_own_conversion', RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report',
+      VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports']),
   },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };

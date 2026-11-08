@@ -64,6 +64,7 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
+    'accounts.change_student_timezone',
     'accounts.create_demo_booking',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',

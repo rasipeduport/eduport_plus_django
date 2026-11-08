@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from activity.utils import log_activity
 
-from . import redemo_chain
+from . import redemo_chain, student_timezones
 from .demo_invites import invitable
 from .lead_intake import LeadExists, create_lead
 from .lead_status import status_label, with_status
@@ -153,6 +153,9 @@ def _row(lead, next_booking):
         'status': lead.lead_status,
         'status_label': status_label(lead.lead_status),
         'next_booking': booking_brief(next_booking) if next_booking else None,
+        # The IANA zone the student books from, for their own time beside the
+        # Indian one (bookings.student_timezones); null when not known.
+        'student_timezone': student_timezones.of(lead),
         # When the lead became this BDE's: added by hand, or first booked through their link.
         'added_at': lead.owner_assigned_at.isoformat() if lead.owner_assigned_at else None,
     }
@@ -184,6 +187,7 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False, can_inv
     )
     upcoming = [b for b in bookings if b.status == BookingStatus.BOOKED and b.slot.ends_at > now]
     next_booking = min(upcoming, key=lambda b: (b.slot.starts_at, b.created_at)) if upcoming else None
+    zone = student_timezones.of(lead)
     return {
         **_row(lead, next_booking),
         'phone_dial_code': lead.phone_dial_code,
@@ -196,15 +200,19 @@ def enquiry_detail(lead, now, can_cancel=False, show_confirmation=False, can_inv
         'timezone': BOOKING_TIMEZONE_NAME,
         # What the parent booked and when; who cancelled a booking, and why,
         # stays with the administrators.
-        'bookings': [_booking_entry(booking, now, can_cancel, show_confirmation, can_invite) for booking in bookings],
+        'bookings': [
+            _booking_entry(booking, now, can_cancel, show_confirmation, can_invite, zone) for booking in bookings
+        ],
     }
 
 
-def _booking_entry(booking, now, can_cancel, show_confirmation, can_invite):
+def _booking_entry(booking, now, can_cancel, show_confirmation, can_invite, zone):
     redemo = redemo_chain.request_of(booking)
     redemo_state = redemo_chain.state(redemo, now) if redemo is not None else None
     return {
         **booking_brief(booking),
+        # The lead's zone: each booking is read in it at its own slot, a moved one at its new slot.
+        'student_timezone': zone,
         'status': booking.status,
         'ended': booking.slot.ends_at <= now,
         'activity_state': activity_state(booking, now),
@@ -319,7 +327,14 @@ def dashboard(bde, now=None):
         },
         'upcoming': {
             'total': demo['upcoming'] + diagnostic['upcoming'],
-            'rows': [{**booking_brief(booking), 'enquiry': enquiry_brief(booking.lead)} for booking in upcoming[:UPCOMING_ROWS]],
+            'rows': [
+                {
+                    **booking_brief(booking),
+                    'student_timezone': student_timezones.of(booking.lead),
+                    'enquiry': enquiry_brief(booking.lead),
+                }
+                for booking in upcoming[:UPCOMING_ROWS]
+            ],
         },
         'agenda': {
             'date': today.isoformat(),
@@ -343,11 +358,13 @@ def booking_list_row(booking, now, show_confirmation=False):
     when it was booked, who teaches it -- the tutor's name only; the Meet room is
     the enquiry page's to show -- the parent's answer to the confirmation request
     for whoever may see the lead's communication (``show_confirmation``),
-    whether it is a scheduled Re-Demo, and whose booking it is. Never who
-    cancelled or moved it, or why: that stays with the administrators.
+    whether it is a scheduled Re-Demo, and whose booking it is, with the
+    zone the student books from. Never who cancelled or moved it, or why:
+    that stays with the administrators.
     """
     return {
         **booking_brief(booking),
+        'student_timezone': student_timezones.of(booking.lead),
         'status': booking.status,
         'activity_state': activity_state(booking, now),
         'started_at': booking.started_at.isoformat() if booking.started_at else None,
@@ -368,6 +385,7 @@ def _agenda_row(booking, now):
     """
     return {
         **booking_brief(booking),
+        'student_timezone': student_timezones.of(booking.lead),
         'status': booking.status,
         'activity_state': activity_state(booking, now),
         'tutor': _teaching(booking)['tutor'],

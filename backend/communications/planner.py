@@ -18,6 +18,9 @@ leaves no task or message behind.
                          messages of their leads' upcoming bookings checked again
     lead_owner_changed   a lead given to another BDE: its bookings' open
                          tasks become theirs, the unsent messages checked again
+    lead_timezone_changed  a lead's student time zone corrected: the unsent
+                         messages, which show its bookings at the student's
+                         time, checked again
     refresh_waiting      every minute (communications.tasks): Waiting messages
                          of bookings still to come checked again -- the
                          fallback for a change no hook sees
@@ -72,7 +75,7 @@ from .models import (
     TaskStatus,
     template_key,
 )
-from .rendering import booking_values, is_ready, placeholders, render, requirements
+from .rendering import booking_values, is_ready, message_values, render, requirements
 
 logger = logging.getLogger(__name__)
 
@@ -203,19 +206,23 @@ def lead_owner_changed(lead, now):
     which sign with the owner, are checked again. Messages are locked before
     tasks, in id order, as everywhere here.
     """
-    for model in BOOKING_MODELS:
-        field = 'diagnostic_booking' if model is DiagnosticBooking else 'demo_booking'
-        messages = Message.objects.select_for_update(of=('self',)).filter(
-            **{f'{field}__lead': lead}, status__in=(MessageStatus.WAITING, MessageStatus.PENDING),
-        ).select_related('template', f'{field}__slot', f'{field}__lead__owner_bde', f'{field}__assigned_tutor')
-        for message in messages.order_by('pk'):
-            refresh_message(message, getattr(message, field), now)
+    _refresh_lead_messages(lead, now)
     _update_tasks(
         CommunicationTask.objects.filter(
             Q(diagnostic_booking__lead=lead) | Q(demo_booking__lead=lead), status=TaskStatus.OPEN,
         ),
         owner_role=OwnerRole.BDE, owner=lead.owner_bde, updated_at=now,
     )
+
+
+def lead_timezone_changed(lead, now):
+    """
+    ``lead``'s student time zone was corrected (bookings.student_timezones,
+    which holds the lead's lock): its bookings' unsent messages, which show
+    the booking at the student's time, are checked again -- written again
+    with the zone now, not only when one is sent. Nothing handed over changes.
+    """
+    _refresh_lead_messages(lead, now)
 
 
 def booking_cancelled(booking, now):
@@ -386,7 +393,7 @@ def refresh_message(message, booking, now, save=True):
         message.status = MessageStatus.PENDING
         message.template_version = version
         message.body = render(version.body, values)
-        message.variables = {name: values[name] for name in placeholders(version.body)}
+        message.variables = message_values(version.body, values)
     else:
         message.status = MessageStatus.WAITING
         message.template_version = None
@@ -408,6 +415,17 @@ def add_message(booking, step, now, **fields):
 
 
 # ---------------------------------------------------------------- helpers
+
+def _refresh_lead_messages(lead, now):
+    """Every unsent message of ``lead``'s bookings checked again, each locked first, in id order."""
+    for model in BOOKING_MODELS:
+        field = 'diagnostic_booking' if model is DiagnosticBooking else 'demo_booking'
+        messages = Message.objects.select_for_update(of=('self',)).filter(
+            **{f'{field}__lead': lead}, status__in=(MessageStatus.WAITING, MessageStatus.PENDING),
+        ).select_related('template', f'{field}__slot', f'{field}__lead__owner_bde', f'{field}__assigned_tutor')
+        for message in messages.order_by('pk'):
+            refresh_message(message, getattr(message, field), now)
+
 
 def _add_message(booking, task, now, *, scheduled_for=None, send_before=None, created_by=None):
     template = MessageTemplate.objects.get(key=template_key(booking.booking_type, task.step))

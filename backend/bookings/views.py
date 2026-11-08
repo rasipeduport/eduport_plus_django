@@ -13,12 +13,12 @@ from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.timezones import DATE_PATTERN
 
-from . import bde_activity, coordination, enquiries, notes
+from . import bde_activity, coordination, enquiries, notes, student_timezones
 from .booking_service import BookingBusy, BookingError, cancel_booking, request_redemo, set_slots_closed
 from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
-from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, LeadNoteRole, SlotTime, booking_model
+from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, Lead, LeadNoteRole, SlotTime, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
 from .serializers import (
@@ -28,8 +28,10 @@ from .serializers import (
     LeadNoteSerializer,
     RedemoRequestSerializer,
     SlotChangeSerializer,
+    StudentTimezoneSerializer,
 )
 from .services import links_for, owns_booking_links
+from .student_timezones import InvalidStudentTimezone
 
 VIEW_OWN_ENQUIRIES = HasAppPermission('accounts.view_own_enquiries')
 CANCEL_BOOKING = 'accounts.cancel_booking'
@@ -37,6 +39,7 @@ CREATE_DEMO_BOOKING = 'accounts.create_demo_booking'
 VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
 VIEW_OWN_LEAD_COMMUNICATIONS = 'accounts.view_own_lead_communications'
 VIEW_OWN_LEAD_REPORTS = 'accounts.view_own_lead_reports'
+CHANGE_STUDENT_TIMEZONE = 'accounts.change_student_timezone'
 # The filters of a BDE's Demo and Diagnostic Bookings lists: the Admin list's
 # (coordination.parse_filters) less its tutor, slot, assignment and report filters.
 BDE_BOOKING_FILTERS = ('status', 'when', 'from', 'to', 'q')
@@ -246,6 +249,44 @@ class BdeEnquiryNotesView(BdeWorkspaceView):
         if lead is None:
             return None, _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
         return lead, None
+
+
+class BdeEnquiryTimezoneView(BdeWorkspaceView):
+    """
+    PUT /api/bde/enquiries/<id>/student-timezone/ {"student_timezone": <IANA zone> | null}
+    Correct the time zone the student of one of the caller's enquiries books
+    from (bookings.student_timezones) -- their own time is shown beside each
+    booking's Indian one; null clears it. Answers the enquiry in full with
+    ``changed`` (false when it already was that zone), or 400
+    INVALID_TIMEZONE. Another BDE's enquiry, or one nobody owns, is answered
+    exactly as one that does not exist.
+    """
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES, HasAppPermission(CHANGE_STUDENT_TIMEZONE)]
+
+    def put(self, request, pk, *args, **kwargs):
+        refusal = self.non_bde_refusal(request)
+        if refusal:
+            return refusal
+        serializer = StudentTimezoneSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _bde_error(InvalidStudentTimezone.code, InvalidStudentTimezone.message,
+                              status.HTTP_400_BAD_REQUEST, fields=serializer.errors)
+        try:
+            _lead, changed = student_timezones.correct(
+                pk, serializer.validated_data['student_timezone'], actor=request.user, via='bde_workspace',
+                owner_bde=request.user, request=request,
+            )
+        except Lead.DoesNotExist:
+            return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
+        except BookingBusy:
+            return _bde_error('LEAD_BUSY', 'This enquiry is being changed right now. Try again in a moment.',
+                              status.HTTP_503_SERVICE_UNAVAILABLE)
+        now = timezone.now()
+        lead = enquiries.listed(enquiries.own_leads(request.user).filter(pk=pk), now).first()
+        if lead is None:
+            # Given to another BDE since: no longer the caller's to read.
+            return _bde_error('NOT_FOUND', 'No such enquiry.', status.HTTP_404_NOT_FOUND)
+        return Response({**_enquiry(request, lead, now), 'changed': changed}, status=status.HTTP_200_OK)
 
 
 def _can_cancel(request):

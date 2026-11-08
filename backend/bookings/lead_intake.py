@@ -51,10 +51,11 @@ def existing_lead(phone_key, student_key):
 def create_lead(details, *, source, created_by=None, owner=None, source_details=None):
     """
     A new lead from validated ``details`` -- parent_name, phone_dial_code,
-    phone_number, student_name and grade; school_name, syllabus, country and
-    parent_email when known. ``owner`` (a BDE adding their own enquiry) owns
-    it from the start. Raises bookings.leads.InvalidLeadDetails, or LeadExists
-    when the phone number and student already make a lead.
+    phone_number, student_name and grade; school_name, syllabus, country,
+    parent_email and student_timezone when known. ``owner`` (a BDE adding
+    their own enquiry) owns it from the start. Raises
+    bookings.leads.InvalidLeadDetails, or LeadExists when the phone number and
+    student already make a lead.
     """
     dial, national, phone_key = normalize_phone(details['phone_dial_code'], details['phone_number'])
     student_key = student_name_key(details['student_name'])
@@ -74,6 +75,7 @@ def create_lead(details, *, source, created_by=None, owner=None, source_details=
         syllabus=details.get('syllabus') or '',
         country=details.get('country') or '',
         parent_email=details.get('parent_email') or '',
+        student_timezone=details.get('student_timezone') or '',
         source=source,
         source_details=source_details or {},
         created_by=created_by,

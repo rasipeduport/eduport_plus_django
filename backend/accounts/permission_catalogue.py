@@ -152,6 +152,11 @@ CATALOGUE = {
     # accounts.0018. Giving one its owner BDE is accounts.assign_lead_owner, above.
     'accounts.view_all_leads': _entry('View all leads', 'Leads', ADMIN_ONLY),
     'accounts.add_lead': _entry('Add leads', 'Leads', ADMIN_ONLY),
+    # Correcting the time zone a lead's student books from (Student Local
+    # Time; bookings.student_timezones), accounts.0019. A BDE corrects their
+    # own enquiries only, an administrator any lead they may read
+    # (view_all_leads) -- which the code checks; holding this is not enough.
+    'accounts.change_student_timezone': _entry("Correct a student's time zone", 'Leads', BDE_AND_ADMIN),
 }
 
 

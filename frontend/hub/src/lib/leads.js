@@ -9,6 +9,9 @@ export const leadUrl = (id) => `${LEADS_URL}${id}/`;
 export const leadOwnerUrl = (id) => `${LEADS_URL}${id}/owner/`;
 // Staff's notes on a lead, shared with its owner BDE and its tutors (backend bookings/notes.py).
 export const leadNotesUrl = (id) => `${LEADS_URL}${id}/notes/`;
+// The student's time zone on any lead, set or corrected (PUT { student_timezone },
+// backend bookings.student_timezones): it answers the lead in full.
+export const leadTimezoneUrl = (id) => `${LEADS_URL}${id}/student-timezone/`;
 
 // The owner filter's value for the leads nobody owns yet.
 export const UNASSIGNED = 'unassigned';

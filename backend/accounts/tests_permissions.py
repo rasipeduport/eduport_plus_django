@@ -46,6 +46,7 @@ SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_as
 SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnostic_workflow_permissions')
 SEED_COMMUNICATIONS = importlib.import_module('accounts.migrations.0017_communication_permissions')
 SEED_LEADS = importlib.import_module('accounts.migrations.0018_lead_management_permissions')
+SEED_STUDENT_TIMEZONE = importlib.import_module('accounts.migrations.0019_student_timezone_permission')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -133,6 +134,10 @@ COMMUNICATION_GRANTS = {
 # Lead management (0018): every lead, and adding one, for the Admin alone.
 LEAD_PERMISSIONS = names('view_all_leads', 'add_lead')
 LEAD_GRANTS = {'ADMIN': LEAD_PERMISSIONS}
+# Student Local Time (0019): correcting a student's time zone, for a BDE (their
+# own enquiries) and the Admin (any lead).
+STUDENT_TIMEZONE_PERMISSIONS = names('change_student_timezone')
+STUDENT_TIMEZONE_GRANTS = {'ADMIN': STUDENT_TIMEZONE_PERMISSIONS, 'BDE': STUDENT_TIMEZONE_PERMISSIONS}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -142,10 +147,11 @@ NEW_ROLE_PERMISSIONS_AT_0014 = {
 # What they carry -- and, each its own modules only, may ever hold -- today.
 NEW_ROLE_PERMISSIONS = {
     role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
+    | STUDENT_TIMEZONE_GRANTS.get(role, set())
     for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
 # What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
-# and today.
+# after 0018, and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
@@ -166,8 +172,11 @@ GROUP_PERMISSIONS_AT_0015 = {
 GROUP_PERMISSIONS_AT_0017 = {
     role: held | COMMUNICATION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0015.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0018 = {
     role: held | LEAD_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0017.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | STUDENT_TIMEZONE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0018.items()
 }
 
 
@@ -205,9 +214,12 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_66(self):
-        self.assertEqual(len(CATALOGUE), 66)
-        self.assertLessEqual(WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS, set(CATALOGUE))
+    def test_the_catalogue_is_the_approved_67(self):
+        self.assertEqual(len(CATALOGUE), 67)
+        self.assertLessEqual(
+            WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS,
+            set(CATALOGUE),
+        )
         # Every permission is carried by at least one role group today.
         self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
         for name, entry in CATALOGUE.items():
@@ -268,9 +280,11 @@ class CatalogueTests(PermissionTestCase):
             # 0018 renames assign_lead_owner (seeded by 0015): it covers reassigning too.
             + [(codename, SEED_LEADS.ASSIGN_OWNER_NAMES[1] if codename == SEED_LEADS.ASSIGN_OWNER else name)
                for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
-            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS,
+            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
+                         STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_LEADS.GRANTS.items()}, LEAD_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_WORKFLOW.GRANTS.items()}, WORKFLOW_GRANTS)
@@ -869,6 +883,27 @@ class SeedFunctionTests(PermissionTestCase):
             self.assertFalse(effective_permissions(self.make(f'leads_{role.lower()}_2', role)) & LEAD_PERMISSIONS)
         self.assertEqual(permission('accounts.assign_lead_owner').name, "Assign or reassign a lead's owner BDE")
 
+    def test_running_the_student_timezone_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_STUDENT_TIMEZONE.grant_student_timezone_permission(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_corrects_a_students_time_zone(self):
+        held = {role: effective_permissions(self.make(f'zone_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        for role in ('ADMIN', 'BDE'):
+            self.assertLessEqual(STUDENT_TIMEZONE_PERMISSIONS, held[role], role)
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & STUDENT_TIMEZONE_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand a tutor, a mentor or a Sales TL the correction: tutors read only.
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in STUDENT_TIMEZONE_PERMISSIONS))
+            self.assertFalse(
+                effective_permissions(self.make(f'zone_{role.lower()}_2', role)) & STUDENT_TIMEZONE_PERMISSIONS, role,
+            )
+        self.assertFalse(CATALOGUE['accounts.change_student_timezone']['grantable'])
+
     def test_who_reschedules_and_who_cancels(self):
         held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
         self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
@@ -945,8 +980,8 @@ class NewRoleTests(PermissionTestCase):
 
 class MigrationReversalTests(TransactionTestCase):
     """
-    0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007 and
-    apply again with the same seeds, ending at the app's leaf.
+    0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007
+    and apply again with the same seeds, ending at the app's leaf.
     """
 
     @staticmethod
@@ -1012,9 +1047,21 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0018_lead_management_permissions')])
-        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0018)
         assign_owner = Permission.objects.get(content_type__model='hubpermission', codename='assign_lead_owner')
         self.assertEqual(assign_owner.name, "Assign or reassign a lead's owner BDE")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0019_student_timezone_permission')])
+        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0019 alone reverses: the BDE and ADMIN groups are back to 0018's and the row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0018_lead_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0018)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename='change_student_timezone',
+        ).exists())
 
         # 0018 alone reverses: ADMIN's group is back to 0017's, the lead rows gone and the old name back.
         executor = MigrationExecutor(connection)

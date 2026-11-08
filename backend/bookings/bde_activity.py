@@ -14,6 +14,7 @@ a lead given to another BDE takes its bookings' history with it.
 """
 from django.db.models import Q
 
+from . import student_timezones
 from .enquiries import booking_brief, enquiry_brief
 from .models import BookingEvent, BookingEventKind, BookingSlot
 
@@ -54,7 +55,14 @@ def _detail(event, slots):
         return {'origin': data['via']}
     if event.kind == BookingEventKind.RESCHEDULED:
         slot = slots.get(str(data.get('new_slot_id')))
-        return {'to': {'date': slot.local_date.isoformat(), 'time': slot.local_time.strftime('%H:%M')}} if slot else {}
+        return {
+            'to': {
+                'date': slot.local_date.isoformat(),
+                'time': slot.local_time.strftime('%H:%M'),
+                # The new slot as an instant, for the student's own time of it.
+                'starts_at': slot.starts_at.isoformat(),
+            },
+        } if slot else {}
     if event.kind == BookingEventKind.REPORT_EDITED and data.get('version'):
         return {'version': data['version']}
     return {}
@@ -70,6 +78,6 @@ def activity_row(event, bde, slots):
         'at': event.created_at.isoformat(),
         'by_you': event.actor_id is not None and event.actor_id == bde.pk,
         'detail': _detail(event, slots),
-        'booking': booking_brief(booking),
+        'booking': {**booking_brief(booking), 'student_timezone': student_timezones.of(booking.lead)},
         'enquiry': enquiry_brief(booking.lead),
     }
