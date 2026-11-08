@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TutorBookingActivity } from '@/components/bookings/tutor-workspace/tutor-booking-activity';
 import { TutorBookingHeader } from '@/components/bookings/tutor-workspace/tutor-booking-header';
-import { TutorBookingOverview, TutorStudentInfo } from '@/components/bookings/tutor-workspace/tutor-booking-overview';
+import { TutorBookingOverview } from '@/components/bookings/tutor-workspace/tutor-booking-overview';
+import { TutorBookingSession } from '@/components/bookings/tutor-workspace/tutor-booking-session';
 import { TutorFeedbackPanel } from '@/components/bookings/tutor-workspace/tutor-feedback-panel';
 import { LeadNotes } from '@/components/notes/lead-notes';
 import { EmptyState, Page } from '@/components/page/page';
@@ -40,10 +41,12 @@ function WorkspaceSkeleton() {
  * a workspace of its own -- laid out as the other roles' booking workspaces
  * are, holding only what the tutor teaches with:
  *
- *   Overview            what the class needs now, the session (IST), its Meet
- *                       room, where its feedback or results stand, and for a
- *                       Re-Demo why it is taught again
- *   Student Info        the child's academic details: class, syllabus, school, country
+ *   Overview            what the class needs now, the parent (the country only),
+ *                       the student and the enquiry, the enquiry's journey, and
+ *                       for a Re-Demo why it is taught again
+ *   Bookings            the class to join and teach: when (IST), type, status,
+ *                       Join Meet and the action it takes now -- Start, then
+ *                       its feedback or results
  *   Feedback / Results  the report once in, as it prints, with its PDF and every
  *                       version; else why it cannot be written yet
  *   Notes               the enquiry's notes, shared with its BDE and the administrators
@@ -89,7 +92,7 @@ export default function TutorBookingWorkspacePage({ type }) {
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
-    { key: 'student', label: 'Student Info' },
+    { key: 'session', label: 'Bookings' },
     { key: 'feedback', label: words.tab },
     { key: 'notes', label: 'Notes' },
     { key: 'activity', label: 'Activity' },
@@ -114,14 +117,30 @@ export default function TutorBookingWorkspacePage({ type }) {
     );
   };
 
-  // The report page's way back: this booking's feedback tab, with this page's own way back kept.
-  const reportState = {
+  // The report page's way back: this booking's feedback tab (its Session tab, from there), with this page's own way back kept.
+  const reportStateFor = (backTab) => ({
     from: {
-      to: `${tutorBookingPagePath(type, bookingId)}?tab=feedback`,
+      to: `${tutorBookingPagePath(type, bookingId)}?tab=${backTab}`,
       label: shown ? shown.student_name : 'Booking',
       state: location.state ?? null,
     },
-  };
+  });
+  const reportState = reportStateFor('feedback');
+  const sessionReportState = reportStateFor('session');
+
+  // Start opens five minutes before the class (the API's rule, its start_refusal
+  // until then): the booking is read again when it opens, so Start shows then.
+  // Should this device's clock run ahead of the server's, it is read again every
+  // fifteen seconds until the API offers it.
+  const startOpensAt = shown?.start_refusal?.code === 'START_TOO_EARLY' ? shown.start_opens_at : null;
+  useEffect(() => {
+    if (!startOpensAt) return undefined;
+    const wait = new Date(startOpensAt).getTime() - Date.now() + 1000;
+    // Further off than a timer can wait (about 24 days): read again on the next visit.
+    if (!(wait < 2 ** 31)) return undefined;
+    const timer = setTimeout(() => setReloadKey((key) => key + 1), wait > 0 ? wait : 15_000);
+    return () => clearTimeout(timer);
+  }, [startOpensAt, shown]);
 
   let content;
   if (failure && failure.status === 404) {
@@ -168,8 +187,8 @@ export default function TutorBookingWorkspacePage({ type }) {
             />
           </TabsContent>
 
-          <TabsContent value="student">
-            <TutorStudentInfo booking={shown} />
+          <TabsContent value="session">
+            <TutorBookingSession booking={shown} onStarted={started} onRefresh={reload} reportState={sessionReportState} />
           </TabsContent>
 
           <TabsContent value="feedback">

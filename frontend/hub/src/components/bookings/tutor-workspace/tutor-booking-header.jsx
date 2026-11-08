@@ -31,8 +31,8 @@ function Detail({ label, children }) {
  * the class needs now: Join Meet (the booking's Google Meet room as the API
  * gives it) while it has a class, to come or taught, or plainly No Meet link
  * without one; Start Demo / Start Diagnostic while the API offers it (which
- * opens Meet too and records the start the report needs); and Write feedback /
- * Enter results, or Edit, once the report can be written (`reportState`, the
+ * opens Meet too and records the start the report needs); and Submit Feedback /
+ * Enter Results, or Edit, once the report can be written (`reportState`, the
  * report page's way back). Nothing of the parent: the tutor's API carries
  * none.
  */

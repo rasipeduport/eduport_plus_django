@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { reportActions, reportWords, tutorReportPagePath } from '@/lib/reports';
 
 /**
- * Write feedback / Enter results -- a booked booking its tutor has started
+ * Submit Feedback / Enter Results -- a booked booking its tutor has started
  * and has no report yet -- or Edit feedback / Edit results, once it has one
  * (lib/reports reportActions, worded by reportWords); nothing otherwise.
  * Either opens the booking's report page, with `state` (its way back) passed

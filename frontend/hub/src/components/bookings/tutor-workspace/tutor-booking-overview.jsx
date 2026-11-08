@@ -5,7 +5,6 @@ import {
   ClockIcon,
   FileTextIcon,
   GraduationCapIcon,
-  LockIcon,
   PlayCircleIcon,
   RotateCcwIcon,
   UserRoundIcon,
@@ -225,34 +224,6 @@ export function TutorBookingOverview({ booking, onStarted, onRefresh, reportStat
       </div>
       {enquiry ? <JourneyCard lead={enquiry} /> : null}
       {booking.redemo ? <RedemoPanel redemo={booking.redemo} /> : null}
-    </div>
-  );
-}
-
-/**
- * What the tutor is told about the student to teach them: their name, class,
- * syllabus, school and country -- the child's details from the booking, and
- * all the tutor's API carries. The parent's contact stays with the BDE and the
- * administrators.
- */
-export function TutorStudentInfo({ booking }) {
-  return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-      <Panel icon={GraduationCapIcon} title="Student" subtitle="As given when the session was booked" className="lg:col-span-2">
-        <dl className="divide-y">
-          <Field label="Name">{booking.student_name}</Field>
-          <Field label="Class">{booking.grade}</Field>
-          <Field label="Syllabus">{booking.syllabus}</Field>
-          <Field label="School">{booking.school_name}</Field>
-          <Field label="Country">{booking.country}</Field>
-        </dl>
-      </Panel>
-      <Panel icon={LockIcon} title="Shared with tutors">
-        <p className="text-muted-foreground text-sm">
-          Tutors see the student&apos;s academic details only. The parent&apos;s name and phone number stay with the BDE
-          and the administrators: ask them if you need the family contacted.
-        </p>
-      </Panel>
     </div>
   );
 }

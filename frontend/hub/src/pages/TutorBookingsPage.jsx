@@ -62,7 +62,7 @@ function Meeting({ booking }) {
 
 /**
  * What a row offers first: Start Demo / Start Diagnostic while the API allows
- * it, else Write feedback / Enter results once the class is started and its
+ * it, else Submit Feedback / Enter Results once the class is started and its
  * report is not in -- nothing more, the rest is on the booking's own page.
  */
 function MainAction({ booking, onStarted, from }) {

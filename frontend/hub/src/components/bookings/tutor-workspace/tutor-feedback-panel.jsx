@@ -48,7 +48,7 @@ function waiting(booking) {
  * once in, the report as it prints -- read from GET
  * /api/tutor/bookings/<type>/<id>/report/ -- with its PDF, when it was
  * submitted and last saved, and every version on request; before that, why
- * it cannot be written yet, with Start or Write feedback / Enter results
+ * it cannot be written yet, with Start or Submit Feedback / Enter Results
  * where the booking allows. Writing and editing happen on the report page
  * (TutorReportLink, `reportState` its way back), which guards unsaved text.
  * A cancelled or moved booking takes no report.
