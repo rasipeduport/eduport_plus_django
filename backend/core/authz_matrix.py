@@ -568,6 +568,10 @@ SCENARIOS = [
     # Staff's notes on their own enquiry (bookings.notes): lead_a is nobody's here; the new-role world gives it,
     # with no notes yet, to its BDE.
     Scenario('bde.enquiries.notes', 'get', '/api/bde/enquiries/{lead_a}/notes/'),
+    # Correcting the time zone their own enquiry's student books from (Student Local Time): lead_a is nobody's
+    # here; the new-role world gives it to its BDE.
+    Scenario('bde.enquiries.student_timezone', 'put', '/api/bde/enquiries/{lead_a}/student-timezone/',
+             {'student_timezone': 'Asia/Dubai'}),
     # A BDE's Demo Bookings list (BDE Hub redesign, Phase 5): their own leads' bookings only.
     Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
@@ -589,6 +593,9 @@ SCENARIOS = [
     # No caller here is a BDE, so no account may take lead_a: mentor_a is refused as one.
     Scenario('leads.assign_owner', 'put', '/api/leads/{lead_a}/owner/',
              lambda w: {'bde_id': w.id('mentor_a'), 'current_owner_id': None}),
+    # Correcting any lead's student time zone (Student Local Time): lead_a has none yet.
+    Scenario('leads.student_timezone', 'put', '/api/leads/{lead_a}/student-timezone/',
+             {'student_timezone': 'Asia/Dubai'}),
     # The admissions pipeline at a glance (bookings.admissions): the last seven days of leads and bookings.
     Scenario('admissions.dashboard', 'get', '/api/admissions/dashboard/'),
 

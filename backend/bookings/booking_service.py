@@ -84,7 +84,7 @@ from communications import planner
 from sessions.models import Session, SessionStatusChoices
 from sessions.services import lock_tutor_schedule
 
-from . import history
+from . import history, student_timezones
 from .attribution import resolve_referral
 from .leads import match_lead, normalize_phone
 from .lifecycle import START_EARLY, start_opens_at
@@ -460,6 +460,9 @@ class BookingRequest:
     display_time: str = ''
     # The raw ``ref`` value, whatever its type: bookings.attribution judges it.
     ref: object = None
+    # The raw time zone the page showed the slots in, whatever its type:
+    # bookings.student_timezones keeps it only when it is a zone it knows.
+    student_timezone: object = None
 
 
 def create_booking(request, now=None):
@@ -537,7 +540,7 @@ def create_booking(request, now=None):
     return booking, True
 
 
-def create_invited_demo_booking(token, local_date, local_time, display_time='', now=None):
+def create_invited_demo_booking(token, local_date, local_time, display_time='', now=None, student_timezone=None):
     """
     Book a Demo with the invitation ``token`` (bookings.demo_invites) in the
     slot at ``local_date`` / ``local_time``; returns (booking, created).
@@ -546,9 +549,12 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
 
     The booking is the invitation's lead's -- the lead of the Diagnostic it
     names, never one matched from typed details -- and nothing about the lead
-    changes: its details and its owner stay as they are. It is a BDE handoff
-    made by whoever sent the invitation, with no referral, and its details are
-    the lead's as a public booking would have submitted them.
+    changes: its details and its owner stay as they are, save a student time
+    zone it does not have yet, which it takes from ``student_timezone`` -- the
+    zone the invitation page showed the slots in -- as any booking would
+    (bookings.student_timezones). It is a BDE handoff made by whoever sent the
+    invitation, with no referral, and its details are the lead's as a public
+    booking would have submitted them, with that zone.
 
     Every rule a public booking meets applies (_check_offered, _free_seat),
     under the same locks in the same order -- the slot, then the lead -- and
@@ -587,13 +593,16 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
                 raise refusal
             seat = _free_seat(DemoBooking, slot, lead, lead.phone_key, now)
 
+            zone = student_timezones.clean(student_timezone)
+            if not lead.student_timezone and student_timezones.fill(lead.pk, zone):
+                lead.student_timezone = zone
             booking = DemoBooking.objects.create(
                 lead=lead,
                 slot=slot,
                 seat=seat,
                 channel=BookingChannel.BDE_HANDOFF,
                 created_by_id=invite.created_by_id,
-                details=_lead_submission(lead, display_time),
+                details=_lead_submission(lead, display_time, zone),
             )
             invite.used_at = at
             invite.demo_booking = booking
@@ -1892,8 +1901,12 @@ def _invite_repeat(invite, at, local_date, local_time):
     return None
 
 
-def _lead_submission(lead, display_time):
-    """A booking's ``details`` from its lead, in the keys a public booking submits them under (_submitted)."""
+def _lead_submission(lead, display_time, student_timezone=''):
+    """
+    A booking's ``details`` from its lead, in the keys a public booking submits
+    them under (_submitted); ``student_timezone`` is the zone the booking's own
+    page showed its time in ('' when none did: a Re-Demo an administrator schedules).
+    """
     return {
         'parent_name': lead.parent_name,
         'phone': f'{lead.phone_dial_code} {lead.phone_number}',
@@ -1903,6 +1916,7 @@ def _lead_submission(lead, display_time):
         'syllabus': lead.syllabus,
         'country': lead.country,
         'display_time': display_time,
+        'student_timezone': student_timezone,
     }
 
 
@@ -1916,6 +1930,7 @@ def _lead_details(request):
         'student_class': request.student_class,
         'syllabus': request.syllabus,
         'country': request.country,
+        'student_timezone': request.student_timezone,
     }
 
 
@@ -1929,6 +1944,9 @@ def _submitted(request):
         'syllabus': request.syllabus,
         'country': request.country,
         'display_time': request.display_time,
+        # The zone the page showed the slot in, kept as it was used: a lead's
+        # zone may be corrected later, and this booking's record stays.
+        'student_timezone': student_timezones.clean(request.student_timezone),
     }
 
 

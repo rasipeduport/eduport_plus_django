@@ -29,11 +29,12 @@ LIST_URL = '/api/tutor/bookings/'
 # The child, the slot, and whether its report is done or due (P6: has_report, report_version, report_due),
 # and the Meet room it is taught in (Phase 1: tutor_meet_link); where it stands as a class, its
 # Start and why it cannot be started now (activity_state, started_at, start_opens_at, actions, start_refusal);
-# and, for a Re-Demo, what it follows and why (redemo: null for every other booking, bookings.redemos).
+# and, for a Re-Demo, what it follows and why (redemo: null for every other booking, bookings.redemos);
+# and the zone the child books from (Student Local Time: student_timezone, null when not known).
 ROW_FIELDS = {
     'id', 'booking_type', 'status', 'slot', 'student_name', 'grade', 'syllabus', 'school_name', 'country',
     'tutor_meet_link', 'has_report', 'report_version', 'report_due',
-    'activity_state', 'started_at', 'start_opens_at', 'actions', 'start_refusal', 'redemo',
+    'activity_state', 'started_at', 'start_opens_at', 'actions', 'start_refusal', 'redemo', 'student_timezone',
 }
 SLOT_FIELDS = {'date', 'time', 'starts_at', 'ends_at', 'started', 'ended'}
 # One booking in full adds its slot's time zone and its enquiry (tutor_bookings.enquiry_brief).
@@ -111,6 +112,8 @@ class ListTests(TutorBookingsTestCase):
             'syllabus': 'CBSE',
             'school_name': 'Delhi Private School',
             'country': 'United Arab Emirates',
+            # Student Local Time: the booking page sent no zone.
+            'student_timezone': None,
             # Phase 1: the booking's copy of its tutor's Meet link; tutor_a has none configured.
             'tutor_meet_link': None,
             # Two days away: Start opens five minutes before the slot.

@@ -41,6 +41,15 @@ def _booking_type(value):
         raise NotFound()
 
 
+def _student_timezone(request):
+    """
+    The time zone the page showed the slots in, as sent: display only, so a
+    value bookings.student_timezones cannot use is dropped there and the
+    booking is made all the same.
+    """
+    return request.data.get('student_timezone') if hasattr(request.data, 'get') else None
+
+
 class PublicBookingCalendarView(APIView):
     """The bookable window of one booking type: every date, every active time and its status."""
     authentication_classes = [BookingServiceAuthentication]
@@ -96,6 +105,8 @@ class PublicBookingCreateView(APIView):
                 country=data['country'],
                 display_time=data['display_time'],
                 ref=request.data.get('ref') if hasattr(request.data, 'get') else None,
+                # Read raw, like ``ref``: a zone it cannot use is dropped, never refused.
+                student_timezone=_student_timezone(request),
             ))
         except BookingError as exc:
             return Response({'error': exc.code, 'message': exc.message}, status=exc.http_status)
@@ -137,11 +148,12 @@ class PublicDemoInviteStateView(APIView):
 
 class PublicDemoInviteBookView(APIView):
     """
-    POST /api/public/demo-invites/book/ {"token", "date", "time", "display_time"}
+    POST /api/public/demo-invites/book/ {"token", "date", "time", "display_time", "student_timezone"}
     Book a Demo with an invitation (booking_service.create_invited_demo_booking):
     201 for a new booking, 200 for a repeated submission, which gets the
     booking it already made. The invitation names the lead; nothing about the
-    child or the parent is sent or changed. 404 INVITE_NOT_FOUND; 409
+    child or the parent is sent or changed -- only the time zone the page
+    showed the slots in, which a lead without one takes. 404 INVITE_NOT_FOUND; 409
     INVITE_USED, INVITE_EXPIRED, INVITE_REVOKED, DEMO_ALREADY_BOOKED,
     DEMO_NOT_OFFERED or any refusal a public booking meets.
     """
@@ -160,6 +172,7 @@ class PublicDemoInviteBookView(APIView):
         try:
             booking, created = create_invited_demo_booking(
                 data['token'], data['date'], data['time'], display_time=data['display_time'],
+                student_timezone=_student_timezone(request),
             )
         except BookingError as exc:
             return Response({'error': exc.code, 'message': exc.message}, status=exc.http_status)

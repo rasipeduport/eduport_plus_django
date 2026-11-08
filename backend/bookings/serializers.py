@@ -6,6 +6,14 @@ from .models import MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, Boo
 from .notes import NOTE_MAX_LENGTH
 from .public_serializers import CLASSES, SYLLABI
 from .services import link_url
+from .student_timezones import InvalidStudentTimezone
+from .student_timezones import clean as clean_student_timezone
+
+
+def known_timezone(value):
+    """A student time zone staff pick: '' (not known) or an IANA zone the runtime knows."""
+    if value and clean_student_timezone(value) != value:
+        raise serializers.ValidationError(InvalidStudentTimezone.message)
 
 
 class BookingLinkSerializer(serializers.ModelSerializer):
@@ -63,6 +71,10 @@ class EnquiryCreateSerializer(serializers.Serializer):
     # The Diagnostic page offers every syllabus the Demo page does, and more.
     syllabus = serializers.ChoiceField(choices=SYLLABI[BookingType.DIAGNOSTIC], required=False, allow_blank=True, default='')
     country = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    # The student's time zone when known (bookings.student_timezones): '' or null for not known.
+    student_timezone = serializers.CharField(
+        max_length=64, required=False, allow_blank=True, allow_null=True, default='', validators=[known_timezone],
+    )
 
     def validate(self, data):
         try:
@@ -79,6 +91,16 @@ class LeadCreateSerializer(EnquiryCreateSerializer):
     is assigned afterwards (bookings.ownership).
     """
     parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
+
+
+class StudentTimezoneSerializer(serializers.Serializer):
+    """
+    Correcting a lead's student time zone (bookings.student_timezones.correct):
+    an IANA zone the runtime knows, or null / '' to clear it.
+    """
+    student_timezone = serializers.CharField(
+        max_length=64, allow_blank=True, allow_null=True, validators=[known_timezone],
+    )
 
 
 class LeadOwnerSerializer(serializers.Serializer):

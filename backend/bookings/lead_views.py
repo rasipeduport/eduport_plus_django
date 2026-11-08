@@ -6,6 +6,7 @@ The administrators' Leads API (bookings.lead_admin):
     GET  /api/leads/bdes/            the BDE accounts to filter by and assign to
     GET  /api/leads/<id>/            one lead in full
     PUT  /api/leads/<id>/owner/      give the lead to a BDE (bookings.ownership)
+    PUT  /api/leads/<id>/student-timezone/  correct its student's time zone (bookings.student_timezones)
     GET  /api/leads/<id>/notes/      staff's notes on the lead (bookings.notes)
     POST /api/leads/<id>/notes/      add one, as an administrator
     GET  /api/admissions/dashboard/  the admissions pipeline at a glance (bookings.admissions)
@@ -13,7 +14,9 @@ The administrators' Leads API (bookings.lead_admin):
 Reading needs accounts.view_all_leads, adding accounts.add_lead and
 assigning accounts.assign_lead_owner -- all three the ADMIN role's alone (a
 superuser holds them too, D1); whoever may read a lead may read and add its
-notes. A BDE reads their own leads in the BDE
+notes. Correcting a student's time zone needs accounts.change_student_timezone
+as well as view_all_leads: a BDE holds the former for their own enquiries
+(/api/bde/enquiries/), and never the latter. A BDE reads their own leads in the BDE
 workspace (/api/bde/enquiries/) and nothing here. Errors answer
 ``{"error": CODE, "message": ..., "fields"?}``, as the BDE workspace does.
 """
@@ -30,20 +33,22 @@ from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.querysets import ACTIVITY_VIEW_PERMISSIONS
 
-from . import admissions, enquiries, lead_admin, notes
+from . import admissions, enquiries, lead_admin, notes, student_timezones
 from .booking_service import BookingBusy
 from .lead_intake import LeadExists
 from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
 from .models import Lead, LeadNoteRole
 from .ownership import OwnershipError, assign_owner
-from .serializers import LeadCreateSerializer, LeadNoteSerializer, LeadOwnerSerializer
+from .serializers import LeadCreateSerializer, LeadNoteSerializer, LeadOwnerSerializer, StudentTimezoneSerializer
+from .student_timezones import InvalidStudentTimezone
 
 VIEW_ALL_LEADS = 'accounts.view_all_leads'
 ADD_LEAD = 'accounts.add_lead'
 ASSIGN_LEAD_OWNER = 'accounts.assign_lead_owner'
 VIEW_ALL_COMMUNICATIONS = 'accounts.view_all_communications'
 VIEW_ALL_BOOKINGS = 'accounts.view_all_bookings'
+CHANGE_STUDENT_TIMEZONE = 'accounts.change_student_timezone'
 
 
 def _error(code, message, http_status, **extra):
@@ -193,6 +198,34 @@ class LeadOwnerView(APIView):
             return _no_lead()
         except OwnershipError as exc:
             return _error(exc.code, exc.message, exc.http_status)
+        except BookingBusy:
+            return _error('LEAD_BUSY', 'This lead is being changed right now. Try again in a moment.',
+                          status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({**_read(request, pk, timezone.now()), 'changed': changed}, status=status.HTTP_200_OK)
+
+
+class LeadStudentTimezoneView(APIView):
+    """
+    PUT /api/leads/<id>/student-timezone/ {"student_timezone": <IANA zone> | null}
+    Correct the time zone the lead's student books from
+    (bookings.student_timezones) -- their own time is shown beside each
+    booking's Indian one; null clears it. Answers the lead in full with
+    ``changed`` (false when it already was that zone), or 400 INVALID_TIMEZONE.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS), HasAppPermission(CHANGE_STUDENT_TIMEZONE)]
+
+    def put(self, request, pk, *args, **kwargs):
+        serializer = StudentTimezoneSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error(InvalidStudentTimezone.code, InvalidStudentTimezone.message, status.HTTP_400_BAD_REQUEST,
+                          fields=serializer.errors)
+        try:
+            _lead, changed = student_timezones.correct(
+                pk, serializer.validated_data['student_timezone'], actor=request.user, via='admin_leads',
+                request=request,
+            )
+        except Lead.DoesNotExist:
+            return _no_lead()
         except BookingBusy:
             return _error('LEAD_BUSY', 'This lead is being changed right now. Try again in a moment.',
                           status.HTTP_503_SERVICE_UNAVAILABLE)

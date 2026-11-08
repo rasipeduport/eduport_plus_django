@@ -19,7 +19,7 @@ from accounts.authz import has_app_permission
 from accounts.models import User
 from core.timezones import DATE_PATTERN
 
-from . import enquiries, redemo_chain
+from . import enquiries, redemo_chain, student_timezones
 from .booking_service import (
     CONFLICT_SESSION,
     BookingCancelled,
@@ -255,6 +255,9 @@ def booking_row(booking, now):
         'booking_type': booking.booking_type,
         'status': booking.status,
         'slot': slot_brief(booking.slot, now),
+        # The zone the student books from, for their own time of this slot
+        # (bookings.student_timezones); null when not known.
+        'student_timezone': student_timezones.of(lead),
         'student_name': lead.student_name,
         'grade': lead.grade,
         'parent_name': lead.parent_name,
@@ -325,6 +328,7 @@ def booking_detail(booking, now, user=None, request=None):
             'school_name': lead.school_name,
             'syllabus': lead.syllabus,
             'country': lead.country,
+            'student_timezone': student_timezones.of(lead),
             'source': lead.source,
             'owner_bde': _person(lead.owner_bde),
         },

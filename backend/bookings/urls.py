@@ -10,6 +10,7 @@ from .views import (
     BdeEnquiriesView,
     BdeEnquiryDetailView,
     BdeEnquiryNotesView,
+    BdeEnquiryTimezoneView,
     BdeRedemoView,
 )
 
@@ -22,6 +23,11 @@ urlpatterns = [
     path('enquiries/<uuid:pk>/', BdeEnquiryDetailView.as_view(), name='bde-enquiry'),
     # Staff's notes on the caller's own enquiry, shared with its tutors and the administrators (bookings.notes).
     path('enquiries/<uuid:pk>/notes/', BdeEnquiryNotesView.as_view(), name='bde-enquiry-notes'),
+    # Correcting the time zone the caller's own enquiry's student books from (bookings.student_timezones).
+    path(
+        'enquiries/<uuid:pk>/student-timezone/', BdeEnquiryTimezoneView.as_view(),
+        name='bde-enquiry-student-timezone',
+    ),
     # What has happened to the caller's own leads' bookings, newest first.
     path('activity/', BdeActivityView.as_view(), name='bde-activity'),
     # The caller's own leads' bookings of one type (Demo Bookings, Diagnostic Bookings).

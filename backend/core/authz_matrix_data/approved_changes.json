@@ -697,8 +697,8 @@
    }
   },
   "admissions.dashboard @ admin": {
-   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
-   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "activity",
@@ -750,6 +750,7 @@
      "recent_leads[].status",
      "recent_leads[].status_label",
      "recent_leads[].student_name",
+     "recent_leads[].student_timezone",
      "timezone",
      "today_bookings",
      "today_bookings.date",
@@ -813,8 +814,8 @@
    }
   },
   "admissions.dashboard @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
-   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "activity",
@@ -866,6 +867,7 @@
      "recent_leads[].status",
      "recent_leads[].status_label",
      "recent_leads[].student_name",
+     "recent_leads[].student_timezone",
      "timezone",
      "today_bookings",
      "today_bookings.date",
@@ -881,8 +883,8 @@
    }
   },
   "admissions.dashboard @ su_tutor": {
-   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
-   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "activity",
@@ -934,6 +936,7 @@
      "recent_leads[].status",
      "recent_leads[].status_label",
      "recent_leads[].student_name",
+     "recent_leads[].student_timezone",
      "timezone",
      "today_bookings",
      "today_bookings.date",
@@ -949,8 +952,8 @@
    }
   },
   "admissions.dashboard @ superuser": {
-   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is.",
-   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty.",
+   "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "activity",
@@ -1002,6 +1005,7 @@
      "recent_leads[].status",
      "recent_leads[].status_label",
      "recent_leads[].student_name",
+     "recent_leads[].student_timezone",
      "timezone",
      "today_bookings",
      "today_bookings.date",
@@ -1053,8 +1057,8 @@
    }
   },
   "auth.me @ admin": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
@@ -1068,6 +1072,7 @@
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.change_student_timezone",
       "accounts.create_exam",
       "accounts.create_invitation",
       "accounts.create_session",
@@ -1242,8 +1247,8 @@
    }
   },
   "auth.me @ su_mentor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
@@ -1258,6 +1263,7 @@
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.change_student_timezone",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -1342,8 +1348,8 @@
    }
   },
   "auth.me @ su_tutor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
@@ -1358,6 +1364,7 @@
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.change_student_timezone",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -1442,8 +1449,8 @@
    }
   },
   "auth.me @ superuser": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes.",
    "result": {
     "capture": {
      "groups": [],
@@ -1458,6 +1465,7 @@
       "accounts.cancel_session",
       "accounts.change_invitation",
       "accounts.change_student_details",
+      "accounts.change_student_timezone",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -3474,6 +3482,144 @@
     "status": 403
    }
   },
+  "bde.enquiries.student_timezone @ admin": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "No accounts.view_own_enquiries: an administrator corrects a lead on the Leads API instead.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ anon": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ mentor_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ mentor_b": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ parent_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ su_mentor": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "A superuser holds the permissions (D1) but is no BDE: NOT_A_BDE, before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ su_tutor": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "A superuser holds the permissions (D1) but is no BDE: NOT_A_BDE, before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ superuser": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "A superuser holds the permissions (D1) but is no BDE: NOT_A_BDE, before anything is read.",
+   "result": {
+    "error": "NOT_A_BDE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Enquiries belong to BDE accounts, and this account is not one.",
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ tutor_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ tutor_b": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "bde.enquiries.student_timezone @ unknown": {
+   "decision": "Student Local Time (accounts.0019, bookings.views.BdeEnquiryTimezoneView): a BDE corrects the student time zone of their own enquiries only, with accounts.view_own_enquiries and accounts.change_student_timezone; anyone who is not an active BDE is refused.",
+   "note": "Refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "bde.follow_ups.list @ admin": {
    "decision": "BDE Hub redesign Phase 6 (Follow-ups and Activity, read-only endpoints approved 2026-11-07): GET /api/bde/follow-ups/ lists the open parent-communication steps of the caller's own leads' bookings, on accounts.view_own_enquiries and accounts.view_own_lead_communications; GET /api/bde/activity/ lists their bookings' history without who else acted or why, on accounts.view_own_enquiries. Only the BDE role may hold those permissions (a superuser holds them under D1).",
    "note": "Only the BDE role may hold these permissions, so this caller is refused and nothing is read.",
@@ -3613,7 +3759,7 @@
    }
   },
   "bookings.assign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -3645,6 +3791,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -3675,6 +3822,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor.full_name",
@@ -3746,7 +3894,7 @@
    }
   },
   "bookings.assign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -3778,6 +3926,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -3808,6 +3957,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor.full_name",
@@ -3831,7 +3981,7 @@
    }
   },
   "bookings.assign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -3863,6 +4013,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -3893,6 +4044,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor.full_name",
@@ -3916,7 +4068,7 @@
    }
   },
   "bookings.assign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -3948,6 +4100,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -3978,6 +4131,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor.full_name",
@@ -4037,7 +4191,7 @@
    }
   },
   "bookings.cancel @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4071,6 +4225,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4101,6 +4256,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4169,7 +4325,7 @@
    }
   },
   "bookings.cancel @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4203,6 +4359,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4233,6 +4390,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4253,7 +4411,7 @@
    }
   },
   "bookings.cancel @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4287,6 +4445,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4317,6 +4476,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4337,7 +4497,7 @@
    }
   },
   "bookings.cancel @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4371,6 +4531,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4401,6 +4562,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4597,7 +4759,7 @@
    }
   },
   "bookings.detail @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4628,6 +4790,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4658,6 +4821,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4723,7 +4887,7 @@
    }
   },
   "bookings.detail @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4754,6 +4918,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4784,6 +4949,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4801,7 +4967,7 @@
    }
   },
   "bookings.detail @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4832,6 +4998,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4862,6 +5029,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -4879,7 +5047,7 @@
    }
   },
   "bookings.detail @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -4910,6 +5078,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -4940,6 +5109,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -5193,7 +5363,7 @@
    }
   },
   "bookings.list @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "count",
@@ -5224,6 +5394,7 @@
      "results[].started_at",
      "results[].status",
      "results[].student_name",
+     "results[].student_timezone",
      "results[].tutor",
      "timezone"
     ],
@@ -5283,7 +5454,7 @@
    }
   },
   "bookings.list @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "count",
@@ -5314,6 +5485,7 @@
      "results[].started_at",
      "results[].status",
      "results[].student_name",
+     "results[].student_timezone",
      "results[].tutor",
      "timezone"
     ],
@@ -5325,7 +5497,7 @@
    }
   },
   "bookings.list @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "count",
@@ -5356,6 +5528,7 @@
      "results[].started_at",
      "results[].status",
      "results[].student_name",
+     "results[].student_timezone",
      "results[].tutor",
      "timezone"
     ],
@@ -5367,7 +5540,7 @@
    }
   },
   "bookings.list @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "count",
@@ -5398,6 +5571,7 @@
      "results[].started_at",
      "results[].status",
      "results[].student_name",
+     "results[].student_timezone",
      "results[].tutor",
      "timezone"
     ],
@@ -6912,7 +7086,7 @@
    }
   },
   "bookings.reschedule @ admin": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "booking",
@@ -6944,6 +7118,7 @@
      "booking.lead.phone_number",
      "booking.lead.school_name",
      "booking.lead.source",
+     "booking.lead.student_timezone",
      "booking.lead.syllabus",
      "booking.parent_name",
      "booking.phone",
@@ -6985,6 +7160,7 @@
      "booking.started_by",
      "booking.status",
      "booking.student_name",
+     "booking.student_timezone",
      "booking.timezone",
      "booking.tutor",
      "booking.tutor_assigned_at",
@@ -7058,7 +7234,7 @@
    }
   },
   "bookings.reschedule @ su_mentor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "booking",
@@ -7090,6 +7266,7 @@
      "booking.lead.phone_number",
      "booking.lead.school_name",
      "booking.lead.source",
+     "booking.lead.student_timezone",
      "booking.lead.syllabus",
      "booking.parent_name",
      "booking.phone",
@@ -7131,6 +7308,7 @@
      "booking.started_by",
      "booking.status",
      "booking.student_name",
+     "booking.student_timezone",
      "booking.timezone",
      "booking.tutor",
      "booking.tutor_assigned_at",
@@ -7156,7 +7334,7 @@
    }
   },
   "bookings.reschedule @ su_tutor": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "booking",
@@ -7188,6 +7366,7 @@
      "booking.lead.phone_number",
      "booking.lead.school_name",
      "booking.lead.source",
+     "booking.lead.student_timezone",
      "booking.lead.syllabus",
      "booking.parent_name",
      "booking.phone",
@@ -7229,6 +7408,7 @@
      "booking.started_by",
      "booking.status",
      "booking.student_name",
+     "booking.student_timezone",
      "booking.timezone",
      "booking.tutor",
      "booking.tutor_assigned_at",
@@ -7254,7 +7434,7 @@
    }
   },
   "bookings.reschedule @ superuser": {
-   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "booking",
@@ -7286,6 +7466,7 @@
      "booking.lead.phone_number",
      "booking.lead.school_name",
      "booking.lead.source",
+     "booking.lead.student_timezone",
      "booking.lead.syllabus",
      "booking.parent_name",
      "booking.phone",
@@ -7327,6 +7508,7 @@
      "booking.started_by",
      "booking.status",
      "booking.student_name",
+     "booking.student_timezone",
      "booking.timezone",
      "booking.tutor",
      "booking.tutor_assigned_at",
@@ -8566,7 +8748,7 @@
    }
   },
   "bookings.unassign_tutor @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -8598,6 +8780,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -8628,6 +8811,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -8693,7 +8877,7 @@
    }
   },
   "bookings.unassign_tutor @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -8725,6 +8909,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -8755,6 +8940,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -8772,7 +8958,7 @@
    }
   },
   "bookings.unassign_tutor @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -8804,6 +8990,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -8834,6 +9021,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -8851,7 +9039,7 @@
    }
   },
   "bookings.unassign_tutor @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). P6 (design E.1): a booking's rows and detail say whether it has its report and at which version, and whether one is due (has_report, report_version, report_due); the detail also names the report (report: id, version, when and by whom it was submitted, or null). BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): every Admin booking answer adds read-only start information -- activity_state (bookings.lifecycle), started_at, and in full started_by -- with no change to who reaches it. Demo invitations (bookings.demo_invites): the Admin's booking detail gains actions.demo_invite (a Diagnostic whose report is in, the child CBSE, no Demo to come or done, the caller holding accounts.send_lead_communications) and channel / created_by / invited_from (a Demo booked with an invitation is a BDE handoff, made by whoever sent it, from the Diagnostic it names). Re-Demos (bookings.redemos): the Admin's booking answers gain actions.request_redemo (a COMPLETED Demo, the caller holding accounts.reschedule_booking), redemo_request (the Re-Demo request a RE-DEMO REQUIRED Demo was sent for) and redemo_from (the request an administrator scheduled a Demo for), and the list's rows redemo_for_id (that request's id, or null). Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "result": {
     "fields": [
      "actions",
@@ -8883,6 +9071,7 @@
      "lead.phone_number",
      "lead.school_name",
      "lead.source",
+     "lead.student_timezone",
      "lead.syllabus",
      "parent_name",
      "phone",
@@ -8913,6 +9102,7 @@
      "started_by",
      "status",
      "student_name",
+     "student_timezone",
      "timezone",
      "tutor",
      "tutor_assigned_at",
@@ -11741,8 +11931,8 @@
    }
   },
   "leads.create @ admin": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -11768,6 +11958,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -11827,8 +12018,8 @@
    }
   },
   "leads.create @ su_mentor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -11854,6 +12045,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -11865,8 +12057,8 @@
    }
   },
   "leads.create @ su_tutor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -11892,6 +12084,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -11903,8 +12096,8 @@
    }
   },
   "leads.create @ superuser": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario).",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "A lead added by hand, owned by nobody, with the caller as who added it (rolled back with the scenario). Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -11930,6 +12123,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -11977,8 +12171,8 @@
    }
   },
   "leads.detail @ admin": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -12002,6 +12196,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -12060,8 +12255,8 @@
    }
   },
   "leads.detail @ su_mentor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -12085,6 +12280,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -12095,8 +12291,8 @@
    }
   },
   "leads.detail @ su_tutor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -12120,6 +12316,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -12130,8 +12327,8 @@
    }
   },
   "leads.detail @ superuser": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "lead_a in full: what its owner BDE would see, its owner, who added it and its campaign. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "added_at",
@@ -12155,6 +12352,7 @@
      "status",
      "status_label",
      "student_name",
+     "student_timezone",
      "syllabus",
      "timezone"
     ],
@@ -12201,8 +12399,8 @@
    }
   },
   "leads.list @ admin": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -12226,7 +12424,8 @@
      "results[].source_label",
      "results[].status",
      "results[].status_label",
-     "results[].student_name"
+     "results[].student_name",
+     "results[].student_timezone"
     ],
     "records": [
      "booking_a",
@@ -12285,8 +12484,8 @@
    }
   },
   "leads.list @ su_mentor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -12310,7 +12509,8 @@
      "results[].source_label",
      "results[].status",
      "results[].status_label",
-     "results[].student_name"
+     "results[].student_name",
+     "results[].student_timezone"
     ],
     "records": [
      "booking_a",
@@ -12321,8 +12521,8 @@
    }
   },
   "leads.list @ su_tutor": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -12346,7 +12546,8 @@
      "results[].source_label",
      "results[].status",
      "results[].status_label",
-     "results[].student_name"
+     "results[].student_name",
+     "results[].student_timezone"
     ],
     "records": [
      "booking_a",
@@ -12357,8 +12558,8 @@
    }
   },
   "leads.list @ superuser": {
-   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
-   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in.",
+   "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
+   "note": "Every lead (lead_a and lead_b, nobody's) with its owner and when it came in. Fields added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
      "count",
@@ -12382,7 +12583,8 @@
      "results[].source_label",
      "results[].status",
      "results[].status_label",
-     "results[].student_name"
+     "results[].student_name",
+     "results[].student_timezone"
     ],
     "records": [
      "booking_a",
@@ -12419,6 +12621,238 @@
   "leads.list @ unknown": {
    "decision": "Lead management (accounts.0018, bookings.lead_views): the administrators' Leads API -- every lead listed and read with accounts.view_all_leads, added by hand with accounts.add_lead, given to an active BDE with accounts.assign_lead_owner (now enforced; it covers reassigning too) -- all three the ADMIN role's alone, held by superusers as well (D1). A BDE reads only their own leads, in the BDE workspace.",
    "note": "Not an administrator: refused before anything is read.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ admin": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "lead_a in full and changed: it had no zone and now has Asia/Dubai (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "changed",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "student_timezone",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.student_timezone @ anon": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ mentor_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ mentor_b": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ parent_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ su_mentor": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "lead_a in full and changed: it had no zone and now has Asia/Dubai (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "changed",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "student_timezone",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.student_timezone @ su_tutor": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "lead_a in full and changed: it had no zone and now has Asia/Dubai (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "changed",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "student_timezone",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.student_timezone @ superuser": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "lead_a in full and changed: it had no zone and now has Asia/Dubai (rolled back with the scenario).",
+   "result": {
+    "fields": [
+     "added_at",
+     "added_by",
+     "bookings",
+     "changed",
+     "country",
+     "created_at",
+     "grade",
+     "id",
+     "next_booking",
+     "owner",
+     "parent_email",
+     "parent_name",
+     "phone",
+     "phone_dial_code",
+     "phone_number",
+     "school_name",
+     "source",
+     "source_details",
+     "source_label",
+     "status",
+     "status_label",
+     "student_name",
+     "student_timezone",
+     "syllabus",
+     "timezone"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "leads.student_timezone @ tutor_a": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ tutor_b": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "leads.student_timezone @ unknown": {
+   "decision": "Student Local Time (accounts.0019, bookings.lead_views.LeadStudentTimezoneView): correcting any lead's student time zone needs accounts.view_all_leads and accounts.change_student_timezone -- an administrator's, and a superuser's (D1). A BDE corrects only their own enquiries, in the BDE workspace.",
+   "note": "Not an administrator: refused before anything is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [

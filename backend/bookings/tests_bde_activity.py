@@ -61,8 +61,10 @@ class ActivityTests(TestCase):
         self.assertIs(rows['CANCELLED']['by_you'], False)
         self.assertIs(rows['REDEMO_REQUESTED']['by_you'], True)
         slot = BookingSlot.objects.get(pk=new_slot.id)
+        # The new slot, in Indian time and as the instant the student's own time is read from (Student Local Time).
         self.assertEqual(rows['RESCHEDULED']['detail'],
-                         {'to': {'date': slot.local_date.isoformat(), 'time': slot.local_time.strftime('%H:%M')}})
+                         {'to': {'date': slot.local_date.isoformat(), 'time': slot.local_time.strftime('%H:%M'),
+                                 'starts_at': slot.starts_at.isoformat()}})
         body = response.content.decode()
         for secret in ('PARENT_REQUEST', 'TUTOR_UNAVAILABLE', str(self.admin.id), 'Admin A'):
             self.assertNotIn(secret, body)

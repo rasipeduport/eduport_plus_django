@@ -1,8 +1,9 @@
 """
 Bookings as the tutor teaching them sees them (/api/tutor/bookings/): the Demo
 and Diagnostic bookings assigned to the tutor now, each with its slot in
-Indian time, the child it is for -- name, class, syllabus, school and
-country -- and the Google Meet room it is taught in, and nothing more. The
+Indian time, the child it is for -- name, class, syllabus, school, country
+and the time zone they book from -- and the Google Meet room it is taught
+in, and nothing more. The
 tutor's one write here is Start (booking_service.start_booking), offered by
 each booking's ``actions.start``; the tutor is assigned, changed and
 unassigned only by the Admin / Coordinator (bookings.booking_service).
@@ -38,7 +39,7 @@ TUTOR role may hold. Which bookings are read is the caller's alone: always
 """
 from django.db.models import Q
 
-from . import coordination
+from . import coordination, student_timezones
 from .booking_service import (
     CancelledNotStartable,
     CompletedNotStartable,
@@ -211,6 +212,9 @@ def booking_row(booking, now, can_start=False):
         'status': BookingStatus.COMPLETED if booking.status in CONDUCTED else booking.status,
         'slot': {field: slot[field] for field in SLOT_FIELDS},
         **{field: getattr(booking.lead, field) for field in STUDENT_FIELDS},
+        # The zone the child books from, for their own time of the slot
+        # (bookings.student_timezones); null when not known.
+        'student_timezone': student_timezones.of(booking.lead),
         # The Meet room the tutor teaches it in -- their own link, as the booking keeps it -- or null.
         'tutor_meet_link': booking.tutor_meet_link,
         'activity_state': activity_state(booking, now),

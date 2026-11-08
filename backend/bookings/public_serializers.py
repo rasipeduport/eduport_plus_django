@@ -25,7 +25,9 @@ class BookingRequestSerializer(serializers.Serializer):
     """
     A booking as the marketing server sends it. There is no BDE field: the
     view reads only the ``ref`` token for attribution, and unknown fields
-    (a forged ``bde_id``, say) are dropped.
+    (a forged ``bde_id``, say) are dropped. The view reads the page's
+    ``student_timezone`` raw too: display only, it never refuses a booking
+    (bookings.student_timezones).
     """
     date = serializers.DateField(input_formats=['%Y-%m-%d'])
     time = serializers.TimeField(input_formats=['%H:%M'])
@@ -54,7 +56,8 @@ class DemoInviteBookingSerializer(serializers.Serializer):
     A Demo booked with an invitation, as the marketing server sends it: the
     invitation's token and the slot, nothing about the child or the parent
     -- the invitation names the lead (booking_service.create_invited_demo_booking).
-    Unknown fields are dropped.
+    Unknown fields are dropped; the view reads the page's ``student_timezone``
+    raw, as for a public booking.
     """
     token = serializers.CharField(max_length=64)
     date = serializers.DateField(input_formats=['%Y-%m-%d'])

@@ -15,7 +15,7 @@ from .tests_enquiries import account, booking, complete, indian_date, lead
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 LIST = '/api/bde/bookings/{}/'
 ROW_FIELDS = {'id', 'booking_type', 'date', 'time', 'starts_at', 'status', 'activity_state', 'started_at', 'booked_at',
-              'tutor', 'parent_confirmation', 'redemo', 'enquiry'}
+              'tutor', 'parent_confirmation', 'redemo', 'enquiry', 'student_timezone'}
 
 
 class BdeBookingListTests(TestCase):
