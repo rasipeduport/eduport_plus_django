@@ -164,7 +164,6 @@ export default function TutorBookingWorkspacePage({ type }) {
               booking={shown}
               onStarted={started}
               onRefresh={reload}
-              onShowFeedback={() => setTab('feedback')}
               reportState={reportState}
             />
           </TabsContent>

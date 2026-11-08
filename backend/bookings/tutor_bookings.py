@@ -25,6 +25,13 @@ scheduled it, and nothing of that Demo's report. Every other booking's
 ``redemo`` is null. A Demo sent for a Re-Demo reads Completed to the tutor
 who taught it: the request is not theirs.
 
+One booking in full (``booking_detail``, the tutor's workspace) carries its
+enquiry too (``enquiry_brief``): the original source, the status and when it
+came in, and the child's bookings in order, each with when it was booked,
+started and cancelled and who taught it -- what the enquiry's journey shows --
+under the same rules: nothing of the parent, the lead's id, the BDE or a
+Re-Demo request.
+
 The views guard these with accounts.view_assigned_bookings, which only the
 TUTOR role may hold. Which bookings are read is the caller's alone: always
 ``assigned_to(request.user)``, whatever a request says.
@@ -40,8 +47,10 @@ from .booking_service import (
     StartWindowClosed,
 )
 from .coordination import PAST, UPCOMING, filtered, report_summary, slot_brief
+from .enquiries import SOURCE_LABELS, booking_brief, source_of
+from .lead_status import LeadStatus, status_label, with_status
 from .lifecycle import activity_state, start_opens_at
-from .models import BOOKING_MODELS, CONDUCTED, BookingStatus, BookingType, DemoBooking, booking_model
+from .models import BOOKING_MODELS, CONDUCTED, BookingStatus, BookingType, DemoBooking, Lead, booking_model
 from .redemo_chain import redemo_number
 from .scheduling import BOOKING_TIMEZONE_NAME
 
@@ -240,5 +249,57 @@ def redemo_brief(booking, now):
 
 
 def booking_detail(booking, now, can_start=False):
-    """One booking in full: the row, and the time zone its slot is in."""
-    return {**booking_row(booking, now, can_start), 'timezone': BOOKING_TIMEZONE_NAME}
+    """One booking in full: the row, the time zone its slot is in, and the enquiry it belongs to (``enquiry_brief``)."""
+    return {
+        **booking_row(booking, now, can_start),
+        'timezone': BOOKING_TIMEZONE_NAME,
+        'enquiry': enquiry_brief(booking.lead, now),
+    }
+
+
+def enquiry_brief(lead, now):
+    """
+    The enquiry a booking belongs to, as its tutor's workspace shows it: how it
+    first reached Eduport Plus (its original source, bookings.enquiries), where
+    it stands now (bookings.lead_status) and when it came in, the booking still
+    to come, and the child's Demo and Diagnostic bookings in order -- the
+    enquiry's journey. Each booking says only its type, slot, status and when
+    it was booked, started and cancelled, and for a class that was taught who
+    taught it. Not the parent, the lead's id, the BDE or the link's owner, a
+    cancellation's reason or author, another booking's Meet room or report,
+    nor a Re-Demo request: as in the rows, a Demo sent for a Re-Demo reads
+    Completed, so a Re-Demo reads as the Demo it is.
+    """
+    lead = with_status(Lead.objects.filter(pk=lead.pk), now).select_related('owner_link').get()
+    bookings = sorted(
+        [
+            *lead.diagnostic_bookings.select_related('slot', 'assigned_tutor'),
+            *lead.demo_bookings.select_related('slot', 'assigned_tutor'),
+        ],
+        key=lambda booking: (booking.slot.starts_at, booking.created_at),
+    )
+    upcoming = [booking for booking in bookings if booking.status == BookingStatus.BOOKED and booking.slot.ends_at > now]
+    status = LeadStatus.DEMO_COMPLETED if lead.lead_status == LeadStatus.DEMO_REDEMO_REQUIRED else lead.lead_status
+    source = source_of(lead)
+    return {
+        'source_label': SOURCE_LABELS.get(source, source),
+        'status': status,
+        'status_label': status_label(status),
+        'created_at': lead.created_at.isoformat(),
+        'next_booking': booking_brief(upcoming[0]) if upcoming else None,
+        'bookings': [_journey_entry(booking) for booking in bookings],
+    }
+
+
+def _journey_entry(booking):
+    """One of the enquiry's bookings on its journey (``enquiry_brief``)."""
+    conducted = booking.status in CONDUCTED
+    tutor = booking.assigned_tutor if conducted else None
+    return {
+        **booking_brief(booking),
+        'status': BookingStatus.COMPLETED if conducted else booking.status,
+        'booked_at': booking.created_at.isoformat(),
+        'started_at': booking.started_at.isoformat() if booking.started_at else None,
+        'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+        'tutor': {'full_name': tutor.full_name or tutor.email} if tutor is not None else None,
+    }

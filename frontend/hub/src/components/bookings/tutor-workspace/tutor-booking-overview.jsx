@@ -1,28 +1,24 @@
 import {
   AlertCircleIcon,
-  CalendarClockIcon,
-  CheckCircle2Icon,
   CircleSlashIcon,
+  ClipboardListIcon,
   ClockIcon,
   FileTextIcon,
   GraduationCapIcon,
-  InfoIcon,
   LockIcon,
   PlayCircleIcon,
   RotateCcwIcon,
-  VideoIcon,
+  UserRoundIcon,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/dashboard/dashboard-primitives';
-import { FeedbackBadge, ReportStateBadge, StartInfo } from '@/components/bookings/booking-badges';
-import { JoinMeetButton, MeetLink } from '@/components/bookings/meet-link';
+import { EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
+import { JourneyCard } from '@/components/bookings/workspace/booking-overview';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
-import { isJoinable } from '@/lib/bookings';
-import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
-import { istMoment, istParts } from '@/lib/communications';
-import { feedbackState, reportState, reportWords } from '@/lib/reports';
+import { bookingTypeLabel, formatDay, slotLabel } from '@/lib/enquiries';
+import { istMoment } from '@/lib/communications';
+import { reportState, reportWords } from '@/lib/reports';
 import { cn } from '@/lib/utils';
 
 function Field({ label, children }) {
@@ -34,8 +30,8 @@ function Field({ label, children }) {
   );
 }
 
-// A booked or completed booking is one the tutor teaches (or taught); a cancelled or moved one has no class.
-const teaches = (booking) => booking.status === 'BOOKED' || booking.status === 'COMPLETED';
+// What the tutor's API withholds: the parent's contact stays with the BDE and the administrators.
+const NOT_SHARED = <span className="text-muted-foreground font-normal">Not shared with tutors</span>;
 
 const TONES = {
   info: { className: 'border-info/20 bg-info/5', iconClassName: 'text-info' },
@@ -94,15 +90,8 @@ function nextStep(booking) {
         report: true,
       };
     case 'completed':
-      return {
-        tone: 'success',
-        icon: CheckCircle2Icon,
-        title: `${words.tab} submitted`,
-        text: booking.report_version
-          ? `Version ${booking.report_version} is the current one. You can still edit it; every edit is kept as a new version.`
-          : 'This booking is completed.',
-        view: true,
-      };
+      // Nothing left to do: the feedback or results, their versions and their editing are the Feedback / Results tab's.
+      return null;
     case 'not_started':
       return {
         tone: 'muted',
@@ -122,22 +111,14 @@ function nextStep(booking) {
   }
 }
 
-/** What to do next with the booking (nextStep), with the one action that does it. */
-function NextStep({ booking, onStarted, onRefresh, onShowFeedback, reportState: linkState }) {
+/** What to do next with the booking (nextStep), with the one action that does it -- nothing once it is completed. */
+function NextStep({ booking, onStarted, onRefresh, reportState: linkState }) {
   const step = nextStep(booking);
+  if (!step) return null;
   const tone = TONES[step.tone];
-  const words = reportWords(booking.booking_type);
   let action = null;
   if (step.start) action = <StartBookingButton booking={booking} onStarted={onStarted} onRefresh={onRefresh} />;
   else if (step.report) action = <TutorReportLink booking={booking} state={linkState} />;
-  else if (step.view) {
-    action = (
-      <Button variant="outline" size="sm" onClick={onShowFeedback}>
-        <FileTextIcon />
-        View {words.noun}
-      </Button>
-    );
-  }
   return (
     <section
       aria-label="Next step"
@@ -195,19 +176,18 @@ function RedemoPanel({ redemo }) {
 }
 
 /**
- * The booking at a glance, for its tutor: what to do next (NextStep), then the
- * session -- its type, slot (IST), where it stands and its start -- its Meet
- * room, where its feedback or results stand, and for a Re-Demo why it is
- * taught again. `onShowFeedback` opens the Feedback / Results tab;
- * `reportState` is the report page's way back.
+ * The booking at a glance, for its tutor, laid out as the administrators' and
+ * the BDE's workspaces lay out theirs: what to do next (NextStep), then the
+ * parent, the student and the enquiry side by side, and the enquiry's journey
+ * under them (the administrators' JourneyCard, from the API's `enquiry`), and
+ * for a Re-Demo why it is taught again. Of the parent only the country: the
+ * tutor's API carries no contact. The session, its Meet room and its feedback
+ * or results are the header's and their own tab's. `reportState` is the report
+ * page's way back.
  */
-export function TutorBookingOverview({ booking, onStarted, onRefresh, onShowFeedback, reportState: linkState }) {
-  const words = reportWords(booking.booking_type);
-  const feedback = feedbackState(booking);
-  const ends = istParts(booking.slot.ends_at);
-  const refusal = booking.start_refusal;
-  const opensNote =
-    refusal?.code === 'START_TOO_EARLY' ? `Start opens ${istMoment(booking.start_opens_at)}` : null;
+export function TutorBookingOverview({ booking, onStarted, onRefresh, reportState: linkState }) {
+  const enquiry = booking.enquiry;
+  const next = enquiry?.next_booking;
 
   return (
     <div className="flex flex-col gap-4">
@@ -215,85 +195,35 @@ export function TutorBookingOverview({ booking, onStarted, onRefresh, onShowFeed
         booking={booking}
         onStarted={onStarted}
         onRefresh={onRefresh}
-        onShowFeedback={onShowFeedback}
         reportState={linkState}
       />
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <Panel icon={CalendarClockIcon} title="Session" subtitle="Indian time (IST)">
+        <Panel icon={UserRoundIcon} title="Parent">
           <dl className="divide-y">
-            <Field label="Type">{booking.redemo ? 'Re-Demo' : bookingTypeLabel(booking.booking_type)}</Field>
-            <Field label="Date & Time">
-              <span className="flex flex-col">
-                <span>{slotLabel(booking.slot)}</span>
-                {ends ? <span className="text-muted-foreground text-xs font-normal">Ends {ends.time}</span> : null}
-              </span>
-            </Field>
-            <Field label="Status">
-              <ReportStateBadge booking={booking} />
-            </Field>
-            {teaches(booking) ? (
-              <Field label="Started">
-                <span className="flex flex-col">
-                  <StartInfo booking={booking} />
-                  {opensNote ? <span className="text-muted-foreground text-xs font-normal">{opensNote}</span> : null}
-                </span>
-              </Field>
-            ) : null}
+            <Field label="Name">{NOT_SHARED}</Field>
+            <Field label="Phone">{NOT_SHARED}</Field>
+            <Field label="Email">{NOT_SHARED}</Field>
+            <Field label="Country">{booking.country}</Field>
           </dl>
         </Panel>
-
-        <Panel icon={VideoIcon} title="Meeting" subtitle="The Google Meet room you teach it in">
-          {teaches(booking) ? (
-            <div className="flex flex-col items-start gap-3">
-              <dl className="w-full">
-                <Field label="Meet link">
-                  <MeetLink link={booking.tutor_meet_link} />
-                </Field>
-              </dl>
-              {booking.tutor_meet_link ? (
-                isJoinable(booking) ? (
-                  <JoinMeetButton link={booking.tutor_meet_link} label={`Join the Google Meet for ${booking.student_name}`} />
-                ) : null
-              ) : (
-                <p className="text-muted-foreground flex items-start gap-2 text-xs">
-                  <InfoIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                  Ask an administrator to add your Google Meet link to your profile.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">No class is taught for this booking.</p>
-          )}
-        </Panel>
-
-        <Panel
-          icon={FileTextIcon}
-          title={words.tab}
-          subtitle={booking.booking_type === 'DIAGNOSTIC' ? 'The diagnostic report' : 'Your feedback on the demo'}
-        >
+        <Panel icon={GraduationCapIcon} title="Student">
           <dl className="divide-y">
-            <Field label="State">
-              <FeedbackBadge booking={booking} />
-            </Field>
-            {feedback?.version ? <Field label="Version">{`Version ${feedback.version}`}</Field> : null}
+            <Field label="Name">{booking.student_name}</Field>
+            <Field label="Class">{booking.grade}</Field>
+            <Field label="School">{booking.school_name}</Field>
+            <Field label="Syllabus">{booking.syllabus}</Field>
           </dl>
-          {feedback?.key === 'later' || !feedback ? (
-            <p className="text-muted-foreground mt-3 text-sm">
-              {feedback
-                ? `You can write the ${words.noun} once you start the class.`
-                : `No ${words.noun} can be written for this booking.`}
-            </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2 empty:hidden">
-            <TutorReportLink booking={booking} state={linkState} />
-            {booking.has_report ? (
-              <Button variant="ghost" size="sm" onClick={onShowFeedback}>
-                View {words.noun}
-              </Button>
-            ) : null}
-          </div>
+        </Panel>
+        <Panel icon={ClipboardListIcon} title="Enquiry">
+          <dl className="divide-y">
+            <Field label="Original enquiry source">{enquiry?.source_label}</Field>
+            <Field label="Status">{enquiry ? <EnquiryStatusBadge enquiry={enquiry} /> : null}</Field>
+            <Field label="Next booking">{next ? slotLabel(next) : null}</Field>
+            <Field label="First received">{enquiry ? formatDay(enquiry.created_at) : null}</Field>
+          </dl>
         </Panel>
       </div>
+      {enquiry ? <JourneyCard lead={enquiry} /> : null}
       {booking.redemo ? <RedemoPanel redemo={booking.redemo} /> : null}
     </div>
   );

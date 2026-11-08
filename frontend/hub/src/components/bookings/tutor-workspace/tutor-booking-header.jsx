@@ -28,9 +28,10 @@ function Detail({ label, children }) {
  * name, the booking's type (a Re-Demo marked as one) and where it stands as a
  * class; under it the class, syllabus and school, the slot in Indian time,
  * the Booking ID and where its feedback or results stand. On the right what
- * the class needs now: Join Meet while it is to come (or plainly no Meet
- * link), Start Demo / Start Diagnostic while the API offers it -- which opens
- * Meet too and records the start the report needs -- and Write feedback /
+ * the class needs now: Join Meet (the booking's Google Meet room as the API
+ * gives it) while it has a class, to come or taught, or plainly No Meet link
+ * without one; Start Demo / Start Diagnostic while the API offers it (which
+ * opens Meet too and records the start the report needs); and Write feedback /
  * Enter results, or Edit, once the report can be written (`reportState`, the
  * report page's way back). Nothing of the parent: the tutor's API carries
  * none.
@@ -38,6 +39,8 @@ function Detail({ label, children }) {
 export function TutorBookingHeader({ booking, onStarted, onRefresh, reportState }) {
   const words = reportWords(booking.booking_type);
   const canJoin = isJoinable(booking);
+  // A booked or completed booking has a class (to come, or taught); a cancelled or moved one has none.
+  const hasClass = booking.status === 'BOOKED' || booking.status === 'COMPLETED';
   // The one primary action: Start while it is offered, else the report, else joining the class.
   const startOffered = Boolean(booking.actions?.start);
   const writeOffered = booking.status === 'BOOKED' && Boolean(booking.started_at) && !booking.has_report;
@@ -77,11 +80,11 @@ export function TutorBookingHeader({ booking, onStarted, onRefresh, reportState 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          {canJoin ? (
+          {hasClass ? (
             <JoinMeetButton
               link={booking.tutor_meet_link}
               label={`Join the Google Meet for ${booking.student_name}`}
-              variant={startOffered || writeOffered ? 'outline' : 'default'}
+              variant={canJoin && !startOffered && !writeOffered ? 'default' : 'outline'}
             />
           ) : null}
           <StartBookingButton booking={booking} onStarted={onStarted} onRefresh={onRefresh} />
