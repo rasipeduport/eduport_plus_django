@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClockIcon, FilePenLineIcon, FilePlus2Icon, PlayIcon } from 'lucide-react';
+import { CalendarDaysIcon, FilePenLineIcon, FilePlus2Icon, PlayIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/dashboard/dashboard-primitives';
@@ -154,7 +154,7 @@ export function TutorBookingSession({ booking, onStarted, onRefresh, reportState
   );
 
   return (
-    <Panel icon={CalendarClockIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
+    <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
       <ResponsiveList label="Bookings" columns={columns} rows={[booking]} minTableWidth={MIN_TABLE_WIDTH} renderCard={renderCard} />
     </Panel>
   );
