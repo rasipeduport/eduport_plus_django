@@ -4,10 +4,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStatus, Teaching } from '@/components/enquiries/workspace/enquiry-bookings';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 import { formatDay, slotLabel } from '@/lib/enquiries';
+import { showsStudentTime } from '@/lib/timezone';
 
 // The width the table needs; narrower areas show cards.
 const MIN_TABLE_WIDTH = 1000;
@@ -25,8 +27,9 @@ function Viewing({ entry, bookingId }) {
  * Every Demo and Diagnostic booking made for the child (the administrators'
  * booking workspace, its Bookings tab), as a BDE's enquiry lists them -- from
  * the lead in full (`lead`, GET /api/leads/<id>/, for holders of
- * accounts.view_all_leads): when (IST), its type, where it stands (its start
- * and any Re-Demo included), the parent's answer to the confirmation request
+ * accounts.view_all_leads): when (IST), the student's own time while any
+ * booking reads differently (Student Time), its type, where it stands (its
+ * start and any Re-Demo included), the parent's answer to the confirmation request
  * (for holders of accounts.view_all_communications, `showConfirmation`), who
  * teaches it with its Meet link, and when it was booked; the booking being
  * viewed highlighted, and named as such to a screen reader (Viewing). To read
@@ -50,6 +53,8 @@ export function BookingsTab({ booking, lead, leadFailure, onRetryLead, showLead,
   const confirmation = (entry) => (
     <ParentConfirmationBadge status={entry.parent_confirmation} booked={entry.status === 'BOOKED'} />
   );
+  const showStudentTime = showsStudentTime(bookings, (entry) => entry.starts_at, (entry) => entry.student_timezone);
+  const studentTime = (entry) => <StudentTimeCell startsAt={entry.starts_at} timezone={entry.student_timezone} />;
   const columns = [
     {
       key: 'when',
@@ -62,6 +67,7 @@ export function BookingsTab({ booking, lead, leadFailure, onRetryLead, showLead,
         </>
       ),
     },
+    ...(showStudentTime ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: studentTime }] : []),
     { key: 'type', header: 'Type', cell: (entry) => <BookingTypeBadge type={entry.booking_type} /> },
     { key: 'status', header: 'Status', cell: (entry) => <BookingStatus booking={entry} /> },
     ...(showConfirmation ? [{ key: 'confirmation', header: 'Parent confirmation', cell: confirmation }] : []),
@@ -88,6 +94,12 @@ export function BookingsTab({ booking, lead, leadFailure, onRetryLead, showLead,
       </div>
       <BookingStatus booking={entry} />
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        {showStudentTime ? (
+          <div className="col-span-2 min-w-0">
+            <p className="text-muted-foreground text-xs">Student Time</p>
+            <p className="truncate">{studentTime(entry)}</p>
+          </div>
+        ) : null}
         {showConfirmation ? (
           <div className="min-w-0">
             <p className="text-muted-foreground text-xs">Parent confirmation</p>

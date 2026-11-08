@@ -123,9 +123,9 @@ async function choose(label, option) {
   await click(item);
 }
 
-/** The options the Radix Select labelled `label` offers, closed again afterwards. */
+/** The options the Radix Select labelled `label` (or with that id) offers, closed again afterwards. */
 async function optionsOf(label) {
-  const trigger = document.querySelector(`[aria-label="${label}"]`);
+  const trigger = document.querySelector(`[aria-label="${label}"]`) ?? document.getElementById(label);
   assert.ok(trigger, `no select labelled ${label}`);
   trigger.focus();
   await keyDown(trigger, 'Enter');
@@ -279,7 +279,7 @@ test('Leads: an administrator adds a lead by hand, with the email; it lands unas
   await click(button('Add lead', topDialog()));
   assert.deepEqual(posted, {
     parent_name: 'Meera Menon', phone_dial_code: '+91', phone_number: '98765 43210', student_name: 'Arjun', grade: 'Class 6',
-    source: 'PHONE_CALL', school_name: '', syllabus: '', country: '', parent_email: 'meera@example.com',
+    source: 'PHONE_CALL', school_name: '', syllabus: '', country: '', student_timezone: '', parent_email: 'meera@example.com',
   });
   assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
   assert.match(bodyText(), /Added the lead for Arjun\. Assign it to a BDE when you are ready\. Open it/);
@@ -712,6 +712,352 @@ test("Access: the rest of the BDE workspace -- its temporary pages too -- is for
   assert.equal(canOpenPage({ role: 'BDE', permissions: [] }, '/activity'), false);
   assert.equal(canOpenPage(ADMIN, '/activity'), false);
   assert.equal(homePage(BDE), '/dashboard');
+});
+
+// ------------------------------------------------------- Student Time (Student Local Time)
+// The zone a lead's student is in (student_timezone, backend bookings.student_timezones): set or
+// corrected by its BDE (their own enquiries) or an administrator (any lead), and read beside each
+// booking's Indian time from the booking's own instant. Every instant here is the very IST date and
+// time it is booked at.
+const SUN_8_NOV_0730 = '2026-11-08T02:00:00+00:00'; // Sun 8 Nov, 7:30 AM IST -- 6:00 AM in Dubai
+const SAT_7_NOV_0730 = '2026-11-07T02:00:00+00:00'; // Sat 7 Nov, 7:30 AM IST -- 9:00 PM on Fri 6 Nov in New York (EST)
+const MON_2_NOV_1930 = '2026-11-02T14:00:00+00:00'; // Mon 2 Nov, 7:30 PM IST -- 9:00 AM in New York (EST)
+const MON_9_NOV_1930 = '2026-11-09T14:00:00+00:00'; // Mon 9 Nov, 7:30 PM IST -- 6:00 PM in Dubai
+const CHANGE_STUDENT_TIMEZONE = 'accounts.change_student_timezone';
+const ADMIN_TZ = { ...ADMIN, id: 'admin-tz', permissions: [...ADMIN.permissions, CHANGE_STUDENT_TIMEZONE].sort() };
+const BDE_TZ = { ...BDE, id: 'bde-tz', permissions: [...BDE.permissions, CHANGE_STUDENT_TIMEZONE].sort() };
+/** A booking of a lead in full (backend enquiries._booking_entry): flat, its own instant, the student's zone. */
+const entryAt = (id, booking_type, date, time, starts_at, student_timezone, extra = {}) => ({ id, booking_type, date, time,
+  starts_at, student_timezone, status: 'BOOKED', ended: false, activity_state: 'UPCOMING', started_at: null,
+  booked_at: '2026-11-01T05:00:00+00:00', cancelled_at: null, tutor: null, tutor_meet_link: null, parent_confirmation: 'AWAITING',
+  actions: { cancel: false, no_show: false }, ...extra });
+const TIMEZONE_CHOICES = ['Not set', 'India', 'United Arab Emirates', 'Qatar', 'Saudi Arabia', 'Kuwait', 'Bahrain', 'Oman',
+  'Singapore', 'United Kingdom', 'US — Eastern', 'US — Central', 'US — Mountain', 'US — Pacific', 'Australia — Sydney',
+  'Australia — Perth', 'Sri Lanka', 'Nepal', 'Bangladesh'];
+
+test("Lead page: the student's timezone is set and cleared from the Parent panel; the bookings' Student Time follows", async () => {
+  const booking = entryAt('b-9', 'DIAGNOSTIC', '2026-11-09', '19:30', MON_9_NOV_1930, null);
+  const lead = detailOf(WEBSITE, { student_timezone: null, bookings: [booking] });
+  const puts = [];
+  serve({
+    [`GET ${LEADS}lead-web/`]: lead,
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`PUT ${LEADS}lead-web/student-timezone/`]: (entry) => {
+      puts.push(entry.data);
+      const zone = entry.data.student_timezone;
+      return ok({ ...lead, student_timezone: zone, bookings: [{ ...booking, student_timezone: zone }], changed: true });
+    },
+  });
+  await open('/leads/lead-web', ADMIN_TZ);
+  assert.equal(fields()['Student timezone'], 'Not setChange');
+  assert.ok(!headers().includes('Student Time'), 'no zone known: the bookings add nothing');
+
+  await click(button('Change student timezone'));
+  assert.match(clean(topDialog().textContent),
+    /^Change student timezone.*Booking times stay in Indian time \(IST\); only the Student Time shown beside them changes\./);
+  assert.equal(clean(document.getElementById('student-timezone').textContent), 'Not set');
+  assert.deepEqual(await optionsOf('Student timezone'), TIMEZONE_CHOICES);
+  await choose('Student timezone', 'United Arab Emirates');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(puts, [{ student_timezone: 'Asia/Dubai' }]);
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+  assert.match(bodyText(), /Kavya's timezone is now United Arab Emirates \(Asia\/Dubai\)\./);
+  assert.equal(fields()['Student timezone'], 'United Arab Emirates (Asia/Dubai)Change');
+  // The lead as the API answers it: its booking at the student's time, in a column of its own.
+  assert.deepEqual(headers(), ['When (IST)', 'Student Time', 'Type', 'Status', 'Tutor', 'Booked on', 'Open']);
+  assert.match(clean(rows()[0].textContent), /^Mon, 9 Nov · 7:30 PM IST6:00 PM UAEDiagnostic test/);
+
+  // Not set clears it: null is sent.
+  await click(button('Change student timezone'));
+  assert.equal(clean(document.getElementById('student-timezone').textContent), 'United Arab Emirates', 'the saved zone, chosen');
+  await choose('Student timezone', 'Not set');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(puts.at(-1), { student_timezone: null });
+  assert.match(bodyText(), /Kavya's timezone is no longer set\./);
+  assert.equal(fields()['Student timezone'], 'Not setChange');
+  assert.ok(!headers().includes('Student Time'));
+  assert.ok(!globalThis.__leadsApi.calls.some((entry) => entry.url.startsWith('/api/bde/')), "the BDE's routes are never called");
+});
+
+test('Lead page: a zone the API refuses, or a lead another change holds, is said in the dialog, which stays open', async () => {
+  let answer = () => fail(400, { error: 'INVALID_TIMEZONE', message: 'Choose a valid time zone.' });
+  serve({
+    [`GET ${LEADS}lead-web/`]: detailOf(WEBSITE, { student_timezone: 'Asia/Dubai' }),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`PUT ${LEADS}lead-web/student-timezone/`]: () => answer(),
+  });
+  await open('/leads/lead-web', ADMIN_TZ);
+  await click(button('Change student timezone'));
+  await choose('Student timezone', 'US — Eastern');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(calls('PUT', `${LEADS}lead-web/student-timezone/`)[0].data, { student_timezone: 'America/New_York' });
+  assert.match(clean(topDialog().textContent), /Choose a valid time zone\./);
+  // Busy: the API's own words when it gives them, the dialog's when it does not.
+  answer = () => fail(503, { error: 'LEAD_BUSY', message: 'This lead is being changed right now. Try again in a moment.' });
+  await click(button('Save', topDialog()));
+  assert.match(clean(topDialog().textContent), /This lead is being changed right now\. Try again in a moment\./);
+  answer = () => fail(503, { error: 'LEAD_BUSY' });
+  await click(button('Save', topDialog()));
+  assert.match(clean(topDialog().textContent), /Someone else is changing this student's details right now\. Try again in a moment\./);
+  assert.equal(fields()['Student timezone'], 'United Arab Emirates (Asia/Dubai)Change', 'nothing changed');
+});
+
+test('Lead page: an older name opens on its listed zone, and Save without a change sends nothing; the dialog\'s own words where the API gives none', async () => {
+  // Chrome gives India as Asia/Calcutta: the lead keeps it as given, and it reads as India.
+  let answer = () => fail(400, { error: 'INVALID_TIMEZONE' });
+  serve({
+    [`GET ${LEADS}lead-web/`]: detailOf(WEBSITE, { student_timezone: 'Asia/Calcutta' }),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`PUT ${LEADS}lead-web/student-timezone/`]: () => answer(),
+  });
+  await open('/leads/lead-web', ADMIN_TZ);
+  assert.equal(fields()['Student timezone'], 'India (Asia/Calcutta)Change');
+  await click(button('Change student timezone'));
+  assert.equal(clean(document.getElementById('student-timezone').textContent), 'India');
+  assert.deepEqual(await optionsOf('Student timezone'), TIMEZONE_CHOICES, 'never the old name as an option of its own');
+  await click(button('Save', topDialog()));
+  assert.equal(calls('PUT', `${LEADS}lead-web/student-timezone/`).length, 0, 'saved as it was: nothing sent, nothing logged');
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+
+  // A refusal with no words of its own: the dialog's.
+  await click(button('Change student timezone'));
+  await choose('Student timezone', 'US — Eastern');
+  await click(button('Save', topDialog()));
+  assert.match(clean(topDialog().textContent), /Choose a valid time zone\./);
+  answer = () => fail(500, { error: 'SOMETHING_ELSE' });
+  await click(button('Save', topDialog()));
+  assert.match(clean(topDialog().textContent), /Could not change the student timezone\./);
+});
+
+test("Lead page: a saved zone this browser does not know is shown as it is, never as Not set, and an untouched Save keeps it", async () => {
+  serve({
+    [`GET ${LEADS}lead-web/`]: detailOf(WEBSITE, { student_timezone: 'America/Nowhere_New' }),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+  });
+  await open('/leads/lead-web', ADMIN_TZ);
+  assert.equal(fields()['Student timezone'], 'America/Nowhere_NewChange');
+  await click(button('Change student timezone'));
+  assert.equal(clean(document.getElementById('student-timezone').textContent), 'America/Nowhere_New');
+  await click(button('Save', topDialog()));
+  assert.equal(calls('PUT', `${LEADS}lead-web/student-timezone/`).length, 0);
+});
+
+test("Lead page: the next booking says the student's own time under its Indian time", async () => {
+  const next = { id: 'b-1', booking_type: 'DEMO', date: '2026-11-07', time: '07:30', starts_at: SAT_7_NOV_0730 };
+  serve({
+    [`GET ${LEADS}lead-web/`]: detailOf({ ...WEBSITE, next_booking: next }, { student_timezone: 'America/New_York' }),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+  });
+  await open('/leads/lead-web', ADMIN_TZ);
+  assert.equal(fields()['Next booking'], 'Sat, 7 Nov · 7:30 AM ISTStudent Time: Fri, 6 Nov · 9:00 PM New York');
+  await mounted.pop().unmount();
+  // India's clock, or no zone: the Indian time alone.
+  for (const zone of ['Asia/Kolkata', null]) {
+    serve({
+      [`GET ${LEADS}lead-web/`]: detailOf({ ...WEBSITE, next_booking: next }, { student_timezone: zone }),
+      [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    });
+    await open('/leads/lead-web', ADMIN_TZ);
+    assert.equal(fields()['Next booking'], 'Sat, 7 Nov · 7:30 AM IST', String(zone));
+    await mounted.pop().unmount();
+  }
+});
+
+test("My Enquiries: a BDE corrects their enquiry's student timezone from its Overview; the next booking's Student Time follows", async () => {
+  const next = { id: 'b-1', booking_type: 'DEMO', date: '2026-11-07', time: '07:30', starts_at: SAT_7_NOV_0730 };
+  const own = detailOf({ ...OWNED, owner: undefined, next_booking: next }, { student_timezone: 'Asia/Dubai',
+    bookings: [entryAt('b-1', 'DEMO', '2026-11-07', '07:30', SAT_7_NOV_0730, 'Asia/Dubai')] });
+  serve({
+    [`GET ${ENQUIRIES}lead-own/`]: own,
+    [`GET /api/bde/booking-links/`]: LINKS,
+    [`PUT ${ENQUIRIES}lead-own/student-timezone/`]: (entry) => ok({ ...own, student_timezone: entry.data.student_timezone,
+      bookings: own.bookings.map((booking) => ({ ...booking, student_timezone: entry.data.student_timezone })), changed: true }),
+  });
+  await open('/enquiries/lead-own', BDE_TZ);
+  assert.equal(fields()['Student timezone'], 'United Arab Emirates (Asia/Dubai)Change');
+  assert.equal(fields()['Next booking'], 'Sat, 7 Nov · 7:30 AM ISTStudent Time: 6:00 AM UAE');
+
+  await click(button('Change student timezone'));
+  assert.doesNotMatch(clean(topDialog().textContent), /\blead/i, "the BDE workspace's own words");
+  assert.equal(clean(document.getElementById('student-timezone').textContent), 'United Arab Emirates');
+  await choose('Student timezone', 'US — Eastern');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(calls('PUT', `${ENQUIRIES}lead-own/student-timezone/`).map((entry) => entry.data),
+    [{ student_timezone: 'America/New_York' }]);
+  assert.match(bodyText(), /Riya's timezone is now US — Eastern \(America\/New_York\)\./);
+  assert.equal(fields()['Student timezone'], 'US — Eastern (America/New_York)Change');
+  assert.equal(fields()['Next booking'], 'Sat, 7 Nov · 7:30 AM ISTStudent Time: Fri, 6 Nov · 9:00 PM New York');
+  assert.ok(!globalThis.__leadsApi.calls.some((entry) => entry.url.startsWith('/api/leads/')), "the administrators' routes are never called");
+});
+
+test('Lead page and an enquiry\'s page: without accounts.change_student_timezone the zone is shown, never offered to change', async () => {
+  serve({ [`GET ${LEADS}lead-web/`]: detailOf(WEBSITE, { student_timezone: 'Europe/Berlin' }), [`GET ${BDES}`]: { results: BDE_OPTIONS } });
+  await open('/leads/lead-web', ADMIN);
+  assert.equal(fields()['Student timezone'], 'Europe/Berlin');
+  assert.ok(!button('Change student timezone') && !button('Change'));
+  await mounted.pop().unmount();
+
+  serve({
+    [`GET ${ENQUIRIES}lead-given/`]: detailOf({ ...WEBSITE, id: 'lead-given', owner: undefined }, { student_timezone: null }),
+    [`GET /api/bde/booking-links/`]: LINKS,
+  });
+  await open('/enquiries/lead-given', BDE);
+  assert.equal(fields()['Student timezone'], 'Not set');
+  assert.ok(!button('Change student timezone') && !button('Change'));
+});
+
+test("Leads: a lead added with the student's timezone sends it; a zone the API refuses is said at its field", async () => {
+  const posted = [];
+  serve({
+    [`GET ${LEADS}`]: list([WEBSITE]),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`POST ${LEADS}`]: (entry) => {
+      posted.push(entry.data);
+      return posted.length === 1
+        ? fail(400, { error: 'VALIDATION_ERROR', message: 'Check the fields.', fields: { student_timezone: ['Choose a valid time zone.'] } })
+        : ok(detailOf({ ...WEBSITE, id: 'lead-new', student_name: 'Arjun' }, { student_timezone: 'Asia/Dubai' }));
+    },
+  });
+  await open('/leads', ADMIN);
+  await click(button('Add Lead'));
+  // Optional, Not set until chosen; named by its own label, as the form's other fields are.
+  assert.equal(clean(document.querySelector('label[for="enquiry-student-timezone"]').textContent), 'Student timezone (optional)');
+  assert.equal(clean(document.getElementById('enquiry-student-timezone').textContent), 'Not set');
+  assert.deepEqual(await optionsOf('enquiry-student-timezone'), TIMEZONE_CHOICES);
+  await typeInto(document.getElementById('enquiry-parent-name'), 'Meera Menon');
+  await typeInto(document.getElementById('enquiry-phone-number'), '98765 43210');
+  await typeInto(document.getElementById('enquiry-student-name'), 'Arjun');
+  await choose('enquiry-grade', 'Class 6');
+  await choose('enquiry-source', 'Phone call');
+  await choose('enquiry-student-timezone', 'United Arab Emirates');
+  await click(button('Add lead', topDialog()));
+  assert.equal(posted[0].student_timezone, 'Asia/Dubai');
+  const field = document.querySelector('label[for="enquiry-student-timezone"]').parentElement;
+  assert.match(clean(field.textContent), /^Student timezone \(optional\)United Arab Emirates.*Choose a valid time zone\.$/);
+  assert.equal(document.getElementById('enquiry-student-timezone').getAttribute('aria-invalid'), 'true');
+  await click(button('Add lead', topDialog()));
+  assert.equal(posted.length, 2);
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+});
+
+test("BDE dashboard: Upcoming Bookings give each student's own time beside the Indian one; today's agenda stays as it was", async () => {
+  const upcoming = { total: 2, rows: [
+    { id: 'b-1', booking_type: 'DEMO', date: '2026-11-08', time: '07:30', starts_at: SUN_8_NOV_0730, student_timezone: 'Asia/Dubai', enquiry: RIYA },
+    { id: 'b-2', booking_type: 'DIAGNOSTIC', date: '2026-11-09', time: '19:30', starts_at: MON_9_NOV_1930, student_timezone: 'Asia/Kolkata',
+      enquiry: KAVYA },
+  ] };
+  serve({
+    [`GET ${DASHBOARD}`]: { ...dashboardOf({ date: TODAY, total: 1, rows: [{ ...EVENING_DEMO, student_timezone: 'Asia/Dubai' }] }), upcoming },
+    [`GET /api/bde/booking-links/`]: LINKS,
+  });
+  await open('/dashboard', BDE);
+  assert.deepEqual(headers(), ['When', 'Student Time', 'Type', 'Student', 'Parent', 'Open']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelectorAll('td')[1].textContent)), ['6:00 AM UAE', 'Same as IST']);
+  assert.match(clean(agendaItems()[0].textContent), /^7:30 PM\s*Demo class · Riya\s*Upcoming\s*Class 8 · Parent: Asha Nair · Tutor: Jack Sabastian$/);
+  await mounted.pop().unmount();
+
+  await onAPhone(async () => {
+    await open('/dashboard', BDE);
+    const cards = [...document.querySelectorAll('[aria-label="Upcoming bookings"] > li')].map((card) => clean(card.textContent));
+    assert.match(cards[0], /Sun, 8 Nov · 7:30 AM IST\s*Student Time: 6:00 AM UAE\s*Parent: Asha Nair/);
+    assert.match(cards[1], /Mon, 9 Nov · 7:30 PM IST\s*Student Time: Same as IST\s*Parent: Meera Menon/);
+  });
+});
+
+// A booking in full for the administrators (backend coordination.booking_detail): the student's zone on it and
+// on its lead's brief; and the lead in full (GET /api/leads/<id>/), its bookings each with their own instant.
+const NOAH_LEAD = detailOf({ id: 'lead-noah', parent_name: 'Asha Nair', phone: '+1 2125550100', student_name: 'Noah',
+  grade: 'Class 8', source: 'BOOKING_PAGE', source_label: 'Booking page', status: 'DEMO_BOOKED', status_label: 'Demo booked',
+  next_booking: { id: 'b-noah', booking_type: 'DEMO', date: '2026-11-07', time: '07:30', starts_at: SAT_7_NOV_0730 },
+  added_at: null, owner: null, created_at: '2026-11-01T05:00:00+00:00' }, {
+  country: 'United States', student_timezone: 'America/New_York', bookings: [
+    entryAt('b-noah', 'DEMO', '2026-11-07', '07:30', SAT_7_NOV_0730, 'America/New_York'),
+    entryAt('b-noah-diag', 'DIAGNOSTIC', '2026-11-02', '19:30', MON_2_NOV_1930, 'America/New_York', { status: 'COMPLETED',
+      ended: true, activity_state: 'COMPLETED', started_at: '2026-11-02T14:02:00+00:00', tutor: { full_name: 'Tutor A' } }),
+  ] });
+const bookingOf = (lead, entry, extra = {}) => ({ id: entry.id, booking_type: entry.booking_type, status: entry.status,
+  slot: { id: `s-${entry.id}`, booking_type: entry.booking_type, date: entry.date, time: entry.time, starts_at: entry.starts_at,
+    ends_at: new Date(Date.parse(entry.starts_at) + 3_600_000).toISOString(), started: false, ended: false },
+  student_name: lead.student_name, grade: lead.grade, parent_name: lead.parent_name, phone: lead.phone, tutor: null, bde: null,
+  redemo_for_id: null, booked_at: entry.booked_at, activity_state: entry.activity_state, started_at: null, has_report: false,
+  report_version: null, report_due: false, student_timezone: lead.student_timezone, timezone: 'Asia/Kolkata', seat: 1,
+  lead: { id: lead.id, phone_dial_code: lead.phone_dial_code, phone_number: lead.phone_number, school_name: lead.school_name,
+    syllabus: lead.syllabus, country: lead.country, source: lead.source, owner_bde: null, student_timezone: lead.student_timezone },
+  referral_status: 'NO_REF', channel: 'PUBLIC', created_by: null, invited_from: null, redemo_request: null, redemo_from: null,
+  tutor_assigned_at: null, tutor_assigned_by: null, tutor_meet_link: null, tutor_changeable: true, tutor_change_refusal: null,
+  cancelled_at: null, cancelled_by: null, cancel_reason: '', rescheduled_from: null, rescheduled_to: null, report: null,
+  actions: { cancel: false, no_show: false, reschedule: false }, ...extra });
+
+test("Booking workspace: Student Time under the slot's Indian time, the zone read-only, the child's bookings each at their own", async () => {
+  serve({ [`GET /api/bookings/demo/b-noah/`]: bookingOf(NOAH_LEAD, NOAH_LEAD.bookings[0]), [`GET ${LEADS}lead-noah/`]: NOAH_LEAD });
+  await open('/bookings/demo/b-noah', ADMIN_TZ);
+  assert.match(bodyText(), /Sat, 7 Nov · 7:30 AM IST\s*Student Time: Fri, 6 Nov · 9:00 PM New York/);
+  // The Parent panel names the zone the lead keeps, to read: it is corrected on the lead's own page.
+  assert.equal(fields()['Student timezone'], 'US — Eastern (America/New_York)');
+  assert.ok(!button('Change student timezone') && !button('Change'), 'nothing to change here, whatever the caller holds');
+  const entries = [...document.querySelectorAll('[aria-label="All bookings"] > li')].map((entry) => clean(entry.textContent));
+  assert.match(entries[0], /Sat, 7 Nov · 7:30 AM IST\s*Student Time: Fri, 6 Nov · 9:00 PM New York/);
+  assert.match(entries[1], /Mon, 2 Nov · 7:30 PM IST\s*Student Time: 9:00 AM New York/);
+  assert.ok(button('Open the diagnostic test on Mon, 2 Nov · 7:30 PM IST'), 'the Open button keeps its name');
+  await mounted.pop().unmount();
+
+  // The Bookings tab: a column of its own.
+  await open('/bookings/demo/b-noah?tab=bookings', ADMIN_TZ);
+  assert.deepEqual(headers(), ['When (IST)', 'Student Time', 'Type', 'Status', 'Tutor', 'Booked on']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelectorAll('td')[1].textContent)),
+    ['Fri, 6 Nov · 9:00 PM New York', '9:00 AM New York']);
+  assert.equal(clean(rows()[0].querySelector('td').textContent), 'Sat, 7 Nov · 7:30 AM IST (the booking you are viewing)');
+});
+
+test("Booking workspace: a student on India's clock, or with no zone, adds no line and no column", async () => {
+  const india = { ...NOAH_LEAD, id: 'lead-isha', student_name: 'Isha', student_timezone: 'Asia/Calcutta', next_booking: null,
+    bookings: [entryAt('b-isha', 'DEMO', '2026-11-09', '19:30', MON_9_NOV_1930, 'Asia/Calcutta')] };
+  serve({ [`GET /api/bookings/demo/b-isha/`]: bookingOf(india, india.bookings[0]), [`GET ${LEADS}lead-isha/`]: india });
+  await open('/bookings/demo/b-isha', ADMIN_TZ);
+  assert.match(bodyText(), /Mon, 9 Nov · 7:30 PM IST/);
+  assert.ok(!bodyText().includes('Student Time:'), "India's clock: nothing to add");
+  assert.equal(fields()['Student timezone'], 'India (Asia/Calcutta)');
+  await mounted.pop().unmount();
+  await open('/bookings/demo/b-isha?tab=bookings', ADMIN_TZ);
+  assert.ok(!headers().includes('Student Time'));
+  await mounted.pop().unmount();
+
+  const unknown = { ...india, id: 'lead-omar', student_name: 'Omar', student_timezone: null,
+    bookings: [entryAt('b-omar', 'DEMO', '2026-11-09', '19:30', MON_9_NOV_1930, null)] };
+  serve({ [`GET /api/bookings/demo/b-omar/`]: bookingOf(unknown, unknown.bookings[0]), [`GET ${LEADS}lead-omar/`]: unknown });
+  await open('/bookings/demo/b-omar', ADMIN_TZ);
+  assert.ok(!bodyText().includes('Student Time:'));
+  assert.equal(fields()['Student timezone'], 'Not set');
+});
+
+// The Admissions Dashboard's answer (backend bookings.admissions): today's bookings nested as the administrators' rows are.
+const todayRow = (id, student_name, date, time, starts_at, student_timezone) => ({ id, booking_type: 'DEMO', status: 'BOOKED',
+  slot: { id: `s-${id}`, booking_type: 'DEMO', date, time, starts_at, ends_at: new Date(Date.parse(starts_at) + 3_600_000).toISOString(),
+    started: false, ended: false }, student_name, grade: 'Class 8', tutor: null, activity_state: 'UPCOMING', started_at: null,
+  student_timezone });
+const admissionsOf = (rows) => ({ timezone: 'Asia/Kolkata', range: { from: '2026-11-02', to: TODAY }, leads: { received: 2, new: 1 },
+  pipeline: [['NEW', 'New', 1], ['BOOKED', 'Booked', 1], ['COMPLETED', 'Completed', 0], ['NOT_STARTED', 'Not started', 0],
+    ['CANCELLED', 'Cancelled', 0]].map(([stage, label, count]) => ({ stage, label, count })),
+  bookings: { DEMO: { total: rows.length, upcoming: rows.length }, DIAGNOSTIC: { total: 0, upcoming: 0 } },
+  today_bookings: { date: TODAY, total: rows.length, rows },
+  pending: { unassigned_leads: 0, needs_tutor: { DEMO: 0, DIAGNOSTIC: 0 }, report_due: { DEMO: 0, DIAGNOSTIC: 0 },
+    redemo_scheduling: 0, awaiting_confirmation: { DEMO: 0, DIAGNOSTIC: 0 } },
+  recent_leads: [], activity: [] });
+
+test("Admissions Dashboard: today's bookings give each student's own time beside the Indian one, only while one reads differently", async () => {
+  serve({ 'GET /api/admissions/dashboard/': admissionsOf([
+    todayRow('b-zara', 'Zara', TODAY, '07:30', SUN_8_NOV_0730, 'Asia/Dubai'),
+    todayRow('b-riya', 'Riya', TODAY, '19:30', '2026-11-08T14:00:00+00:00', null),
+  ]) });
+  await open('/admissions', ADMIN);
+  assert.deepEqual(headers(), ['Time (IST)', 'Student Time', 'Type', 'Student', 'Tutor', 'Status', 'Open']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelectorAll('td')[1].textContent)), ['6:00 AM UAE', '—']);
+  assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), ['7:30 AM', '7:30 PM']);
+  await mounted.pop().unmount();
+
+  serve({ 'GET /api/admissions/dashboard/': admissionsOf([todayRow('b-riya', 'Riya', TODAY, '19:30', '2026-11-08T14:00:00+00:00', 'Asia/Kolkata')]) });
+  await open('/admissions', ADMIN);
+  assert.deepEqual(headers(), ['Time (IST)', 'Type', 'Student', 'Tutor', 'Status', 'Open']);
 });
 
 // ------------------------------------------------------------------ run

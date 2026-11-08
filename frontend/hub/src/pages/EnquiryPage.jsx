@@ -5,8 +5,9 @@ import { ArrowLeftIcon, ReceiptIndianRupeeIcon, SearchXIcon } from 'lucide-react
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
 import { bdeBookingCancelUrl, bdeRedemoUrl, readBookingType } from '@/lib/bookings';
-import { bookingTypeLabel, enquiryError, enquiryUrl, slotLabel } from '@/lib/enquiries';
+import { bookingTypeLabel, enquiryError, enquiryTimezoneUrl, enquiryUrl, slotLabel } from '@/lib/enquiries';
 import { COMING_SOON } from '@/lib/navigation';
+import { savedTimezoneLabel } from '@/lib/timezone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/component
 import { CancelBookingDialog } from '@/components/bookings/cancel-booking-dialog';
 import { RequestRedemoDialog } from '@/components/bookings/request-redemo-dialog';
 import { BookingCommunicationSheet } from '@/components/communications/communication-sheet';
+import { StudentTimezoneDialog } from '@/components/leads/student-timezone-dialog';
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { LeadReportsPanel } from '@/components/reports/lead-reports-panel';
@@ -75,7 +77,9 @@ function Unavailable({ failure }) {
  * the parent to confirm and records their answer when the API offers it. A
  * link with only a booking (from before the workspace had tabs) opens the
  * sheet on Bookings. The API answers another BDE's enquiry -- one reassigned
- * away from this BDE included -- exactly as one that does not exist.
+ * away from this BDE included -- exactly as one that does not exist. A BDE
+ * holding accounts.change_student_timezone sets or corrects the student's
+ * time zone from the Overview, which every booking's Student Time follows.
  */
 export default function EnquiryPage({ user }) {
   const { enquiryId } = useParams();
@@ -86,10 +90,12 @@ export default function EnquiryPage({ user }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [cancelling, setCancelling] = useState(null);
   const [requestingRedemo, setRequestingRedemo] = useState(null);
+  const [changingTimezone, setChangingTimezone] = useState(false);
   const [notice, setNotice] = useState(null);
   const canSeeCommunication = can(user, PERMISSIONS.viewOwnLeadCommunications);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const canSeeReports = can(user, PERMISSIONS.viewOwnLeadReports);
+  const canChangeTimezone = can(user, PERMISSIONS.changeStudentTimezone);
   const openId = searchParams.get('booking');
   const openType = readBookingType(searchParams.get('booking_type'));
   const highlight = searchParams.get('highlight');
@@ -184,7 +190,11 @@ export default function EnquiryPage({ user }) {
           </TabsList>
 
           <TabsContent value="overview">
-            <EnquiryOverview enquiry={enquiry} onShowBooking={showBooking} />
+            <EnquiryOverview
+              enquiry={enquiry}
+              onShowBooking={showBooking}
+              onChangeTimezone={canChangeTimezone ? () => setChangingTimezone(true) : null}
+            />
           </TabsContent>
 
           <TabsContent value="bookings">
@@ -275,6 +285,23 @@ export default function EnquiryPage({ user }) {
           );
         }}
       />
+      {canChangeTimezone && enquiry ? (
+        <StudentTimezoneDialog
+          lead={enquiry}
+          url={enquiryTimezoneUrl(enquiry.id)}
+          open={changingTimezone}
+          onOpenChange={setChangingTimezone}
+          onSaved={(updated) => {
+            // The API answers the enquiry as it now stands: every booking's Student Time follows.
+            setEnquiry(updated);
+            setNotice(
+              updated.student_timezone
+                ? `${updated.student_name}'s timezone is now ${savedTimezoneLabel(updated.student_timezone)}.`
+                : `${updated.student_name}'s timezone is no longer set.`
+            );
+          }}
+        />
+      ) : null}
       {canSeeCommunication ? (
         <BookingCommunicationSheet
           bookingType={openType}
@@ -286,6 +313,7 @@ export default function EnquiryPage({ user }) {
           reloadKey={reloadKey}
           // The parent's answer may cancel the booking: the bookings table catches up.
           onChanged={refreshEnquiry}
+          studentTimezone={enquiry?.student_timezone}
         />
       ) : null}
     </Page>

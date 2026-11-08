@@ -62,6 +62,9 @@ export const PERMISSIONS = {
   viewAllLeads: 'accounts.view_all_leads',
   addLead: 'accounts.add_lead',
   assignLeadOwner: 'accounts.assign_lead_owner',
+  // Correcting a lead's student time zone (backend bookings.student_timezones): a BDE their own
+  // enquiries', an administrator any lead's. The API checks which leads on every request.
+  changeStudentTimezone: 'accounts.change_student_timezone',
 
   manageBookingSlots: 'accounts.manage_booking_slots',
   viewAllBookings: 'accounts.view_all_bookings',

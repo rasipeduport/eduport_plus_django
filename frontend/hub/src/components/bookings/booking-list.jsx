@@ -11,8 +11,10 @@ import { SCHEDULE_OPTIONS } from '@/lib/bde-booking-filters';
 import { CLEARED_ADMIN_FILTERS } from '@/lib/admin-booking-filters';
 import { slotLabel, slotParts } from '@/lib/enquiries';
 import { reportBadge } from '@/lib/reports';
+import { showsStudentTime } from '@/lib/timezone';
 import { BookingStateBadge, RedemoBadge, TutorName } from './booking-badges';
 import { ClassDateFilter } from './class-date-filter';
+import { StudentTimeCell } from './student-time';
 
 // The schedule select offers its default, Upcoming, as its empty value.
 const OTHER_SCHEDULES = SCHEDULE_OPTIONS.filter((option) => option.value !== DEFAULT_WHEN);
@@ -126,11 +128,15 @@ function Actions({ booking, canAssign, onOpen, onAssign, className }) {
  * submitted, or Report due), with a way to open it and, for holders of
  * accounts.assign_booking_tutor, to assign a tutor to one that has none (a
  * tutor already assigned is changed in the booking's workspace) -- a table
- * where it fits, a card per booking on a phone or a narrow screen. Empty, it
- * says why and offers the way on; the API pages it. `noun` names the type's
- * bookings ("demo classes"); `onChange` receives what changed in the URL.
+ * where it fits, a card per booking on a phone or a narrow screen. Beside the
+ * Indian time, the student's own while any booking shown reads differently
+ * (Student Time). Empty, it says why and offers the way on; the API pages it.
+ * `noun` names the type's bookings ("demo classes"); `onChange` receives what
+ * changed in the URL.
  */
 export function BookingList({ rows, total, page, pageSize, filters, pending, canAssign, noun, onChange, onClear, onOpen, onAssign }) {
+  const showStudentTime = showsStudentTime(rows, (booking) => booking.slot?.starts_at, (booking) => booking.student_timezone);
+  const studentTime = (booking) => <StudentTimeCell startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} />;
   const columns = [
     {
       key: 'when',
@@ -146,6 +152,7 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
         );
       },
     },
+    ...(showStudentTime ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: studentTime }] : []),
     {
       key: 'student',
       header: 'Student',
@@ -199,6 +206,12 @@ export function BookingList({ rows, total, page, pageSize, filters, pending, can
           <p className="text-muted-foreground text-xs">Date & Time</p>
           <p className="truncate">{slotLabel(booking.slot)}</p>
         </div>
+        {showStudentTime ? (
+          <div className="col-span-2 min-w-0">
+            <p className="text-muted-foreground text-xs">Student Time</p>
+            <p className="truncate">{studentTime(booking)}</p>
+          </div>
+        ) : null}
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs">Tutor</p>
           <TutorName booking={booking} />

@@ -5,11 +5,13 @@ import { FormDialog } from '@/components/form-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TimezoneSelect } from '@/components/sessions/timezone-select';
 import api from '@/lib/api';
 import { CLASSES, ENQUIRIES_URL, MANUAL_SOURCES, SYLLABI, enquiryError } from '@/lib/enquiries';
 import { LEADS_URL } from '@/lib/leads';
 
 const FORM_ID = 'add-enquiry';
+// student_timezone: an IANA zone, or '' while not set (backend bookings.student_timezones).
 const EMPTY = {
   parent_name: '',
   phone_dial_code: '+91',
@@ -20,6 +22,7 @@ const EMPTY = {
   school_name: '',
   syllabus: '',
   country: '',
+  student_timezone: '',
   parent_email: '',
 };
 // The API names a bad phone number 'phone' (backend bookings.leads); the form shows it under the number.
@@ -61,9 +64,11 @@ function OptionSelect({ id, value, onChange, placeholder, options, disabled, req
  * parent who later books through the booking pages lands on it and it stays
  * theirs. An administrator (`admin`, the Leads page) adds one to the same
  * leads, owned by nobody until they assign it, with the parent's email when
- * known. The API refuses a child already registered under the same phone
- * number, pointing to the lead when the caller may open it. A BDE's workspace
- * calls them enquiries (Add Enquiry); the administrators' Leads page, leads.
+ * known. The student's time zone is optional (Not set by default): with it,
+ * staff see each booking's Student Time beside its Indian time. The API
+ * refuses a child already registered under the same phone number, pointing
+ * to the lead when the caller may open it. A BDE's workspace calls them
+ * enquiries (Add Enquiry); the administrators' Leads page, leads.
  */
 export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false }) {
   const [form, setForm] = useState(EMPTY);
@@ -286,7 +291,8 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
 
         <fieldset className="grid gap-4 sm:grid-cols-2" disabled={pending}>
           <legend className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">{admin ? 'Lead' : 'Enquiry'}</legend>
-          <div className="grid content-start gap-2">
+          {/* A row of its own, so where the family is -- country and time zone -- reads as a pair. */}
+          <div className="grid content-start gap-2 sm:col-span-2">
             <Label htmlFor="enquiry-source" required>
               Source
             </Label>
@@ -313,6 +319,22 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
               aria-invalid={invalid('country')}
             />
             <FieldError message={fieldErrors.country} />
+          </div>
+          <div className="grid content-start gap-2">
+            <Label htmlFor="enquiry-student-timezone">Student timezone (optional)</Label>
+            <TimezoneSelect
+              id="enquiry-student-timezone"
+              // Named by its label, as the form's other selects are.
+              ariaLabel={null}
+              value={form.student_timezone}
+              onValueChange={setChoice('student_timezone')}
+              allowNotSet
+              size="default"
+              className="w-full"
+              disabled={pending}
+              invalid={invalid('student_timezone')}
+            />
+            <FieldError message={fieldErrors.student_timezone} />
           </div>
         </fieldset>
       </form>

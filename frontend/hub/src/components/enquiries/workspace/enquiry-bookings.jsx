@@ -8,10 +8,12 @@ import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { RedemoStatusBadge } from '@/components/bookings/booking-badges';
 import { DemoInviteButton } from '@/components/bookings/demo-invite-button';
 import { MeetLink } from '@/components/bookings/meet-link';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { ParentConfirmationBadge } from '@/components/communications/communication-badges';
 import { bdeDemoInviteUrl, bookingState } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, formatDay, slotLabel } from '@/lib/enquiries';
+import { showsStudentTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
 
 // The width the table needs with its actions; narrower areas show cards.
@@ -110,10 +112,19 @@ function BookingActions({ booking, actions, className }) {
   );
 }
 
-function columnsFor(actions) {
+/** A booking's Student Time, from its own instant and its student's zone (the API's `student_timezone`). */
+function StudentTime({ booking }) {
+  return <StudentTimeCell startsAt={booking.starts_at} timezone={booking.student_timezone} />;
+}
+
+function columnsFor(actions, showStudentTime) {
   const communication = Boolean(actions.onOpenCommunication);
   return [
     { key: 'when', header: 'When (IST)', className: 'font-medium whitespace-nowrap', cell: (booking) => slotLabel(booking) },
+    // A cell of its own: the When cell's text is the slot alone.
+    ...(showStudentTime
+      ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: (booking) => <StudentTime booking={booking} /> }]
+      : []),
     { key: 'type', header: 'Type', cell: (booking) => <BookingTypeBadge type={booking.booking_type} /> },
     { key: 'status', header: 'Status', cell: (booking) => <BookingStatus booking={booking} /> },
     ...(communication
@@ -144,7 +155,7 @@ function columnsFor(actions) {
 }
 
 /** One booking as a card, where the table would not fit: the same facts and actions. */
-function BookingCard({ booking, actions }) {
+function BookingCard({ booking, actions, showStudentTime }) {
   return (
     <article className="bg-card flex h-full flex-col gap-3 rounded-xl border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -156,6 +167,14 @@ function BookingCard({ booking, actions }) {
       </div>
       <BookingStatus booking={booking} />
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        {showStudentTime ? (
+          <div className="col-span-2 min-w-0">
+            <p className="text-muted-foreground text-xs">Student Time</p>
+            <p className="truncate">
+              <StudentTime booking={booking} />
+            </p>
+          </div>
+        ) : null}
         {actions.onOpenCommunication ? (
           <div className="min-w-0">
             <p className="text-muted-foreground text-xs">Confirmation</p>
@@ -182,10 +201,13 @@ function BookingCard({ booking, actions }) {
  * and, once an administrator has scheduled it, when and with whom. With the
  * lead's communication to see (`onOpenCommunication`), each shows the
  * parent's answer to the confirmation request and opens its communication.
- * `highlight` is the booking a link opened the workspace for.
+ * Beside each booking's Indian time, the student's own (Student Time) while
+ * any booking reads differently. `highlight` is the booking a link opened
+ * the workspace for.
  */
 export function EnquiryBookings({ bookings, highlight, onOpenCommunication, onCancel, recipient, onInviteRefused, onRequestRedemo }) {
   const actions = { onOpenCommunication, onCancel, recipient, onInviteRefused, onRequestRedemo };
+  const showStudentTime = showsStudentTime(bookings, (booking) => booking.starts_at, (booking) => booking.student_timezone);
   return (
     <Panel icon={CalendarDaysIcon} title="Bookings" subtitle="Demo classes and diagnostic tests, in Indian time (IST)">
       {bookings.length === 0 ? (
@@ -197,11 +219,11 @@ export function EnquiryBookings({ bookings, highlight, onOpenCommunication, onCa
       ) : (
         <ResponsiveList
           label="Bookings"
-          columns={columnsFor(actions)}
+          columns={columnsFor(actions, showStudentTime)}
           rows={bookings}
           highlightedKey={highlight}
           minTableWidth={MIN_TABLE_WIDTH}
-          renderCard={(booking) => <BookingCard booking={booking} actions={actions} />}
+          renderCard={(booking) => <BookingCard booking={booking} actions={actions} showStudentTime={showStudentTime} />}
         />
       )}
     </Panel>

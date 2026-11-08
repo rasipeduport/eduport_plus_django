@@ -33,6 +33,7 @@ import {
 } from '@/lib/admissions';
 import { rangeLabel } from '@/lib/date-range';
 import { enquiryError, slotParts } from '@/lib/enquiries';
+import { showsStudentTime } from '@/lib/timezone';
 import { cn, getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,7 @@ import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStateBadge, TutorName } from '@/components/bookings/booking-badges';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { DatePresets } from '@/components/page/date-presets';
 import { Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
@@ -327,13 +329,22 @@ function PendingActions({ pending, className }) {
   );
 }
 
-const TODAY_COLUMNS = [
+/** A booking's Student Time, from its own instant and its student's zone (the API's `student_timezone`). */
+function StudentTime({ booking }) {
+  return <StudentTimeCell startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} />;
+}
+
+// Today's bookings, with the students' own time while any reads differently from India's.
+const todayColumns = (showStudentTime) => [
   {
     key: 'time',
     header: 'Time (IST)',
     className: 'whitespace-nowrap font-medium tabular-nums',
     cell: (booking) => slotParts(booking.slot.date, booking.slot.time).time,
   },
+  ...(showStudentTime
+    ? [{ key: 'student_time', header: 'Student Time', className: 'whitespace-nowrap', cell: (booking) => <StudentTime booking={booking} /> }]
+    : []),
   { key: 'type', header: 'Type', cell: (booking) => <BookingTypeBadge type={booking.booking_type} /> },
   {
     key: 'student',
@@ -362,7 +373,7 @@ const TODAY_COLUMNS = [
   },
 ];
 
-function TodayCard({ booking }) {
+function TodayCard({ booking, showStudentTime }) {
   return (
     <article className="hover:bg-muted/40 relative flex items-center gap-3 rounded-lg border p-3 transition-colors has-[a:focus-visible]:ring-[3px] has-[a:focus-visible]:ring-ring/50">
       <span className="w-16 shrink-0 text-sm font-medium tabular-nums">{slotParts(booking.slot.date, booking.slot.time).time}</span>
@@ -375,6 +386,14 @@ function TodayCard({ booking }) {
         <p className="text-muted-foreground truncate text-xs">
           {booking.tutor ? `Tutor: ${booking.tutor.full_name}` : 'No tutor yet'}
         </p>
+        {showStudentTime ? (
+          <p className="text-muted-foreground text-xs">
+            Student Time:{' '}
+            <span className="text-foreground">
+              <StudentTime booking={booking} />
+            </span>
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-col items-end gap-1">
         <BookingTypeBadge type={booking.booking_type} />
@@ -384,10 +403,15 @@ function TodayCard({ booking }) {
   );
 }
 
-/** Today's Demo classes and Diagnostic tests, soonest first; "today" is the API's Indian date, named rather than assumed. */
+/**
+ * Today's Demo classes and Diagnostic tests, soonest first; "today" is the
+ * API's Indian date, named rather than assumed. Beside each Indian time, the
+ * student's own while any booking reads differently (Student Time).
+ */
 function TodaysBookings({ today }) {
   const rows = today.rows ?? [];
   const day = slotParts(today.date, '00:00').day;
+  const showStudentTime = showsStudentTime(rows, (booking) => booking.slot?.starts_at, (booking) => booking.student_timezone);
   const subtitle = today.total > rows.length ? `${day} · the first ${rows.length} of ${today.total} · IST` : `${day} · Indian time (IST)`;
   return (
     <Panel
@@ -407,10 +431,10 @@ function TodaysBookings({ today }) {
       ) : (
         <ResponsiveList
           label="Today's bookings"
-          columns={TODAY_COLUMNS}
+          columns={todayColumns(showStudentTime)}
           rows={rows}
           minTableWidth={640}
-          renderCard={(booking) => <TodayCard booking={booking} />}
+          renderCard={(booking) => <TodayCard booking={booking} showStudentTime={showStudentTime} />}
         />
       )}
     </Panel>

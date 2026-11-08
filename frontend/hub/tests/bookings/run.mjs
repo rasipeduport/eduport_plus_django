@@ -79,8 +79,9 @@ process.on('unhandledRejection', () => {});
 
 const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeActivity, meetLinkProblem, planMemberSave } =
   await import(pathToFileURL(bundle).href);
-const { bdeBookingParams, classDateSpan, indianToday, readBdeBookingFilters, rangeLabel } =
-  await import(pathToFileURL(libsBundle).href);
+const { bdeBookingParams, classDateSpan, indianToday, readBdeBookingFilters, rangeLabel, enquiryTimezoneUrl, leadTimezoneUrl,
+  TIMEZONE_OPTIONS, listedTimezone, savedTimezoneLabel, showsStudentTime, studentTime, studentTimeState,
+  studentTimezoneLabel } = await import(pathToFileURL(libsBundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -2086,6 +2087,17 @@ test('Activity feed: tutor changes on bookings are labelled and described, namin
   assert.equal(describeActivity(entry('lead.assign_owner', { previous_owner_id: null, owner_id: 'bde-1' })), 'Assigned a lead to a BDE');
   assert.equal(describeActivity(entry('lead.assign_owner', { previous_owner_id: 'bde-1', owner_id: 'bde-2' })),
     'Reassigned a lead to another BDE');
+  // A lead's student time zone, set or corrected (backend bookings.student_timezones): the old zone and the new,
+  // labelled apart from a student profile's timezone in the action filter.
+  const zone = (old, now) => ({ action: 'lead.update_student_timezone', entity_type: 'lead', context: { via: 'bde_workspace' },
+    changes: { student_timezone: { old, new: now } } });
+  assert.equal(actionLabel('lead.update_student_timezone'), 'Student timezone changed');
+  assert.notEqual(ACTION_LABELS['lead.update_student_timezone'], ACTION_LABELS['student.update_timezone']);
+  assert.equal(describeActivity(zone(null, 'Asia/Dubai')), "Changed the student's timezone from — to Asia/Dubai");
+  assert.equal(describeActivity(zone('Asia/Dubai', 'America/New_York')),
+    "Changed the student's timezone from Asia/Dubai to America/New_York");
+  assert.equal(describeActivity(zone('America/New_York', null)), "Changed the student's timezone from America/New_York to —");
+  assert.equal(describeActivity(entry('lead.update_student_timezone', { via: 'admin_leads' })), "Changed the student's timezone");
 });
 
 // ------------------------------------------------ parent communication (Phase 3.1)
@@ -3429,6 +3441,300 @@ test('BDE Diagnostic Bookings: the same filters -- a Custom range from the URL o
     { page: 1, page_size: 25, when: 'upcoming', from: `${month}10`, to: `${month}12` });
   assert.deepEqual(pressed(), ['Custom']);
   assert.ok(!calendar(), 'the calendar closes once the range is picked');
+});
+
+// ------------------------------------------------------- Student Time (Student Local Time)
+// Beside each booking's Indian time, the student's own: the booking's real UTC
+// instant (starts_at) read in the zone the student's lead keeps
+// (student_timezone, backend bookings.student_timezones) -- never the slot's
+// date and time strings, nor the responses' `timezone` (India's). Every
+// instant below is the very IST date and time it is booked at.
+const SUN_8_NOV_0730 = '2026-11-08T02:00:00+00:00'; // Sun 8 Nov, 7:30 AM IST -- 6:00 AM in Dubai
+const SAT_7_NOV_0730 = '2026-11-07T02:00:00+00:00'; // Sat 7 Nov, 7:30 AM IST -- 9:00 PM on Fri 6 Nov in New York (EST)
+const SAT_7_NOV_1930 = '2026-11-07T14:00:00+00:00'; // Sat 7 Nov, 7:30 PM IST
+const MON_9_NOV_1930 = '2026-11-09T14:00:00+00:00'; // Mon 9 Nov, 7:30 PM IST
+const TUE_10_NOV_1000 = '2026-11-10T04:30:00+00:00'; // Tue 10 Nov, 10:00 AM IST
+
+const fieldsShown = () => Object.fromEntries([...document.querySelectorAll('dt')]
+  .map((dt) => [clean(dt.textContent), clean(dt.nextElementSibling?.textContent)]));
+const headings = () => [...document.querySelectorAll('th')].map((th) => clean(th.textContent));
+/** Each row's cell under the header `header`, as read. */
+const column = (header) => {
+  const index = headings().indexOf(header);
+  assert.ok(index >= 0, `a ${header} column`);
+  return rows().map((row) => clean(row.querySelectorAll('td')[index].textContent));
+};
+/** Lay the page out as a phone (390px wide) while `fn` runs: ResponsiveList shows cards. */
+async function onAPhone(fn) {
+  const wide = window.innerWidth;
+  Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true });
+  try {
+    await fn();
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true, writable: true });
+  }
+}
+
+test('Student Time: a booking at its student\'s own time, from its instant and their zone; India\'s clock adds nothing', () => {
+  assert.deepEqual(studentTime(SUN_8_NOV_0730, 'Asia/Dubai'),
+    { time: '6:00 AM', day: 'Sun, 8 Nov', otherDay: false, place: 'UAE', label: '6:00 AM UAE' });
+  assert.equal(studentTimeState(SUN_8_NOV_0730, 'Asia/Dubai'), 'different');
+  // Across midnight: Saturday morning in India is Friday evening in New York, which says the day.
+  assert.deepEqual(studentTime(SAT_7_NOV_0730, 'America/New_York'),
+    { time: '9:00 PM', day: 'Fri, 6 Nov', otherDay: true, place: 'New York', label: 'Fri, 6 Nov · 9:00 PM New York' });
+  assert.equal(studentTime(new Date(SAT_7_NOV_0730), 'America/New_York').label, 'Fri, 6 Nov · 9:00 PM New York', 'a Date too');
+  // India's zone, its old name (a browser may send it) and Sri Lanka read India's clock: the same, never a zone name compared.
+  for (const zone of ['Asia/Kolkata', 'Asia/Calcutta', 'Asia/Colombo']) {
+    assert.equal(studentTime(SAT_7_NOV_1930, zone), null, zone);
+    assert.equal(studentTimeState(SAT_7_NOV_1930, zone), 'same', zone);
+  }
+});
+
+test('Student Time: daylight saving is the zone\'s own at the instant -- London and Sydney, summer and winter', () => {
+  // 7:30 PM IST: British Summer Time in July, Greenwich Mean Time in November.
+  assert.equal(studentTime('2026-07-07T14:00:00+00:00', 'Europe/London').label, '3:00 PM UK');
+  assert.equal(studentTime(SAT_7_NOV_1930, 'Europe/London').label, '2:00 PM UK');
+  // Sydney is past midnight either way: AEDT (UTC+11) in November, AEST (UTC+10) in July -- midnight itself.
+  assert.deepEqual(studentTime(SAT_7_NOV_1930, 'Australia/Sydney'),
+    { time: '1:00 AM', day: 'Sun, 8 Nov', otherDay: true, place: 'Sydney', label: 'Sun, 8 Nov · 1:00 AM Sydney' });
+  assert.deepEqual(studentTime('2026-07-07T14:00:00+00:00', 'Australia/Sydney'),
+    { time: '12:00 AM', day: 'Wed, 8 Jul', otherDay: true, place: 'Sydney', label: 'Wed, 8 Jul · 12:00 AM Sydney' });
+  // New York either side of its change on 1 November: EDT, then EST.
+  assert.equal(studentTime('2026-10-31T14:00:00+00:00', 'America/New_York').label, '10:00 AM New York');
+  assert.equal(studentTime('2026-11-01T14:00:00+00:00', 'America/New_York').label, '9:00 AM New York');
+});
+
+test('Student Time: no zone, a zone nobody knows, or no instant -- nothing to show, and nothing thrown', () => {
+  for (const zone of [null, undefined, '', 'Not/AZone', 'Asia/Atlantis', 42]) {
+    assert.equal(studentTime(SUN_8_NOV_0730, zone), null, String(zone));
+    assert.equal(studentTimeState(SUN_8_NOV_0730, zone), 'unknown', String(zone));
+  }
+  // A saved zone this browser's own zone data does not know (the server's may be newer) is still the lead's:
+  // shown as it is, and a correction opens on it rather than on Not set.
+  for (const zone of [null, undefined, '', 42]) assert.equal(savedTimezoneLabel(zone), 'Not set', String(zone));
+  for (const zone of ['Not/AZone', 'Asia/Atlantis']) {
+    assert.equal(savedTimezoneLabel(zone), zone);
+    assert.equal(listedTimezone(zone), zone);
+  }
+  for (const instant of [null, undefined, '', 'not a date', new Date(NaN)]) {
+    assert.equal(studentTime(instant, 'Asia/Dubai'), null, String(instant));
+    assert.equal(studentTimeState(instant, 'Asia/Dubai'), 'unknown', String(instant));
+  }
+  assert.equal(studentTimezoneLabel(null), '');
+});
+
+test('Student Time: where a zone is -- the curated names, an IANA city, an offset where a zone names no place', () => {
+  const label = (zone) => studentTimezoneLabel(zone, new Date(SAT_7_NOV_1930));
+  assert.deepEqual(['Asia/Dubai', 'Europe/London', 'Asia/Riyadh', 'Asia/Colombo', 'Asia/Dhaka'].map(label),
+    ['UAE', 'UK', 'KSA', 'Sri Lanka', 'Bangladesh']);
+  // Where the curated short label is an abbreviation (ET, AEST, SGT, IST), its place.
+  assert.deepEqual(['America/New_York', 'America/Los_Angeles', 'Australia/Sydney', 'Australia/Perth', 'Asia/Singapore',
+    'Asia/Kolkata'].map(label), ['New York', 'Los Angeles', 'Sydney', 'Perth', 'Singapore', 'India']);
+  // A listed zone under an older name a browser may give is that zone, on every engine alike (a table, never
+  // the engine's own resolution: Chrome resolves Asia/Kolkata to Asia/Calcutta, Safari keeps the name it is given).
+  assert.deepEqual(['Asia/Calcutta', 'US/Eastern', 'Asia/Katmandu', 'Australia/NSW', 'GB', 'Singapore'].map(label),
+    ['India', 'New York', 'Nepal', 'Sydney', 'UK', 'Singapore']);
+  assert.deepEqual(['Asia/Calcutta', 'Asia/Katmandu', 'US/Pacific', 'Australia/West', 'Europe/Belfast', 'Asia/Dubai',
+    'Europe/Berlin', '', null].map(listedTimezone),
+  ['Asia/Kolkata', 'Asia/Kathmandu', 'America/Los_Angeles', 'Australia/Perth', 'Europe/London', 'Asia/Dubai',
+    'Europe/Berlin', '', '']);
+  assert.equal(savedTimezoneLabel('Asia/Katmandu'), 'Nepal (Asia/Katmandu)');
+  assert.deepEqual(['Europe/Berlin', 'America/Argentina/Buenos_Aires', 'Asia/Ho_Chi_Minh'].map(label),
+    ['Berlin', 'Buenos Aires', 'Ho Chi Minh']);
+  assert.deepEqual(['Etc/GMT+5', 'Etc/GMT-4'].map(label), ['GMT-5', 'GMT+4']);
+  assert.equal(studentTime(SAT_7_NOV_1930, 'Etc/GMT+5').label, '9:00 AM GMT-5');
+  assert.equal(studentTime(SAT_7_NOV_1930, 'Europe/Berlin').label, '3:00 PM Berlin');
+  // The zone a lead keeps, as its details show it.
+  assert.equal(savedTimezoneLabel('Asia/Dubai'), 'United Arab Emirates (Asia/Dubai)');
+  assert.equal(savedTimezoneLabel('Asia/Calcutta'), 'India (Asia/Calcutta)');
+  assert.equal(savedTimezoneLabel('Europe/Berlin'), 'Europe/Berlin');
+  // `place` is the Student Time's alone: what the session and exam selects offer, and their short labels, are as they were.
+  assert.deepEqual(TIMEZONE_OPTIONS.map(({ value, label: name, short }) => `${value}|${name}|${short}`), [
+    'Asia/Kolkata|India|IST', 'Asia/Dubai|United Arab Emirates|UAE', 'Asia/Qatar|Qatar|Qatar', 'Asia/Riyadh|Saudi Arabia|KSA',
+    'Asia/Kuwait|Kuwait|Kuwait', 'Asia/Bahrain|Bahrain|Bahrain', 'Asia/Muscat|Oman|Oman', 'Asia/Singapore|Singapore|SGT',
+    'Europe/London|United Kingdom|UK', 'America/New_York|US — Eastern|ET', 'America/Chicago|US — Central|CT',
+    'America/Denver|US — Mountain|MT', 'America/Los_Angeles|US — Pacific|PT', 'Australia/Sydney|Australia — Sydney|AEST',
+    'Australia/Perth|Australia — Perth|AWST', 'Asia/Colombo|Sri Lanka|Sri Lanka', 'Asia/Kathmandu|Nepal|Nepal',
+    'Asia/Dhaka|Bangladesh|Bangladesh']);
+});
+
+test('Student Time: a list shows its column only while one of its bookings reads differently; the correction routes', () => {
+  const row = (starts_at, student_timezone) => ({ starts_at, student_timezone });
+  const shows = (list) => showsStudentTime(list, (entry) => entry.starts_at, (entry) => entry.student_timezone);
+  assert.equal(shows([]), false);
+  assert.equal(shows(undefined), false);
+  assert.equal(shows([row(SAT_7_NOV_1930, 'Asia/Kolkata'), row(SAT_7_NOV_1930, null), row(SAT_7_NOV_1930, 'Not/AZone')]), false);
+  assert.equal(shows([row(SAT_7_NOV_1930, 'Asia/Calcutta'), row(SUN_8_NOV_0730, 'Asia/Dubai')]), true);
+  assert.equal(enquiryTimezoneUrl('lead-1'), '/api/bde/enquiries/lead-1/student-timezone/');
+  assert.equal(leadTimezoneUrl('lead-1'), '/api/leads/lead-1/student-timezone/');
+});
+
+// The administrators' rows (backend coordination.booking_row): the slot nested, the student's zone beside it.
+const zonedSlot = (id, booking_type, date, time, starts_at) => ({ id, booking_type, date, time, starts_at,
+  ends_at: new Date(Date.parse(starts_at) + 3_600_000).toISOString(), started: false, ended: false });
+const ZARA = { ...RIYA, id: 'b-zara', student_name: 'Zara', student_timezone: 'Asia/Dubai',
+  slot: zonedSlot('s-zara', 'DEMO', '2026-11-08', '07:30', SUN_8_NOV_0730) };
+const NOAH = { ...RIYA, id: 'b-noah', student_name: 'Noah', student_timezone: 'America/New_York',
+  slot: zonedSlot('s-noah', 'DEMO', '2026-11-07', '07:30', SAT_7_NOV_0730) };
+const ISHA = { ...RIYA, id: 'b-isha', student_name: 'Isha', student_timezone: 'Asia/Calcutta',
+  slot: zonedSlot('s-isha', 'DEMO', '2026-11-09', '19:30', MON_9_NOV_1930) };
+const OMAR = { ...RIYA, id: 'b-omar', student_name: 'Omar', student_timezone: null,
+  slot: zonedSlot('s-omar', 'DEMO', '2026-11-10', '10:00', TUE_10_NOV_1000) };
+// A zone this browser does not know must not take the page down: Intl would throw on it.
+const UNKNOWN_ZONE = { ...OMAR, id: 'b-unknown', student_name: 'Uma', student_timezone: 'Not/AZone' };
+
+test('Student Time: the administrators\' Demo bookings show each student\'s own time; Same as IST, or a dash while unknown', async () => {
+  serve({ [`GET ${LIST}`]: list([ZARA, NOAH, ISHA, OMAR, UNKNOWN_ZONE]) });
+  let page = await open('/bookings/demo', ADMIN);
+  assert.deepEqual(headings(), ['Date & Time', 'Student Time', 'Student', 'Parent', 'Tutor', 'Status', 'Report', 'Actions']);
+  assert.deepEqual(column('Student Time'), ['6:00 AM UAE', 'Fri, 6 Nov · 9:00 PM New York', 'Same as IST', '—', '—']);
+  // The Indian time is as it was, in its own cell.
+  assert.deepEqual(column('Date & Time'), ['Sun, 8 Nov7:30 AM IST', 'Sat, 7 Nov7:30 AM IST', 'Mon, 9 Nov7:30 PM IST',
+    'Tue, 10 Nov10:00 AM IST', 'Tue, 10 Nov10:00 AM IST']);
+  await page.unmount();
+
+  // Nobody whose clock reads differently from India's: no column at all.
+  serve({ [`GET ${LIST}`]: list([ISHA, OMAR, UNKNOWN_ZONE]) });
+  page = await open('/bookings/demo', ADMIN);
+  assert.deepEqual(headings(), ['Date & Time', 'Student', 'Parent', 'Tutor', 'Status', 'Report', 'Actions']);
+  assert.equal(rows().length, 3);
+  await page.unmount();
+
+  // On a phone each booking is a card: Student Time is one of its fields.
+  serve({ [`GET ${LIST}`]: list([ZARA, ISHA]) });
+  await onAPhone(async () => {
+    await open('/bookings/demo', ADMIN);
+    const cards = [...document.querySelectorAll('[aria-label="Demo classes"] > li')].map((card) => clean(card.textContent));
+    assert.equal(cards.length, 2);
+    assert.match(cards[0], /Date & TimeSun, 8 Nov · 7:30 AM ISTStudent Time6:00 AM UAETutor/);
+    assert.match(cards[1], /Date & TimeMon, 9 Nov · 7:30 PM ISTStudent TimeSame as ISTTutor/);
+  });
+});
+
+// The BDE's rows (backend enquiries.booking_list_row): flat, the enquiry beside them.
+const bdeZoned = (id, date, time, starts_at, student_timezone, student_name) => ({ id, booking_type: 'DEMO', date, time, starts_at,
+  student_timezone, status: 'BOOKED', activity_state: 'UPCOMING', started_at: null, booked_at: '2026-11-01T10:00:00+05:30',
+  tutor: null, parent_confirmation: 'AWAITING', redemo: false,
+  enquiry: { id: `lead-${id}`, parent_name: 'Asha Nair', student_name, grade: 'Class 8' } });
+
+test('Student Time: a BDE\'s Demo Bookings show each student\'s own time beside the Indian one; View keeps its name', async () => {
+  serve({ [`GET ${BDE_DEMO_LIST}`]: { count: 3, page: 1, page_size: 25, timezone: 'Asia/Kolkata', results: [
+    bdeZoned('b-zara', '2026-11-08', '07:30', SUN_8_NOV_0730, 'Asia/Dubai', 'Zara'),
+    bdeZoned('b-noah', '2026-11-07', '07:30', SAT_7_NOV_0730, 'America/New_York', 'Noah'),
+    bdeZoned('b-isha', '2026-11-09', '19:30', MON_9_NOV_1930, 'Asia/Kolkata', 'Isha'),
+  ] } });
+  let page = await open('/demo-bookings', BDE_LISTS);
+  assert.deepEqual(headings(), ['Date & Time', 'Student Time', 'Student', 'Parent', 'Tutor', 'Status', 'Confirmation', 'Open']);
+  assert.deepEqual(column('Student Time'), ['6:00 AM UAE', 'Fri, 6 Nov · 9:00 PM New York', 'Same as IST']);
+  assert.ok(document.querySelector('a[aria-label="View Zara\'s booking on Sun, 8 Nov · 7:30 AM IST"]'));
+  await page.unmount();
+
+  // A list without a zone known: as before.
+  serve({ [`GET ${BDE_DEMO_LIST}`]: bdeListOf('DEMO') });
+  page = await open('/demo-bookings', BDE_LISTS);
+  assert.deepEqual(headings(), ['Date & Time', 'Student', 'Parent', 'Tutor', 'Status', 'Confirmation', 'Open']);
+});
+
+test('Student Time: an enquiry\'s Bookings tab gives it a column of its own; the When cell is the slot alone', async () => {
+  const zoned = (booking) => ({ ...booking, student_timezone: 'America/New_York' });
+  serve({ [`GET ${ENQUIRY_URL}`]: { ...enquiry([zoned(BDE_BOOKED), zoned(BDE_CANCELLED)]), student_timezone: 'America/New_York' } });
+  const page = await open('/enquiries/lead-1?tab=bookings', BDE);
+  assert.deepEqual(headings(), ['When (IST)', 'Student Time', 'Type', 'Status', 'Tutor', 'Booked on', 'Actions']);
+  // 7:30 PM IST on 31 October is 10:00 AM in New York (EDT); 10:00 AM IST on 29 October, half past midnight there.
+  assert.deepEqual(column('Student Time'), ['10:00 AM New York', '12:30 AM New York']);
+  assert.equal(clean(rows()[0].querySelector('td').textContent), 'Sat, 31 Oct · 7:30 PM IST');
+  assert.ok(button('Cancel the demo class on Sat, 31 Oct · 7:30 PM IST'), 'the actions keep their names');
+  await page.unmount();
+
+  await onAPhone(async () => {
+    await open('/enquiries/lead-1?tab=bookings', BDE);
+    const cards = [...document.querySelectorAll('[aria-label="Bookings"] > li')].map((card) => clean(card.textContent));
+    assert.match(cards[0], /^Sat, 31 Oct · 7:30 PM IST.*Student Time10:00 AM New YorkTutor/);
+    assert.match(cards[1], /Student Time12:30 AM New YorkTutor/);
+  });
+});
+
+// The tutor's own rows (backend tutor_bookings.booking_row): the slot nested, the student's zone beside the child.
+const myZoned = (booking, id, student_name, date, time, starts_at, student_timezone) => ({ ...booking, id, student_name,
+  student_timezone, slot: { date, time, starts_at, ends_at: new Date(Date.parse(starts_at) + 3_600_000).toISOString(),
+    started: false, ended: false } });
+const MY_ZARA = myZoned(MY_RIYA, 'b-zara', 'Zara', '2026-11-08', '07:30', SUN_8_NOV_0730, 'Asia/Dubai');
+const MY_NOAH = myZoned(MY_RIYA, 'b-noah', 'Noah', '2026-11-07', '07:30', SAT_7_NOV_0730, 'America/New_York');
+const MY_ISHA = myZoned(MY_RIYA, 'b-isha', 'Isha', '2026-11-09', '19:30', MON_9_NOV_1930, 'Asia/Kolkata');
+const MY_OMAR = myZoned(MY_RIYA, 'b-omar', 'Omar', '2026-11-10', '10:00', TUE_10_NOV_1000, null);
+
+test('Student Time: a tutor\'s Demo Bookings show each student\'s own time, in the table and on a phone\'s cards', async () => {
+  serve({ [`GET ${MINE}`]: mine([MY_ZARA, MY_NOAH, MY_ISHA, MY_OMAR]) });
+  let page = await open('/my-bookings/demo', TUTOR);
+  assert.deepEqual(headings(), ['Date & Time (IST)', 'Student Time', 'Student', 'Class', 'Status', 'Feedback', 'Meeting', 'Actions']);
+  assert.deepEqual(column('Student Time'), ['6:00 AM UAE', 'Fri, 6 Nov · 9:00 PM New York', 'Same as IST', '—']);
+  assert.deepEqual(column('Date & Time (IST)'), ['Sun, 8 Nov7:30 AM IST', 'Sat, 7 Nov7:30 AM IST', 'Mon, 9 Nov7:30 PM IST',
+    'Tue, 10 Nov10:00 AM IST']);
+  await page.unmount();
+
+  serve({ [`GET ${MINE}`]: mine([MY_ISHA, MY_OMAR]) });
+  page = await open('/my-bookings/demo', TUTOR);
+  assert.ok(!headings().includes('Student Time'), 'nobody whose clock reads differently: no column');
+  await page.unmount();
+
+  serve({ [`GET ${MINE}`]: mine([MY_NOAH, MY_OMAR]) });
+  await onAPhone(async () => {
+    await open('/my-bookings/demo', TUTOR);
+    const cards = [...document.querySelectorAll('[aria-label="Demo Bookings"] > li')].map((card) => clean(card.textContent));
+    assert.match(cards[0], /Date & TimeSat, 7 Nov · 7:30 AM ISTStudent TimeFri, 6 Nov · 9:00 PM New York/);
+    assert.match(cards[1], /Date & TimeTue, 10 Nov · 10:00 AM ISTStudent Time—/);
+  });
+});
+
+test('Student Time: a tutor\'s booking says it under its slot and in its Bookings tab; the zone is theirs to read, never to change', async () => {
+  // The booking page's own words from when it was booked (details.display_time) are never what is shown.
+  // Its enquiry's next booking is this child's too: read in the booking's own zone.
+  const noah = { ...MY_NOAH, timezone: 'Asia/Kolkata', details: { display_time: '04:00 pm - 05:00 pm' },
+    enquiry: { source_label: 'Booking page', status: 'DEMO_BOOKED', status_label: 'Demo booked', created_at: '2026-11-01T05:00:00+00:00',
+      next_booking: { id: MY_NOAH.id, booking_type: 'DEMO', date: '2026-11-07', time: '07:30', starts_at: SAT_7_NOV_0730 }, bookings: [] } };
+  serve({ [`GET ${myAt(MY_NOAH)}`]: noah });
+  let page = await open(`/my-bookings/demo/${MY_NOAH.id}`, { ...TUTOR, permissions: [...TUTOR.permissions, 'accounts.change_student_timezone'] });
+  assert.match(bodyText(), /Sat, 7 Nov · 7:30 AM IST\s*Student Time: Fri, 6 Nov · 9:00 PM New York/);
+  assert.equal(fieldsShown()['Student timezone'], 'US — Eastern (America/New_York)');
+  assert.equal(fieldsShown().Country, 'United Arab Emirates');
+  assert.equal(fieldsShown()['Next booking'], 'Sat, 7 Nov · 7:30 AM ISTStudent Time: Fri, 6 Nov · 9:00 PM New York');
+  assert.ok(!button('Change student timezone') && !button('Change'), 'a tutor reads the zone; only its BDE or an administrator corrects it');
+  assert.ok(!bodyText().includes('04:00 pm'), 'never the booking page\'s own words');
+  await mouseDown(tab('Bookings'));
+  assert.deepEqual(headings(), ['Date & Time (IST)', 'Student Time', 'Booking Type', 'Status', 'Meeting', 'Action']);
+  assert.deepEqual(column('Student Time'), ['Fri, 6 Nov · 9:00 PM New York']);
+  await page.unmount();
+
+  // India's clock: nothing added, the zone named all the same.
+  serve({ [`GET ${myAt(MY_ISHA)}`]: { ...MY_ISHA, timezone: 'Asia/Kolkata' } });
+  page = await open(`/my-bookings/demo/${MY_ISHA.id}`, TUTOR);
+  assert.match(bodyText(), /Mon, 9 Nov · 7:30 PM IST/);
+  assert.ok(!bodyText().includes('Student Time:'));
+  assert.equal(fieldsShown()['Student timezone'], 'India (Asia/Kolkata)');
+  await mouseDown(tab('Bookings'));
+  assert.ok(!headings().includes('Student Time'));
+});
+
+test("Student Time: a BDE's communication sheet heads its booking with the student's own time beside the Indian one", async () => {
+  // RIYA's slot, as the communication API gives it: Sat 31 Oct, 7:30 PM IST -- 6:00 PM in Dubai.
+  const dubai = { ...BDE_BOOKED, parent_confirmation: 'CONFIRMED', student_timezone: 'Asia/Dubai' };
+  serve({
+    [`GET ${ENQUIRY_URL}`]: { ...enquiry([dubai]), student_timezone: 'Asia/Dubai' },
+    [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED),
+  });
+  const page = await open('/enquiries/lead-1?tab=bookings', BDE_COMMS);
+  await click(button('Communication for the demo class on Sat, 31 Oct · 7:30 PM IST'));
+  assert.match(clean(topDialog().textContent), /Sat, 31 Oct · 7:30 PM ISTStudent Time: 6:00 PM UAEBooked/);
+  await page.unmount();
+
+  // A student on India's clock: the header is the Indian time alone.
+  serve({
+    [`GET ${ENQUIRY_URL}`]: { ...enquiry([{ ...dubai, student_timezone: 'Asia/Calcutta' }]), student_timezone: 'Asia/Calcutta' },
+    [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED),
+  });
+  await open('/enquiries/lead-1?tab=bookings', BDE_COMMS);
+  await click(button('Communication for the demo class on Sat, 31 Oct · 7:30 PM IST'));
+  assert.ok(!clean(topDialog().textContent).includes('Student Time'));
 });
 
 // ------------------------------------------------------------------ run

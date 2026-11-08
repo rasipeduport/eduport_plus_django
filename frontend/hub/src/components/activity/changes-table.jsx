@@ -16,6 +16,7 @@ const FIELD_LABELS = {
   cancellation_reason: 'Cancellation reason',
   mentor: 'Mentor',
   tutor: 'Tutor',
+  student_timezone: 'Student timezone',
 };
 
 function fieldLabel(key) {

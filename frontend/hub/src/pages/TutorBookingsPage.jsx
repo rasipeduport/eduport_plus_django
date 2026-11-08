@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { TUTOR_BOOKINGS_URL, bookingError, isJoinable, tutorBookingPagePath } from '@/lib/bookings';
 import { slotLabel, slotParts } from '@/lib/enquiries';
 import { reportWords } from '@/lib/reports';
+import { showsStudentTime } from '@/lib/timezone';
 import {
   CLEARED_TUTOR_FILTERS,
   DEFAULT_VIEW,
@@ -21,6 +22,7 @@ import { TableSkeleton } from '@/components/table-skeleton';
 import { FeedbackBadge, RedemoBadge, ReportStateBadge } from '@/components/bookings/booking-badges';
 import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
+import { StudentTimeCell } from '@/components/bookings/student-time';
 import { TutorBookingFilters } from '@/components/bookings/tutor-booking-filters';
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
@@ -101,6 +103,8 @@ export default function TutorBookingsPage({ type }) {
   const filters = readTutorBookingFilters(searchParams);
   const { page, view, q, status, feedback, from, to } = filters;
   const reload = () => setReloadKey((key) => key + 1);
+  // The student's own time beside the slot's Indian time, where a booking shown reads differently (lib/timezone).
+  const showStudentTime = showsStudentTime(data?.results, (booking) => booking.slot?.starts_at, (booking) => booking.student_timezone);
 
   useEffect(() => {
     let active = true;
@@ -174,6 +178,16 @@ export default function TutorBookingsPage({ type }) {
         );
       },
     },
+    ...(showStudentTime
+      ? [
+          {
+            key: 'student_time',
+            header: 'Student Time',
+            className: 'whitespace-nowrap',
+            cell: (booking) => <StudentTimeCell startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} />,
+          },
+        ]
+      : []),
     {
       key: 'student',
       header: 'Student',
@@ -222,6 +236,14 @@ export default function TutorBookingsPage({ type }) {
           <p className="text-muted-foreground text-xs">Date & Time</p>
           <p className="truncate">{slotLabel(booking.slot)}</p>
         </div>
+        {showStudentTime ? (
+          <div className="col-span-2 min-w-0">
+            <p className="text-muted-foreground text-xs">Student Time</p>
+            <p className="truncate">
+              <StudentTimeCell startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} />
+            </p>
+          </div>
+        ) : null}
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs">{words.tab}</p>
           <FeedbackBadge booking={booking} />

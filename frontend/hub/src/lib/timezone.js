@@ -7,8 +7,11 @@
  *
  * The API performs the authoritative conversion (items carry local_date +
  * local_time and the request carries the zone); this module exists for the
- * client-side preview and the pre-flight DST-gap check.
+ * client-side preview and the pre-flight DST-gap check -- and for a Demo or
+ * Diagnostic booking's Student Time (studentTime, below).
  */
+
+import { slotParts } from './enquiries';
 
 /** Mentors operate on IST. Fixed — never read from the runtime. */
 export const MENTOR_TIMEZONE = 'Asia/Kolkata';
@@ -20,23 +23,26 @@ export const DEFAULT_TIMEZONE = 'Asia/Kolkata';
  * Zones offered in the scheduling UI, ordered by how often Eduport uses them.
  * A curated list, not the full IANA database; any valid IANA string is still
  * accepted by `isValidTimezone`, so a stored value outside it keeps working.
+ * `place` names where a zone is when its `short` is an abbreviation (ET,
+ * AEST) rather than a place: staff read a booking's Student Time with it
+ * ("9:00 PM New York", studentTimezoneLabel). The selects never show it.
  */
 export const TIMEZONE_OPTIONS = [
-  { value: 'Asia/Kolkata', label: 'India', short: 'IST' },
+  { value: 'Asia/Kolkata', label: 'India', short: 'IST', place: 'India' },
   { value: 'Asia/Dubai', label: 'United Arab Emirates', short: 'UAE' },
   { value: 'Asia/Qatar', label: 'Qatar', short: 'Qatar' },
   { value: 'Asia/Riyadh', label: 'Saudi Arabia', short: 'KSA' },
   { value: 'Asia/Kuwait', label: 'Kuwait', short: 'Kuwait' },
   { value: 'Asia/Bahrain', label: 'Bahrain', short: 'Bahrain' },
   { value: 'Asia/Muscat', label: 'Oman', short: 'Oman' },
-  { value: 'Asia/Singapore', label: 'Singapore', short: 'SGT' },
+  { value: 'Asia/Singapore', label: 'Singapore', short: 'SGT', place: 'Singapore' },
   { value: 'Europe/London', label: 'United Kingdom', short: 'UK' },
-  { value: 'America/New_York', label: 'US — Eastern', short: 'ET' },
-  { value: 'America/Chicago', label: 'US — Central', short: 'CT' },
-  { value: 'America/Denver', label: 'US — Mountain', short: 'MT' },
-  { value: 'America/Los_Angeles', label: 'US — Pacific', short: 'PT' },
-  { value: 'Australia/Sydney', label: 'Australia — Sydney', short: 'AEST' },
-  { value: 'Australia/Perth', label: 'Australia — Perth', short: 'AWST' },
+  { value: 'America/New_York', label: 'US — Eastern', short: 'ET', place: 'New York' },
+  { value: 'America/Chicago', label: 'US — Central', short: 'CT', place: 'Chicago' },
+  { value: 'America/Denver', label: 'US — Mountain', short: 'MT', place: 'Denver' },
+  { value: 'America/Los_Angeles', label: 'US — Pacific', short: 'PT', place: 'Los Angeles' },
+  { value: 'Australia/Sydney', label: 'Australia — Sydney', short: 'AEST', place: 'Sydney' },
+  { value: 'Australia/Perth', label: 'Australia — Perth', short: 'AWST', place: 'Perth' },
   { value: 'Asia/Colombo', label: 'Sri Lanka', short: 'Sri Lanka' },
   { value: 'Asia/Kathmandu', label: 'Nepal', short: 'Nepal' },
   { value: 'Asia/Dhaka', label: 'Bangladesh', short: 'Bangladesh' },
@@ -203,4 +209,142 @@ export function formatDateInZone(instant, zone) {
     year: 'numeric',
     timeZone: zone,
   }).format(instant instanceof Date ? instant : new Date(instant));
+}
+
+// ------------------------------------------------------------- student time
+//
+// A Demo or Diagnostic booking is offered, booked and moved in Indian time
+// (backend bookings.scheduling); staff also read it at the student's own time
+// -- "Student Time" -- from the booking's real instant (the API's UTC
+// `starts_at`) and the zone the student's lead keeps (the API's
+// `student_timezone`, an IANA zone or null). Never from a slot's date and time
+// strings, and never from the responses' `timezone`, which is India's. Every
+// zone reaches Intl only once isValidTimezone has passed it: Intl throws on
+// one it does not know, and a render that throws blanks the Hub.
+
+/** An API instant (an ISO string or a Date) as a Date, or null when it is missing or not a moment. */
+function asInstant(value) {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value !== 'string' || !value) return null;
+  const instant = new Date(value);
+  return Number.isNaN(instant.getTime()) ? null : instant;
+}
+
+// The older names (tzdata's backward links) a browser may give for a listed
+// zone -- Chrome reports India as Asia/Calcutta -- written out, so a student
+// reads the same on every staff browser: engines differ in which name they resolve to.
+const LISTED_ALIASES = new Map([
+  ['Asia/Calcutta', 'Asia/Kolkata'],
+  ['Asia/Katmandu', 'Asia/Kathmandu'],
+  ['Asia/Dacca', 'Asia/Dhaka'],
+  ['Singapore', 'Asia/Singapore'],
+  ['GB', 'Europe/London'],
+  ['GB-Eire', 'Europe/London'],
+  ['Europe/Belfast', 'Europe/London'],
+  ['US/Eastern', 'America/New_York'],
+  ['US/Central', 'America/Chicago'],
+  ['US/Mountain', 'America/Denver'],
+  ['US/Pacific', 'America/Los_Angeles'],
+  ['Australia/ACT', 'Australia/Sydney'],
+  ['Australia/Canberra', 'Australia/Sydney'],
+  ['Australia/NSW', 'Australia/Sydney'],
+  ['Australia/West', 'Australia/Perth'],
+]);
+
+/** The curated option for `zone` under any of its names, or null for a zone the list does not hold. */
+function listedOption(zone) {
+  return OPTION_BY_VALUE.get(zone) ?? OPTION_BY_VALUE.get(LISTED_ALIASES.get(zone)) ?? null;
+}
+
+/**
+ * A saved zone as a timezone select holds it: the curated option's value
+ * under any of its names (Asia/Calcutta -> Asia/Kolkata), any other zone as
+ * it is -- the select lists it on its own -- or '' for none.
+ */
+export function listedTimezone(zone) {
+  if (!zone || typeof zone !== 'string') return '';
+  return listedOption(zone)?.value ?? zone;
+}
+
+/**
+ * Where a student's zone is, as staff read it after a time: the curated
+ * list's name for a listed zone, under any of its names -- its `place` ("New
+ * York", "Sydney") where its short label is an abbreviation, else that label
+ * ("UAE", "UK"); for any other zone its IANA city ("Europe/Berlin" ->
+ * "Berlin", "America/Argentina/Buenos_Aires" -> "Buenos Aires"); for one that
+ * names no place (Etc/GMT+5, UTC) its offset at `at` as Intl names it
+ * ("GMT-5"), else the identifier itself.
+ */
+export function studentTimezoneLabel(zone, at = new Date()) {
+  if (!zone || typeof zone !== 'string') return '';
+  const option = listedOption(zone);
+  if (option) return option.place ?? option.short;
+  if (/^Etc\//i.test(zone) || !zone.includes('/')) {
+    try {
+      const offset = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+        .formatToParts(at instanceof Date ? at : new Date(at))
+        .find((part) => part.type === 'timeZoneName')?.value;
+      return offset || zone;
+    } catch {
+      return zone;
+    }
+  }
+  return zone.slice(zone.lastIndexOf('/') + 1).replace(/_/g, ' ');
+}
+
+/**
+ * A booking's Student Time: its instant (`startsAt`) on the clock of the
+ * student's zone (`zone`), daylight saving included, as the zone's Intl data
+ * has it then. Null when either is missing or not one this runtime knows, and
+ * when the student's clock reads India's date and time at that instant --
+ * Asia/Kolkata, its old name Asia/Calcutta, Asia/Colombo -- where Indian time
+ * already says it. Otherwise `{ time, day, otherDay, place, label }`: "6:00
+ * AM" and "Sun, 8 Nov" (slotParts' look, in the student's zone), whether that
+ * day is not India's, where the zone is (studentTimezoneLabel), and the whole
+ * as staff read it: "6:00 AM UAE", or "Fri, 6 Nov · 9:00 PM New York" on
+ * another day.
+ */
+export function studentTime(startsAt, zone) {
+  if (!isValidTimezone(zone)) return null;
+  const instant = asInstant(startsAt);
+  if (!instant) return null;
+  const student = utcToZonedWallTime(instant, zone);
+  const india = utcToZonedWallTime(instant, MENTOR_TIMEZONE);
+  if (student.date === india.date && student.time === india.time) return null;
+  const { day, time } = slotParts(student.date, student.time);
+  const otherDay = student.date !== india.date;
+  const place = studentTimezoneLabel(zone, instant);
+  return { time, day, otherDay, place, label: otherDay ? `${day} · ${time} ${place}` : `${time} ${place}` };
+}
+
+/**
+ * How a booking's Student Time reads: 'unknown' without a zone this runtime
+ * knows (or an instant), 'same' when the student's clock reads India's, else
+ * 'different'.
+ */
+export function studentTimeState(startsAt, zone) {
+  if (!isValidTimezone(zone) || !asInstant(startsAt)) return 'unknown';
+  return studentTime(startsAt, zone) ? 'different' : 'same';
+}
+
+/**
+ * Whether a list shows its Student Time column: when at least one of `rows`
+ * reads differently from India -- `startsAtOf(row)` its instant, `zoneOf(row)`
+ * its student's zone. A list of Indian students only, or of unknown zones,
+ * has nothing to add to its Indian time.
+ */
+export function showsStudentTime(rows, startsAtOf, zoneOf) {
+  return (rows ?? []).some((row) => studentTimeState(startsAtOf(row), zoneOf(row)) === 'different');
+}
+
+/**
+ * A lead's saved zone as its details show it: "United Arab Emirates
+ * (Asia/Dubai)" for a listed zone (under any of its names: "India
+ * (Asia/Calcutta)"), any other zone's IANA identifier -- one this browser's
+ * own zone data does not know yet included -- or "Not set" for none.
+ */
+export function savedTimezoneLabel(zone) {
+  if (!zone || typeof zone !== 'string') return 'Not set';
+  const option = listedOption(zone);
+  return option ? `${option.label} (${zone})` : zone;
 }

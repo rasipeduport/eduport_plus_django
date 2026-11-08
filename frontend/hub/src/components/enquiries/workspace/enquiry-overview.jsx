@@ -1,6 +1,7 @@
 import { ClipboardListIcon, GraduationCapIcon, RouteIcon, UserRoundIcon } from 'lucide-react';
 
 import { Panel } from '@/components/dashboard/dashboard-primitives';
+import { StudentTimeLine, StudentTimezone } from '@/components/bookings/student-time';
 import { redemoStatus } from '@/lib/bookings';
 import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, formatDay, slotLabel } from '@/lib/enquiries';
@@ -117,9 +118,12 @@ function Journey({ enquiry, className }) {
 /**
  * The enquiry at a glance: the parent, the student, where the enquiry stands
  * and how it got there. `onShowBooking(booking)` opens a booking in the
- * Bookings tab -- the next one, from here.
+ * Bookings tab -- the next one, from here, with the student's own time under
+ * its Indian time where that reads differently. The student's time zone shows
+ * with the parent's country, and Change beside it for a BDE who may correct
+ * it (`onChangeTimezone`).
  */
-export function EnquiryOverview({ enquiry, onShowBooking }) {
+export function EnquiryOverview({ enquiry, onShowBooking, onChangeTimezone }) {
   const next = enquiry.next_booking;
   return (
     <div className="grid min-w-0 gap-4 lg:grid-cols-3">
@@ -131,6 +135,9 @@ export function EnquiryOverview({ enquiry, onShowBooking }) {
           </Field>
           <Field label="Email">{enquiry.parent_email}</Field>
           <Field label="Country">{enquiry.country}</Field>
+          <Field label="Student timezone">
+            <StudentTimezone zone={enquiry.student_timezone} onChange={onChangeTimezone} />
+          </Field>
         </dl>
       </Panel>
       <Panel icon={GraduationCapIcon} title="Student">
@@ -147,9 +154,13 @@ export function EnquiryOverview({ enquiry, onShowBooking }) {
           <Field label="Status">{enquiry.status_label}</Field>
           <Field label="Next booking">
             {next ? (
-              <button type="button" className="text-link text-left font-medium hover:underline" onClick={() => onShowBooking(next)}>
-                {slotLabel(next)}
-              </button>
+              <span className="flex flex-col items-start">
+                <button type="button" className="text-link text-left font-medium hover:underline" onClick={() => onShowBooking(next)}>
+                  {slotLabel(next)}
+                </button>
+                {/* The next booking is this enquiry's: its student's zone is the enquiry's own. */}
+                <StudentTimeLine startsAt={next.starts_at} timezone={enquiry.student_timezone} className="text-xs font-normal" />
+              </span>
             ) : null}
           </Field>
           <Field label="Yours since">{formatDay(enquiry.added_at)}</Field>

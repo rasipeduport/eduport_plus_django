@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStateBadge, RedemoBadge, RedemoStatusBadge } from '@/components/bookings/booking-badges';
+import { StudentTimeLine } from '@/components/bookings/student-time';
 import { formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
 import { cn, getInitials } from '@/lib/utils';
 
@@ -157,7 +158,8 @@ function Notes({ booking, onOpenBooking, onOpenRedemo }) {
  * Who the booking is for and how to reach them, as the BDE's enquiry
  * workspace heads an enquiry: by the student's name, the booking's type,
  * where it stands and its tutor; under it the class and syllabus, the parent
- * and their number, the booking's slot (IST) and its details
+ * and their number, the booking's slot (IST) -- with the student's own time
+ * under it where that reads differently -- and its details
  * (BookingDetails); WhatsApp and `actions` (the booking's own, which the
  * workspace offers only as its state and the caller's permissions allow) on
  * the right; then what has happened to the booking (Notes). A booking of its
@@ -192,6 +194,8 @@ export function BookingHeader({ booking, actions, onOpenBooking, onOpenRedemo })
               <CalendarClockIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
               {slotLabel(booking.slot)}
             </p>
+            {/* Under the slot's text, past its icon. */}
+            <StudentTimeLine startsAt={booking.slot?.starts_at} timezone={booking.student_timezone} className="mt-0.5 pl-5.5" />
             <BookingDetails booking={booking} />
           </div>
         </div>
