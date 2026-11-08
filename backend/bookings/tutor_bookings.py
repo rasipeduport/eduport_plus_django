@@ -29,6 +29,9 @@ The views guard these with accounts.view_assigned_bookings, which only the
 TUTOR role may hold. Which bookings are read is the caller's alone: always
 ``assigned_to(request.user)``, whatever a request says.
 """
+from django.db.models import Q
+
+from . import coordination
 from .booking_service import (
     CancelledNotStartable,
     CompletedNotStartable,
@@ -43,6 +46,21 @@ from .redemo_chain import redemo_number
 from .scheduling import BOOKING_TIMEZONE_NAME
 
 ALL = 'all'
+# The classes the tutor has taught: the report is in, or due (``taught``).
+COMPLETED = 'completed'
+# The statuses a tutor filters by, as the rows show them: a Demo sent for a
+# Re-Demo reads Completed, so Completed finds it too and Re-Demo required is
+# not one of them.
+STATUS_FILTERS = {
+    BookingStatus.BOOKED: (BookingStatus.BOOKED,),
+    BookingStatus.COMPLETED: CONDUCTED,
+    BookingStatus.CANCELLED: (BookingStatus.CANCELLED,),
+    BookingStatus.RESCHEDULED: (BookingStatus.RESCHEDULED,),
+}
+# The administrators' list filters a tutor's list reads as well, parsed by
+# their own rules (coordination.parse_filters). ``q`` is the tutor's own: the
+# student's name alone (``listed``).
+SHARED_FILTERS = ('from', 'to', 'report', 'q')
 
 # The child, from the booking's lead -- never the parent.
 STUDENT_FIELDS = ('student_name', 'grade', 'syllabus', 'school_name', 'country')
@@ -56,8 +74,14 @@ def parse_filters(params):
     names every parameter whose value is not one the list knows. No other
     parameter is read -- a ``tutor`` one, say, never is.
 
-        type  DEMO | DIAGNOSTIC
-        when  upcoming (the default: the slot has not ended) | past | all
+        type      DEMO | DIAGNOSTIC
+        when      upcoming (the default: the slot has not ended) | past | all
+                  | completed (the classes taught: the report is in, or due)
+        status    BOOKED | COMPLETED | CANCELLED | RESCHEDULED (as the rows show it)
+        from, to  YYYY-MM-DD (the slot's Indian date, inclusive)
+        report    submitted | missing | due (as the administrators' list reads it)
+        q         the student's name -- never the parent's name or phone, which
+                  a tutor is not shown
     """
     filters, invalid = {'when': UPCOMING}, []
     booking_type = (params.get('type') or '').strip().upper()
@@ -68,12 +92,21 @@ def parse_filters(params):
             invalid.append('type')
     when = (params.get('when') or '').strip().lower()
     if when:
-        if when in (UPCOMING, PAST):
+        if when in (UPCOMING, PAST, COMPLETED):
             filters['when'] = when
         elif when == ALL:
             filters['when'] = None
         else:
             invalid.append('when')
+    status = (params.get('status') or '').strip().upper()
+    if status:
+        if status in STATUS_FILTERS:
+            filters['status'] = status
+        else:
+            invalid.append('status')
+    shared, refused = coordination.parse_filters({name: params.get(name) for name in SHARED_FILTERS})
+    filters.update(shared)
+    invalid.extend(refused)
     return filters, invalid
 
 
@@ -93,15 +126,37 @@ def assigned_to(tutor, model):
     return bookings
 
 
-def listed(tutor, now, booking_type=None, when=UPCOMING):
+def taught(now):
+    """
+    The classes the tutor has taught as of ``now``: completed with their
+    report, or started by the tutor with the slot over and the report still
+    due (coordination.report_summary's report_due).
+    """
+    return Q(status__in=CONDUCTED) | Q(status=BookingStatus.BOOKED, started_at__isnull=False, slot__ends_at__lte=now)
+
+
+def listed(tutor, now, booking_type=None, when=UPCOMING, status=None, q=None, **filters):
     """
     ``tutor``'s bookings of both types (or of ``booking_type``) narrowed by
-    ``parse_filters``' filters, soonest slot first (``when=past``: most recent
-    first), as a list.
+    ``parse_filters``' filters, soonest slot first (``when=past`` or
+    ``completed``: most recent first), as a list. ``q`` finds the student by
+    name only, never the parent: the administrators' search reads the parent's
+    name and phone too (coordination.filtered), so it is not used.
     """
     models = [booking_model(booking_type)] if booking_type else BOOKING_MODELS
-    bookings = [booking for model in models for booking in filtered(assigned_to(tutor, model), now, when=when)]
-    return sorted(bookings, key=lambda booking: (booking.slot.starts_at, booking.created_at), reverse=when == PAST)
+    bookings = []
+    for model in models:
+        rows = assigned_to(tutor, model)
+        if status:
+            rows = rows.filter(status__in=STATUS_FILTERS[status])
+        if when == COMPLETED:
+            rows = rows.filter(taught(now))
+        if q:
+            rows = rows.filter(lead__student_name__icontains=q)
+        bookings.extend(filtered(rows, now, when=None if when == COMPLETED else when, **filters))
+    return sorted(
+        bookings, key=lambda booking: (booking.slot.starts_at, booking.created_at), reverse=when in (PAST, COMPLETED),
+    )
 
 
 # Start for a caller who may not start bookings (accounts.submit_booking_report).

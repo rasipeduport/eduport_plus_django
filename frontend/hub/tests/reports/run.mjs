@@ -646,25 +646,25 @@ test('the report page: a first Diagnostic report -- its printed details filled i
     [`GET ${tutorAt(DIAG, 'report/revisions/')}`]: revisions([revision(1, DIAG_FIELDS, reports.REPORT_FIELDS.DIAGNOSTIC)]),
   });
   await openPage(pageOf(DIAG));
-  assert.equal(clean(document.querySelector('h1').textContent), 'Diagnostic report');
+  assert.equal(clean(document.querySelector('h1').textContent), 'Diagnostic results');
   for (const part of ['Student nameRiya', 'ClassClass 8', 'SubjectMathematics', 'Assessment typeDiagnostic Test', 'Tutor nameTutor Anu']) {
     assert.ok(pageText().includes(part), `missing ${part}`);
   }
   for (const value of LEAKED_TEXT) assert.ok(!pageText().includes(value), `${value} is not rendered`);
   assert.equal(clean(document.querySelector('[data-slot="badge"][data-variant="info"]')?.textContent), 'In progress');
-  assert.ok(!pageText().includes('Saved report'), 'no saved report yet');
+  assert.ok(!pageText().includes('Saved results'), 'no saved report yet');
 
   await fillDiagnostic();
   assert.ok(pageText().includes('Unsaved changes'));
   await submitForm();
   // First the confirm step; nothing sent yet.
-  assert.match(clean(topDialog().textContent), /Submit this report\?Submitting completes this booking\. You can still edit the report later/);
+  assert.match(clean(topDialog().textContent), /Submit results\?Below is the report as it will print\. Submitting completes this booking\. You can still edit it later/);
   assert.equal(calls('POST').length, 0);
-  await click(button('Submit report', topDialog()));
+  await click(button('Submit results', topDialog()));
   assert.equal(calls('POST').length, 1);
   assert.deepEqual(calls('POST')[0].data, DIAG_FIELDS, 'exactly the fields the tutor writes, never a printed one');
 
-  assert.match(notice(), /Report submitted\. The booking is now completed, and you can still edit the report\./);
+  assert.match(notice(), /Results submitted\. The booking is now completed, and you can still edit the results\./);
   assert.equal(clean(document.querySelector('[data-slot="badge"][data-variant="secondary"]')?.textContent), 'Completed');
   assert.ok(button('Save changes').disabled, 'nothing to save until something changes');
   assert.ok(pageText().includes('Version 1 is the current one.'));
@@ -689,7 +689,7 @@ test('the report page: a booking without a report is never asked for one -- no 4
   for (const text of ['Could not load this report.', 'Booking not found', 'Try again']) {
     assert.ok(!pageText().includes(text), `no "${text}"`);
   }
-  assert.ok(!pageText().includes('Saved report'));
+  assert.ok(!pageText().includes('Saved feedback'));
   await page.unmount();
 });
 
@@ -701,7 +701,7 @@ test('the report page: a first Demo report has its own three fields, no score an
     [`GET ${tutorAt(DEMO_DUE, 'report/revisions/')}`]: revisions([revision(1, DEMO_V1, reports.REPORT_FIELDS.DEMO)]),
   });
   await openPage(pageOf(DEMO_DUE));
-  assert.equal(clean(document.querySelector('h1').textContent), 'Demo report');
+  assert.equal(clean(document.querySelector('h1').textContent), 'Demo feedback');
   assert.ok(pageText().includes('Report due'));
   assert.equal(field('score'), null);
   assert.ok(!pageText().includes('Assessment type'));
@@ -709,7 +709,7 @@ test('the report page: a first Demo report has its own three fields, no score an
     [1200, 1200, 1200]);
   await fillDemo();
   await submitForm();
-  await click(button('Submit report', topDialog()));
+  await click(button('Submit feedback', topDialog()));
   assert.deepEqual(calls('POST', tutorAt(DEMO_DUE, 'report/'))[0].data, DEMO_V1);
   assert.ok(pageText().includes('Version 1 is the current one.'));
 });
@@ -744,7 +744,7 @@ test('the report page: nothing is sent while a field breaks a rule -- each probl
 
   // What only the API knows, shown on its field; typing there clears it.
   await submitForm();
-  await click(button('Submit report', topDialog()));
+  await click(button('Submit results', topDialog()));
   assert.equal(errorOf('teacher_remarks'), 'Use at most 2000 characters.');
   assert.equal(document.activeElement?.id, field('teacher_remarks').id, 'the refused field has the focus');
   await typeText(field('teacher_remarks'), 'Shorter remarks.');
@@ -853,8 +853,8 @@ test('the report page: unsaved changes -- memory only; reload or close warns; Ca
     let page = await openPage(pageOf(DIAG));
     assert.equal(leaving(), false, 'nothing to lose yet');
     await click(button('Cancel'));
-    assert.equal(page.location().pathname, '/my-bookings', 'a clean form leaves at once');
-    assert.equal(page.location().search, '?booking=b-1&booking_type=DIAGNOSTIC', 'back to the booking');
+    assert.equal(page.location().pathname, '/my-bookings/diagnostic/b-1', 'a clean form leaves at once');
+    assert.equal(page.location().search, '?tab=feedback', 'back to the booking, on its feedback');
     await page.unmount();
 
     page = await openPage(pageOf(DIAG));
@@ -865,9 +865,9 @@ test('the report page: unsaved changes -- memory only; reload or close warns; Ca
     await click(button('Keep editing', topDialog()));
     assert.equal(page.location().pathname, pageOf(DIAG));
     assert.equal(field('teacher_remarks').value, 'Half-written remarks.');
-    await click(button('My Bookings'));
+    await click(button('Back to booking'));
     await click(button('Discard changes', topDialog()));
-    assert.equal(page.location().pathname, '/my-bookings');
+    assert.equal(page.location().pathname, '/my-bookings/diagnostic/b-1');
     assert.equal(leaving(), false, 'no warning once the page is gone');
     assert.deepEqual(stored, [], 'nothing typed is kept in browser storage');
     assert.equal(window.localStorage.length + window.sessionStorage.length, 0);
@@ -1044,7 +1044,7 @@ test('the report page: refusals -- submitted elsewhere, saved elsewhere, no long
   let page = await openPage(pageOf(DIAG));
   await fillDiagnostic();
   await submitForm();
-  await click(button('Submit report', topDialog()));
+  await click(button('Submit results', topDialog()));
   assert.match(notice(), /This report was already submitted \(version 1\)\. Your text is still below: review it and save it as an edit\./);
   assert.equal(field('teacher_remarks').value, DIAG_FIELDS.teacher_remarks);
   assert.ok(button('Save changes') && !button('Save changes').disabled, 'saved as an edit from here');
@@ -1095,7 +1095,7 @@ test('the report page: refusals -- submitted elsewhere, saved elsewhere, no long
   await openPage(pageOf(DIAG));
   await fillDiagnostic();
   await submitForm();
-  await click(button('Submit report', topDialog()));
+  await click(button('Submit results', topDialog()));
   assert.match(notice(), /This booking was cancelled, so the report cannot be saved\./);
   assert.equal(calls('GET', tutorAt(DIAG)).length, 2);
   assert.ok(pageText().includes('This booking was cancelled, so there is no report to write.'));
@@ -1129,8 +1129,8 @@ test('the report page: a booking not assigned, a mistyped link, a class not star
   });
   let page = await openPage(pageOf(DIAG));
   assert.match(pageText(), /Booking not found.*It may no longer be assigned to you/);
-  await click(button('Back to My Bookings'));
-  assert.equal(page.location().pathname, '/my-bookings');
+  await click(button('Go to Diagnostic Bookings'));
+  assert.equal(page.location().pathname, '/my-bookings/diagnostic');
   await page.unmount();
 
   globalThis.__reportsApi.calls = [];

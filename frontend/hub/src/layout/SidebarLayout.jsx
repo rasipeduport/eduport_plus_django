@@ -31,6 +31,8 @@ const PORTED_PATHS = new Set([
   '/sales-punching',
   '/sales-syllabus',
   '/tutor-earnings',
+  // The Tutor Hub's Hourly Earnings, still to come, built on the design tokens from the start.
+  '/hourly-earnings',
   // The BDE workspace's pages, built on the design tokens from the start.
   '/demo-bookings',
   '/diagnostic-bookings',
@@ -78,9 +80,9 @@ export default function SidebarLayout({ user, logout, children }) {
 
   // The student profile (/students/<id>), a staff member's page (/team/<id>),
   // an enquiry (/enquiries/<id>), a lead (/leads/<id>), the Demo and Diagnostic
-  // bookings (/bookings/<type>) and a tutor's report
-  // (/my-bookings/<type>/<id>/report) are built on the design tokens like the
-  // lists they open from, so they take the raw layout too.
+  // bookings (/bookings/<type>), and a tutor's (/my-bookings/<type>, each
+  // booking's workspace and its report under it) are built on the design
+  // tokens like the lists they open from, so they take the raw layout too.
   const isPorted =
     PORTED_PATHS.has(pathname) ||
     pathname.startsWith('/students/') ||

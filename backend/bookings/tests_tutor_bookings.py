@@ -15,10 +15,13 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from reports.services import submit_report
+from reports.tests_services import report_input
+
 from .booking_service import assign_tutor, cancel_booking, create_booking, unassign_tutor
 from .models import BookingType, CancelReason
 from .scheduling import indian_today
-from .tests_booking import EVENING, MORNING, account, link, request, schedule
+from .tests_booking import EVENING, MORNING, account, link, request, schedule, start
 
 DEMO, DIAGNOSTIC = BookingType.DEMO, BookingType.DIAGNOSTIC
 LIST_URL = '/api/tutor/bookings/'
@@ -178,6 +181,75 @@ class ListTests(TutorBookingsTestCase):
         self.assertEqual(queries(), one)
 
 
+class FilterTests(TutorBookingsTestCase):
+    """The list's filters beyond type and when: the classes taught, status, class date, report and the student's name."""
+
+    def past(self, student, days_ago, **kwargs):
+        """A booking of tutor_a's booked ``days_ago`` days back, for the next day: its slot is over."""
+        then = timezone.now() - timedelta(days=days_ago)
+        return self.book(student, day=indian_today(then) + timedelta(days=1), now=then, tutor=self.tutor_a, **kwargs)
+
+    def listed(self, **params):
+        return self.ids(self.get(self.tutor_a, LIST_URL, params))
+
+    def test_completed_is_the_classes_taught_most_recent_first(self):
+        reported = start(self.past('Riya', days_ago=9))
+        submit_report(reported, self.tutor_a, report_input(reported))
+        due = start(self.past('Ali', days_ago=8))
+        self.past('Sara', days_ago=7)  # never started: no report can follow
+        cancel_booking(self.book('Noor', tutor=self.tutor_a), actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
+        self.book('Zoya', at=MORNING, tutor=self.tutor_a)
+
+        completed = self.get(self.tutor_a, LIST_URL, {'when': 'completed'})
+        self.assertEqual(self.ids(completed), [str(due.id), str(reported.id)])
+        self.assertEqual(
+            [(row['status'], row['has_report'], row['report_due']) for row in completed.data['results']],
+            [('BOOKED', False, True), ('COMPLETED', True, False)],
+        )
+        self.assertEqual(self.listed(when='completed', report='due'), [str(due.id)])
+        self.assertEqual(self.listed(when='completed', report='submitted'), [str(reported.id)])
+        self.assertEqual(self.listed(when='completed', type='diagnostic'), [])
+
+    def test_status_as_the_rows_show_it(self):
+        booked = self.book('Riya', tutor=self.tutor_a)
+        cancelled = self.book('Ali', at=MORNING, tutor=self.tutor_a)
+        cancel_booking(cancelled, actor=self.admin, reason_code=CancelReason.PARENT_REQUEST)
+        reported = start(self.past('Sara', days_ago=7))
+        submit_report(reported, self.tutor_a, report_input(reported))
+
+        self.assertEqual(self.listed(status='booked'), [str(booked.id)])
+        self.assertEqual(self.listed(status='CANCELLED'), [str(cancelled.id)])
+        self.assertEqual(self.listed(status='COMPLETED', when='all'), [str(reported.id)])
+        self.assertEqual(self.listed(status='RESCHEDULED', when='all'), [])
+
+    def test_class_dates_are_the_slots_indian_dates_inclusive(self):
+        first = self.book('Riya', tutor=self.tutor_a)
+        second = self.book('Ali', day=self.day + timedelta(days=1), tutor=self.tutor_a)
+        day, next_day = self.day.isoformat(), (self.day + timedelta(days=1)).isoformat()
+
+        self.assertEqual(self.listed(**{'from': day, 'to': day}), [str(first.id)])
+        self.assertEqual(self.listed(**{'from': next_day}), [str(second.id)])
+        self.assertEqual(self.listed(to=day), [str(first.id)])
+
+    def test_the_search_finds_the_student_never_the_parent(self):
+        riya = self.book('Riya Menon', tutor=self.tutor_a)
+        self.book('Ali', at=MORNING, tutor=self.tutor_a)
+
+        self.assertEqual(self.listed(q=' menon '), [str(riya.id)])
+        # The parent's name and phone find nothing: a tutor is never shown them.
+        self.assertEqual(self.listed(q='Asha'), [])
+        self.assertEqual(self.listed(q=riya.lead.phone_number), [])
+
+    def test_unknown_values_are_refused_not_guessed(self):
+        res = self.get(self.tutor_a, LIST_URL, {
+            'status': 'REDEMO_REQUIRED', 'from': '2026-13-01', 'report': 'late', 'q': 'x' * 101,
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data['fields'], ['status', 'from', 'report', 'q'])
+        backwards = self.get(self.tutor_a, LIST_URL, {'from': '2026-11-09', 'to': '2026-11-08'})
+        self.assertEqual(backwards.data['fields'], ['to'])
+
+
 class DetailTests(TutorBookingsTestCase):
     def test_one_booking_of_their_own_and_no_other(self):
         mine = self.book('Riya', tutor=self.tutor_a)
@@ -245,9 +317,11 @@ class OwnershipTests(TutorBookingsTestCase):
         theirs = self.book('Ali', at=MORNING, tutor=self.tutor_a)
         someone = str(self.tutor_a.id)
         res = self.get(self.tutor_b, LIST_URL, {
-            'tutor': someone, 'tutor_id': someone, 'assigned_tutor': someone, 'assigned': 'false', 'q': 'Ali',
+            'tutor': someone, 'tutor_id': someone, 'assigned_tutor': someone, 'assigned': 'false',
         })
         self.assertEqual(self.ids(res), [str(mine.id)])
+        # The search looks only among the caller's own: another tutor's student is not found.
+        self.assertEqual(self.ids(self.get(self.tutor_b, LIST_URL, {'tutor': someone, 'q': 'Ali'})), [])
         self.assertEqual(self.get(self.tutor_b, detail_url(theirs), {'tutor': someone}).data, NOT_FOUND)
 
     def test_a_superuser_lists_only_the_bookings_they_teach(self):

@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   CalendarCheck2,
   CalendarClock,
-  CalendarDays,
   ChartColumn,
   ClipboardCheck,
   ClipboardList,
@@ -25,7 +24,7 @@ import {
   Wallet,
 } from 'lucide-react';
 
-import { canOpenPage, isAdmin, isBde } from '@/lib/access';
+import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 
 // What the sidebar offers, workspace by workspace. Each workspace names itself
 // under the logo and lists its sections: an optional `label`, and items of
@@ -67,9 +66,8 @@ const BDE_WORKSPACE = {
 };
 
 // Everyone else's Hub, as it has been: the modules, then the Demo and
-// Diagnostic bookings parents make -- for administrators each booking and its
-// tutor, and the slots they are booked into; for a tutor the bookings they are
-// assigned to teach.
+// Diagnostic bookings parents make -- each booking and its tutor, and the
+// slots they are booked into -- for whoever may manage them.
 const STAFF_WORKSPACE = {
   name: 'Hub',
   sections: [
@@ -93,7 +91,6 @@ const STAFF_WORKSPACE = {
       items: [
         { title: 'Bookings', url: '/bookings', icon: CalendarCheck2 },
         { title: 'Booking slots', url: '/booking-slots', icon: CalendarClock },
-        { title: 'My Bookings', url: '/my-bookings', icon: CalendarDays },
       ],
     },
   ],
@@ -162,8 +159,51 @@ const ADMIN_WORKSPACE = {
   ],
 };
 
+// The Tutor Hub: their Dashboard and the Demo and Diagnostic bookings they are
+// assigned to teach on top, then their regular teaching (Academics &
+// Learning), their earnings still to come, and their own activity.
+const TUTOR_WORKSPACE = {
+  name: 'Tutor Hub',
+  collapsible: true,
+  sections: [
+    {
+      items: [
+        { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+        {
+          title: 'Bookings',
+          icon: CalendarCheck2,
+          // Each stays highlighted on its bookings' own pages (/my-bookings/<type>/<id>, and its report).
+          children: [
+            { title: 'Demo', url: '/my-bookings/demo', nested: true },
+            { title: 'Diagnostic', url: '/my-bookings/diagnostic', nested: true },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Academics & Learning',
+      items: [
+        { title: 'My Students', url: '/students', icon: GraduationCap, nested: true },
+        { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
+        // Shown only to a tutor granted an exam permission: the TUTOR role holds none.
+        { title: 'Exams', url: '/exams', icon: ClipboardList },
+        { title: 'Homework', url: '/homework', icon: BookOpen },
+      ],
+    },
+    {
+      label: 'Earnings',
+      items: [{ title: 'Hourly Earnings', url: '/hourly-earnings', icon: Wallet, badge: COMING_SOON }],
+    },
+    {
+      label: 'Monitoring',
+      items: [{ title: 'Activity', url: '/activity', icon: History }],
+    },
+  ],
+};
+
 function workspaceOf(user) {
   if (isBde(user)) return BDE_WORKSPACE;
+  if (isTutor(user)) return TUTOR_WORKSPACE;
   return isAdmin(user) ? ADMIN_WORKSPACE : STAFF_WORKSPACE;
 }
 
@@ -186,12 +226,13 @@ export function workspaceFor(user) {
 /**
  * Whether `item` is the page at `pathname` -- or, for a `nested` item, a page
  * under it; for an item with children, whether one of them is. A page opened
- * from another list (`fromPath`, the way back a link passed: an enquiry opened
- * from Demo Bookings, say) keeps that list current.
+ * from another page (`fromPath`, the way back a link passed: an enquiry opened
+ * from Demo Bookings, say, or a tutor's report opened from its booking) keeps
+ * the item of that page current.
  */
 export function isCurrentItem(item, pathname, fromPath = null) {
   if (item.children) return item.children.some((child) => isCurrentItem(child, pathname, fromPath));
   const origin = fromPath ? fromPath.split('?')[0] : null;
-  if (origin && origin !== pathname) return origin === item.url;
-  return pathname === item.url || (Boolean(item.nested) && pathname.startsWith(`${item.url}/`));
+  const here = origin && origin !== pathname ? origin : pathname;
+  return here === item.url || (Boolean(item.nested) && here.startsWith(`${item.url}/`));
 }

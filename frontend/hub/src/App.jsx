@@ -18,6 +18,8 @@ import BookingSlotsPage from './pages/BookingSlotsPage';
 import BookingsPage from './pages/BookingsPage';
 import BookingWorkspacePage from './pages/BookingWorkspacePage';
 import TutorBookingsPage from './pages/TutorBookingsPage';
+import TutorBookingWorkspacePage from './pages/TutorBookingWorkspacePage';
+import TutorDashboardPage from './pages/TutorDashboardPage';
 import TutorReportPage from './pages/TutorReportPage';
 import BdeDashboardPage from './pages/BdeDashboardPage';
 import EnquiriesPage from './pages/EnquiriesPage';
@@ -29,13 +31,19 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
-import { canOpenPage, homePage, isAdmin, isBde } from './lib/access';
-import { legacyBookingsPath } from './lib/bookings';
+import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
+import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
 
 /** A link to the former single Bookings page, sent on to its type's page (lib/bookings legacyBookingsPath). */
 function LegacyBookings() {
   const { search } = useLocation();
   return <Navigate to={legacyBookingsPath(search)} replace />;
+}
+
+/** A link to a tutor's former single My Bookings page, sent on to its booking or its type's page. */
+function LegacyTutorBookings() {
+  const { search } = useLocation();
+  return <Navigate to={legacyTutorBookingsPath(search)} replace />;
 }
 
 /**
@@ -61,7 +69,8 @@ function HubRoutes({ user, logout }) {
       <Routes>
         {/* A BDE's dashboard is their own enquiries and bookings; an administrator's
             the Admin Hub's common dashboard, still to come (their academics
-            dashboard is /academics-dashboard); everyone else's the staff one. */}
+            dashboard is /academics-dashboard); a tutor's their own bookings and
+            classes; everyone else's the staff one. */}
         <Route
           path="/dashboard"
           element={page(
@@ -70,6 +79,8 @@ function HubRoutes({ user, logout }) {
               <BdeDashboardPage user={user} />
             ) : isAdmin(user) ? (
               <ComingSoonPage module="dashboard" />
+            ) : isTutor(user) ? (
+              <TutorDashboardPage user={user} />
             ) : (
               <DashboardPage user={user} />
             )
@@ -134,17 +145,39 @@ function HubRoutes({ user, logout }) {
             Diagnostic slots parents book. The API enforces the same permission
             and keeps every booking. */}
         <Route path="/booking-slots" element={page('/booking-slots', <BookingSlotsPage />)} />
-        {/* A tutor's own Demo and Diagnostic bookings, read-only, one opened
-            at ?booking=<id>&booking_type=<type>. The API serves only the bookings assigned to the
-            caller: any other is answered as one that does not exist. */}
-        <Route path="/my-bookings" element={page('/my-bookings', <TutorBookingsPage />)} />
-        {/* The report on one of those bookings: written once its class has
-            started, edited after (each save a new version), previewed as its
-            PDF. The API serves it only to the booking's assigned tutor. */}
+        {/* A tutor's own Demo and Diagnostic bookings: a page per type, each
+            keyed by its type so moving between them never shows the other's
+            rows, and each booking in its own workspace. The former single page's
+            links (/my-bookings, ?booking=<id>&booking_type=<type>) land on their
+            type's page or their booking. The API serves only the bookings
+            assigned to the caller: any other is answered as one that does not exist. */}
+        <Route path="/my-bookings" element={page('/my-bookings', <LegacyTutorBookings />)} />
+        <Route
+          path="/my-bookings/demo"
+          element={page('/my-bookings/demo', <TutorBookingsPage key="DEMO" type="DEMO" />)}
+        />
+        <Route
+          path="/my-bookings/diagnostic"
+          element={page('/my-bookings/diagnostic', <TutorBookingsPage key="DIAGNOSTIC" type="DIAGNOSTIC" />)}
+        />
+        <Route
+          path="/my-bookings/demo/:bookingId"
+          element={page('/my-bookings/demo', <TutorBookingWorkspacePage key="DEMO" type="DEMO" />)}
+        />
+        <Route
+          path="/my-bookings/diagnostic/:bookingId"
+          element={page('/my-bookings/diagnostic', <TutorBookingWorkspacePage key="DIAGNOSTIC" type="DIAGNOSTIC" />)}
+        />
+        {/* The report on one of those bookings -- a Demo's feedback, a
+            Diagnostic's results: written once its class has started, edited
+            after (each save a new version), previewed as its PDF. The API
+            serves it only to the booking's assigned tutor. */}
         <Route
           path="/my-bookings/:bookingType/:bookingId/report"
           element={page('/my-bookings', <TutorReportPage user={user} />)}
         />
+        {/* The Tutor Hub's Hourly Earnings, still to come: nothing behind it yet. */}
+        <Route path="/hourly-earnings" element={page('/hourly-earnings', <ComingSoonPage module="hourlyEarnings" />)} />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}

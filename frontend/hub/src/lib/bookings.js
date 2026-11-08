@@ -158,7 +158,6 @@ export const DEFAULT_WHEN = 'upcoming';
 
 const values = (options) => new Set(options.map((option) => option.value));
 const TYPE_VALUES = values(BOOKING_TYPES);
-const WHEN_VALUES = values(WHEN_FILTERS);
 
 /** `value` if it is a booking type (DEMO or DIAGNOSTIC), else ''. */
 export function readBookingType(value) {
@@ -175,15 +174,18 @@ export function listParams(filters, page, pageSize) {
   return params;
 }
 
-// My Bookings for tutors: the /api/tutor/bookings/ contract (backend
+// A tutor's bookings: the /api/tutor/bookings/ contract (backend
 // bookings/tutor_views.py and bookings/tutor_bookings.py). The API serves the
 // caller only the bookings assigned to them, each with the child and the slot
 // and nothing of the parent, the BDE or the assignment. The list holds both
-// types (filtered by `type`); one booking is named by its type and its id.
+// types (filtered by `type`, and lib/tutor-booking-filters); one booking is
+// named by its type and its id.
 export const TUTOR_BOOKINGS_URL = '/api/tutor/bookings/';
 export const tutorBookingUrl = (type, id) => `${TUTOR_BOOKINGS_URL}${typePath(type)}/${id}/`;
 // Start Demo / Start Diagnostic: the tutor's own explicit start (backend booking_service.start_booking).
 export const tutorBookingStartUrl = (type, id) => `${tutorBookingUrl(type, id)}start/`;
+// The notes staff keep on the booking's enquiry, shared with its BDE and the administrators (backend bookings.notes).
+export const tutorBookingNotesUrl = (type, id) => `${tutorBookingUrl(type, id)}notes/`;
 
 /** "Start Demo" or "Start Diagnostic". */
 export function startLabel(type) {
@@ -206,17 +208,24 @@ export function startError(err) {
   return { ...failure, message: START_REFUSALS[failure.code] ?? failure.message };
 }
 
-/** The tutor list's filters from the page URL; a value the API would refuse is dropped. */
-export function readTutorFilters(searchParams) {
-  const pick = (name, allowed) => (allowed.has(searchParams.get(name)) ? searchParams.get(name) : '');
-  return { type: pick('type', TYPE_VALUES), when: pick('when', WHEN_VALUES) || DEFAULT_WHEN };
-}
+// The tutor's pages: their Demo and Diagnostic bookings, a page per type
+// (/my-bookings/demo, /my-bookings/diagnostic, filtered by
+// lib/tutor-booking-filters), each booking in its own workspace
+// (/my-bookings/<type>/<id>) and its report on a page under it (lib/reports
+// tutorReportPagePath).
+export const tutorBookingsPagePath = (type) => `/my-bookings/${typePath(type)}`;
+export const tutorBookingPagePath = (type, id) => `${tutorBookingsPagePath(type)}/${id}`;
 
-/** The query the tutor list endpoint takes. It reads "all" itself (backend tutor_bookings.parse_filters). */
-export function tutorListParams(filters, page, pageSize) {
-  const params = { page, page_size: pageSize, when: filters.when };
-  if (filters.type) params.type = filters.type;
-  return params;
+/**
+ * Where a link to the former single My Bookings page leads now: a booking it
+ * opened (?booking=<id>&booking_type=<TYPE>) to that booking's workspace, else
+ * the list of the type it showed -- Demo unless it said Diagnostic.
+ */
+export function legacyTutorBookingsPath(search) {
+  const params = new URLSearchParams(search);
+  const opened = readBookingType(params.get('booking_type'));
+  if (opened && params.get('booking')) return tutorBookingPagePath(opened, params.get('booking'));
+  return tutorBookingsPagePath(readBookingType(params.get('type')) || DEFAULT_TYPE);
 }
 
 // Where a booking stands as a class (backend bookings.lifecycle ActivityState).
@@ -280,6 +289,11 @@ export function referralLabel(status) {
 export function cameInLabel(booking) {
   if (booking?.channel !== 'BDE_HANDOFF') return referralLabel(booking?.referral_status);
   return booking.redemo_from ? 'Re-Demo, scheduled by an administrator' : 'Demo invitation';
+}
+
+/** Whether the booking is a class still to teach, or under way, in its Meet room: booked, its slot not over. */
+export function isJoinable(booking) {
+  return booking?.status === 'BOOKED' && !booking.slot?.ended;
 }
 
 /** Whether the booking's class took place and has its report: completed, or completed and sent for a Re-Demo. */

@@ -1,6 +1,37 @@
-import { ExternalLinkIcon } from 'lucide-react';
+import { ExternalLinkIcon, VideoIcon, VideoOffIcon } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { isHttpsUrl } from '@/lib/exam-status';
+import { cn } from '@/lib/utils';
 
 const NOT_CONFIGURED = 'Meet link not configured';
+
+/**
+ * Join Meet: the booking's Google Meet room (`link`, the booking's copy of its
+ * tutor's own) as a button that opens it in a new tab, cut off from the Hub
+ * (noopener). Only an https address the API returned is opened -- none is
+ * ever made up -- so a booking without one shows "No Meet link" plainly
+ * instead of a button that leads nowhere. `label` names it for screen
+ * readers ("Join the Google Meet for Riya").
+ */
+export function JoinMeetButton({ link, label, size = 'sm', variant = 'outline', className }) {
+  if (!isHttpsUrl(link)) {
+    return (
+      <span className={cn('text-muted-foreground inline-flex items-center gap-1.5 text-sm whitespace-nowrap', className)}>
+        <VideoOffIcon className="size-4 shrink-0" aria-hidden="true" />
+        No Meet link
+      </span>
+    );
+  }
+  return (
+    <Button asChild size={size} variant={variant} className={className}>
+      <a href={link.trim()} target="_blank" rel="noopener noreferrer" aria-label={label}>
+        <VideoIcon />
+        Join Meet
+      </a>
+    </Button>
+  );
+}
 
 /**
  * A booking's Google Meet room -- the booking's own copy of its tutor's

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircleIcon,
   ArrowLeftIcon,
@@ -18,13 +18,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RedemoBadge, ReportStateBadge } from '@/components/bookings/booking-badges';
 import { StartBookingButton } from '@/components/bookings/start-booking-button';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
+import { Page } from '@/components/page/page';
 import { DemoReportForm } from '@/components/reports/demo-report-form';
 import { DiagnosticReportForm } from '@/components/reports/diagnostic-report-form';
 import { PdfDownloadButton } from '@/components/reports/pdf-download-button';
+import { ReportFieldsView } from '@/components/reports/report-fields-view';
 import { ReportPreviewDialog } from '@/components/reports/report-preview-dialog';
 import { ReportVersions } from '@/components/reports/report-versions';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
-import { tutorBookingUrl } from '@/lib/bookings';
+import { tutorBookingPagePath, tutorBookingUrl, tutorBookingsPagePath } from '@/lib/bookings';
 import { slotLabel } from '@/lib/enquiries';
 import {
   DIAGNOSTIC_ASSESSMENT_TYPE,
@@ -43,6 +45,7 @@ import {
   reportPdfUrl,
   reportState,
   reportTypeFromPath,
+  reportWords,
   tutorReportPreviewUrl,
   tutorReportUrl,
   validateReport,
@@ -50,7 +53,7 @@ import {
 } from '@/lib/reports';
 import { cn } from '@/lib/utils';
 
-const TITLES = { DIAGNOSTIC: 'Diagnostic report', DEMO: 'Demo report' };
+const LISTS = { DEMO: 'Demo Bookings', DIAGNOSTIC: 'Diagnostic Bookings' };
 
 // Why a booking without its report offers no form (lib/reports reportState):
 // the report follows the tutor's own Start, never the scheduled time.
@@ -112,7 +115,7 @@ function Detail({ label, children }) {
 /** What the report prints that the tutor does not type: filled in from the booking and the tutor's account. */
 function PrintedDetails({ type, booking, tutorName }) {
   return (
-    <section className="rounded-lg border p-4">
+    <section className="bg-card rounded-xl border p-4">
       <h2 className="text-sm font-semibold">Printed on the report</h2>
       <dl className="mt-1 grid gap-x-8 sm:grid-cols-2">
         <Detail label="Student name">{booking.student_name}</Detail>
@@ -129,14 +132,14 @@ function PrintedDetails({ type, booking, tutorName }) {
   );
 }
 
-function NotFound({ onBack }) {
+function NotFound({ type, onBack }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-md border px-6 py-12 text-center">
+    <div className="bg-card flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center">
       <SearchXIcon className="text-muted-foreground size-8" />
       <p className="font-medium">Booking not found</p>
       <p className="text-muted-foreground text-sm">It may no longer be assigned to you, or the link may be mistyped.</p>
       <Button variant="outline" size="sm" className="mt-2" onClick={onBack}>
-        Back to My Bookings
+        Go to {LISTS[type] ?? 'My Bookings'}
       </Button>
     </div>
   );
@@ -144,11 +147,14 @@ function NotFound({ onBack }) {
 
 /**
  * The tutor's report on one assigned booking (/my-bookings/<demo|diagnostic>/<id>/report):
- * the Diagnostic or Demo form (P6 fields and limits, lib/reports), a PDF
- * preview drawn by the same renderer as every saved version (P8 Step 2), a
- * confirm step before the first submit -- which completes the booking -- and
- * once there is a report, edits saved as new versions, the version history
- * and each version's PDF (P7).
+ * the Diagnostic results or Demo feedback form (P6 fields and limits,
+ * lib/reports), a PDF preview drawn by the same renderer as every saved
+ * version (P8 Step 2), a review step before the first submit -- the report as
+ * it will print, then submitting it, which completes the booking -- and once
+ * there is a report, edits saved as new versions, the version history and
+ * each version's PDF (P7). Back and Cancel lead to the booking's workspace,
+ * on its Feedback / Results tab -- or wherever the link here came from
+ * (location.state.from, with that page's own way back in its `state`).
  *
  * The API decides everything: only the booking's assigned tutor reaches it
  * (anyone else is told it does not exist), and it refuses a save it would not
@@ -162,6 +168,13 @@ export default function TutorReportPage({ user }) {
   const { bookingType: segment, bookingId } = useParams();
   const type = reportTypeFromPath(segment);
   const navigate = useNavigate();
+  const location = useLocation();
+  const words = reportWords(type);
+  // Where Back and Cancel lead: the page the link here came from, else the booking's own feedback tab.
+  const way = location.state?.from ?? {
+    to: type ? `${tutorBookingPagePath(type, bookingId)}?tab=feedback` : '/my-bookings',
+    label: 'Back to booking',
+  };
 
   const [booking, setBooking] = useState(null);
   const [report, setReport] = useState(null);
@@ -260,7 +273,7 @@ export default function TutorReportPage({ user }) {
     [previewUrl]
   );
 
-  const leave = () => navigate(`/my-bookings?booking=${bookingId}&booking_type=${type}`);
+  const leave = () => navigate(way.to, { state: way.state ?? undefined });
   const back = () => {
     leaving.current = null;
     if (dirty) setDiscarding('leave');
@@ -269,30 +282,32 @@ export default function TutorReportPage({ user }) {
 
   if (!type || (failure && failure.status === 404)) {
     return (
-      <div className="container mx-auto max-w-4xl px-4 py-16">
-        <NotFound onBack={leave} />
-      </div>
+      <Page className="max-w-4xl">
+        <NotFound type={type} onBack={() => navigate(type ? tutorBookingsPagePath(type) : '/my-bookings')} />
+      </Page>
     );
   }
   if (failure) {
     return (
-      <div className="container mx-auto max-w-4xl px-4 py-16">
+      <Page className="max-w-4xl">
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-destructive text-sm">{failure.message}</p>
           <Button variant="outline" size="sm" onClick={() => setLoadKey((key) => key + 1)}>
             Try again
           </Button>
         </div>
-      </div>
+      </Page>
     );
   }
   if (!loaded) {
     return (
-      <div className="container mx-auto flex max-w-4xl flex-col gap-4 px-4 py-16" aria-busy="true">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-32" />
-        <Skeleton className="h-96" />
-      </div>
+      <Page className="max-w-4xl">
+        <div className="flex flex-col gap-4" aria-busy="true">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-96" />
+        </div>
+      </Page>
     );
   }
 
@@ -397,7 +412,7 @@ export default function TutorReportPage({ user }) {
     api
       .post(tutorReportUrl(type, bookingId), reportPayload(type, values))
       .then((response) =>
-        saved(response.data, 'Report submitted. The booking is now completed, and you can still edit the report.')
+        saved(response.data, `${words.tab} submitted. The booking is now completed, and you can still edit the ${words.noun}.`)
       )
       .catch(refused)
       .finally(() => {
@@ -471,13 +486,13 @@ export default function TutorReportPage({ user }) {
   const tutorName = user?.full_name || user?.email || '';
 
   return (
-    <div className="container mx-auto flex max-w-4xl flex-col gap-6 px-4 py-16">
+    <Page className="max-w-4xl">
       <div className="flex flex-col items-start gap-2">
-        <Button variant="ghost" size="sm" className="-ml-2" onClick={back}>
+        <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2" onClick={back}>
           <ArrowLeftIcon />
-          My Bookings
+          {way.label}
         </Button>
-        <h1 className="text-2xl font-semibold">{TITLES[type]}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{words.page}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-muted-foreground text-sm">
             {booking.student_name} · {slotLabel(booking.slot)}
@@ -496,9 +511,9 @@ export default function TutorReportPage({ user }) {
       <PrintedDetails type={type} booking={booking} tutorName={tutorName} />
 
       {writable ? (
-        <form id="report-form" noValidate onSubmit={onSubmit} className="rounded-lg border p-4 sm:p-6">
+        <form id="report-form" noValidate onSubmit={onSubmit} className="bg-card rounded-xl border p-4 sm:p-6">
           <fieldset disabled={busy || gone} className="min-w-0">
-            <legend className="sr-only">{TITLES[type]}</legend>
+            <legend className="sr-only">{words.page}</legend>
             <Form values={values} errors={errors} onChange={change} disabled={busy || gone} />
           </fieldset>
           <div className="mt-6 flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -514,13 +529,13 @@ export default function TutorReportPage({ user }) {
                 Cancel
               </Button>
               <Button type="submit" disabled={busy || gone || (Boolean(report) && !dirty)}>
-                {report ? (pending === 'save' ? 'Saving…' : 'Save changes') : 'Submit report'}
+                {report ? (pending === 'save' ? 'Saving…' : 'Save changes') : `Review & ${words.submit.toLowerCase()}`}
               </Button>
             </div>
           </div>
         </form>
       ) : (
-        <div className="bg-muted text-muted-foreground flex flex-col items-start gap-3 rounded-md px-3 py-2 text-sm">
+        <div className="bg-muted text-muted-foreground flex flex-col items-start gap-3 rounded-xl px-4 py-3 text-sm">
           <p>{CLOSED[state.key]}</p>
           {/* Started here, the form opens at once: the booking as the API answered now has its start. */}
           <StartBookingButton
@@ -532,10 +547,10 @@ export default function TutorReportPage({ user }) {
       )}
 
       {report ? (
-        <section className="flex flex-col gap-6 rounded-lg border p-4 sm:p-6">
+        <section className="bg-card flex flex-col gap-6 rounded-xl border p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">Saved report</h2>
+              <h2 className="text-base font-semibold">Saved {words.noun}</h2>
               <p className="text-muted-foreground text-sm">Version {report.version} is the current one.</p>
             </div>
             <PdfDownloadButton
@@ -552,16 +567,32 @@ export default function TutorReportPage({ user }) {
         onOpenChange={(open) => {
           if (!busy) setConfirming(open);
         }}
-        title="Submit this report?"
-        description="Submitting completes this booking. You can still edit the report later; each edit is kept as a new version."
-        confirmLabel="Submit report"
+        title={`${words.submit}?`}
+        description="Below is the report as it will print. Submitting completes this booking. You can still edit it later; each edit is kept as a new version."
+        confirmLabel={words.submit}
         pendingLabel="Submitting…"
         pending={pending === 'submit'}
         onConfirm={submit}
+        contentClassName="sm:max-w-2xl"
         onCloseAutoFocus={(event) => {
           if (focusRequest) event.preventDefault();
         }}
-      />
+      >
+        {/* The review: exactly what would be sent, laid out as the report prints it. */}
+        {confirming ? (
+          <div className="max-h-[50vh] overflow-y-auto rounded-lg border p-4" aria-label="The report, as it will print">
+            <ReportFieldsView
+              type={type}
+              report={{
+                fields: reportPayload(type, values),
+                student_name: booking.student_name,
+                grade: booking.grade,
+                tutor_name: tutorName,
+              }}
+            />
+          </div>
+        ) : null}
+      </FormDialog>
 
       <FormDialog
         open={Boolean(discarding)}
@@ -588,6 +619,6 @@ export default function TutorReportPage({ user }) {
           if (!open) setPreviewUrl(null);
         }}
       />
-    </div>
+    </Page>
   );
 }
