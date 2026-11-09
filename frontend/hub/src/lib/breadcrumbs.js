@@ -21,6 +21,7 @@ const breadcrumbConfig = {
   '/follow-ups': [{ label: 'Follow-ups' }],
   '/sales': [{ label: 'My Sales' }],
   '/plans': [{ label: 'Plans & Pricing' }],
+  '/quotes': [{ label: 'Quotes' }],
   '/leads': [{ label: 'Leads' }],
   '/admissions': [{ label: 'Admissions Dashboard' }],
   '/bookings': [{ label: 'Bookings' }],
@@ -66,6 +67,10 @@ const breadcrumbPatterns = [
     ],
   },
   { pattern: /^\/sales-syllabus\/[^/]+$/, trail: [{ label: 'Syllabus & Plans', href: '/sales-syllabus' }, { label: 'Syllabus' }] },
+  // A plan on sale, as a BDE quotes it (Plans & Pricing).
+  { pattern: /^\/plans\/[^/]+$/, trail: [{ label: 'Plans & Pricing', href: '/plans' }, { label: 'Plan' }] },
+  // A quote issued (My Quotes for a BDE, Quotes for an administrator).
+  { pattern: /^\/quotes\/[^/]+$/, trail: [{ label: 'Quotes', href: '/quotes' }, { label: 'Quote' }] },
   // A Re-Demo request's workspace, under Demo Bookings' Re-Demo requests.
   {
     pattern: /^\/bookings\/demo\/redemos\/[^/]+$/,

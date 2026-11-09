@@ -1,8 +1,9 @@
-// Sales Management for administrators: the /api/sales/ contract (backend
-// sales/views.py) as the Hub uses it -- the syllabuses on offer, each a
+// Sales Management: the /api/sales/ contract (backend sales/views.py) as the
+// Hub uses it -- for administrators, the syllabuses on offer, each a
 // published revision and at most one draft, and the global pricing, one
-// version after another. The API enforces every rule; this only decides what
-// the Hub offers and how it reads.
+// version after another; for BDEs, the catalogue on sale they quote parents
+// from. The API enforces every rule; this only decides what the Hub offers
+// and how it reads.
 import { SYLLABI } from '@/lib/enquiries';
 
 export const SYLLABI_URL = '/api/sales/syllabi/';
@@ -19,6 +20,33 @@ export const revisionUrl = (id, number) => `${syllabusUrl(id)}revisions/${number
 // What a syllabus offers (its published revision, else its draft), or one revision, as the customer PDF.
 export const syllabusPdfUrl = (id) => `${syllabusUrl(id)}pdf/`;
 export const revisionPdfUrl = (id, number) => `${revisionUrl(id, number)}pdf/`;
+
+// The catalogue on sale (accounts.view_sales_catalogue): each syllabus as its published revision sells it,
+// its PDF, and -- a Bridge Course -- the PDF of the days chosen ({ revision, chapter_ids }).
+export const CATALOGUE_URL = '/api/sales/catalogue/';
+export const catalogueUrl = (id) => `${CATALOGUE_URL}${id}/`;
+export const cataloguePdfUrl = (id) => `${catalogueUrl(id)}pdf/`;
+export const catalogueSelectionPdfUrl = (id) => `${catalogueUrl(id)}selection/pdf/`;
+
+// Quotes (accounts.create_sales_quotes, manage_sales_quotes): what a parent was quoted, kept as it was issued.
+// The API answers each caller with their own -- every one for a manager -- and only a manager cancels.
+export const QUOTES_URL = '/api/sales/quotes/';
+export const quoteUrl = (id) => `${QUOTES_URL}${id}/`;
+export const quotePdfUrl = (id) => `${quoteUrl(id)}pdf/`;
+export const quoteCancelUrl = (id) => `${quoteUrl(id)}cancel/`;
+export const enquiryPlanUrl = (id) => `/api/sales/enquiries/${id}/plan/`;
+
+// Catalogue PDFs require a staff session. Never put their URLs (or blob URLs)
+// in parent messages: the file must be shared or attached by the BDE.
+export function syllabusWhatsAppMessage(title, parentName) {
+  return `${parentName ? `Hello ${parentName}` : 'Hello'}, here is ${title} from Eduport Plus. I will attach the syllabus PDF for your review.`;
+}
+export const QUOTE_STATUSES = [
+  { value: 'ISSUED', label: 'Issued' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
+// The plan types that sell a whole course: every chapter, none chosen (backend sales.quotes.WHOLE_COURSE_PLANS).
+export const WHOLE_COURSE_PLANS = ['REGULAR', 'REVISION', 'REGULAR_REVISION'];
 
 export const SYLLABUS_STATUSES = [
   { value: 'DRAFT', label: 'Draft' },
@@ -52,9 +80,14 @@ export const PLAN_TYPES = [
     label: 'Chapter Plan',
     description: 'Chosen chapters of this syllabus, priced per class. BDEs will pick the chapters when selling.',
   },
-  { value: 'BRIDGE_COURSE', label: 'Bridge Course', description: 'Sold as the whole course.' },
+  {
+    value: 'BRIDGE_COURSE',
+    label: 'Bridge Course',
+    description: 'Sold as the whole course, or by the day: BDEs choose the days when quoting.',
+  },
 ];
-// The plan types each structure offers: a Bridge Course is sold only as itself (backend STRUCTURE_PLAN_TYPES).
+// The plan types each structure offers: a Bridge Course is sold only as itself -- whole, or by the day
+// (backend STRUCTURE_PLAN_TYPES).
 export const STRUCTURE_PLAN_TYPES = {
   CHAPTER_WISE: ['REGULAR', 'REVISION', 'REGULAR_REVISION', 'CHAPTER_PLAN'],
   BRIDGE_COURSE: ['BRIDGE_COURSE'],
@@ -138,6 +171,8 @@ export async function salesPdfError(err) {
   const detail = typeof data.detail === 'string' ? data.detail : '';
   switch (response.status) {
     case 400:
+      // Days of a Bridge Course the API will not draw say why; anything else is the editor's content.
+      if (data.error === 'INVALID_SELECTION' && data.message) return data.message;
       return 'Check the syllabus details: the PDF cannot be drawn until they are complete.';
     case 401:
       return 'Your session has ended. Sign in again to see the PDF.';
@@ -249,6 +284,35 @@ export const PACKAGE_TITLES = {
   REVISION: 'Revision Course (Exam Oriented) Package',
   BRIDGE_COURSE: 'Bridge Course Package',
 };
+// A Bridge Course's card when it is bought by the day (backend sales.pricing.SELECTED_DAYS_TITLE).
+export const SELECTED_DAYS_TITLE = 'Bridge Course – Selected Days Package';
+// A Chapter Plan's card: the chapters chosen (backend sales.quotes.CHAPTER_PLAN_TITLE).
+export const CHAPTER_PLAN_TITLE = 'Chapter Plan Package';
+
+/**
+ * One package card -- `halves` classes of `planType` at `pricing`'s offer fee
+ * (`fee`, in cents) -- as the API prices it: the total exactly, and the
+ * single-payment price `percent` (in hundredths of a percent) off it, worked
+ * out exactly, then rounded to the nearest whole currency unit (a half rounds
+ * up), when the pricing gives `planType` the privilege.
+ */
+function pricedCard(planType, title, halves, fee, percent, pricing) {
+  const total = fee * halves; // over 200
+  let singlePayment = null;
+  if (percent > 0n && (pricing.single_payment_plan_types ?? []).includes(planType)) {
+    // In 1/2,000,000ths of a unit; adding half a unit before dividing rounds a half up.
+    const price = (total * (10000n - percent) + 1000000n) / 2000000n;
+    singlePayment = { price: price.toString(), saving: fromTwoHundredths(total - price * 200n) };
+  }
+  return {
+    plan_type: planType,
+    title,
+    classes: fromHalves(halves),
+    fee_per_class: fromTwoHundredths(fee * 2n),
+    total: fromTwoHundredths(total),
+    single_payment: singlePayment,
+  };
+}
 
 /**
  * The packages `planTypes` over `chapters` cost at `pricing` (the API's
@@ -263,24 +327,115 @@ export function packagePrices(planTypes, chapters, pricing) {
   const percent = toCents(pricing.single_payment_percent) ?? 0n; // in hundredths of a percent
   const totals = chapterTotals(chapters);
   const columns = { REGULAR: 'regular', REVISION: 'revision', BRIDGE_COURSE: 'bridge' };
-  return cardPlanTypes(planTypes).map((planType) => {
-    const halves = totals[columns[planType]];
-    const total = fee * halves; // over 200
-    let singlePayment = null;
-    if (percent > 0n && (pricing.single_payment_plan_types ?? []).includes(planType)) {
-      // In 1/2,000,000ths of a unit; adding half a unit before dividing rounds a half up.
-      const price = (total * (10000n - percent) + 1000000n) / 2000000n;
-      singlePayment = { price: price.toString(), saving: fromTwoHundredths(total - price * 200n) };
-    }
-    return {
-      plan_type: planType,
-      title: PACKAGE_TITLES[planType],
-      classes: fromHalves(halves),
-      fee_per_class: fromTwoHundredths(fee * 2n),
-      total: fromTwoHundredths(total),
-      single_payment: singlePayment,
-    };
-  });
+  return cardPlanTypes(planTypes).map((planType) =>
+    pricedCard(planType, PACKAGE_TITLES[planType], totals[columns[planType]], fee, percent, pricing)
+  );
+}
+
+/**
+ * A Bridge Course bought by the day, priced as the API prices it (backend
+ * services.selection_data): the `days` (the revision's chapters, in the
+ * course's order) whose ids are in `selectedIds` -- in the course's order,
+ * whatever the order chosen -- their classes, and their package at `pricing`
+ * (null without one). Every day chosen is the whole course: its own package,
+ * exactly as before.
+ */
+export function bridgeSelection(days, selectedIds, pricing) {
+  const chosen = new Set(selectedIds);
+  const picked = days.filter((day) => chosen.has(day.id));
+  const fullCourse = days.length > 0 && picked.length === days.length;
+  const halves = picked.reduce((sum, day) => sum + (toHalves(day.bridge_classes) ?? 0n), 0n);
+  const fee = toCents(pricing?.offer_fee);
+  const pricedPackage =
+    fee === null
+      ? null
+      : pricedCard(
+          'BRIDGE_COURSE',
+          fullCourse ? PACKAGE_TITLES.BRIDGE_COURSE : SELECTED_DAYS_TITLE,
+          halves,
+          fee,
+          toCents(pricing.single_payment_percent) ?? 0n,
+          pricing
+        );
+  return { days: picked, fullCourse, classes: fromHalves(halves), package: pricedPackage };
+}
+
+/**
+ * A Chapter Plan, priced as the API prices a quote of one (backend
+ * sales.quotes): the `chapters` whose ids are in `selectedIds`, in the
+ * course's order, their Regular classes at `pricing`'s offer fee (null without
+ * one). No single-payment privilege names a Chapter Plan.
+ */
+export function chapterPlanSelection(chapters, selectedIds, pricing) {
+  const chosen = new Set(selectedIds);
+  const picked = chapters.filter((chapter) => chosen.has(chapter.id));
+  const halves = picked.reduce((sum, chapter) => sum + (toHalves(chapter.regular_classes) ?? 0n), 0n);
+  const fee = toCents(pricing?.offer_fee);
+  const pricedPackage =
+    fee === null ? null : pricedCard('CHAPTER_PLAN', CHAPTER_PLAN_TITLE, halves, fee, toCents(pricing.single_payment_percent) ?? 0n, pricing);
+  return { days: picked, fullCourse: chapters.length > 0 && picked.length === chapters.length, classes: fromHalves(halves), package: pricedPackage };
+}
+
+/** An exact amount ("122.5") in thousandths (122500n): a fee with cents times half classes has at most three places. */
+function toThousandths(text) {
+  const [whole, fraction = ''] = String(text).split('.');
+  return BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, '0').slice(0, 3));
+}
+
+function fromThousandths(n) {
+  const fraction = (n % 1000n).toString().padStart(3, '0').replace(/0+$/, '');
+  return fraction ? `${n / 1000n}.${fraction}` : `${n / 1000n}`;
+}
+
+/**
+ * What a quote of `planType` would say, as the API's quote_snapshot works it
+ * out: its packages (Regular + Revision two, each rounded on its own), their
+ * classes and total, the single-payment saving and what is payable at once.
+ * `selectedIds` are a Chapter Plan's chapters or a Bridge Course's days (none,
+ * or every day: the whole course). Null without pricing.
+ */
+export function quotePreview(planType, chapters, selectedIds, pricing) {
+  if (toCents(pricing?.offer_fee) === null) return null;
+  let lines;
+  let fullCourse = true;
+  if (planType === 'CHAPTER_PLAN') {
+    lines = [chapterPlanSelection(chapters, selectedIds, pricing).package];
+    fullCourse = chapters.length > 0 && selectedIds.length === chapters.length;
+  } else if (planType === 'BRIDGE_COURSE') {
+    const picked = bridgeSelection(chapters, selectedIds.length ? selectedIds : chapters.map((chapter) => chapter.id), pricing);
+    lines = [picked.package];
+    fullCourse = picked.fullCourse;
+  } else {
+    lines = packagePrices([planType], chapters, pricing);
+  }
+  const total = lines.reduce((sum, line) => sum + toThousandths(line.total), 0n);
+  const saving = lines.reduce((sum, line) => sum + (line.single_payment ? toThousandths(line.single_payment.saving) : 0n), 0n);
+  // A package's classes may pass 99.5 (a whole course): read them whole, not as a chapter's count.
+  const halves = lines.reduce((sum, line) => {
+    const [whole, fraction] = line.classes.split('.');
+    return sum + BigInt(whole) * 2n + (fraction === '5' ? 1n : 0n);
+  }, 0n);
+  return {
+    lines,
+    fullCourse,
+    classes: fromHalves(halves),
+    total_fee: fromThousandths(total),
+    single_payment_saving: fromThousandths(saving),
+    payable_amount: fromThousandths(total - saving),
+  };
+}
+
+/** A quote's plan as one line: "Bridge Course · selected days", "Chapter Plan", "Regular + Revision". */
+export function quotePlanLabel(quote) {
+  const label = planTypeLabel(quote.plan_type);
+  if (quote.plan_type === 'BRIDGE_COURSE') return quote.full_course ? 'Full Bridge Course' : 'Bridge Course · Selected Chapters';
+  return label;
+}
+
+/** "Riya Nair (parent of Arjun)": the enquiry a quote answers ('' for none). */
+export function enquiryLabel(lead) {
+  if (!lead) return '';
+  return lead.student_name ? `${lead.parent_name} (parent of ${lead.student_name})` : lead.parent_name;
 }
 
 // ---------------------------------------------------------------- the editor's form

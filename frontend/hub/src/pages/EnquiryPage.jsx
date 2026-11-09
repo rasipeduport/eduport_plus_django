@@ -4,14 +4,7 @@ import { ArrowLeftIcon, ReceiptIndianRupeeIcon, SearchXIcon } from 'lucide-react
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
-import {
-  bdeBookingCancelUrl,
-  bdeEnquiryHistoryUrl,
-  bdeRedemoCloseUrl,
-  bdeRedemoReopenUrl,
-  bdeRedemoUrl,
-  readBookingType,
-} from '@/lib/bookings';
+import { bdeBookingCancelUrl, bdeEnquiryHistoryUrl, bdeRedemoCloseUrl, bdeRedemoReopenUrl, bdeRedemoUrl, readBookingType } from '@/lib/bookings';
 import { bookingTypeLabel, enquiryError, enquiryTimezoneUrl, enquiryUrl, slotLabel } from '@/lib/enquiries';
 import { COMING_SOON } from '@/lib/navigation';
 import { savedTimezoneLabel } from '@/lib/timezone';
@@ -33,6 +26,7 @@ import { EnquiryFollowUps } from '@/components/enquiries/workspace/enquiry-follo
 import { EnquiryHeader } from '@/components/enquiries/workspace/enquiry-header';
 import { EnquiryNotes } from '@/components/enquiries/workspace/enquiry-notes';
 import { EnquiryOverview } from '@/components/enquiries/workspace/enquiry-overview';
+import { EnquiryPlanChoosing } from '@/components/enquiries/workspace/enquiry-plan-choosing';
 import { HistoryTimeline } from '@/components/history/history-timeline';
 
 function EnquirySkeleton() {
@@ -114,6 +108,7 @@ export default function EnquiryPage({ user }) {
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const canSeeReports = can(user, PERMISSIONS.viewOwnLeadReports);
   const canChangeTimezone = can(user, PERMISSIONS.changeStudentTimezone);
+  const canChoosePlan = can(user, PERMISSIONS.viewSalesCatalogue) && can(user, PERMISSIONS.createSalesQuotes);
   const openId = searchParams.get('booking');
   const openType = readBookingType(searchParams.get('booking_type'));
   const highlight = searchParams.get('highlight');
@@ -125,6 +120,7 @@ export default function EnquiryPage({ user }) {
     { key: 'bookings', label: 'Bookings', count: enquiry?.bookings?.length },
     ...(canSeeReports ? [{ key: 'feedback', label: 'Tutor Feedback' }] : []),
     ...(canSeeCommunication ? [{ key: 'follow-ups', label: 'Follow-ups' }] : []),
+    ...(canChoosePlan ? [{ key: 'plan-choosing', label: 'Plan Choosing' }] : []),
     { key: 'sales', label: 'Sales & Payment' },
     { key: 'notes', label: 'Notes' },
     { key: 'history', label: 'History' },
@@ -262,6 +258,11 @@ export default function EnquiryPage({ user }) {
               <EnquiryFollowUps enquiryId={enquiry.id} from={location.state?.from ?? null} onChanged={refreshEnquiry} />
             </TabsContent>
           ) : null}
+          {canChoosePlan ? (
+            <TabsContent value="plan-choosing">
+              <EnquiryPlanChoosing key={enquiry.id} enquiry={enquiry} />
+            </TabsContent>
+          ) : null}
           {/* Still to come: says so. */}
           <TabsContent value="sales">
             <EmptyState
@@ -331,9 +332,7 @@ export default function EnquiryPage({ user }) {
       />
       <RedemoCloseDialog
         mode={changingRedemo?.mode ?? 'close'}
-        subject={
-          changingRedemo && enquiry ? `${enquiry.student_name} · Demo · ${slotLabel(changingRedemo.booking)}` : null
-        }
+        subject={changingRedemo && enquiry ? `${enquiry.student_name} · Demo · ${slotLabel(changingRedemo.booking)}` : null}
         open={redemoDialogOpen && Boolean(changingRedemo)}
         onOpenChange={setRedemoDialogOpen}
         // Refused (an administrator scheduled it, or another change landed): show the enquiry as it is now.

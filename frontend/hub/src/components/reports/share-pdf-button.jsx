@@ -17,7 +17,7 @@ import { filenameFromDisposition, reportPdfError } from '@/lib/reports';
  * fetch took too long for the browser, the file is kept and the next tap
  * shares it at once.
  */
-export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label, onShared }) {
+export function SharePdfButton({ url, params, fallbackName = 'report.pdf', title, text, label, onShared, pdfError = reportPdfError }) {
   const [file, setFile] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -30,12 +30,12 @@ export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label,
     if (!ready) {
       setFetching(true);
       try {
-        const response = await api.get(url, { responseType: 'blob' });
+        const response = await api.get(url, { responseType: 'blob', ...(params ? { params } : {}) });
         const name = filenameFromDisposition(response.headers?.['content-disposition']) || fallbackName;
         ready = new File([response.data], name, { type: 'application/pdf' });
         setFile(ready);
       } catch (err) {
-        setNotice({ error: true, text: await reportPdfError(err) });
+        setNotice({ error: true, text: await pdfError(err) });
         return;
       } finally {
         setFetching(false);
@@ -43,7 +43,7 @@ export function SharePdfButton({ url, fallbackName = 'report.pdf', title, label,
     }
     setSharing(true);
     try {
-      await navigator.share({ files: [ready], title });
+      await navigator.share({ files: [ready], title, ...(text ? { text } : {}) });
       onShared?.();
     } catch (err) {
       if (err?.name === 'AbortError') return; // the share sheet was closed without sharing

@@ -18,6 +18,7 @@ import {
   Mail,
   PhoneCall,
   ReceiptIndianRupee,
+  ReceiptText,
   School,
   Users,
   UsersRound,
@@ -58,7 +59,8 @@ const BDE_WORKSPACE = {
     {
       items: [
         { title: 'My Sales', url: '/sales', icon: ReceiptIndianRupee, badge: COMING_SOON },
-        { title: 'Plans & Pricing', url: '/plans', icon: BadgePercent, badge: COMING_SOON },
+        { title: 'Plans & Pricing', url: '/plans', icon: BadgePercent, nested: true },
+        { title: 'My Quotes', url: '/quotes', icon: ReceiptText, nested: true },
         { title: 'Activity', url: '/activity', icon: History },
       ],
     },
@@ -133,6 +135,7 @@ const ADMIN_WORKSPACE = {
         { title: 'Sales Punching', url: '/sales-punching', icon: ClipboardPen, badge: COMING_SOON },
         { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true },
         { title: 'Global Pricing', url: '/sales-pricing', icon: BadgePercent },
+        { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
         { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },
       ],
     },

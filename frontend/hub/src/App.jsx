@@ -37,6 +37,10 @@ import SalesSyllabiPage from './pages/SalesSyllabiPage';
 import SalesSyllabusPage from './pages/SalesSyllabusPage';
 import SalesSyllabusEditorPage from './pages/SalesSyllabusEditorPage';
 import SalesPricingPage from './pages/SalesPricingPage';
+import PlansPage from './pages/PlansPage';
+import PlanPage from './pages/PlanPage';
+import QuotesPage from './pages/QuotesPage';
+import QuotePage from './pages/QuotePage';
 import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
 import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
 
@@ -225,7 +229,12 @@ function HubRoutes({ user, logout }) {
         />
         <Route path="/follow-ups" element={page('/follow-ups', <FollowUpsPage />)} />
         <Route path="/sales" element={page('/sales', <ComingSoonPage module="sales" />)} />
-        <Route path="/plans" element={page('/plans', <ComingSoonPage module="plans" />)} />
+        {/* Plans & Pricing: the catalogue on sale, and one plan quoted (a Bridge Course by the day too). */}
+        <Route path="/plans" element={page('/plans', <PlansPage />)} />
+        <Route path="/plans/:syllabusId" element={page('/plans', <PlanPage />)} />
+        {/* Quotes: a BDE's own, or every one for an administrator, and one quote as it was issued. */}
+        <Route path="/quotes" element={page('/quotes', <QuotesPage user={user} />)} />
+        <Route path="/quotes/:quoteId" element={page('/quotes', <QuotePage user={user} />)} />
         {/* The Admin Hub's Sales & Finance modules still to come: nothing behind them yet. */}
         <Route path="/sales-dashboard" element={page('/sales-dashboard', <ComingSoonPage module="salesDashboard" />)} />
         <Route path="/sales-module" element={page('/sales-module', <ComingSoonPage module="salesModule" />)} />
