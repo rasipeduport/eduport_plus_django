@@ -4,7 +4,11 @@ revision's, or a draft not yet saved (a preview) -- and a pricing version, in
 the design of the Eduport Plus reference PDFs: the chapter table, fifteen rows
 a page under the syllabus's title (the Bridge Course's by day), then the
 packages page with the per-class fees, a card per package the syllabus
-offers (sales.pricing.card_plan_types) and the inclusions.
+offers (sales.pricing.card_plan_types) and the inclusions. A Bridge Course
+bought by the day prints only the days chosen -- under their own day numbers,
+in the course's order -- their total and the Selected Days package. A quote's
+PDF (quote_pdf) is drawn from the quote alone: the chapters it covers, its
+packages and rates as they were priced, and its reference.
 
 Every page is one sheet with the logo: a sheet whose content would run onto
 another page -- a long title or long chapter names on a full page, two
@@ -30,7 +34,7 @@ from weasyprint.text.fonts import FontConfiguration
 from weasyprint.urls import URLFetcher, URLFetcherResponse
 
 from .models import PlanType, Structure
-from .pricing import chapter_totals, packages, plain
+from .pricing import chapter_totals, chosen_chapters, packages, plain
 from .wording import package_title_of, subtitle_of
 
 ASSETS = (Path(__file__).parent / 'pdf_assets').resolve()
@@ -41,16 +45,34 @@ ROWS_PER_PAGE = 15
 MIN_ROWS_PER_PAGE = 5
 
 
-def syllabus_pdf(content, pricing):
-    """The PDF of ``content`` (a syllabus's), its packages priced by ``pricing``."""
+def syllabus_pdf(content, pricing, selected=None):
+    """
+    The PDF of ``content`` (a syllabus's), its packages priced by ``pricing``;
+    with ``selected``, a Bridge Course's chosen days alone (their chapter ids).
+    """
     font_config = FontConfiguration()
     try:
-        return render_document(content, pricing, font_config).write_pdf()
+        return render_document(content, pricing, font_config, selected=selected).write_pdf()
     finally:
         _remove_font_copies(font_config)
 
 
-def render_document(content, pricing, font_config=None):
+def quote_pdf(content, rates, cards, selected, quote):
+    """
+    A quote's PDF: ``content`` (the revision it quoted) restricted to the
+    chapters it covers (``selected``, or None for every one), its fees at
+    ``rates``, its packages ``cards`` as they were priced -- never priced
+    again -- and its reference (``quote``: reference and date). See
+    sales.quotes.quote_pdf_parts.
+    """
+    font_config = FontConfiguration()
+    try:
+        return render_document(content, rates, font_config, selected=selected, cards=cards, quote=quote).write_pdf()
+    finally:
+        _remove_font_copies(font_config)
+
+
+def render_document(content, pricing, font_config=None, selected=None, cards=None, quote=None):
     """
     ``content`` laid out in pages, before it is written as a PDF: each sheet on
     a page of its own. A chapter sheet that runs over is drawn again with one
@@ -58,7 +80,9 @@ def render_document(content, pricing, font_config=None):
     """
     rows_per_page, compact = ROWS_PER_PAGE, False
     while True:
-        html = render_to_string(TEMPLATE, pdf_context(content, pricing, rows_per_page=rows_per_page, compact=compact))
+        html = render_to_string(TEMPLATE, pdf_context(
+            content, pricing, rows_per_page=rows_per_page, compact=compact, selected=selected, cards=cards, quote=quote,
+        ))
         document = HTML(string=html, base_url=ASSETS.as_uri() + '/', url_fetcher=_AssetFetcher()).render(
             font_config=font_config,
         )
@@ -90,10 +114,19 @@ def spilled_sheets(document):
     return {name for name, page in starts.items() if ends.get(name) != page}
 
 
-def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False):
-    """What the template prints: the content as the PDF words it, every amount in ``pricing``'s currency."""
+def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False, selected=None, cards=None, quote=None):
+    """
+    What the template prints: the content as the PDF words it, every amount in
+    ``pricing``'s currency. With ``selected`` (chapter ids), only those rows,
+    each keeping its own day number, their total and the Selected Days package.
+    With ``cards`` (sales.pricing.Package), those packages as they are --
+    a quote's, priced when it was issued -- and with ``quote`` its reference.
+    """
     chapters = content['chapters']
+    shown = chapters if selected is None else chosen_chapters(chapters, selected)
+    shown_ids = {id(chapter) for chapter in shown}
     currency = pricing.currency
+    # Numbered over the whole table, so a chosen day prints its own number.
     rows = [
         {
             'position': position,
@@ -103,9 +136,10 @@ def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False):
             'bridge': classes(chapter.get('bridge_classes')),
         }
         for position, chapter in enumerate(chapters, start=1)
+        if id(chapter) in shown_ids
     ]
     pages = [rows[start:start + rows_per_page] for start in range(0, len(rows), rows_per_page)]
-    totals = chapter_totals(chapters)
+    totals = chapter_totals(shown)
     return {
         'title': content['title'],
         'subtitle': subtitle_of(content),
@@ -133,9 +167,10 @@ def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False):
                     'saving': amount(package.single_payment[1], currency),
                 } if package.single_payment else None,
             }
-            for package in packages(content['plan_types'], chapters, pricing)
+            for package in (cards if cards is not None else packages(content['plan_types'], chapters, pricing, selected=selected))
         ],
         'inclusions': content['inclusions'],
+        'quote': quote,
     }
 
 

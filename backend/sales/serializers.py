@@ -73,7 +73,7 @@ class SyllabusContentSerializer(serializers.Serializer):
 
         plan_types = ordered_plan_types(data['plan_types'])
         if structure == Structure.BRIDGE_COURSE:
-            # A Bridge Course is sold as itself, whatever was ticked.
+            # A Bridge Course is sold as itself, whatever was ticked: whole, or by the day when it is bought.
             plan_types = list(STRUCTURE_PLAN_TYPES[structure])
         elif not plan_types:
             errors['plan_types'] = ['Choose at least one plan type.']

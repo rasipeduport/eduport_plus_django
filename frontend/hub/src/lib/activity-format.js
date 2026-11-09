@@ -103,6 +103,9 @@ export const ACTION_LABELS = {
   'syllabus.reactivate': 'Syllabus reactivated',
   'syllabus.duplicate': 'Syllabus duplicated',
   'pricing.create_version': 'Pricing changed',
+  // Quotes (backend sales.quotes): the quote's reference names the entry; its figures are in the context.
+  'quote.create': 'Quote issued',
+  'quote.cancel': 'Quote cancelled',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -126,6 +129,7 @@ export const ACTIVITY_ENTITY_TYPES = [
   { value: 'lead', label: 'Enquiry' },
   { value: 'syllabus', label: 'Syllabus' },
   { value: 'pricing_version', label: 'Pricing' },
+  { value: 'quote', label: 'Quote' },
 ];
 
 // How an entry names what it is about, before its label ("Booking: Class 8 demo").
@@ -147,6 +151,7 @@ export const ENTITY_NOUN = {
   lead: 'Enquiry',
   syllabus: 'Syllabus',
   pricing_version: 'Pricing',
+  quote: 'Quote',
 };
 
 /** Who made an entry: their name or email -- or, with no account behind it, the page a parent used. */
@@ -463,6 +468,14 @@ export function describeActivity(row) {
       return 'Reactivated the syllabus';
     case 'syllabus.duplicate':
       return 'Created a syllabus as a copy of another';
+    case 'quote.create': {
+      // What is payable at once, and of which revision.
+      const payable = row.context?.payable_amount;
+      const amount = payable ? `: ${formatAmount(payable, row.context?.currency ?? '').trim()} payable at once` : '';
+      return `Issued a quote${row.context?.revision ? ` of revision ${row.context.revision}` : ''}${amount}`;
+    }
+    case 'quote.cancel':
+      return row.context?.reason ? `Cancelled the quote: ${row.context.reason}` : 'Cancelled the quote';
     case 'pricing.create_version': {
       // Each changed figure as { old, new }; the version numbers are in the context.
       const version = row.context?.version ? `Pricing v${row.context.version}` : 'Pricing';

@@ -555,7 +555,10 @@ export default function SalesSyllabusEditorPage() {
 
         <WorkspaceCard icon={LayersIcon} title="3. Plan types">
           {bridge ? (
-            <p className="text-muted-foreground text-sm">A Bridge Course is sold as one plan: the whole course.</p>
+            <p className="text-muted-foreground text-sm">
+              A Bridge Course is sold as the whole course, or by the day: BDEs choose any of its days when quoting,
+              priced per class. Keep every day here.
+            </p>
           ) : (
             <fieldset className="grid gap-2 sm:grid-cols-2" disabled={pending}>
               <legend className="sr-only">Plan types this syllabus is sold as</legend>

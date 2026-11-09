@@ -39,6 +39,7 @@ from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
 from invitations.sheets import GoogleSheetsService
+from sales import quotes as sales_quotes
 from sales.models import PricingVersion, Syllabus, SyllabusChapter, SyllabusRevision
 from sessions.models import Session, SessionFile
 from students.models import Student, StudentNote
@@ -325,6 +326,12 @@ def build_world():
         single_payment_percent=5, single_payment_plan_types=['REGULAR'], effective_from=w.now,
         created_by=w['admin2'],
     ))
+    # A quote (sales.quotes): admin2's, of syllabus_a's Regular course at pricing_v1 -- issued, not logged, so
+    # the activity scenarios read as before.
+    w.add('quote_a', sales_quotes.issue(
+        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR'),
+        quote_id=fixed_id('quote_a'),
+    ))
     return w
 
 
@@ -348,6 +355,11 @@ SALES_REVISION = {
 SALES_SYLLABUS = {
     **SALES_REVISION, 'chapters': [{'name': 'Matrix Chapter', 'regular_classes': '4', 'revision_classes': '1.5'}],
 }
+
+
+# A Bridge Course bought by the day: syllabus_a is chapter-wise, so an administrator reaches the
+# selection and is refused NOT_A_BRIDGE_COURSE -- the scenario is who gets that far.
+SALES_SELECTION = {'chapter_ids': [str(fixed_id('syllabus_a_ch1'))]}
 
 
 def _draft_token(w):
@@ -766,6 +778,28 @@ SCENARIOS = [
     Scenario('sales.pdf', 'get', '/api/sales/syllabi/{syllabus_a}/pdf/'),
     Scenario('sales.revision_pdf', 'get', '/api/sales/syllabi/{syllabus_a}/revisions/1/pdf/?disposition=inline'),
     Scenario('sales.pdf_preview', 'post', '/api/sales/syllabi/pdf-preview/?disposition=inline', SALES_SYLLABUS),
+    # A published Bridge Course's chosen days, priced and drawn (administrators, for now).
+    Scenario('sales.selection', 'post', '/api/sales/syllabi/{syllabus_a}/revisions/1/selection/', SALES_SELECTION),
+    Scenario('sales.selection_pdf', 'post', '/api/sales/syllabi/{syllabus_a}/revisions/1/selection/pdf/', SALES_SELECTION),
+    # The catalogue on sale (BDEs and administrators): syllabus_a is published and active, syllabus_b only a draft --
+    # not on sale, so absent from the list and not found; choosing days of syllabus_a (chapter-wise) is refused.
+    Scenario('sales.catalogue', 'get', '/api/sales/catalogue/'),
+    Scenario('sales.catalogue_syllabus', 'get', '/api/sales/catalogue/{syllabus_a}/'),
+    Scenario('sales.catalogue_draft', 'get', '/api/sales/catalogue/{syllabus_b}/'),
+    Scenario('sales.catalogue_pdf', 'get', '/api/sales/catalogue/{syllabus_a}/pdf/?disposition=inline'),
+    Scenario('sales.catalogue_selection', 'post', '/api/sales/catalogue/{syllabus_a}/selection/',
+             {**SALES_SELECTION, 'revision': 1}),
+    Scenario('sales.catalogue_selection_pdf', 'post', '/api/sales/catalogue/{syllabus_a}/selection/pdf/',
+             {**SALES_SELECTION, 'revision': 1}),
+    # Quotes: quote_a is admin2's (syllabus_a, Regular). Whoever quotes sees their own -- a BDE none -- and
+    # quotes; an administrator sees every one and cancels.
+    Scenario('sales.quotes', 'get', '/api/sales/quotes/'),
+    Scenario('sales.enquiry_plan', 'get', '/api/sales/enquiries/{lead_a}/plan/'),
+    Scenario('sales.quote_create', 'post', '/api/sales/quotes/',
+             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR'}),
+    Scenario('sales.quote', 'get', '/api/sales/quotes/{quote_a}/'),
+    Scenario('sales.quote_pdf', 'get', '/api/sales/quotes/{quote_a}/pdf/?disposition=inline'),
+    Scenario('sales.quote_cancel', 'post', '/api/sales/quotes/{quote_a}/cancel/', {'reason': 'Matrix'}),
     Scenario('sales.pricing', 'get', '/api/sales/pricing/'),
     Scenario('sales.pricing_change', 'post', '/api/sales/pricing/', {
         'currency': 'AED', 'standard_fee': '45', 'offer_fee': '30', 'single_payment_percent': '5',

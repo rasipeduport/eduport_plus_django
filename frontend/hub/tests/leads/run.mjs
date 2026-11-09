@@ -694,13 +694,20 @@ test('My Enquiries: a failed load offers Try again, then the list loads', async 
 
 test("Access: the rest of the BDE workspace -- its temporary pages too -- is for BDEs, never another role or a superuser", () => {
   const superuser = { role: 'ADMIN', permissions: [...ADMIN.permissions, 'accounts.view_own_enquiries', 'accounts.view_all_activity'] };
-  for (const at of ['/demo-bookings', '/diagnostic-bookings', '/sales', '/plans']) {
+  for (const at of ['/demo-bookings', '/diagnostic-bookings', '/sales']) {
     assert.equal(canOpenPage(BDE, at), true, `${at} for a BDE`);
     assert.equal(canOpenPage({ role: 'BDE', permissions: [] }, at), false, `${at} for a BDE holding nothing`);
     assert.equal(canOpenPage(ADMIN, at), false, `${at} for an administrator`);
     assert.equal(canOpenPage(superuser, at), false, `${at} for a superuser`);
     assert.equal(canOpenPage({ role: 'SALES_TL', permissions: [] }, at), false, `${at} for a Sales TL`);
   }
+  // Plans & Pricing is the catalogue on sale (backend accounts.0021): a BDE holding it, as the API asks.
+  const quoting = { ...BDE, permissions: [...BDE.permissions, 'accounts.view_sales_catalogue'] };
+  assert.equal(canOpenPage(BDE, '/plans'), false, 'Plans & Pricing needs accounts.view_sales_catalogue');
+  assert.equal(canOpenPage(quoting, '/plans'), true);
+  assert.equal(canOpenPage({ ...superuser, permissions: [...superuser.permissions, 'accounts.view_sales_catalogue'] }, '/plans'), false);
+  assert.equal(canOpenPage({ role: 'ADMIN', permissions: ['accounts.view_sales_catalogue'] }, '/plans'), false);
+  assert.equal(canOpenPage({ role: 'SALES_TL', permissions: ['accounts.view_sales_catalogue'] }, '/plans'), false);
   // Follow-ups are the leads' parent communication: a BDE who may see it, as the API asks (Phase 6).
   const communicating = { ...BDE, permissions: [...BDE.permissions, 'accounts.view_own_lead_communications'] };
   assert.equal(canOpenPage(BDE, '/follow-ups'), false, 'Follow-ups need accounts.view_own_lead_communications');

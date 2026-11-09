@@ -79,6 +79,12 @@ export const PERMISSIONS = {
   // offer -- writing, previewing, publishing -- and the global pricing.
   manageSalesSyllabi: 'accounts.manage_sales_syllabi',
   manageSalesPricing: 'accounts.manage_sales_pricing',
+  // The catalogue on sale (backend accounts.0021), the BDE's and the Admin's: what is quoted to parents.
+  viewSalesCatalogue: 'accounts.view_sales_catalogue',
+  // Quotes (backend accounts.0022): issuing them (the BDE's and the Admin's), and seeing
+  // everyone's and cancelling them (the Admin's alone).
+  createSalesQuotes: 'accounts.create_sales_quotes',
+  manageSalesQuotes: 'accounts.manage_sales_quotes',
 };
 
 const P = PERMISSIONS;
@@ -148,7 +154,10 @@ export const PAGE_PERMISSIONS = {
   '/diagnostic-bookings': [P.viewOwnEnquiries],
   '/follow-ups': [P.viewOwnLeadCommunications],
   '/sales': [P.viewOwnEnquiries],
-  '/plans': [P.viewOwnEnquiries],
+  // Plans & Pricing: the catalogue on sale, quoted to parents (a Bridge Course by the day too).
+  '/plans': [P.viewSalesCatalogue],
+  // Quotes, BDE and Admin alike: a BDE's own (My Quotes), every one for whoever manages them.
+  '/quotes': [P.createSalesQuotes, P.manageSalesQuotes],
   // The Admin Hub's Sales & Finance modules. Syllabus & Plans and Global Pricing
   // open on their own permissions (backend sales.views); the rest are still to
   // come -- each a Coming Soon page with nothing behind it yet, for whoever

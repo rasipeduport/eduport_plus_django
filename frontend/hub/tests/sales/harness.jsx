@@ -1,10 +1,17 @@
 // Mounts the real Sales Management pages at a URL, for a given signed-in
 // account, the way App.jsx routes them -- Syllabus & Plans (/sales-syllabus,
-// /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit) and Global
-// Pricing (/sales-pricing) -- with only the API a stand-in (api-stub.js).
+// /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit), Global
+// Pricing (/sales-pricing), the BDE's Plans & Pricing (/plans,
+// /plans/:syllabusId) and Quotes (/quotes, /quotes/:quoteId) -- with only the
+// API a stand-in (api-stub.js).
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
+import PlanPage from '@/pages/PlanPage';
+import PlansPage from '@/pages/PlansPage';
+import EnquiryPage from '@/pages/EnquiryPage';
+import QuotePage from '@/pages/QuotePage';
+import QuotesPage from '@/pages/QuotesPage';
 import SalesPricingPage from '@/pages/SalesPricingPage';
 import SalesSyllabiPage from '@/pages/SalesSyllabiPage';
 import SalesSyllabusEditorPage from '@/pages/SalesSyllabusEditorPage';
@@ -31,6 +38,11 @@ export async function mount(path, user, { layout = false } = {}) {
       { path: '/sales-syllabus/:syllabusId', element: inLayout(<SalesSyllabusPage />) },
       { path: '/sales-syllabus/:syllabusId/edit', element: inLayout(<SalesSyllabusEditorPage key="edit" />) },
       { path: '/sales-pricing', element: inLayout(<SalesPricingPage />) },
+      { path: '/plans', element: inLayout(<PlansPage />) },
+      { path: '/plans/:syllabusId', element: inLayout(<PlanPage user={user} />) },
+      { path: '/enquiries/:enquiryId', element: inLayout(<EnquiryPage user={user} />) },
+      { path: '/quotes', element: inLayout(<QuotesPage user={user} />) },
+      { path: '/quotes/:quoteId', element: inLayout(<QuotePage user={user} />) },
     ],
     { initialEntries: [path] }
   );
@@ -58,12 +70,23 @@ export async function mount(path, user, { layout = false } = {}) {
 
 export { act };
 export { canOpenPage } from '@/lib/access';
-export { describeActivity } from '@/lib/activity-format';
+export { workspaceFor } from '@/lib/navigation';
+// (the labels re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
+export { ACTION_LABELS as actionLabels, describeActivity } from '@/lib/activity-format';
 export {
+  // (re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
+  SELECTED_DAYS_TITLE as selectedDaysTitle,
+  CHAPTER_PLAN_TITLE as chapterPlanTitle,
   apiFieldErrors,
+  bridgeSelection,
+  chapterPlanSelection,
+  enquiryLabel,
   formErrors,
   formatAmount,
   packagePrices,
   payloadOf,
+  quotePlanLabel,
+  quotePreview,
   toHalves,
+  syllabusWhatsAppMessage,
 } from '@/lib/sales';

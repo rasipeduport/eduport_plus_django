@@ -379,7 +379,9 @@ function withLeads(answers) {
 // which the administrator's role group carries since accounts.0020 and a
 // superuser holds (D1), with a fixed list -- a published syllabus with a
 // draft waiting, and a Bridge Course draft -- and the pricing in effect.
-const SALES_PERMISSIONS = ['accounts.manage_sales_pricing', 'accounts.manage_sales_syllabi'];
+// Quotes (accounts.0022): the administrator's role group issues them and manages everyone's.
+const SALES_PERMISSIONS = ['accounts.create_sales_quotes', 'accounts.manage_sales_pricing', 'accounts.manage_sales_quotes',
+  'accounts.manage_sales_syllabi'];
 const SALES_ADMIN = { id: 'admin', name: 'Asha Admin' };
 const SALES_PRICING = { id: 'pricing-1', version: 1, currency: 'AED', standard_fee: '45', offer_fee: '35',
   single_payment_percent: '5', single_payment_plan_types: ['REGULAR'], note: 'Current offer',
@@ -392,6 +394,15 @@ const SALES_SYLLABI = { status: 200, body: { count: 2, page: 1, page_size: 25, r
     board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE', plan_types: ['BRIDGE_COURSE'], chapter_count: 30,
     totals: { regular: null, revision: null, bridge: '30' }, updated_at: '2026-10-27T05:00:00+00:00', updated_by: SALES_ADMIN },
 ] } };
+// Quotes as the list answers them (accounts.0022): one issued for an enquiry, one cancelled -- a BDE's own,
+// every BDE's for an administrator (the API scopes them; the Hub shows what it is sent).
+const quoteRow = (number, status, lead) => ({ id: `quote-${number}`, reference: `Q-00000${number}`, status,
+  created_at: '2026-10-27T05:00:00+00:00', created_by: { id: 'bde', name: 'Bde One' }, lead,
+  syllabus: { id: 'syllabus-a', title: 'Grade 6 CBSE', grade: 6, board: 'CBSE', structure: 'CHAPTER_WISE' }, revision: 1,
+  plan_type: 'REGULAR_REVISION', full_course: true, currency: 'AED', classes: '57', total_fee: '1995', payable_amount: '1929' });
+const SALES_QUOTES = { status: 200, body: { count: 2, page: 1, page_size: 25, results: [
+  quoteRow(2, 'ISSUED', { id: 'lead-x', parent_name: 'Meera Menon', student_name: 'Kavya' }), quoteRow(1, 'CANCELLED', null),
+] } };
 const SALES_PRICING_ANSWER = { status: 200, body: { current: SALES_PRICING, versions: [{ ...SALES_PRICING, effective_until: null }] } };
 function withSales(answers) {
   const me = answers['/api/auth/me/'];
@@ -401,8 +412,19 @@ function withSales(answers) {
     '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
     '/api/sales/syllabi/': SALES_SYLLABI,
     '/api/sales/pricing/': SALES_PRICING_ANSWER,
+    '/api/sales/quotes/': SALES_QUOTES,
   };
 }
+
+// The catalogue on sale (accounts.0021), as a BDE reads it on Plans & Pricing: the plans the
+// administrators publish, each the revision it sells -- no draft, status or audit.
+const SALES_CATALOGUE = { status: 200, body: { count: 2, page: 1, page_size: 25, results: [
+  { id: 'syllabus-a', revision: 1, title: 'Grade 6 CBSE', grade: 6, board: 'CBSE', syllabus_version: 'New Syllabus',
+    structure: 'CHAPTER_WISE', plan_types: ['REGULAR', 'REVISION', 'REGULAR_REVISION'], chapter_count: 10,
+    totals: { regular: '38', revision: '19', bridge: null } },
+  { id: 'syllabus-b', revision: 1, title: 'Grade 7 CBSE', grade: 7, board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE',
+    plan_types: ['BRIDGE_COURSE'], chapter_count: 30, totals: { regular: null, revision: null, bridge: '30' } },
+] } };
 
 const CALLERS = {
   admin: { answers: withSales(withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS))) },
@@ -419,11 +441,15 @@ const CALLERS = {
     answers: { ...fixtures.callers.unknown, [BOOKING_LINKS_PATH]: BDE_LINKS, [BDE_DASHBOARD_PATH]: BDE_DASHBOARD,
       [ENQUIRIES_PATH]: BDE_ENQUIRIES, [ENQUIRY_PATH]: BDE_ENQUIRY, [`${ENQUIRY_PATH}reports/`]: BDE_REPORTS,
       '/api/bde/bookings/demo/': BDE_DEMO_BOOKINGS, '/api/bde/bookings/diagnostic/': BDE_DIAGNOSTIC_BOOKINGS,
-      '/api/bde/follow-ups/': BDE_FOLLOW_UPS, '/api/bde/activity/': BDE_ACTIVITY },
-    // With the workflow permissions the BDE role group carries since accounts.0015 (P2).
+      '/api/bde/follow-ups/': BDE_FOLLOW_UPS, '/api/bde/activity/': BDE_ACTIVITY, '/api/sales/catalogue/': SALES_CATALOGUE,
+      '/api/sales/quotes/': SALES_QUOTES },
+    // With the workflow permissions the BDE role group carries since accounts.0015 (P2), the
+    // catalogue on sale since accounts.0021 and quotes since accounts.0022.
     me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', CHANGE_STUDENT_TIMEZONE, 'accounts.create_demo_booking',
+      'accounts.create_sales_quotes',
       'accounts.manage_own_conversion', RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report',
-      VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports']),
+      VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports',
+      'accounts.view_sales_catalogue']),
   },
   sales_tl: { answers: fixtures.callers.unknown, me: fakeMe('SALES_TL') },
 };
@@ -438,6 +464,8 @@ const PATHS = [
   `/my-bookings/demo/${MY_BOOKING_ID}/report`, '/leads', `/leads/${LEAD_ID}`,
   // The BDE workspace's pages beyond My Enquiries (BDE Hub redesign, Phase 2).
   '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans',
+  // Quotes, the BDE's (My Quotes) and the Admin Hub's alike.
+  '/quotes',
   // The Admin Hub's new pages (Admin Hub redesign): the Admissions Dashboard on fixed dates, the Demo and
   // Diagnostic Bookings pages, and the Sales & Finance modules: Syllabus & Plans, Global Pricing and those still to come.
   `/admissions?range=custom&from=${ADMISSIONS_RANGE.from}&to=${ADMISSIONS_RANGE.to}`, '/bookings/demo', '/bookings/diagnostic',

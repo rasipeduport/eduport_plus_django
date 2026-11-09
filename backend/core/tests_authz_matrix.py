@@ -29,13 +29,16 @@ APPROVED = DATA_DIR / 'approved_changes.json'
 
 # Where BDE is not answered as the unknown role: it holds its workspace's
 # permissions, so /me lists them, the booking-links endpoint serves the BDE its
-# own two links (tokens recorded by shape), and the dashboard and enquiry
-# endpoints its own enquiry (lead_a, given to it by add_new_role_accounts).
+# own two links (tokens recorded by shape), the dashboard and enquiry
+# endpoints its own enquiry (lead_a, given to it by add_new_role_accounts), the
+# catalogue on sale (accounts.0021) answers it as it answers an administrator,
+# and it quotes (accounts.0022) and sees its own quotes -- never another's.
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',
+    'accounts.create_sales_quotes',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',
     'accounts.send_lead_communications',
@@ -44,6 +47,7 @@ BDE_PERMISSIONS = [
     'accounts.view_own_enquiries',
     'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
+    'accounts.view_sales_catalogue',
 ]
 # Sales TL holds the Conversion Tracker's two permissions (0015); like BDE's
 # workflow ones, they open nothing yet, so only /me differs from the unknown role.
@@ -164,7 +168,64 @@ BDE_WORKSPACE = {
                                            'records': [], 'fields': ['error', 'message']},
     'communications.call_outcome': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                     'fields': ['error', 'message']},
+    # The catalogue on sale, as an administrator sees it: syllabus_a (published) only -- syllabus_b, a draft, is
+    # not found -- each without its drafts, status, history or audit, and the pricing's rates; choosing days of a
+    # chapter-wise syllabus is refused.
+    'sales.catalogue': {
+        'status': 200, 'records': ['syllabus_a'],
+        'fields': ['count', 'page', 'page_size', 'results', 'results[].board', 'results[].chapter_count', 'results[].grade',
+                   'results[].id', 'results[].plan_types', 'results[].revision', 'results[].structure',
+                   'results[].syllabus_version', 'results[].title', 'results[].totals', 'results[].totals.bridge',
+                   'results[].totals.regular', 'results[].totals.revision'],
+    },
+    'sales.catalogue_syllabus': {
+        'status': 200, 'records': ['new', 'syllabus_a'],
+        'fields': ['board', 'chapters', 'chapters[].bridge_classes', 'chapters[].id', 'chapters[].name',
+                   'chapters[].position', 'chapters[].regular_classes', 'chapters[].revision_classes', 'grade', 'id',
+                   'inclusions', 'package_title', 'packages', 'packages[].classes', 'packages[].fee_per_class',
+                   'packages[].plan_type', 'packages[].single_payment', 'packages[].single_payment.price',
+                   'packages[].single_payment.saving', 'packages[].title', 'packages[].total', 'plan_types', 'pricing',
+                   'pricing.currency', 'pricing.offer_fee', 'pricing.single_payment_percent',
+                   'pricing.single_payment_plan_types', 'pricing.standard_fee', 'pricing.version', 'revision', 'structure',
+                   'subtitle', 'syllabus_version', 'title', 'totals', 'totals.bridge', 'totals.regular', 'totals.revision'],
+    },
+    'sales.catalogue_draft': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such syllabus on sale.', 'records': [],
+                              'fields': ['error', 'message']},
+    'sales.catalogue_pdf': {'status': 200, 'content_type': 'application/pdf'},
+    'sales.catalogue_selection': {'status': 409, 'error': 'NOT_A_BRIDGE_COURSE', 'records': [], 'fields': ['error', 'message'],
+                                  'message': 'Only a Bridge Course is sold by the day.'},
+    'sales.catalogue_selection_pdf': {'status': 409, 'error': 'NOT_A_BRIDGE_COURSE', 'records': [],
+                                      'fields': ['error', 'message'], 'message': 'Only a Bridge Course is sold by the day.'},
+    # Quotes: its own -- it has none, quote_a is admin2's, so that one is not found -- and a new one of its own.
+    # Cancelling is the administrators' (refused, as for the unknown role).
+    'sales.quotes': {'status': 200, 'records': [], 'fields': ['count', 'page', 'page_size', 'results']},
+    'sales.enquiry_plan': {
+        'status': 200, 'records': ['lead_a'],
+        'fields': ['current', 'history', 'latest_quote', 'lead', 'lead.id', 'lead.parent_name', 'lead.student_name', 'locked'],
+    },
+    'sales.quote': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such quote.', 'records': [], 'fields': ['error', 'message']},
+    'sales.quote_pdf': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such quote.', 'records': [],
+                        'fields': ['error', 'message']},
+    'sales.quote_create': {
+        'status': 201, 'records': ['<caller>', 'new', 'syllabus_a'],
+        'fields': ['cancel_reason', 'cancelled_at', 'cancelled_by', 'chapters', 'chapters[].classes', 'chapters[].id',
+                   'chapters[].name', 'chapters[].position', 'classes', 'created_at', 'created_by', 'created_by.id',
+                   'created_by.name', 'currency', 'full_course', 'id', 'lead', 'lines', 'lines[].classes',
+                   'lines[].fee_per_class', 'lines[].plan_type', 'lines[].single_payment', 'lines[].single_payment.price',
+                   'lines[].single_payment.saving', 'lines[].title', 'lines[].total', 'offer_fee', 'payable_amount',
+                   'plan_type', 'pricing_version', 'reference', 'revision', 'single_payment_percent',
+                   'single_payment_saving', 'standard_fee', 'status', 'syllabus', 'syllabus.board', 'syllabus.grade',
+                   'syllabus.id', 'syllabus.structure', 'syllabus.syllabus_version', 'syllabus.title', 'total_fee'],
+    },
 }
+
+# New quote metadata identifies the current selection; the chapter counts are
+# still read from the quote's immutable published revision.
+BDE_WORKSPACE['sales.catalogue']['fields'] = sorted([*BDE_WORKSPACE['sales.catalogue']['fields'], 'results[].subtitle'])
+BDE_WORKSPACE['sales.quote_create']['fields'] = sorted([
+    *BDE_WORKSPACE['sales.quote_create']['fields'], 'chapters[].regular_classes',
+    'is_current', 'selection_status', 'supersedes',
+])
 
 
 class AuthorizationMatrixTests(TestCase):

@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from bookings.admin import ReadOnlyAdmin
 
-from .models import PricingVersion, Syllabus, SyllabusChapter, SyllabusRevision
+from .models import PricingVersion, Quote, QuoteChapter, QuoteLine, Syllabus, SyllabusChapter, SyllabusRevision
 
 
 @admin.register(Syllabus)
@@ -37,3 +37,35 @@ class PricingVersionAdmin(ReadOnlyAdmin):
     """Every pricing version, newest first. Append-only: a trigger refuses any change."""
     list_display = ('version', 'currency', 'standard_fee', 'offer_fee', 'single_payment_percent', 'effective_from', 'created_by')
     list_select_related = ('created_by',)
+
+
+class QuoteLineInline(admin.TabularInline):
+    model = QuoteLine
+    fields = ('position', 'plan_type', 'title', 'classes', 'fee_per_class', 'total', 'single_payment_price',
+              'single_payment_saving')
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class QuoteChapterInline(admin.TabularInline):
+    model = QuoteChapter
+    fields = ('chapter', 'classes')
+    readonly_fields = fields
+    can_delete = False
+    extra = 0
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Quote)
+class QuoteAdmin(ReadOnlyAdmin):
+    """Every quote with its packages and chapters, as it was issued. Its figures never change: a trigger refuses it."""
+    list_display = ('number', 'status', 'plan_type', 'currency', 'total_fee', 'payable_amount', 'created_by', 'created_at')
+    list_filter = ('status', 'plan_type')
+    list_select_related = ('created_by',)
+    inlines = [QuoteLineInline, QuoteChapterInline]

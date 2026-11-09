@@ -36,11 +36,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Page, PageHeader } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { Field, Fields, WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
+import { ChapterTable } from '@/components/sales/chapter-table';
 import { PackageCards } from '@/components/sales/package-cards';
 import { PlanTypeBadges, SyllabusStatusBadge } from '@/components/sales/syllabus-badges';
 import { PublishDialog, SimilarWarning, SyllabusActionDialog } from '@/components/sales/syllabus-dialogs';
@@ -51,59 +51,6 @@ const HISTORY_STATES = {
   SUPERSEDED: { label: 'Superseded', variant: 'outline' },
   DRAFT: { label: 'Draft', variant: 'secondary' },
 };
-
-/** A revision's chapter table, as the PDF prints it, with its totals. */
-function ChapterTable({ revision }) {
-  const bridge = revision.structure === 'BRIDGE_COURSE';
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-16">{bridge ? 'Day' : 'SL'}</TableHead>
-            <TableHead>Chapter name</TableHead>
-            {bridge ? (
-              <TableHead className="w-28">Classes</TableHead>
-            ) : (
-              <>
-                <TableHead className="w-32">Regular classes</TableHead>
-                <TableHead className="w-32">Revision classes</TableHead>
-              </>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {revision.chapters.map((chapter) => (
-            <TableRow key={chapter.id ?? chapter.position}>
-              <TableCell className="tabular-nums">{chapter.position}</TableCell>
-              <TableCell className="whitespace-normal">{chapter.name}</TableCell>
-              {bridge ? (
-                <TableCell className="tabular-nums">{chapter.bridge_classes}</TableCell>
-              ) : (
-                <>
-                  <TableCell className="tabular-nums">{chapter.regular_classes}</TableCell>
-                  <TableCell className="tabular-nums">{chapter.revision_classes}</TableCell>
-                </>
-              )}
-            </TableRow>
-          ))}
-          <TableRow className="bg-muted/50 font-medium">
-            <TableCell />
-            <TableCell>Total</TableCell>
-            {bridge ? (
-              <TableCell className="tabular-nums">{revision.totals.bridge}</TableCell>
-            ) : (
-              <>
-                <TableCell className="tabular-nums">{revision.totals.regular}</TableCell>
-                <TableCell className="tabular-nums">{revision.totals.revision}</TableCell>
-              </>
-            )}
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
 
 /**
  * One syllabus, for administrators: what it offers (its published revision)
@@ -366,6 +313,9 @@ export default function SalesSyllabusPage() {
               Priced at pricing version {detail.pricing.version}, in effect now.
               {shown.plan_types.includes('CHAPTER_PLAN')
                 ? ` Also sold as a ${planTypeLabel('CHAPTER_PLAN')}: chosen chapters at ${formatAmount(detail.pricing.offer_fee, detail.pricing.currency)} a class.`
+                : ''}
+              {shown.structure === 'BRIDGE_COURSE'
+                ? ` Also sold by the day: the days a BDE chooses at ${formatAmount(detail.pricing.offer_fee, detail.pricing.currency)} a class.`
                 : ''}
             </p>
             <PackageCards packages={shown.packages ?? []} currency={detail.pricing.currency} />

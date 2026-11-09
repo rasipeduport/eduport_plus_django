@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  BadgePercent,
   Briefcase,
   ChartColumn,
   ClipboardPen,
@@ -27,12 +26,6 @@ const MODULES = {
     title: 'My Sales',
     description: 'Track conversions, payments and your sales performance in one place.',
     variant: 'sales',
-  },
-  plans: {
-    icon: BadgePercent,
-    title: 'Plans & Pricing',
-    description: 'Browse Eduport Plus plans and their pricing, ready to share with parents.',
-    variant: 'plans',
   },
   dashboard: {
     icon: LayoutDashboard,

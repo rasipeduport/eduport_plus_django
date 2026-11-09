@@ -51,7 +51,10 @@ class Structure(models.TextChoices):
 
 
 class PlanType(models.TextChoices):
-    """What a syllabus may be sold as. Chapter Plan sells a choice of the syllabus's own chapters."""
+    """
+    What a syllabus may be sold as. Chapter Plan sells a choice of the
+    syllabus's own chapters; Bridge Course the whole course or a choice of its days.
+    """
     REGULAR = 'REGULAR', 'Regular'
     REVISION = 'REVISION', 'Revision'
     CHAPTER_PLAN = 'CHAPTER_PLAN', 'Chapter Plan'
@@ -59,7 +62,8 @@ class PlanType(models.TextChoices):
     REGULAR_REVISION = 'REGULAR_REVISION', 'Regular + Revision'
 
 
-# The plan types each structure offers: a Bridge Course is sold only as itself.
+# The plan types each structure offers: a Bridge Course is sold only as itself -- the whole
+# course, or the days a purchase chooses (sales.services.bridge_selection), never a chapter-wise plan.
 STRUCTURE_PLAN_TYPES = {
     Structure.CHAPTER_WISE: (PlanType.REGULAR, PlanType.REVISION, PlanType.CHAPTER_PLAN, PlanType.REGULAR_REVISION),
     Structure.BRIDGE_COURSE: (PlanType.BRIDGE_COURSE,),
@@ -274,8 +278,9 @@ class SyllabusChapter(models.Model):
     """
     One row of a revision's chapter table, at ``position`` (its serial number,
     or its day in a Bridge Course). A chapter-wise syllabus counts its Regular
-    and Revision classes; a Bridge Course only its classes. A Chapter Plan sells
-    a choice of these rows: it has none of its own.
+    and Revision classes; a Bridge Course only its classes. A Chapter Plan, and
+    a Bridge Course bought by the day, sell a choice of these rows: neither has
+    any of its own.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # A draft's chapters go with it when it is discarded; a published
@@ -383,3 +388,170 @@ class PricingVersion(models.Model):
 
     def __str__(self):
         return f'Pricing v{self.version}'
+
+
+# ---------------------------------------------------------------- quotes
+
+# Exact amounts: a fee with cents times half classes has at most three decimal places (687.375).
+AMOUNT = {'max_digits': 15, 'decimal_places': 3}
+QUOTE_REFERENCE_PREFIX = 'Q-'
+
+
+class QuoteStatus(models.TextChoices):
+    """
+    Where a quote stands: issued when a BDE makes it, cancelled by an
+    administrator. The Sales workflow to come -- the parent's confirmation, a
+    payment link, the payment, Sales Punching -- adds its own steps here.
+    """
+    ISSUED = 'ISSUED', 'Issued'
+    CANCELLED = 'CANCELLED', 'Cancelled'
+
+
+class Quote(models.Model):
+    """
+    What a parent is quoted for one purchase: a plan type of a syllabus's
+    published revision -- a whole course, a Chapter Plan's chosen chapters, or
+    a Bridge Course whole or by the day -- priced at one pricing version, and
+    who quoted it (``created_by``, its owner), for whom (``lead``, optional).
+
+    The quote keeps its own figures: the rates it was priced at, its classes,
+    total, single-payment saving and what is payable at once, and each package
+    (QuoteLine) and chapter or day (QuoteChapter) it covers -- the chapters by
+    id, rows of an immutable published revision, never copied. Nothing of it
+    ever changes (sales.0004) but its status: a later revision or pricing
+    version, or a later pricing rule, leaves an issued quote as it was.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Its reference, Q-000001 onwards (sales.quotes allocates the next under a table lock).
+    number = models.PositiveIntegerField(unique=True)
+    status = models.CharField(max_length=20, choices=QuoteStatus.choices, default=QuoteStatus.ISSUED)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='sales_quotes')
+    created_at = models.DateTimeField(default=timezone.now)
+    # The enquiry it answers, when the BDE names one: where the parent's confirmation will attach.
+    lead = models.ForeignKey('bookings.Lead', on_delete=models.PROTECT, null=True, blank=True, related_name='sales_quotes')
+    # Replacing a student's plan issues another snapshot; the old quote is never
+    # rewritten or cancelled implicitly. At most one quote directly replaces it.
+    supersedes = models.OneToOneField(
+        'self', on_delete=models.PROTECT, null=True, blank=True, related_name='replacement',
+    )
+    # The published revision quoted (its syllabus with it) and the pricing version that priced it.
+    revision = models.ForeignKey(SyllabusRevision, on_delete=models.PROTECT, related_name='quotes')
+    pricing_version = models.ForeignKey(PricingVersion, on_delete=models.PROTECT, related_name='quotes')
+    plan_type = models.CharField(max_length=20, choices=PlanType.choices)
+    # Every chapter (or day) of the revision: a whole course, as its own package.
+    full_course = models.BooleanField()
+    # The rates it was priced at, as that pricing version had them.
+    currency = models.CharField(max_length=3)
+    standard_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    offer_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    single_payment_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    # Its figures: the classes of every package, their total at the offer fee, what the single-payment
+    # privilege takes off it, and so what is payable when it is paid at once (each package's price
+    # rounded half up, sales.pricing).
+    classes = models.DecimalField(max_digits=6, decimal_places=1)
+    total_fee = models.DecimalField(**AMOUNT)
+    single_payment_saving = models.DecimalField(**AMOUNT)
+    payable_amount = models.DecimalField(**AMOUNT)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='cancelled_sales_quotes',
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        db_table = 'sales_quotes'
+        verbose_name = 'Quote'
+        verbose_name_plural = 'Quotes'
+        ordering = ['-number']
+        indexes = [
+            models.Index(fields=['created_by', '-number'], name='sales_quotes_owner_idx'),
+            models.Index(fields=['lead', '-number'], name='sales_quotes_lead_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(number__gte=1), name='sales_quotes_number_from_one'),
+            models.CheckConstraint(condition=Q(status__in=QuoteStatus.values), name='sales_quotes_known_status'),
+            models.CheckConstraint(condition=Q(plan_type__in=PlanType.values), name='sales_quotes_known_plan_type'),
+            models.CheckConstraint(condition=Q(currency__regex=r'^[A-Z]{3}$'), name='sales_quotes_currency_code'),
+            models.CheckConstraint(condition=Q(classes__gt=0), name='sales_quotes_sells_classes'),
+            models.CheckConstraint(condition=Q(total_fee=F('offer_fee') * F('classes')), name='sales_quotes_total_at_offer_fee'),
+            models.CheckConstraint(condition=Q(single_payment_saving__gte=0), name='sales_quotes_saving_not_negative'),
+            models.CheckConstraint(
+                condition=Q(payable_amount=F('total_fee') - F('single_payment_saving')),
+                name='sales_quotes_payable_is_total_less_saving',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(status=QuoteStatus.ISSUED, cancelled_at__isnull=True, cancelled_by__isnull=True, cancel_reason='')
+                    | Q(status=QuoteStatus.CANCELLED, cancelled_at__isnull=False, cancelled_by__isnull=False)
+                ),
+                name='sales_quotes_cancellation_recorded',
+            ),
+            # Cancelled only with a reason: more than blanks (sales.0005).
+            models.CheckConstraint(
+                condition=Q(status=QuoteStatus.ISSUED) | _has_text('cancel_reason'),
+                name='sales_quotes_cancelled_with_a_reason',
+            ),
+        ]
+
+    @property
+    def reference(self):
+        return f'{QUOTE_REFERENCE_PREFIX}{self.number:06d}'
+
+    def __str__(self):
+        return self.reference
+
+
+class QuoteLine(models.Model):
+    """
+    One package of a quote, as its card prints it: Regular + Revision has two,
+    every other plan type one. Its single-payment price is its own total less
+    the privilege, rounded half up (sales.pricing), when the pricing gave it one.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name='lines')
+    position = models.PositiveSmallIntegerField()
+    plan_type = models.CharField(max_length=20, choices=PlanType.choices)
+    title = models.CharField(max_length=80)
+    classes = models.DecimalField(max_digits=6, decimal_places=1)
+    fee_per_class = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(**AMOUNT)
+    single_payment_price = models.DecimalField(**AMOUNT, null=True, blank=True)
+    single_payment_saving = models.DecimalField(**AMOUNT, null=True, blank=True)
+
+    class Meta:
+        db_table = 'sales_quote_lines'
+        verbose_name = 'Quote line'
+        verbose_name_plural = 'Quote lines'
+        ordering = ['quote', 'position']
+        constraints = [
+            models.UniqueConstraint(fields=['quote', 'position'], name='sales_quote_lines_one_per_position'),
+            models.CheckConstraint(condition=Q(total=F('fee_per_class') * F('classes')), name='sales_quote_lines_total_at_fee'),
+            models.CheckConstraint(
+                condition=(
+                    Q(single_payment_price__isnull=True, single_payment_saving__isnull=True)
+                    | Q(single_payment_saving__gte=0, total=F('single_payment_price') + F('single_payment_saving'))
+                ),
+                name='sales_quote_lines_price_and_saving_make_the_total',
+            ),
+        ]
+
+
+class QuoteChapter(models.Model):
+    """
+    A chapter -- or a Bridge Course's day -- a quote covers, by id (a row of
+    the quote's published revision, never copied), with the classes the
+    quote counted for it.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name='chapters')
+    chapter = models.ForeignKey(SyllabusChapter, on_delete=models.PROTECT, related_name='quoted')
+    classes = models.DecimalField(max_digits=4, decimal_places=1)
+
+    class Meta:
+        db_table = 'sales_quote_chapters'
+        verbose_name = 'Quoted chapter'
+        verbose_name_plural = 'Quoted chapters'
+        constraints = [
+            models.UniqueConstraint(fields=['quote', 'chapter'], name='sales_quote_chapters_once_each'),
+            models.CheckConstraint(condition=Q(classes__gte=0), name='sales_quote_chapters_classes_not_negative'),
+        ]

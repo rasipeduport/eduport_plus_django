@@ -405,7 +405,8 @@ test('New syllabus: a Bridge Course counts days of classes, is sold as itself, a
   await click(input('syllabus-structure-BRIDGE_COURSE'));
   assert.ok(input('chapter-0-bridge_classes'), 'one count a day');
   assert.equal(input('chapter-0-regular_classes'), null);
-  assert.match(bodyText(), /A Bridge Course is sold as one plan: the whole course\./);
+  assert.match(bodyText(), /A Bridge Course is sold as the whole course, or by the day: BDEs choose any of its days when quoting/);
+  assert.doesNotMatch(bodyText(), /sold as one plan/);
   await typeInto(input('syllabus-title'), 'Grade 7 CBSE');
   await choose('syllabus-grade', 'Grade 7');
   await typeInto(input('chapter-0-name'), 'Ratios');
@@ -537,6 +538,11 @@ test("Activity: a syllabus's entries name the revision; a pricing version's name
   assert.equal(entry('pricing.create_version', {
     changes: { offer_fee: { old: null, new: '35' }, standard_fee: { old: null, new: '45' } }, context: { version: 1, previous_version: null },
   }), 'Pricing v1: offer fee 35 a class');
+  // A quote's entries: what is payable at once (whole cents), and why one was cancelled.
+  assert.equal(entry('quote.create', { context: { revision: 1, payable_amount: '122.5', currency: 'AED' } }),
+    'Issued a quote of revision 1: AED 122.50 payable at once');
+  assert.equal(entry('quote.cancel', { context: { reason: 'Parent chose Regular' } }), 'Cancelled the quote: Parent chose Regular');
+  assert.deepEqual([harness.actionLabels['quote.create'], harness.actionLabels['quote.cancel']], ['Quote issued', 'Quote cancelled']);
 });
 
 test('A draft changed meanwhile is not overwritten: the editor says so and offers the latest version', async () => {
@@ -841,6 +847,253 @@ test('With no single-payment price on any package, the syllabus page and the edi
   assert.match(bodyText(), NO_BOX);
 });
 
+// ------------------------------------------------------------------ Plans & Pricing (BDEs: the catalogue on sale)
+const BDE = { id: 'bde', role: 'BDE', permissions: ['accounts.view_own_enquiries', 'accounts.view_sales_catalogue'] };
+const BDE_WITHOUT = { id: 'bde-2', role: 'BDE', permissions: ['accounts.view_own_enquiries'] };
+const CATALOGUE = '/api/sales/catalogue/';
+const BRIDGE_ID = '33333333-3333-4333-8333-333333333333';
+const PLAN_ID = '44444444-4444-4444-8444-444444444444';
+const onSale = (id, path = '') => `${CATALOGUE}${id}/${path}`;
+// Version 3 of the pricing as the catalogue gives it: rates and privilege only (no note, author or history).
+const ON_SALE_PRICING = {
+  version: 3, currency: 'AED', standard_fee: '45', offer_fee: '35', single_payment_percent: '5',
+  single_payment_plan_types: ['REGULAR', 'BRIDGE_COURSE'],
+};
+// Ten days: whole, half and no classes (day 6) -- 10 classes in all, as the backend's tests_selection DAYS.
+const DAYS = [['Addition Subtraction Word problem', '1'], ['Multiplication Word problem', '1.5'], ['Division ,BODMAS,Word problem', '0.5'],
+  ['Fraction, Types of fractions', '2'], ['Ratios', '1'], ['Revision of the week', '0'], ['Percentage', '1'], ['Factorization', '1'],
+  ['LCM and HCF', '1'], ['Unit conversion', '1']];
+const daysOf = (prefix) => DAYS.map(([name, classes], index) => ({
+  id: `${prefix}-${index + 1}`, position: index + 1, name, regular_classes: null, revision_classes: null, bridge_classes: classes,
+}));
+function bridgeOnSale({ revision = 1, prefix = 'day', ...extra } = {}) {
+  return {
+    id: BRIDGE_ID, revision, title: 'Grade 7 CBSE', subtitle: 'Detailed Bridge Course Curriculum',
+    package_title: 'Grade 7 CBSE – 1:1 Tuition Packages & Fee Details', grade: 7, board: 'CBSE', syllabus_version: '',
+    structure: 'BRIDGE_COURSE', plan_types: ['BRIDGE_COURSE'],
+    inclusions: ['Personalized 1:1 live sessions', 'Structured CBSE aligned learning', 'Dedicated mentor support'],
+    chapters: daysOf(prefix), totals: { regular: '0', revision: '0', bridge: '10' },
+    // The whole course, as the API prices it: 350 less 5% is 332.50, rounded half up to 333.
+    packages: [{ plan_type: 'BRIDGE_COURSE', title: 'Bridge Course Package', classes: '10', fee_per_class: '35', total: '350',
+      single_payment: { price: '333', saving: '17' } }],
+    pricing: ON_SALE_PRICING,
+    ...extra,
+  };
+}
+const CHAPTER_WISE_ON_SALE = {
+  ...revision(1), id: PLAN_ID, revision: 1, subtitle: 'Detailed Chapter-Wise 1:1 Learning Plan',
+  package_title: 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details', pricing: ON_SALE_PRICING,
+};
+for (const field of ['number', 'is_draft', 'subtitle_display', 'package_title_display', 'created_at', 'created_by', 'updated_at',
+  'updated_by', 'published_at', 'published_by']) delete CHAPTER_WISE_ON_SALE[field];
+const CATALOGUE_ROWS = [
+  { id: PLAN_ID, revision: 1, title: 'Grade 6 CBSE', grade: 6, board: 'CBSE', syllabus_version: 'New Syllabus', structure: 'CHAPTER_WISE',
+    plan_types: ['REGULAR', 'REVISION', 'REGULAR_REVISION'], chapter_count: 10, totals: { regular: '38', revision: '19', bridge: null } },
+  { id: BRIDGE_ID, revision: 1, title: 'Grade 7 CBSE', grade: 7, board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE',
+    plan_types: ['BRIDGE_COURSE'], chapter_count: 10, totals: { regular: null, revision: null, bridge: '10' } },
+];
+const dayBox = (n) => document.querySelector(`input[type="checkbox"][aria-label^="Day ${n}:"]`);
+const pdfPost = () => calls('POST', onSale(BRIDGE_ID, 'selection/pdf/'));
+
+test('Prices: a Bridge Course bought by the day is priced exactly as the API prices it, half up only at the end', () => {
+  const days = daysOf('day');
+  // Backend tests_selection: days 2 and 3 are 2 classes, AED 70; less 5% is 66.50, a half, rounded up to 67, saving 3.
+  let picked = harness.bridgeSelection(days, ['day-3', 'day-2'], ON_SALE_PRICING);
+  assert.deepEqual([picked.days.map((day) => day.position), picked.fullCourse, picked.classes], [[2, 3], false, '2']);
+  assert.deepEqual(picked.package, { plan_type: 'BRIDGE_COURSE', title: harness.selectedDaysTitle, classes: '2', fee_per_class: '35',
+    total: '70', single_payment: { price: '67', saving: '3' } });
+  // Days 2 and 4, chosen in any order, keep the course's: 3.5 classes, AED 122.50 -> 116.375 -> 116, saving 6.50.
+  picked = harness.bridgeSelection(days, ['day-4', 'day-2'], ON_SALE_PRICING);
+  assert.deepEqual([picked.days.map((day) => day.position), picked.classes, picked.package.total, picked.package.single_payment],
+    [[2, 4], '3.5', '122.5', { price: '116', saving: '6.5' }]);
+  // Every day is the whole course: its own package, exactly as the API prices it.
+  picked = harness.bridgeSelection(days, days.map((day) => day.id).reverse(), ON_SALE_PRICING);
+  assert.equal(picked.fullCourse, true);
+  assert.deepEqual(picked.package, bridgeOnSale().packages[0]);
+  // A half class at a fee with fils: 1.5 x 35.25 = 52.875, less 5% is 50.23125 -> 50, saving 2.875.
+  picked = harness.bridgeSelection(days, ['day-2'], { ...ON_SALE_PRICING, offer_fee: '35.25' });
+  assert.deepEqual([picked.package.total, picked.package.single_payment], ['52.875', { price: '50', saving: '2.875' }]);
+  // No privilege for a Bridge Course in the pricing, none chosen, no pricing.
+  assert.equal(harness.bridgeSelection(days, ['day-2'], { ...ON_SALE_PRICING, single_payment_plan_types: ['REGULAR'] }).package.single_payment, null);
+  assert.deepEqual([harness.bridgeSelection(days, [], ON_SALE_PRICING).classes, harness.bridgeSelection(days, [], ON_SALE_PRICING).package.total], ['0', '0']);
+  assert.equal(harness.bridgeSelection(days, ['day-2'], null).package, null);
+});
+
+test('Plans & Pricing: the plans on sale, filtered in the API; none yet, a failure and a refusal each say so', async () => {
+  serve({ [`GET ${CATALOGUE}`]: list(CATALOGUE_ROWS) });
+  const page = await open('/plans', BDE);
+  assert.deepEqual(headers(), ['Plan', 'Grade', 'Board', 'Version', 'Structure', 'Sold as', 'Classes', 'Syllabus PDF', 'Open']);
+  assert.match(bodyText(), /Grade 6 CBSE.*38 Regular · 19 Revision.*Grade 7 CBSE.*10 classes over 10 days/);
+  // Nothing an administrator manages: no status, author, draft, new syllabus or actions menu.
+  assert.doesNotMatch(bodyText(), /Draft|Published|Last updated|New syllabus|Global pricing/);
+  assert.equal(button('Actions for Grade 6 CBSE'), undefined);
+  await choose('Filter by grade', 'Grade 7');
+  assert.equal(calls('GET', CATALOGUE).at(-1).params.grade, '7');
+  await click(link('Grade 7 CBSE'));
+  assert.equal(page.location().pathname, `/plans/${BRIDGE_ID}`);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${CATALOGUE}`]: list([]) });
+  await open('/plans', BDE);
+  assert.match(bodyText(), /No plans on sale yet/);
+  await mounted.pop().unmount();
+
+  let answers = 0;
+  serve({ [`GET ${CATALOGUE}`]: () => (answers++ ? ok(list(CATALOGUE_ROWS)) : fail(500, { message: 'Server error.' })) });
+  await open('/plans', BDE);
+  assert.match(bodyText(), /Server error\./);
+  await click(button('Try again'));
+  assert.match(bodyText(), /Grade 7 CBSE/);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${CATALOGUE}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open('/plans', BDE);
+  assert.match(bodyText(), /You don't have access to plans and pricing\./);
+});
+
+test('A Bridge Course: days ticked one by one, Select all, Clear -- priced as they are ticked, drawn in the course order', async () => {
+  serve({
+    [`GET ${onSale(BRIDGE_ID)}`]: bridgeOnSale(),
+    [`POST ${onSale(BRIDGE_ID, 'selection/pdf/')}`]: () => ok(new Blob(['%PDF'])),
+  });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  assert.deepEqual(headers(), ['Chosen', 'Day', 'Chapter name', 'Classes']);
+  assert.match(bodyText(), /Single payment\s*5% off Bridge Course when paid in one instalment/);
+  assert.deepEqual(rows().map((row) => clean(row.textContent)).slice(0, 2), ['1Addition Subtraction Word problem1', '2Multiplication Word problem1.5']);
+  // The summary comes first in the page (above the days on a phone, beside them on a wide screen).
+  assert.match(bodyText(), /Your selection\s*Choose at least one day, or Select all for the full course\..*0 of 10 days chosen/);
+  assert.equal(button('Preview PDF').disabled, true);
+  assert.equal(button('Download PDF').disabled, true);
+
+  // Day 4, then day 2: in the course's order, 3.5 classes, AED 122.50, AED 116 paid at once.
+  await click(dayBox(4));
+  await click(dayBox(2));
+  assert.match(bodyText(), /2 of 10 days chosen/);
+  assert.match(bodyText(), /Your selection\s*Package\s*Bridge Course – Selected Days Package\s*Days\s*Days 2 and 4 of 10\s*Classes\s*3\.5 Classes/);
+  assert.match(bodyText(), /Fee per class\s*AED 35\s*Total fee\s*AED 122\.50\s*Single payment\s*AED 116 \(saves AED 6\.50\)/);
+  await click(button('Preview PDF'));
+  assert.deepEqual(pdfPost()[0].data, { revision: 1, chapter_ids: ['day-2', 'day-4'] });
+  assert.deepEqual(pdfPost()[0].params, { disposition: 'inline' });
+
+  // Select all is the whole course: its own package and price, every day sent.
+  await click(button('Select all'));
+  assert.match(bodyText(), /10 of 10 days chosen/);
+  assert.match(bodyText(), /Full course\s*Package\s*Bridge Course Package\s*Days\s*All 10 days\s*Classes\s*10 Classes/);
+  assert.match(bodyText(), /Total fee\s*AED 350\s*Single payment\s*AED 333 \(saves AED 17\)/);
+  assert.equal(button('Select all').disabled, true);
+  await click(button('Download PDF'));
+  assert.deepEqual(pdfPost()[1].data, { revision: 1, chapter_ids: daysOf('day').map((day) => day.id) });
+  assert.equal(pdfPost()[1].params, null);
+
+  // Clear: nothing chosen, nothing to draw.
+  await click(button('Clear'));
+  assert.match(bodyText(), /0 of 10 days chosen/);
+  assert.equal(button('Download PDF').disabled, true);
+  assert.equal(button('Clear').disabled, true);
+
+  // A day without classes, alone, sells nothing.
+  await click(dayBox(6));
+  assert.match(bodyText(), /The days chosen have no classes: choose a day that has some\./);
+  assert.equal(button('Preview PDF').disabled, true);
+  assert.equal(pdfPost().length, 2);
+});
+
+test('A Bridge Course republished meanwhile: its PDF is refused, the page says so and reloads the new revision', async () => {
+  let current = bridgeOnSale();
+  serve({
+    [`GET ${onSale(BRIDGE_ID)}`]: () => ok(current),
+    [`POST ${onSale(BRIDGE_ID, 'selection/pdf/')}`]: () => fail(409, {
+      error: 'REVISION_CHANGED', message: 'This syllabus was updated to revision 2: reload it and choose the days again.', revision: 2,
+    }),
+  });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  await click(dayBox(1));
+  await click(dayBox(3));
+  current = bridgeOnSale({ revision: 2, prefix: 'r2' });
+  await click(button('Preview PDF'));
+  assert.match(bodyText(), /This plan was updated to revision 2 since you opened it\. Reload it and choose the days again\./);
+  // The old days are not ticked, priced or drawn against the new revision: reload first.
+  assert.equal(dayBox(1).disabled, true);
+  assert.equal(button('Select all').disabled, true);
+  assert.equal(button('Preview PDF').disabled, true);
+  assert.equal(button('Download PDF').disabled, true);
+  await click(button('Reload'));
+  assert.equal(calls('GET', onSale(BRIDGE_ID)).length, 2);
+  assert.doesNotMatch(bodyText(), /This plan was updated/);
+  assert.match(bodyText(), /0 of 10 days chosen/);
+  await click(dayBox(1));
+  assert.equal(dayBox(1).checked, true);
+  await mounted.pop().unmount();
+
+  // Withdrawn meanwhile: not on sale. (A pricing giving only Regular the privilege gives this plan none.)
+  serve({
+    [`GET ${onSale(BRIDGE_ID)}`]: bridgeOnSale({ pricing: { ...ON_SALE_PRICING, single_payment_plan_types: ['REGULAR'] } }),
+    [`POST ${onSale(BRIDGE_ID, 'selection/pdf/')}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such syllabus on sale.' }),
+  });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  assert.match(bodyText(), /Single payment\s*None for this plan/);
+  await click(dayBox(2));
+  assert.match(bodyText(), /Total fee\s*AED 52\.50/);
+  assert.doesNotMatch(bodyText(), /saves/);
+  await click(button('Download PDF'));
+  assert.match(bodyText(), /This plan is no longer on sale\./);
+});
+
+test('A chapter-wise plan: its chapters, priced packages and PDF -- nothing an administrator manages', async () => {
+  serve({
+    [`GET ${onSale(PLAN_ID)}`]: CHAPTER_WISE_ON_SALE,
+    [`GET ${onSale(PLAN_ID, 'pdf/')}`]: () => ok(new Blob(['%PDF'])),
+  });
+  await open(`/plans/${PLAN_ID}`, BDE);
+  assert.match(bodyText(), /Grade 6 · CBSE · New Syllabus · Chapter-wise/);
+  // The privilege as it reaches this plan: Regular (the pricing's Bridge Course is not a package of this plan).
+  assert.match(bodyText(), /Fee per class\s*AED 35 \(standard AED 45\)\s*Single payment\s*5% off Regular when paid in one instalment/);
+  assert.match(bodyText(), /Regular Course Package38 Classes.*AED 1,330.*Single payment: AED 1,264 \(saves AED 66\)/);
+  for (const label of ['Edit', 'Edit draft', 'Publish…', 'More actions', 'Discard draft', 'Deactivate', 'Duplicate revision 1']) {
+    assert.equal(button(label), undefined, label);
+  }
+  assert.doesNotMatch(bodyText(), /History|Global pricing|Loaded from|Last saved/);
+  await click(button('Preview syllabus PDF'));
+  assert.deepEqual(calls('GET', onSale(PLAN_ID, 'pdf/'))[0].params, { disposition: 'inline', revision: 1 });
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${onSale(PLAN_ID)}`]: { ...CHAPTER_WISE_ON_SALE, pricing: null, packages: null } });
+  await open(`/plans/${PLAN_ID}`, BDE);
+  assert.match(bodyText(), /Pricing is not set up yet, so the packages cannot be priced\./);
+  assert.equal(button('Download syllabus PDF').disabled, true);
+});
+
+test('A plan that is not on sale, refused or failing says so', async () => {
+  serve({ [`GET ${onSale(BRIDGE_ID)}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such syllabus on sale.' }) });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  assert.match(bodyText(), /This plan is not on sale/);
+  assert.ok(link('Plans & Pricing'));
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${onSale(BRIDGE_ID)}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  assert.match(bodyText(), /You don't have access to plans and pricing\./);
+  await mounted.pop().unmount();
+
+  let answers = 0;
+  serve({ [`GET ${onSale(BRIDGE_ID)}`]: () => (answers++ ? ok(bridgeOnSale()) : fail(500, { message: 'Server error.' })) });
+  await open(`/plans/${BRIDGE_ID}`, BDE);
+  assert.match(bodyText(), /Server error\./);
+  await click(button('Try again'));
+  assert.match(bodyText(), /0 of 10 days chosen/);
+});
+
+test('Access: Plans & Pricing opens for a BDE holding the catalogue, and for no one else', () => {
+  assert.equal(canOpenPage(BDE, '/plans'), true);
+  assert.equal(canOpenPage(BDE_WITHOUT, '/plans'), false);
+  // An administrator holds the catalogue too, but quotes from Syllabus & Plans: /plans is the BDE workspace's.
+  assert.equal(canOpenPage({ ...ADMIN, permissions: [...ADMIN.permissions, 'accounts.view_sales_catalogue'] }, '/plans'), false);
+  assert.equal(canOpenPage(MENTOR, '/plans'), false);
+  assert.equal(canOpenPage({ ...ROOT_MENTOR, permissions: [...ROOT_MENTOR.permissions, 'accounts.view_sales_catalogue'] }, '/plans'), false);
+  // A BDE reaches nothing of the administrators' Sales Management.
+  for (const path of ['/sales-syllabus', '/sales-pricing']) assert.equal(canOpenPage(BDE, path), false, path);
+});
+
 test('Access: Syllabus & Plans and Global Pricing open on their permissions, whatever the role holding them', () => {
   for (const path of ['/sales-syllabus', '/sales-pricing']) {
     assert.equal(canOpenPage(ADMIN, path), true, path);
@@ -848,6 +1101,560 @@ test('Access: Syllabus & Plans and Global Pricing open on their permissions, wha
     assert.equal(canOpenPage(ADMIN_WITHOUT, path), false, path);
     assert.equal(canOpenPage(MENTOR, path), false, path);
   }
+});
+
+// ------------------------------------------------------------------ quotes
+const QUOTER = { id: 'bde', role: 'BDE', permissions: ['accounts.view_own_enquiries', 'accounts.view_sales_catalogue', 'accounts.create_sales_quotes'] };
+const QUOTE_ADMIN = {
+  id: 'admin', role: 'ADMIN',
+  permissions: ['accounts.view_all_leads', 'accounts.view_sales_catalogue', 'accounts.create_sales_quotes', 'accounts.manage_sales_quotes'],
+};
+const QUOTES = '/api/sales/quotes/';
+const ENQUIRIES = '/api/bde/enquiries/';
+const LEAD_BDES = '/api/leads/bdes/';
+const QUOTE_ID = '55555555-5555-4555-8555-555555555555';
+const quoteAt = (path = '') => `${QUOTES}${QUOTE_ID}/${path}`;
+const BALA = { id: 'bde', name: 'Bala BDE' };
+const RIYA = { id: 'lead-1', parent_name: 'Riya Nair', student_name: 'Arjun' };
+const ENQUIRY_ROWS = [
+  { ...RIYA, grade: 6, phone: '+971 501234567', status: 'NEW' },
+  { id: 'lead-2', parent_name: 'Omar Khan', student_name: 'Zara', grade: 7, phone: '+971 509876543', status: 'NEW' },
+];
+// A chapter-wise plan sold every way, Chapter Plan too.
+const EVERY_WAY_ON_SALE = { ...CHAPTER_WISE_ON_SALE, plan_types: ['REGULAR', 'REVISION', 'CHAPTER_PLAN', 'REGULAR_REVISION'] };
+const chapterBox = (n) => document.querySelector(`input[type="checkbox"][aria-label^="Chapter ${n}:"]`);
+const radio = (text) => [...document.querySelectorAll('input[type="radio"]')].find((element) => clean(element.closest('label')?.textContent).startsWith(text));
+const quotePosts = () => calls('POST', QUOTES);
+
+// Grade 6, Regular + Revision, as the API answers it (backend sales.quotes.quote_data).
+function quoteOf(extra = {}) {
+  return {
+    id: QUOTE_ID, reference: 'Q-000007', status: 'ISSUED', created_at: '2026-11-09T06:30:00+00:00', created_by: BALA, lead: RIYA,
+    syllabus: { id: PLAN_ID, title: 'Grade 6 CBSE', grade: 6, board: 'CBSE', structure: 'CHAPTER_WISE', syllabus_version: 'New Syllabus' },
+    revision: 1, plan_type: 'REGULAR_REVISION', full_course: true, currency: 'AED', classes: '57', total_fee: '1995', payable_amount: '1929',
+    pricing_version: 3, standard_fee: '45', offer_fee: '35', single_payment_percent: '5', single_payment_saving: '66', lines: PACKAGES,
+    chapters: chaptersOf(GRADE_6, 'r1').map((chapter) => ({
+      id: chapter.id, position: chapter.position, name: chapter.name, classes: String(Number(chapter.regular_classes) + Number(chapter.revision_classes)),
+    })),
+    cancelled_at: null, cancelled_by: null, cancel_reason: '',
+    ...extra,
+  };
+}
+const rowOf = (quote) => {
+  const row = { ...quote, syllabus: { ...quote.syllabus } };
+  for (const field of ['pricing_version', 'standard_fee', 'offer_fee', 'single_payment_percent', 'single_payment_saving', 'lines', 'chapters',
+    'cancelled_at', 'cancelled_by', 'cancel_reason']) delete row[field];
+  delete row.syllabus.syllabus_version;
+  return row;
+};
+const BRIDGE_QUOTE = quoteOf({
+  id: '66666666-6666-4666-8666-666666666666', reference: 'Q-000008', lead: null, status: 'CANCELLED',
+  syllabus: { id: BRIDGE_ID, title: 'Grade 7 CBSE', grade: 7, board: 'CBSE', structure: 'BRIDGE_COURSE', syllabus_version: '' },
+  plan_type: 'BRIDGE_COURSE', full_course: false, classes: '3.5', total_fee: '122.5', payable_amount: '116',
+  created_by: { id: 'bde-3', name: 'Chitra BDE' },
+});
+
+async function typeText(element, value) {
+  const prototype = element.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+    element.dispatchEvent(new window.Event('input', { bubbles: true }));
+  });
+  await settle();
+}
+
+async function search(label, text, root = document.body) {
+  const field = root.querySelector(`input[aria-label="${label}"]`);
+  assert.ok(field, `no search ${label}`);
+  await typeText(field, text);
+  await fire(field.closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+}
+
+test('Prices: a quote is worked out as the API works it out -- two packages for Regular + Revision, chosen chapters, days or the whole course', () => {
+  const grade6 = chaptersOf(GRADE_6, 'c');
+  // Regular + Revision: two packages, each rounded on its own -- the Regular one's privilege only (the pricing names Regular).
+  let preview = harness.quotePreview('REGULAR_REVISION', grade6, [], ON_SALE_PRICING);
+  assert.deepEqual(preview.lines, PACKAGES);
+  assert.deepEqual([preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse],
+    ['57', '1995', '66', '1929', true]);
+  preview = harness.quotePreview('REVISION', grade6, [], ON_SALE_PRICING);
+  assert.deepEqual([preview.lines.length, preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount],
+    [1, '19', '665', '0', '665']);
+  // A Chapter Plan: the chapters chosen, in the course's order, their Regular classes; no privilege names it.
+  const plan = harness.chapterPlanSelection(grade6, ['c-6', 'c-1'], ON_SALE_PRICING);
+  assert.deepEqual(plan.days.map((chapter) => chapter.position), [2, 7]);
+  assert.deepEqual(plan.package, { plan_type: 'CHAPTER_PLAN', title: harness.chapterPlanTitle, classes: '10', fee_per_class: '35', total: '350',
+    single_payment: null });
+  // Even a pricing giving every package it may name the privilege (backend PRIVILEGE_PLAN_TYPES, a CHECK in the database).
+  preview = harness.quotePreview('CHAPTER_PLAN', grade6, ['c-6', 'c-1'], { ...ON_SALE_PRICING, single_payment_plan_types: ['REGULAR', 'REVISION', 'BRIDGE_COURSE'] });
+  assert.deepEqual([preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse], ['350', '0', '350', false]);
+  // A Bridge Course: by the day, or -- no day, or every day -- the whole course.
+  const days = daysOf('day');
+  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-4', 'day-2'], ON_SALE_PRICING);
+  assert.deepEqual([preview.lines[0].title, preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse],
+    [harness.selectedDaysTitle, '3.5', '122.5', '6.5', '116', false]);
+  for (const ids of [[], days.map((day) => day.id)]) {
+    preview = harness.quotePreview('BRIDGE_COURSE', days, ids, ON_SALE_PRICING);
+    assert.deepEqual([preview.lines, preview.payable_amount, preview.fullCourse], [bridgeOnSale().packages, '333', true]);
+  }
+  // A whole course past 99.5 classes is summed whole: 105 + 50 classes, 3,675 less 5% is 3,491.25 -> 3,491.
+  const long = [{ regular_classes: '60', revision_classes: '50', bridge_classes: null }, { regular_classes: '45', revision_classes: '0', bridge_classes: null }];
+  preview = harness.quotePreview('REGULAR_REVISION', long, [], ON_SALE_PRICING);
+  assert.deepEqual([preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount], ['155', '5425', '184', '5241']);
+  // Fils kept to the end: 1.5 x 35.25 = 52.875, less 5% is 50.23125 -> 50, saving 2.875; payable 50.
+  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-2'], { ...ON_SALE_PRICING, offer_fee: '35.25' });
+  assert.deepEqual([preview.total_fee, preview.single_payment_saving, preview.payable_amount], ['52.875', '2.875', '50']);
+  assert.equal(harness.quotePreview('REGULAR', grade6, [], null), null);
+  assert.deepEqual([quoteOf(), BRIDGE_QUOTE, { plan_type: 'BRIDGE_COURSE', full_course: true }, { plan_type: 'CHAPTER_PLAN' }].map(harness.quotePlanLabel),
+    ['Regular + Revision', 'Bridge Course · Selected Chapters', 'Full Bridge Course', 'Chapter Plan']);
+  assert.deepEqual([harness.enquiryLabel(RIYA), harness.enquiryLabel({ parent_name: 'Omar Khan', student_name: '' }), harness.enquiryLabel(null)],
+    ['Riya Nair (parent of Arjun)', 'Omar Khan', '']);
+});
+
+const ENQUIRY = { ...RIYA, grade: 'Class 6', phone: '+971 501234567', phone_dial_code: '+971', phone_number: '501234567', status: 'NEW', bookings: [] };
+const PLAN_STATE = `/api/sales/enquiries/${RIYA.id}/plan/`;
+const enquiryPath = `/enquiries/${RIYA.id}?tab=plan-choosing`;
+const emptyPlan = { lead: RIYA, latest_quote: null, current: null, locked: false, history: [] };
+function studentApi(extra = {}) {
+  serve({
+    [`GET ${ENQUIRIES}${RIYA.id}/`]: ENQUIRY,
+    [`GET ${PLAN_STATE}`]: emptyPlan,
+    [`GET ${CATALOGUE}`]: list(CATALOGUE_ROWS),
+    [`GET ${onSale(PLAN_ID)}`]: EVERY_WAY_ON_SALE,
+    [`GET ${onSale(BRIDGE_ID)}`]: bridgeOnSale(),
+    ...extra,
+  });
+}
+const selectSyllabus = async (title = 'Grade 6 CBSE') => click(button(`Select ${title}`));
+
+test('Student quote: select syllabus first, then its enabled plan; fixed student and pricing are confirmed before saving', async () => {
+  studentApi({ [`POST ${QUOTES}`]: quoteOf({ is_current: true }) });
+  const page = await open(enquiryPath, QUOTER);
+  assert.equal(radio('Regular Only'), undefined);
+  assert.equal(button('Create quote…'), undefined);
+  await selectSyllabus();
+  assert.equal(radio('Regular Only').checked, false);
+  assert.equal(button('Create quote…').disabled, true);
+  await click(radio('Regular + Revision'));
+  assert.match(bodyText(), /Revision Course .*PackageAED 665/);
+  assert.match(bodyText(), /57 Classes.*AED 1,995.*AED 66.*AED 1,929/);
+  await click(button('Create quote…'));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /For Riya Nair \(parent of Arjun\)/);
+  assert.equal(radio('No enquiry'), undefined);
+  assert.equal(quotePosts().length, 0);
+  await click(button('Issue quote', dialog));
+  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'REGULAR_REVISION', chapter_ids: [], lead: RIYA.id, replaces: null, pricing_version: ON_SALE_PRICING.version });
+  assert.equal(page.location().pathname, `/enquiries/${RIYA.id}`);
+  assert.match(bodyText(), /Current selected plan.*Q-000007.*57 Classes/);
+  assert.match(bodyText(), /Quote history.*Q-000007/);
+  assert.ok(button('Edit / change plan'));
+  assert.ok(button('Download quote PDF'));
+});
+
+test('Student Chapter Plan: scoped chapters, calculation and validation; selections survive retry and back navigation', async () => {
+  let posts = 0;
+  studentApi({ [`POST ${QUOTES}`]: () => posts++ ? ok(quoteOf({ plan_type: 'CHAPTER_PLAN', full_course: false, is_current: true })) : fail(400, { error: 'VALIDATION_ERROR', message: 'Choose one of your own enquiries.', fields: { lead: ['Choose one of your own enquiries.'] } }) });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Chapter Plan'));
+  assert.equal(button('Create quote…').disabled, true);
+  await click(chapterBox(7));
+  await click(chapterBox(2));
+  assert.match(bodyText(), /2 of 10 chapters chosen.*Chapter Plan PackageAED 350.*10 Classes × AED 35/);
+  await click(button('Change syllabus'));
+  await selectSyllabus();
+  assert.equal(chapterBox(7).checked, true);
+  assert.equal(chapterBox(2).checked, true);
+  await click(button('Create quote…'));
+  await click(button('Issue quote', topDialog()));
+  assert.deepEqual(quotePosts()[0].data.chapter_ids, ['r1-1', 'r1-6']);
+  assert.equal(quotePosts()[0].data.lead, RIYA.id);
+  assert.match(clean(topDialog().textContent), /Choose one of your own enquiries/);
+  await click(button('Issue quote', topDialog()));
+  assert.match(bodyText(), /Current selected plan/);
+});
+
+test('Student Bridge Course: Full Bridge Course or Selected Chapters; stale revision blocks quoting until reload', async () => {
+  let current = bridgeOnSale();
+  let posts = 0;
+  studentApi({
+    [`GET ${onSale(BRIDGE_ID)}`]: () => ok(current),
+    [`POST ${QUOTES}`]: () => posts++ ? ok(quoteOf({ syllabus: { ...BRIDGE_QUOTE.syllabus }, plan_type: 'BRIDGE_COURSE', is_current: true })) : fail(409, { error: 'REVISION_CHANGED', message: 'The syllabus was updated. Reload and select the plan again.', revision: 2 }),
+  });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus('Grade 7 CBSE');
+  assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['full', 'selected']);
+  await click(radio('Full Bridge Course'));
+  assert.match(bodyText(), /Bridge Course PackageAED 350.*10 Classes.*AED 333/);
+  await click(radio('Selected Chapters'));
+  assert.doesNotMatch(bodyText(), /Choose at least one chapter for the Chapter Plan/);
+  assert.equal(button('Create quote…').disabled, true);
+  await click(chapterBox(4));
+  await click(chapterBox(2));
+  assert.match(bodyText(), /3.5 Classes.*AED 122.50.*AED 116/);
+  await click(button('Create quote…'));
+  current = bridgeOnSale({ revision: 2, prefix: 'r2' });
+  await click(button('Issue quote', topDialog()));
+  assert.equal(topDialog(), undefined);
+  assert.equal(button('Create quote…').disabled, true);
+  assert.deepEqual(quotePosts()[0].data.chapter_ids, ['day-2', 'day-4']);
+  await click(button('Try again'));
+  await click(radio('Selected Chapters'));
+  assert.equal(chapterBox(2).checked, false);
+  await click(button('Select all'));
+  assert.match(bodyText(), /All chapters selected · Full course/);
+  await click(button('Create quote…'));
+  assert.match(clean(topDialog().textContent), /full course/);
+  await click(button('Issue quote', topDialog()));
+  assert.equal(quotePosts()[1].data.revision, 2);
+  assert.deepEqual(quotePosts()[1].data.chapter_ids, daysOf('r2').map((day) => day.id));
+});
+
+test('Common catalogue cannot create a quote; student selection requires permissions and pricing', async () => {
+  studentApi();
+  await open(`/plans/${PLAN_ID}`, QUOTER);
+  assert.equal(button('Create quote…'), undefined);
+  assert.ok(link('My Enquiries'));
+  await mounted.pop().unmount();
+  await open(enquiryPath, BDE);
+  assert.equal(button('Plan Choosing'), undefined);
+  assert.equal(calls('GET', PLAN_STATE).length, 0);
+  await mounted.pop().unmount();
+  studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, pricing: null, packages: null } });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Regular Only'));
+  assert.equal(button('Create quote…').disabled, true);
+  assert.match(bodyText(), /Pricing is not set up yet/);
+});
+
+test('Saved student quote: replacement preserves history and sends the expected current quote', async () => {
+  const old = quoteOf({ is_current: true, selection_status: 'CURRENT' });
+  const updated = quoteOf({ id: 'replacement-id', reference: 'Q-000009', is_current: true, supersedes: old.id, plan_type: 'REVISION' });
+  studentApi({ [`GET ${PLAN_STATE}`]: { ...emptyPlan, latest_quote: old.id, current: old, history: [rowOf(old)] }, [`POST ${QUOTES}`]: updated });
+  await open(enquiryPath, QUOTER);
+  assert.match(bodyText(), /Current selected plan/);
+  await click(button('Edit / change plan'));
+  assert.equal(radio('Regular + Revision').checked, true);
+  await click(radio('Revision Only'));
+  await click(button('Create quote…'));
+  assert.match(clean(topDialog().textContent), /previous quote remains in history/);
+  await click(button('Issue quote', topDialog()));
+  assert.equal(quotePosts()[0].data.replaces, old.id);
+  assert.equal(quotePosts()[0].data.plan_type, 'REVISION');
+  assert.match(bodyText(), /Q-000009.*Quote history.*Q-000009.*Current.*Q-000007.*Previous/);
+});
+
+test('Tab order and Sales & Payment are preserved; locked plans can be viewed and downloaded but cannot change', async () => {
+  const old = quoteOf({ is_current: true });
+  studentApi({ [`GET ${PLAN_STATE}`]: { ...emptyPlan, locked: true, current: old, latest_quote: old.id, history: [rowOf(old)] },
+    [`GET ${quoteAt('pdf/')}`]: () => Promise.resolve({ data: new Blob(['%PDF-']), headers: {} }) });
+  const user = { ...QUOTER, permissions: [...QUOTER.permissions, 'accounts.view_own_lead_communications'] };
+  await open(enquiryPath, user);
+  const tabs = [...document.querySelectorAll('[role="tab"]')].map((el) => clean(el.textContent));
+  assert.equal(tabs.indexOf('Plan Choosing'), tabs.indexOf('Follow-ups') + 1);
+  assert.equal(tabs.indexOf('Sales & Payment'), tabs.indexOf('Plan Choosing') + 1);
+  assert.equal(button('Edit / change plan').disabled, true);
+  assert.match(bodyText(), /locked against plan changes/);
+  await click(button('Download quote PDF'));
+  assert.equal(saved.at(-1).name, 'Q-000007.pdf');
+  await fire(button('Sales & Payment'), new window.MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
+  assert.match(bodyText(), /Coming Soon/);
+});
+
+test('Catalogue sharing never sends an authenticated or localhost link; preview and download still work', async () => {
+  studentApi({ [`GET ${onSale(PLAN_ID, 'pdf/')}`]: () => Promise.resolve({ data: new Blob(['%PDF-']), headers: { 'content-disposition': 'attachment; filename="syllabus.pdf"' } }) });
+  await open('/plans', BDE);
+  const whatsapp = document.querySelector('a[aria-label="Share Grade 6 CBSE through WhatsApp"]');
+  const message = new URL(whatsapp.href).searchParams.get('text');
+  assert.match(message, /Grade 6 CBSE.*Eduport Plus/);
+  assert.doesNotMatch(message, /https?:|localhost|blob:|\/api\//);
+  assert.match(bodyText(), /Download and attach the PDF in WhatsApp/);
+  await click(button('Preview syllabus PDF'));
+  assert.ok(document.querySelector('iframe[src^="blob:"]'));
+  await fire(topDialog(), new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await click(button('Download syllabus PDF'));
+  assert.equal(saved.at(-1).name, 'syllabus.pdf');
+});
+
+test('Changing syllabus resets selections and shows only its enabled plans', async () => {
+  studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, plan_types: ['REVISION'] } });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  assert.equal(radio('Regular Only'), undefined);
+  assert.ok(radio('Revision Only'));
+  await click(button('Change syllabus'));
+  await selectSyllabus('Grade 7 CBSE');
+  assert.equal(radio('Revision Only'), undefined);
+  await click(radio('Selected Chapters'));
+  assert.ok(chapterBox(2).getAttribute('aria-label').includes(DAYS[1][0]));
+  assert.equal(chapterBox(2).checked, false);
+});
+
+test("My Quotes: a BDE's own quotes, searched and filtered in the API -- no BDE column or filter; empty, failing and refused each say so", async () => {
+  serve({ [`GET ${QUOTES}`]: list([rowOf(quoteOf()), rowOf(BRIDGE_QUOTE)]) });
+  const page = await open('/quotes', QUOTER);
+  assert.match(bodyText(), /My Quotes\s*The quotes you have issued/);
+  assert.deepEqual(calls('GET', QUOTES)[0].params, { page: 1, page_size: 25 });
+  assert.deepEqual(headers(), ['Quote', 'Date', 'Plan', 'Enquiry', 'Payable at once', 'Status', 'Open']);
+  const cells = (row) => [...row.querySelectorAll('td')].map((td) => clean(td.textContent));
+  assert.deepEqual(cells(rows()[0]).slice(0, 6), ['Q-000007', 'Nov 9, 2026', 'Grade 6 CBSERegular + Revision', 'Riya Nair (parent of Arjun)', 'AED 1,929', 'Issued']);
+  assert.deepEqual(cells(rows()[1]).slice(0, 6), ['Q-000008', 'Nov 9, 2026', 'Grade 7 CBSEBridge Course · Selected Chapters', '—', 'AED 116', 'Cancelled']);
+  assert.equal(document.querySelector('[aria-label="Filter by BDE"]'), null);
+  assert.equal(calls('GET', LEAD_BDES).length, 0);
+  assert.ok(link('New quote'));
+  await choose('Filter by status', 'Cancelled');
+  assert.equal(calls('GET', QUOTES).at(-1).params.status, 'CANCELLED');
+  await search('Search quotes', 'Q-7');
+  assert.deepEqual(calls('GET', QUOTES).at(-1).params, { page: 1, page_size: 25, q: 'Q-7', status: 'CANCELLED' });
+  // A BDE cannot widen the list from the URL: created_by is a manager's filter only.
+  await page.go('/quotes?created_by=bde-3');
+  assert.equal(calls('GET', QUOTES).at(-1).params.created_by, undefined);
+  await click(link('Q-000007'));
+  assert.equal(page.location().pathname, `/quotes/${QUOTE_ID}`);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${QUOTES}`]: list([]) });
+  await open('/quotes', QUOTER);
+  assert.match(bodyText(), /No quotes yet\s*Open a student’s enquiry/);
+  assert.ok(link('My Enquiries'));
+  await mounted.pop().unmount();
+  await open('/quotes?status=ISSUED', QUOTER);
+  assert.match(bodyText(), /No quotes match these filters/);
+  await mounted.pop().unmount();
+
+  let answers = 0;
+  serve({ [`GET ${QUOTES}`]: () => (answers++ ? ok(list([rowOf(quoteOf())])) : fail(500, { message: 'Server error.' })) });
+  await open('/quotes', QUOTER);
+  assert.match(bodyText(), /Server error\./);
+  await click(button('Try again'));
+  assert.match(bodyText(), /Q-000007/);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${QUOTES}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open('/quotes', QUOTER);
+  assert.match(bodyText(), /You don't have access to quotes\./);
+});
+
+test("Quotes (Admin): every BDE's quotes with who issued each, narrowed to one BDE; no BDE list, no filter", async () => {
+  serve({
+    [`GET ${QUOTES}`]: list([rowOf(quoteOf()), rowOf(BRIDGE_QUOTE)]),
+    [`GET ${LEAD_BDES}`]: { results: [{ id: 'bde', full_name: 'Bala BDE', assignable: true }, { id: 'bde-3', full_name: 'Chitra BDE', assignable: false }] },
+  });
+  await open('/quotes', QUOTE_ADMIN);
+  assert.match(bodyText(), /Quotes\s*Every quote the BDEs have issued/);
+  assert.doesNotMatch(bodyText(), /My Quotes/);
+  assert.equal(link('New quote'), undefined, "an administrator's Hub has no Plans & Pricing to quote from");
+  assert.deepEqual(headers(), ['Quote', 'Date', 'Plan', 'Enquiry', 'BDE', 'Payable at once', 'Status', 'Open']);
+  assert.match(clean(rows()[1].textContent), /Chitra BDE/);
+  await choose('Filter by BDE', 'Chitra BDE (inactive)');
+  assert.equal(calls('GET', QUOTES).at(-1).params.created_by, 'bde-3');
+  await click(button('Clear all filters'));
+  assert.equal(calls('GET', QUOTES).at(-1).params.created_by, undefined);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${QUOTES}`]: list([]), [`GET ${LEAD_BDES}`]: () => fail(403, { detail: 'No.' }) });
+  await open('/quotes', QUOTE_ADMIN);
+  assert.match(bodyText(), /No quotes yet\s*Quotes appear here as BDEs issue them from an enquiry’s Plan Choosing tab\./);
+  assert.equal(document.querySelector('[aria-label="Filter by BDE"]'), null);
+});
+
+test('A quote: as issued -- packages, figures, chapters covered -- its PDF previewed and downloaded; a BDE cannot cancel it', async () => {
+  serve({
+    [`GET ${quoteAt()}`]: quoteOf(),
+    [`GET ${quoteAt('pdf/')}`]: () => Promise.resolve({
+      status: 200, data: new Blob(['%PDF']), headers: { 'content-disposition': 'attachment; filename="Q-000007-Grade-6-CBSE-New-Syllabus-Plan-and-Price.pdf"' },
+    }),
+  });
+  await open(`/quotes/${QUOTE_ID}`, QUOTER);
+  assert.match(bodyText(), /Quote Q-000007\s*Grade 6 CBSE · Regular \+ Revision/);
+  assert.match(bodyText(), /QuoteIssued\s*Reference\s*Q-000007\s*Issued\s*Nov 9, 2026.*Issued by\s*Bala BDE\s*For enquiry\s*Riya Nair \(parent of Arjun\)/);
+  assert.match(bodyText(), /Plan\s*Grade 6 CBSE\s*Grade 6 · CBSE · New Syllabus · Chapter-wise\s*Quoted as\s*Regular \+ Revision\s*Revision 1 · pricing version 3/);
+  assert.match(bodyText(), /Fee per class\s*AED 35 \(standard AED 45\)/);
+  assert.match(bodyText(), /Packages\s*Regular Course PackageAED 1,330.*Total fee\s*AED 1,995\s*Single-payment saving\s*AED 66\s*Payable at once\s*AED 1,929/);
+  assert.match(bodyText(), /Chapters covered \(10\)/);
+  assert.equal(link('Riya Nair (parent of Arjun)').getAttribute('href'), '/enquiries/lead-1');
+  assert.equal(button('Cancel quote…'), undefined);
+  await click(button('Preview PDF'));
+  assert.deepEqual(calls('GET', quoteAt('pdf/'))[0].params, { disposition: 'inline' });
+  await click(button('Download PDF'));
+  assert.equal(calls('GET', quoteAt('pdf/'))[1].params, null);
+  assert.equal(saved.at(-1).name, 'Q-000007-Grade-6-CBSE-New-Syllabus-Plan-and-Price.pdf');
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${quoteAt()}`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such quote.' }) });
+  await open(`/quotes/${QUOTE_ID}`, QUOTER);
+  assert.match(bodyText(), /Quote not found/);
+  assert.ok(link('My Quotes'));
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${quoteAt()}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open(`/quotes/${QUOTE_ID}`, QUOTER);
+  assert.match(bodyText(), /You don't have access to quotes\./);
+});
+
+test('Cancelling a quote: administrators only, a reason required; cancelled, it stays so and its PDF still downloads', async () => {
+  const cancelled = quoteOf({
+    status: 'CANCELLED', cancelled_at: '2026-11-10T06:30:00+00:00', cancelled_by: { id: 'admin', name: 'Asha Admin' },
+    cancel_reason: 'Parent chose another plan.',
+  });
+  serve({
+    [`GET ${quoteAt()}`]: quoteOf(),
+    [`POST ${quoteAt('cancel/')}`]: cancelled,
+    [`GET ${quoteAt('pdf/')}`]: () => ok(new Blob(['%PDF'])),
+  });
+  await open(`/quotes/${QUOTE_ID}`, QUOTE_ADMIN);
+  // Every lead is the administrator's to open.
+  assert.equal(link('Riya Nair (parent of Arjun)').getAttribute('href'), '/leads/lead-1');
+  await click(button('Cancel quote…'));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /Cancel quote Q-000007.*marked CANCELLED on every page.*Why is it cancelled\?/);
+  assert.equal(button('Cancel quote', dialog).disabled, true, 'a reason is required');
+  const reason = dialog.querySelector('textarea');
+  assert.equal(reason.maxLength, 255);
+  await typeText(reason, '   ');
+  assert.equal(button('Cancel quote', dialog).disabled, true, 'spaces are no reason');
+  await typeText(reason, '  Parent chose another plan. ');
+  assert.equal(calls('POST', quoteAt('cancel/')).length, 0);
+  await click(button('Cancel quote', dialog));
+  assert.deepEqual(calls('POST', quoteAt('cancel/'))[0].data, { reason: 'Parent chose another plan.' });
+  assert.equal(topDialog(), undefined);
+  assert.match(bodyText(), /Quote Q-000007 is cancelled\./);
+  assert.match(bodyText(), /Cancelled on Nov 10, 2026.* by Asha Admin\. It is no longer valid\.\s*Reason: Parent chose another plan\./);
+  assert.match(bodyText(), /QuoteCancelled/);
+  // Its figures as issued, and no way back.
+  assert.match(bodyText(), /Payable at once\s*AED 1,929/);
+  assert.equal(button('Cancel quote…'), undefined);
+  await click(button('Download PDF'));
+  assert.equal(calls('GET', quoteAt('pdf/')).length, 1);
+  assert.equal(saved.at(-1).name, 'Q-000007.pdf');
+  await mounted.pop().unmount();
+
+  // Cancelled meanwhile by someone else: the dialog says so and the page shows the quote as it is now.
+  let reads = 0;
+  serve({
+    [`GET ${quoteAt()}`]: () => ok(reads++ ? cancelled : quoteOf()),
+    [`POST ${quoteAt('cancel/')}`]: () => fail(409, { error: 'ALREADY_CANCELLED', message: 'This quote is already cancelled.' }),
+  });
+  await open(`/quotes/${QUOTE_ID}`, QUOTE_ADMIN);
+  await click(button('Cancel quote…'));
+  await typeText(topDialog().querySelector('textarea'), 'Duplicate.');
+  await click(button('Cancel quote', topDialog()));
+  assert.equal(reads, 2);
+  assert.match(bodyText(), /Cancelled on Nov 10, 2026/);
+  assert.equal(button('Cancel quote…'), undefined);
+});
+
+test('Access: Quotes open for whoever issues or manages quotes, whatever the role; the sidebar names them My Quotes and Quotes', () => {
+  assert.equal(canOpenPage(QUOTER, '/quotes'), true);
+  assert.equal(canOpenPage(BDE, '/quotes'), false);
+  assert.equal(canOpenPage(QUOTE_ADMIN, '/quotes'), true);
+  assert.equal(canOpenPage({ ...ADMIN, permissions: [...ADMIN.permissions, 'accounts.manage_sales_quotes'] }, '/quotes'), true);
+  assert.equal(canOpenPage(ADMIN, '/quotes'), false);
+  assert.equal(canOpenPage(MENTOR, '/quotes'), false);
+  assert.equal(canOpenPage({ ...ROOT_MENTOR, permissions: [...ROOT_MENTOR.permissions, 'accounts.manage_sales_quotes'] }, '/quotes'), true);
+  const titles = (user) => harness.workspaceFor(user).sections.flatMap((section) => section.items.map((item) => item.title));
+  const bde = titles(QUOTER);
+  assert.deepEqual(bde.slice(bde.indexOf('Plans & Pricing'), bde.indexOf('Plans & Pricing') + 2), ['Plans & Pricing', 'My Quotes']);
+  assert.equal(titles(BDE).includes('My Quotes'), false);
+  const admin = titles({ ...QUOTE_ADMIN, permissions: [...QUOTE_ADMIN.permissions, 'accounts.manage_sales_pricing'] });
+  assert.deepEqual(admin.slice(admin.indexOf('Global Pricing'), admin.indexOf('Global Pricing') + 2), ['Global Pricing', 'Quotes']);
+  assert.equal(titles(ADMIN).includes('Quotes'), false);
+});
+
+test('Reviewed pricing changed: reload is required and the new price must be reviewed before issuing', async () => {
+  let current = EVERY_WAY_ON_SALE;
+  studentApi({
+    [`GET ${onSale(PLAN_ID)}`]: () => ok(current),
+    [`POST ${QUOTES}`]: () => fail(409, { error: 'PRICING_CHANGED', message: 'Pricing changed meanwhile. Reload the syllabus and review the new amount.' }),
+  });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Regular Only'));
+  await click(button('Create quote…'));
+  current = { ...EVERY_WAY_ON_SALE, pricing: { ...ON_SALE_PRICING, version: 4, offer_fee: '40' } };
+  await click(button('Issue quote', topDialog()));
+  assert.match(bodyText(), /Pricing changed meanwhile/);
+  assert.equal(button('Create quote…').disabled, true);
+  await click(button('Try again'));
+  await click(radio('Regular Only'));
+  assert.match(bodyText(), /38 Classes × AED 40/);
+});
+
+test('Concurrent plan replacement or payment lock refreshes the saved plan before any further edit', async () => {
+  for (const code of ['PLAN_CHANGED', 'PLAN_LOCKED']) {
+    let current = emptyPlan;
+    studentApi({
+      [`GET ${PLAN_STATE}`]: () => ok(current),
+      [`POST ${QUOTES}`]: () => fail(409, { error: code, message: 'Reload the enquiry.' }),
+    });
+    await open(enquiryPath, QUOTER);
+    await selectSyllabus();
+    await click(radio('Regular Only'));
+    await click(button('Create quote…'));
+    const quote = quoteOf({ is_current: true });
+    current = { ...emptyPlan, current: quote, latest_quote: quote.id, history: [rowOf(quote)], locked: code === 'PLAN_LOCKED' };
+    await click(button('Issue quote', topDialog()));
+    assert.match(bodyText(), /Current selected plan/);
+    assert.equal(Boolean(button('Edit / change plan').disabled), code === 'PLAN_LOCKED');
+    assert.equal(button('Create quote…'), undefined);
+    await mounted.pop().unmount();
+  }
+});
+
+test('Supported device shares the PDF file and message, retaining it for a fresh tap if browser activation expires', async () => {
+  let shared;
+  let attempts = 0;
+  navigator.canShare = () => true;
+  navigator.share = async (payload) => {
+    if (!attempts++) throw Object.assign(new Error('Fresh tap needed'), { name: 'NotAllowedError' });
+    shared = payload;
+  };
+  try {
+    studentApi({ [`GET ${onSale(PLAN_ID, 'pdf/')}`]: () => Promise.resolve({ data: new Blob(['%PDF-']), headers: { 'content-disposition': 'attachment; filename="course.pdf"' } }) });
+    await open('/plans', BDE);
+    await click(button('Share PDF for Grade 6 CBSE'));
+    assert.match(bodyText(), /The PDF is ready. Tap Share PDF again/);
+    await click(button('Share PDF for Grade 6 CBSE'));
+    assert.equal(shared.files[0].name, 'course.pdf');
+    assert.equal(shared.files[0].type, 'application/pdf');
+    assert.match(shared.text, /Grade 6 CBSE.*Eduport Plus/);
+    assert.equal(shared.url, undefined);
+    assert.equal(calls('GET', onSale(PLAN_ID, 'pdf/')).length, 1);
+  } finally {
+    delete navigator.share;
+    delete navigator.canShare;
+  }
+});
+
+test('Small screens use syllabus and chapter cards throughout the student selection', async () => {
+  const width = window.innerWidth;
+  window.innerWidth = 390;
+  try {
+    studentApi();
+    await open(enquiryPath, QUOTER);
+    assert.ok(document.querySelector('ul[aria-label="Plans on sale"]'));
+    await selectSyllabus('Grade 7 CBSE');
+    await click(radio('Selected Chapters'));
+    assert.ok(document.querySelector('ul[aria-label="Chapters of the Bridge Course"]'));
+    await click(chapterBox(2));
+    assert.match(bodyText(), /1.5 Classes.*AED 52.50/);
+    assert.equal(button('Create quote…').disabled, false);
+  } finally {
+    window.innerWidth = width;
+  }
+});
+
+test('A stale syllabus PDF blocks a student quote until the revision is reloaded', async () => {
+  studentApi({ [`GET ${onSale(PLAN_ID, 'pdf/')}`]: () => fail(409, { error: 'REVISION_CHANGED', message: 'This syllabus was republished.', revision: 2 }) });
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Regular Only'));
+  await click(button('Preview syllabus PDF'));
+  assert.deepEqual(calls('GET', onSale(PLAN_ID, 'pdf/'))[0].params, { disposition: 'inline', revision: 1 });
+  assert.equal(button('Create quote…').disabled, true);
+  assert.ok(button('Try again'));
 });
 
 // ------------------------------------------------------------------ run
