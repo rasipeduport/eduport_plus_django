@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeftIcon, FileTextIcon, ReceiptTextIcon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { catalogueUrl, enquiryPlanUrl, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
+import { catalogueUrl, chapterPlanError, enquiryPlanUrl, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +64,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const [reloadKey, setReloadKey] = useState(0);
   const [planType, setPlanType] = useState(null);
   const [bridgeMode, setBridgeMode] = useState(null);
+  const [classMode, setClassMode] = useState('REGULAR');
   const [chapterIds, setChapterIds] = useState([]);
   const [quoting, setQuoting] = useState(false);
   const [refusal, setRefusal] = useState(null);
@@ -82,6 +83,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
           initialQuote.revision === data.revision &&
           data.plan_types.includes(initialQuote.plan_type);
         setPlanType(restore ? initialQuote.plan_type : null);
+        setClassMode(restore && initialQuote.plan_type === 'CHAPTER_PLAN' ? initialQuote.class_mode ?? 'REGULAR' : 'REGULAR');
         setBridgeMode(restore && initialQuote.plan_type === 'BRIDGE_COURSE' ? (initialQuote.full_course ? 'full' : 'selected') : null);
         const known = new Set(data.chapters.map((chapter) => chapter.id));
         setChapterIds(restore ? initialQuote.chapters.map((chapter) => chapter.id).filter((id) => known.has(id)) : []);
@@ -113,7 +115,8 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const plan = bridge && bridgeMode && detail.plan_types.includes('BRIDGE_COURSE') ? 'BRIDGE_COURSE' : planType;
   const partial = plan === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
   const ids = partial ? chapterIds : [];
-  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing) : null;
+  const selectionError = plan === 'CHAPTER_PLAN' ? chapterPlanError(detail.chapters, ids, classMode) : null;
+  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode) : null;
   const disabled = locked || Boolean(refusal);
 
   return (
@@ -154,6 +157,9 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         onBridgeMode={setBridgeMode}
         chapterIds={chapterIds}
         onChapterIds={setChapterIds}
+        classMode={classMode}
+        onClassMode={setClassMode}
+        selectionError={selectionError}
         preview={preview}
         onCreate={() => setQuoting(true)}
         locked={disabled}
@@ -164,6 +170,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         syllabusId={syllabusId}
         detail={detail}
         planType={plan}
+        classMode={classMode}
         chapterIds={ids}
         preview={preview}
         coverage={preview?.fullCourse ? 'full course' : `${ids.length} selected chapters`}

@@ -1206,7 +1206,7 @@ test('Prices: a quote is worked out as the API works it out -- two packages for 
   assert.deepEqual([preview.total_fee, preview.single_payment_saving, preview.payable_amount], ['52.875', '2.875', '50']);
   assert.equal(harness.quotePreview('REGULAR', grade6, [], null), null);
   assert.deepEqual([quoteOf(), BRIDGE_QUOTE, { plan_type: 'BRIDGE_COURSE', full_course: true }, { plan_type: 'CHAPTER_PLAN' }].map(harness.quotePlanLabel),
-    ['Regular + Revision', 'Bridge Course · Selected Chapters', 'Full Bridge Course', 'Chapter Plan']);
+    ['Regular + Revision', 'Bridge Course · Selected Chapters', 'Full Bridge Course', 'Chapter Plan · Regular classes']);
   assert.deepEqual([harness.enquiryLabel(RIYA), harness.enquiryLabel({ parent_name: 'Omar Khan', student_name: '' }), harness.enquiryLabel(null)],
     ['Riya Nair (parent of Arjun)', 'Omar Khan', '']);
 });
@@ -1226,6 +1226,118 @@ function studentApi(extra = {}) {
   });
 }
 const selectSyllabus = async (title = 'Grade 6 CBSE') => click(button(`Select ${title}`));
+const classModeRadio = (mode) => document.querySelector(`input[name="chapter-class-mode"][value="${mode}"]`);
+
+test('Chapter Plan mode switches preserve chapter ids, update the count column and recalculate the quote', async () => {
+  studentApi();
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  assert.equal(classModeRadio('REGULAR'), null);
+  await click(radio('Chapter Plan'));
+  assert.equal(classModeRadio('REGULAR').checked, true);
+  assert.equal(classModeRadio('REVISION').checked, false);
+  await click(chapterBox(1));
+  await click(chapterBox(2));
+  assert.ok(headers().includes('Regular classes'));
+  assert.match(bodyText(), /Chapter Plan PackageAED 315.*9 Classes × AED 35/);
+  await click(classModeRadio('REVISION'));
+  assert.equal(chapterBox(1).checked, true);
+  assert.equal(chapterBox(2).checked, true);
+  assert.ok(headers().includes('Revision classes'));
+  assert.equal(headers().includes('Regular classes'), false);
+  assert.equal(clean(rows()[0].querySelector('td:last-child').textContent), '2');
+  assert.match(bodyText(), /Chapter Plan PackageAED 140.*4 Classes × AED 35/);
+  await click(classModeRadio('REGULAR'));
+  assert.equal(chapterBox(1).checked, true);
+  assert.equal(chapterBox(2).checked, true);
+  assert.match(bodyText(), /Chapter Plan PackageAED 315.*9 Classes × AED 35/);
+  await click(button('Change syllabus'));
+  await selectSyllabus();
+  assert.equal(chapterBox(1).checked, true);
+  assert.equal(classModeRadio('REGULAR').checked, true);
+});
+
+test('Chapter Plan Select all and Clear work in both modes; the toggle is absent from every other plan', async () => {
+  studentApi();
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Chapter Plan'));
+  for (const [mode, classes] of [['REGULAR', '38'], ['REVISION', '19']]) {
+    await click(classModeRadio(mode));
+    await click(button('Select all'));
+    assert.equal([...document.querySelectorAll('input[type="checkbox"]')].every((box) => box.checked), true);
+    assert.match(bodyText(), new RegExp(`10 of 10 chapters chosen.*${classes} Classes × AED 35`));
+    await click(button('Clear'));
+    assert.equal([...document.querySelectorAll('input[type="checkbox"]')].some((box) => box.checked), false);
+    assert.equal(classModeRadio(mode).checked, true);
+    assert.equal(button('Create quote…').disabled, true);
+  }
+  for (const plan of ['Regular Only', 'Revision Only', 'Regular + Revision']) {
+    await click(radio(plan));
+    assert.equal(classModeRadio('REGULAR'), null);
+    assert.equal(classModeRadio('REVISION'), null);
+  }
+  await click(button('Change syllabus'));
+  await selectSyllabus('Grade 7 CBSE');
+  for (const plan of ['Full Bridge Course', 'Selected Chapters']) {
+    await click(radio(plan));
+    assert.equal(classModeRadio('REGULAR'), null);
+    assert.equal(classModeRadio('REVISION'), null);
+  }
+});
+
+test('Missing, invalid and zero Revision counts block quoting without falling back to Regular or dropping chapters', async () => {
+  for (const invalid of [null, '-1', '0.25', '100', '0']) {
+    const chapters = EVERY_WAY_ON_SALE.chapters.map((chapter) => ({ ...chapter, revision_classes: invalid }));
+    studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, chapters } });
+    await open(enquiryPath, QUOTER);
+    await selectSyllabus();
+    await click(radio('Chapter Plan'));
+    await click(chapterBox(1));
+    await click(classModeRadio('REVISION'));
+    assert.equal(chapterBox(1).checked, true);
+    assert.equal(button('Create quote…').disabled, true);
+    assert.equal(headers().includes('Regular classes'), false);
+    assert.match(bodyText(), invalid === '0' ? /no Revision classes/ : /Revision is unavailable/);
+    if (invalid !== '0') assert.match(clean(rows()[0].textContent), /Revision unavailable/);
+    await click(classModeRadio('REGULAR'));
+    assert.equal(chapterBox(1).checked, true);
+    assert.equal(button('Create quote…').disabled, false);
+    await mounted.pop().unmount();
+  }
+});
+
+test('Chapter Plan Revision request pins mode, chapters, revision and Admin pricing; confirmation and saved detail show Revision', async () => {
+  const issued = quoteOf({ plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION', full_course: false, is_current: true,
+    classes: '4', total_fee: '141', payable_amount: '141', single_payment_saving: '0',
+    lines: [{ plan_type: 'CHAPTER_PLAN', title: 'Chapter Plan Package', classes: '4', fee_per_class: '35.25', total: '141', single_payment: null }],
+    chapters: EVERY_WAY_ON_SALE.chapters.slice(0, 2).map((chapter) => ({ id: chapter.id, position: chapter.position, name: chapter.name, classes: '2', revision_classes: '2' })) });
+  studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, pricing: { ...ON_SALE_PRICING, offer_fee: '35.25' } },
+    [`POST ${QUOTES}`]: issued, [`GET ${quoteAt()}`]: issued });
+  const page = await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Chapter Plan'));
+  await click(chapterBox(1));
+  await click(chapterBox(2));
+  await click(classModeRadio('REVISION'));
+  assert.match(bodyText(), /Chapter Plan PackageAED 141.*4 Classes × AED 35.25/);
+  await click(button('Create quote…'));
+  assert.match(clean(topDialog().textContent), /Chapter Plan · Revision classes/);
+  await click(button('Issue quote', topDialog()));
+  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION',
+    chapter_ids: EVERY_WAY_ON_SALE.chapters.slice(0, 2).map((chapter) => chapter.id), lead: RIYA.id, replaces: null, pricing_version: ON_SALE_PRICING.version });
+  assert.match(bodyText(), /Current selected plan.*Chapter Plan · Revision classes/);
+  assert.ok(headers().includes('Revision classes'));
+  assert.equal(headers().includes('Regular classes'), false);
+  await click(button('Edit / change plan'));
+  assert.equal(classModeRadio('REVISION').checked, true);
+  assert.equal(chapterBox(1).checked, true);
+  assert.equal(chapterBox(2).checked, true);
+  await page.go(`/quotes/${QUOTE_ID}`);
+  await settle();
+  assert.match(bodyText(), /Quote Q-000007.*Chapter Plan · Revision classes/);
+  assert.match(bodyText(), /4 Classes × AED 35.25/);
+});
 
 test('Syllabus cards use catalogue totals and enabled plans, with a distinct Bridge Course structure', async () => {
   const grade9 = { ...CATALOGUE_ROWS[0], title: 'Grade 9 CBSE', grade: 9, plan_types: ['REGULAR', 'REVISION', 'CHAPTER_PLAN', 'REGULAR_REVISION'],

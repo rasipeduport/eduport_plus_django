@@ -3,9 +3,9 @@ import { CheckCheckIcon, DownloadIcon, FileSearchIcon, Loader2Icon, ReceiptTextI
 import { Button } from '@/components/ui/button';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { Field, Fields, WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
-import { classesLabel, formatAmount } from '@/lib/sales';
+import { classesLabel, formatAmount, toHalves } from '@/lib/sales';
 
-// What a picker chooses: a Bridge Course's days (their Bridge classes), or a Chapter Plan's chapters (their Regular ones).
+// What a picker chooses: a Bridge Course's days, or a Chapter Plan's chapters in its chosen class mode.
 const KINDS = {
   day: { label: 'Day', plural: 'days', column: 'bridge_classes', list: 'Days of the Bridge Course' },
   chapter: { label: 'Chapter', plural: 'chapters', column: 'regular_classes', list: 'Chapters of the Chapter Plan' },
@@ -16,12 +16,14 @@ const KINDS = {
  * A course's chapters to choose from, in the course's order under their own
  * numbers: a box to tick on each, and Select all and Clear. `kind` is 'day'
  * (a Bridge Course's days and their classes) or 'chapter' (a Chapter Plan's
- * chapters and their Regular classes); `chapters` are the revision's rows;
+ * chapters and their chosen class mode); `chapters` are the revision's rows;
  * `selected` the ids ticked; `onChange(ids)` gets the next choice, always in
  * the course's order. A table where it fits, a card per row on a narrow screen.
  */
-export function ChapterPicker({ kind, chapters, selected, onChange, disabled = false }) {
-  const { label, plural, column, list } = KINDS[kind];
+export function ChapterPicker({ kind, chapters, selected, onChange, disabled = false, classMode = 'REGULAR', onClassMode }) {
+  const { label, plural, list } = KINDS[kind];
+  const modeLabel = classMode === 'REVISION' ? 'Revision' : 'Regular';
+  const column = kind === 'chapter' ? `${classMode.toLowerCase()}_classes` : KINDS[kind].column;
   const chosen = new Set(selected);
   const toggle = (id) =>
     onChange(chapters.filter((row) => (row.id === id ? !chosen.has(id) : chosen.has(row.id))).map((row) => row.id));
@@ -35,12 +37,13 @@ export function ChapterPicker({ kind, chapters, selected, onChange, disabled = f
       aria-label={`${label} ${row.position}: ${row.name}`}
     />
   );
-  const classes = (row) => row[column] ?? '0';
+  const classes = (row) => kind === 'chapter' && toHalves(row[column]) === null ? null : row[column] ?? '0';
+  const unavailable = <span className="text-muted-foreground text-xs">{modeLabel} unavailable</span>;
   const columns = [
     { key: 'pick', header: { srOnly: 'Chosen' }, headerClassName: 'w-10', cell: box },
     { key: 'number', header: kind === 'day' ? 'Day' : 'No.', className: 'w-16 tabular-nums', cell: (row) => row.position },
     { key: 'name', header: 'Chapter name', className: 'whitespace-normal', cell: (row) => row.name },
-    { key: 'classes', header: kind === 'chapter' ? 'Regular classes' : 'Classes', className: 'w-28 tabular-nums', cell: classes },
+    { key: 'classes', header: kind === 'chapter' ? `${modeLabel} classes` : 'Classes', className: 'w-32 tabular-nums', cell: (row) => classes(row) ?? unavailable },
   ];
   const renderCard = (row) => (
     <label className="bg-card flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm">
@@ -51,7 +54,7 @@ export function ChapterPicker({ kind, chapters, selected, onChange, disabled = f
         </span>
         <span className="block">{row.name}</span>
       </span>
-      <span className="text-muted-foreground shrink-0 tabular-nums">{classesLabel(classes(row))}</span>
+      <span className="text-muted-foreground max-w-28 shrink-0 text-right tabular-nums">{classes(row) === null ? unavailable : classesLabel(classes(row))}</span>
     </label>
   );
   const count = chapters.filter((row) => chosen.has(row.id)).length;
@@ -62,20 +65,38 @@ export function ChapterPicker({ kind, chapters, selected, onChange, disabled = f
         <p className="text-muted-foreground text-sm" aria-live="polite">
           {count} of {chapters.length} {plural} chosen
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onChange(chapters.map((row) => row.id))}
-            disabled={disabled || count === chapters.length}
-          >
-            <CheckCheckIcon className="size-4" />
-            Select all
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onChange([])} disabled={disabled || count === 0}>
-            <XIcon className="size-4" />
-            Clear
-          </Button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {kind === 'chapter' && onClassMode ? (
+            <fieldset className="flex shrink-0 items-center gap-2" disabled={disabled}>
+              <legend className="sr-only">Chapter Plan class type</legend>
+              <span className="text-sm font-medium" aria-hidden="true">Class type:</span>
+              <div className="bg-muted inline-flex rounded-full border p-0.5">
+                {['REGULAR', 'REVISION'].map((mode) => (
+                  <label key={mode} className="cursor-pointer">
+                    <input type="radio" name="chapter-class-mode" value={mode} checked={classMode === mode} onChange={() => onClassMode(mode)} className="peer sr-only" />
+                    <span className="peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-ring inline-flex h-7 min-w-20 items-center justify-center rounded-full px-3 text-sm font-medium peer-focus-visible:ring-2 peer-disabled:opacity-50">
+                      {mode === 'REGULAR' ? 'Regular' : 'Revision'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onChange(chapters.map((row) => row.id))}
+              disabled={disabled || count === chapters.length}
+            >
+              <CheckCheckIcon className="size-4" />
+              Select all
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onChange([])} disabled={disabled || count === 0}>
+              <XIcon className="size-4" />
+              Clear
+            </Button>
+          </div>
         </div>
       </div>
       <ResponsiveList label={list} columns={columns} rows={chapters} minTableWidth={520} renderCard={renderCard} />

@@ -146,6 +146,8 @@ def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False, se
         'package_title': package_title_of(content),
         'compact': compact,
         'bridge': content['structure'] == Structure.BRIDGE_COURSE,
+        'regular_column': not quote or quote.get('class_mode') != 'REVISION',
+        'revision_column': not quote or quote.get('class_mode') != 'REGULAR',
         'chapter_pages': [{'rows': page, 'last': index == len(pages) - 1} for index, page in enumerate(pages)],
         'totals': {column: classes(total) for column, total in totals.items()},
         'fees': {

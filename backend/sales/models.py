@@ -62,6 +62,11 @@ class PlanType(models.TextChoices):
     REGULAR_REVISION = 'REGULAR_REVISION', 'Regular + Revision'
 
 
+class ChapterClassMode(models.TextChoices):
+    REGULAR = 'REGULAR', 'Regular'
+    REVISION = 'REVISION', 'Revision'
+
+
 # The plan types each structure offers: a Bridge Course is sold only as itself -- the whole
 # course, or the days a purchase chooses (sales.services.bridge_selection), never a chapter-wise plan.
 STRUCTURE_PLAN_TYPES = {
@@ -438,6 +443,9 @@ class Quote(models.Model):
     revision = models.ForeignKey(SyllabusRevision, on_delete=models.PROTECT, related_name='quotes')
     pricing_version = models.ForeignKey(PricingVersion, on_delete=models.PROTECT, related_name='quotes')
     plan_type = models.CharField(max_length=20, choices=PlanType.choices)
+    # NULL on historical quotes (Chapter Plans before this feature used Regular),
+    # and on other plan types. Every new Chapter Plan stores its explicit mode.
+    class_mode = models.CharField(max_length=8, choices=ChapterClassMode.choices, null=True, blank=True)
     # Every chapter (or day) of the revision: a whole course, as its own package.
     full_course = models.BooleanField()
     # The rates it was priced at, as that pricing version had them.
@@ -471,6 +479,10 @@ class Quote(models.Model):
             models.CheckConstraint(condition=Q(number__gte=1), name='sales_quotes_number_from_one'),
             models.CheckConstraint(condition=Q(status__in=QuoteStatus.values), name='sales_quotes_known_status'),
             models.CheckConstraint(condition=Q(plan_type__in=PlanType.values), name='sales_quotes_known_plan_type'),
+            models.CheckConstraint(
+                condition=Q(class_mode__isnull=True) | Q(plan_type=PlanType.CHAPTER_PLAN, class_mode__in=ChapterClassMode.values),
+                name='sales_quotes_chapter_class_mode',
+            ),
             models.CheckConstraint(condition=Q(currency__regex=r'^[A-Z]{3}$'), name='sales_quotes_currency_code'),
             models.CheckConstraint(condition=Q(classes__gt=0), name='sales_quotes_sells_classes'),
             models.CheckConstraint(condition=Q(total_fee=F('offer_fee') * F('classes')), name='sales_quotes_total_at_offer_fee'),
