@@ -242,7 +242,7 @@ export default function RedemoWorkspacePage({ user }) {
           </Tabs>
 
           <aside className="min-w-0 lg:pt-[3.875rem]" aria-label="Student and quick actions">
-            <RedemoSidePanel redemo={shown} />
+            <RedemoSidePanel redemo={shown} user={user} onDetailsSaved={(_lead, message) => changed(message)} />
           </aside>
         </div>
 

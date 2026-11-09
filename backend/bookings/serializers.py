@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .booking_service import REDEMO_REASON_MAX_LENGTH, REDEMO_REMARKS_MAX_LENGTH
 from .leads import InvalidLeadDetails, normalize_phone
 from .models import (
-    MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, RedemoCloseReason,
+    MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, LeadSource, RedemoCloseReason,
     RescheduleReason,
 )
 from .notes import NOTE_MAX_LENGTH
@@ -94,6 +94,27 @@ class LeadCreateSerializer(EnquiryCreateSerializer):
     is assigned afterwards (bookings.ownership).
     """
     parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
+
+
+class LeadDetailsUpdateSerializer(serializers.Serializer):
+    """Admin corrections only: no defaults, ownership, status or workflow fields."""
+    parent_name = serializers.CharField(max_length=255, required=False)
+    phone_dial_code = serializers.CharField(max_length=5, required=False)
+    phone_number = serializers.CharField(max_length=30, required=False)
+    parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    country = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    student_name = serializers.CharField(max_length=255, required=False)
+    grade = serializers.ChoiceField(choices=CLASSES, required=False)
+    school_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    syllabus = serializers.ChoiceField(choices=SYLLABI[BookingType.DIAGNOSTIC], required=False, allow_blank=True)
+    source = serializers.ChoiceField(choices=LeadSource.choices, required=False)
+
+    def to_internal_value(self, data):
+        values = super().to_internal_value(data)
+        unknown = set(data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError({field: ['This field cannot be edited here.'] for field in sorted(unknown)})
+        return values
 
 
 class StudentTimezoneSerializer(serializers.Serializer):

@@ -29,6 +29,7 @@ import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { StudentTimeCell, StudentTimeLine, StudentTimezone } from '@/components/bookings/student-time';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { AssignOwnerDialog } from '@/components/leads/assign-owner-dialog';
+import { EditLeadDetailsAction } from '@/components/leads/edit-lead-details-action';
 import { StudentTimezoneDialog } from '@/components/leads/student-timezone-dialog';
 import { EmptyState, Page } from '@/components/page/page';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
@@ -150,6 +151,11 @@ export default function LeadPage({ user }) {
   const [changingTimezone, setChangingTimezone] = useState(false);
   const [notice, setNotice] = useState(null);
 
+  const detailsSaved = (updated, message) => {
+    setLead(updated);
+    setNotice(message);
+  };
+
   useEffect(() => {
     let active = true;
     setFailure(null);
@@ -235,7 +241,11 @@ export default function LeadPage({ user }) {
         </div>
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-          <Panel icon={UserRoundIcon} title="Parent">
+          <Panel
+            icon={UserRoundIcon}
+            title="Parent"
+            action={<EditLeadDetailsAction user={user} leadId={lead.id} section="parent" onSaved={detailsSaved} />}
+          >
             <dl className="divide-y">
               <Field label="Name">{lead.parent_name}</Field>
               <Field label="Phone">
@@ -248,7 +258,11 @@ export default function LeadPage({ user }) {
               </Field>
             </dl>
           </Panel>
-          <Panel icon={GraduationCapIcon} title="Student">
+          <Panel
+            icon={GraduationCapIcon}
+            title="Student"
+            action={<EditLeadDetailsAction user={user} leadId={lead.id} section="student" onSaved={detailsSaved} />}
+          >
             <dl className="divide-y">
               <Field label="Name">{lead.student_name}</Field>
               <Field label="Class">{lead.grade}</Field>
@@ -256,7 +270,11 @@ export default function LeadPage({ user }) {
               <Field label="Syllabus">{lead.syllabus}</Field>
             </dl>
           </Panel>
-          <Panel icon={ClipboardListIcon} title="Lead">
+          <Panel
+            icon={ClipboardListIcon}
+            title="Lead"
+            action={<EditLeadDetailsAction user={user} leadId={lead.id} section="lead" onSaved={detailsSaved} />}
+          >
             <dl className="divide-y">
               <Field label="Source">{lead.source_label}</Field>
               {campaign.map(([key, label]) => (

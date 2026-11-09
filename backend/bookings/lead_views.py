@@ -5,6 +5,7 @@ The administrators' Leads API (bookings.lead_admin):
     POST /api/leads/                 add a lead by hand
     GET  /api/leads/bdes/            the BDE accounts to filter by and assign to
     GET  /api/leads/<id>/            one lead in full
+    PATCH /api/leads/<id>/           Admin-only parent, student and source corrections
     PUT  /api/leads/<id>/owner/      give the lead to a BDE (bookings.ownership)
     PUT  /api/leads/<id>/student-timezone/  correct its student's time zone (bookings.student_timezones)
     GET  /api/leads/<id>/notes/      staff's notes on the lead (bookings.notes)
@@ -14,7 +15,8 @@ The administrators' Leads API (bookings.lead_admin):
 Reading needs accounts.view_all_leads, adding accounts.add_lead and
 assigning accounts.assign_lead_owner -- all three the ADMIN role's alone (a
 superuser holds them too, D1); whoever may read a lead may read and add its
-notes. Correcting a student's time zone needs accounts.change_student_timezone
+notes. Profile/source corrections need both view_all_leads and add_lead,
+and explicitly the ADMIN role. Correcting a student's time zone needs accounts.change_student_timezone
 as well as view_all_leads: a BDE holds the former for their own enquiries
 (/api/bde/enquiries/), and never the latter. A BDE reads their own leads in the BDE
 workspace (/api/bde/enquiries/) and nothing here. Errors answer
@@ -24,11 +26,13 @@ import uuid
 
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.authz import has_app_permission
+from accounts.models import RoleChoices
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.querysets import ACTIVITY_VIEW_PERMISSIONS
@@ -40,7 +44,9 @@ from .lead_status import statuses_for
 from .leads import InvalidLeadDetails
 from .models import Lead, LeadNoteRole
 from .ownership import OwnershipError, assign_owner
-from .serializers import LeadCreateSerializer, LeadNoteSerializer, LeadOwnerSerializer, StudentTimezoneSerializer
+from .serializers import (
+    LeadCreateSerializer, LeadDetailsUpdateSerializer, LeadNoteSerializer, LeadOwnerSerializer, StudentTimezoneSerializer,
+)
 from .student_timezones import InvalidStudentTimezone
 
 VIEW_ALL_LEADS = 'accounts.view_all_leads'
@@ -164,12 +170,39 @@ class LeadBdesView(APIView):
 
 
 class LeadDetailView(APIView):
-    """GET /api/leads/<id>/: one lead in full, with its bookings, its owner and who added it."""
-    permission_classes = [IsAuthenticated, HasAppPermission(VIEW_ALL_LEADS)]
+    """Read a lead; Admin corrections use PATCH with only the fields being changed."""
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=HasAppPermission(VIEW_ALL_LEADS),
+        PATCH=HasAppPermission(VIEW_ALL_LEADS) & HasAppPermission(ADD_LEAD),
+    )]
 
     def get(self, request, pk, *args, **kwargs):
         lead = _read(request, pk, timezone.now())
         return Response(lead, status=status.HTTP_200_OK) if lead is not None else _no_lead()
+
+    def patch(self, request, pk, *args, **kwargs):
+        # This editor is explicitly Admin-only, including for accounts whose
+        # superuser flag otherwise bypasses the permission catalogue's ceiling.
+        if request.user.role != RoleChoices.ADMIN:
+            raise PermissionDenied('Only Admin users can edit parent, student and lead details.')
+        serializer = LeadDetailsUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _error('VALIDATION_ERROR', 'Check the lead details.', status.HTTP_400_BAD_REQUEST,
+                          fields=serializer.errors)
+        try:
+            lead_admin.update_lead_details(request.user, pk, serializer.validated_data, request=request)
+        except Lead.DoesNotExist:
+            return _no_lead()
+        except InvalidLeadDetails as exc:
+            return _error('VALIDATION_ERROR', exc.message, status.HTTP_400_BAD_REQUEST, fields={exc.field: [exc.message]})
+        except LeadExists as exc:
+            message = 'A lead for this child and phone number already exists. No details were changed.'
+            return _error('LEAD_EXISTS', message, status.HTTP_409_CONFLICT, lead_id=str(exc.lead.pk),
+                          fields={'phone_number': [message], 'student_name': [message]})
+        except BookingBusy:
+            return _error('LEAD_BUSY', 'This lead is being changed right now. Try again in a moment.',
+                          status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(_read(request, pk, timezone.now()), status=status.HTTP_200_OK)
 
 
 class LeadOwnerView(APIView):

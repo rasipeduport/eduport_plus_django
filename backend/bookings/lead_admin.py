@@ -8,17 +8,19 @@ bookings.ownership.
 """
 from datetime import date, datetime, time, timedelta
 
+from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from accounts.models import RoleChoices, User
 from activity.utils import log_activity
 from core.timezones import DATE_PATTERN
 
 from . import enquiries
-from .lead_intake import create_lead
+from .lead_intake import LeadExists, create_lead, existing_lead
 from .lead_status import with_status
-from .leads import InvalidLeadDetails
-from .models import MANUAL_LEAD_SOURCES
+from .leads import InvalidLeadDetails, normalize_phone, student_name_key
+from .models import MANUAL_LEAD_SOURCES, Lead
 from .scheduling import BOOKING_TIMEZONE
 from .services import owns_booking_links
 
@@ -101,6 +103,9 @@ def lead_detail(lead, now, show_confirmation=False):
         'owner': _person(lead.owner_bde),
         'added_by': _person(lead.created_by),
         'source_details': lead.source_details,
+        # `source` is a display code (DEMO_LINK / DIAGNOSTIC_LINK for a BDE's
+        # booking link). Corrections use the stored LeadSource, not that label.
+        'original_source': lead.source,
     }
 
 
@@ -139,4 +144,60 @@ def add_lead(admin, details, request=None):
         request=request,
         actor=admin,
     )
+    return lead
+
+
+def update_lead_details(admin, lead_id, details, request=None):
+    """
+    Apply validated LeadDetailsUpdateSerializer fields under the lead's lock.
+    Identity corrections keep the existing phone/name uniqueness rule; they
+    never merge children or rewrite booking details and issued snapshots.
+    Unsent parent messages follow corrected names and contact details using
+    the same message locks as the ownership and time-zone workflows.
+    """
+    from communications import planner
+
+    from .booking_service import BUSY_SQLSTATES, BookingBusy, _set_lock_timeout
+
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            lead = Lead.objects.select_for_update(no_key=True).get(pk=lead_id)
+            values = dict(details)
+            if {'phone_dial_code', 'phone_number'} & values.keys():
+                dial, number, key = normalize_phone(
+                    values.get('phone_dial_code', lead.phone_dial_code), values.get('phone_number', lead.phone_number),
+                )
+                values.update(phone_dial_code=dial, phone_number=number, phone_key=key)
+            if 'student_name' in values:
+                values['student_name_key'] = student_name_key(values['student_name'])
+
+            changed = {field: value for field, value in values.items() if getattr(lead, field) != value}
+            if not changed:
+                return lead
+            for field, value in changed.items():
+                setattr(lead, field, value)
+            try:
+                # A savepoint keeps the transaction usable after a concurrent
+                # correction or public intake wins the identity's unique index.
+                with transaction.atomic():
+                    lead.save(update_fields=[*changed, 'updated_at'])
+            except IntegrityError:
+                duplicate = existing_lead(lead.phone_key, lead.student_name_key)
+                if duplicate is None or duplicate.pk == lead.pk:
+                    raise
+                raise LeadExists(duplicate)
+
+            if {'parent_name', 'student_name', 'phone_key'} & changed.keys():
+                planner.lead_details_changed(lead, timezone.now())
+            # As on lead intake, record field names, not private contact values.
+            log_activity(
+                action='lead.update_details', entity_type='lead', entity_id=lead.id,
+                entity_label=f'{lead.grade} lead', context={'fields': sorted(set(details) & changed.keys()), 'via': 'admin_leads'},
+                request=request, actor=admin,
+            )
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
     return lead

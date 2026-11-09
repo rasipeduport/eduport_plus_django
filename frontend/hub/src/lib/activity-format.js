@@ -63,6 +63,7 @@ export const ACTION_LABELS = {
   'enquiry.create': 'Enquiry added',
   // Leads (backend bookings.lead_intake, bookings.ownership): ids and choices only, never a name.
   'lead.create': 'Lead added',
+  'lead.update_details': 'Lead details updated',
   'lead.assign_owner': 'Lead assigned',
   // A lead's student time zone, set or corrected (backend bookings.student_timezones): the old zone and the new.
   'lead.update_student_timezone': 'Student timezone changed',
@@ -368,6 +369,8 @@ export function describeActivity(row) {
     }
     case 'lead.assign_owner':
       return row.context?.previous_owner_id ? 'Reassigned a lead to another BDE' : 'Assigned a lead to a BDE';
+    case 'lead.update_details':
+      return 'Updated parent, student or enquiry source details';
     // Display only: the lead's bookings stay in Indian time; the zone is null when it was not set, or is cleared.
     case 'lead.update_student_timezone': {
       const t = c.student_timezone;
