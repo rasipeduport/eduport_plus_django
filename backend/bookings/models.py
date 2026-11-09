@@ -389,6 +389,10 @@ class Lead(models.Model):
     )
     # When the lead became its current owner's.
     owner_assigned_at = models.DateTimeField(null=True, blank=True)
+    # A future payment integration must set this under the same lead row lock
+    # before accepting payment. It permanently closes pre-payment plan changes;
+    # it does not record or verify a payment and has no public write endpoint.
+    plan_changes_locked_at = models.DateTimeField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 

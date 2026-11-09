@@ -9,7 +9,10 @@ up (D1); its saving is the package's total less that rounded price.
 
 The classes of each plan type come from the syllabus's own chapters: Regular
 and Revision their columns' totals, Regular + Revision both, a Bridge Course
-its days, and a Chapter Plan the Regular classes of the chapters chosen.
+its days -- every day for the whole course, or the days chosen when it is
+bought by the day -- and a Chapter Plan the Regular classes of the chapters
+chosen. A choice is of the syllabus's own chapter rows, by id: nothing is
+copied.
 """
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -27,6 +30,8 @@ PACKAGE_TITLES = {
     PlanType.REVISION: 'Revision Course (Exam Oriented) Package',
     PlanType.BRIDGE_COURSE: 'Bridge Course Package',
 }
+# The Bridge Course's card when it is bought by the day: the days chosen, not the whole course.
+SELECTED_DAYS_TITLE = 'Bridge Course – Selected Days Package'
 
 
 def active_pricing(at=None):
@@ -52,12 +57,13 @@ def chapter_totals(chapters):
 def plan_classes(plan_type, chapters, chosen=None):
     """
     The classes ``plan_type`` sells over ``chapters``. A Chapter Plan sells the
-    Regular classes of the chapters whose ids are in ``chosen``.
+    Regular classes of the chapters whose ids are in ``chosen``; a Bridge
+    Course its every day, or, given ``chosen``, only the days whose ids are in it.
     """
     if plan_type == PlanType.CHAPTER_PLAN:
-        chosen = {str(chapter_id) for chapter_id in (chosen or ())}
-        chapters = [chapter for chapter in chapters if str(_get(chapter, 'id')) in chosen]
-        return chapter_totals(chapters)['regular']
+        return chapter_totals(chosen_chapters(chapters, chosen or ()))['regular']
+    if plan_type == PlanType.BRIDGE_COURSE and chosen is not None:
+        return chapter_totals(chosen_chapters(chapters, chosen))['bridge']
     totals = chapter_totals(chapters)
     return {
         PlanType.REGULAR: totals['regular'],
@@ -65,6 +71,12 @@ def plan_classes(plan_type, chapters, chosen=None):
         PlanType.REGULAR_REVISION: totals['regular'] + totals['revision'],
         PlanType.BRIDGE_COURSE: totals['bridge'],
     }[plan_type]
+
+
+def chosen_chapters(chapters, chosen):
+    """The rows of ``chapters`` whose ids are in ``chosen``, in the chapters' own order."""
+    chosen = {str(chapter_id) for chapter_id in chosen}
+    return [chapter for chapter in chapters if str(_get(chapter, 'id')) in chosen]
 
 
 def package_total(classes, pricing):
@@ -114,15 +126,22 @@ def card_plan_types(plan_types):
     return [plan_type for plan_type in PACKAGE_TITLES if plan_type in shown]
 
 
-def packages(plan_types, chapters, pricing):
-    """The packages page's cards for a syllabus offering ``plan_types`` over ``chapters``, priced by ``pricing``."""
+def packages(plan_types, chapters, pricing, selected=None):
+    """
+    The packages page's cards for a syllabus offering ``plan_types`` over
+    ``chapters``, priced by ``pricing``. ``selected`` -- the ids of the days a
+    Bridge Course is bought by -- prices its card for those days alone, as the
+    Selected Days package; the single-payment privilege applies to it as to
+    the whole course.
+    """
     cards = []
     for plan_type in card_plan_types(plan_types):
-        classes = plan_classes(plan_type, chapters)
+        chosen = selected if plan_type == PlanType.BRIDGE_COURSE else None
+        classes = plan_classes(plan_type, chapters, chosen)
         total = package_total(classes, pricing)
         cards.append(Package(
             plan_type=plan_type,
-            title=PACKAGE_TITLES[plan_type],
+            title=SELECTED_DAYS_TITLE if chosen is not None else PACKAGE_TITLES[plan_type],
             classes=classes,
             fee_per_class=pricing.offer_fee,
             total=total,

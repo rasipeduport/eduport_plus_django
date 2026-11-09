@@ -1058,7 +1058,7 @@
   },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
    "result": {
     "capture": {
      "groups": [],
@@ -1075,6 +1075,7 @@
       "accounts.change_student_timezone",
       "accounts.create_exam",
       "accounts.create_invitation",
+      "accounts.create_sales_quotes",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.manage_booking_slots",
@@ -1082,6 +1083,7 @@
       "accounts.manage_exam",
       "accounts.manage_message_templates",
       "accounts.manage_sales_pricing",
+      "accounts.manage_sales_quotes",
       "accounts.manage_sales_syllabi",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1108,6 +1110,7 @@
       "accounts.view_full_student_record",
       "accounts.view_homework_submissions",
       "accounts.view_invitations",
+      "accounts.view_sales_catalogue",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1250,7 +1253,7 @@
   },
   "auth.me @ su_mentor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
    "result": {
     "capture": {
      "groups": [],
@@ -1269,6 +1272,7 @@
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
+      "accounts.create_sales_quotes",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
@@ -1278,6 +1282,7 @@
       "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_sales_pricing",
+      "accounts.manage_sales_quotes",
       "accounts.manage_sales_syllabi",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1316,6 +1321,7 @@
       "accounts.view_own_enquiries",
       "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
+      "accounts.view_sales_catalogue",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1353,7 +1359,7 @@
   },
   "auth.me @ su_tutor": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
    "result": {
     "capture": {
      "groups": [],
@@ -1372,6 +1378,7 @@
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
+      "accounts.create_sales_quotes",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
@@ -1381,6 +1388,7 @@
       "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_sales_pricing",
+      "accounts.manage_sales_quotes",
       "accounts.manage_sales_syllabi",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1419,6 +1427,7 @@
       "accounts.view_own_enquiries",
       "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
+      "accounts.view_sales_catalogue",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -1456,7 +1465,7 @@
   },
   "auth.me @ superuser": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
    "result": {
     "capture": {
      "groups": [],
@@ -1475,6 +1484,7 @@
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
+      "accounts.create_sales_quotes",
       "accounts.create_session",
       "accounts.delete_any_student_note",
       "accounts.edit_session_notes",
@@ -1484,6 +1494,7 @@
       "accounts.manage_message_templates",
       "accounts.manage_own_conversion",
       "accounts.manage_sales_pricing",
+      "accounts.manage_sales_quotes",
       "accounts.manage_sales_syllabi",
       "accounts.manage_session",
       "accounts.manage_team",
@@ -1522,6 +1533,7 @@
       "accounts.view_own_enquiries",
       "accounts.view_own_lead_communications",
       "accounts.view_own_lead_reports",
+      "accounts.view_sales_catalogue",
       "accounts.view_staff_dashboard",
       "accounts.view_staff_directory",
       "accounts.view_student_notes",
@@ -14728,6 +14740,1034 @@
     "status": 403
    }
   },
+  "sales.catalogue @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a only: syllabus_b is a draft, not on sale. No draft, status, history or audit. Student catalogue rows also include the published syllabus description.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].board",
+     "results[].chapter_count",
+     "results[].grade",
+     "results[].id",
+     "results[].plan_types",
+     "results[].revision",
+     "results[].structure",
+     "results[].subtitle",
+     "results[].syllabus_version",
+     "results[].title",
+     "results[].totals",
+     "results[].totals.bridge",
+     "results[].totals.regular",
+     "results[].totals.revision"
+    ],
+    "records": [
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a only: syllabus_b is a draft, not on sale. No draft, status, history or audit. Student catalogue rows also include the published syllabus description.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].board",
+     "results[].chapter_count",
+     "results[].grade",
+     "results[].id",
+     "results[].plan_types",
+     "results[].revision",
+     "results[].structure",
+     "results[].subtitle",
+     "results[].syllabus_version",
+     "results[].title",
+     "results[].totals",
+     "results[].totals.bridge",
+     "results[].totals.regular",
+     "results[].totals.revision"
+    ],
+    "records": [
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a only: syllabus_b is a draft, not on sale. No draft, status, history or audit. Student catalogue rows also include the published syllabus description.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].board",
+     "results[].chapter_count",
+     "results[].grade",
+     "results[].id",
+     "results[].plan_types",
+     "results[].revision",
+     "results[].structure",
+     "results[].subtitle",
+     "results[].syllabus_version",
+     "results[].title",
+     "results[].totals",
+     "results[].totals.bridge",
+     "results[].totals.regular",
+     "results[].totals.revision"
+    ],
+    "records": [
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a only: syllabus_b is a draft, not on sale. No draft, status, history or audit. Student catalogue rows also include the published syllabus description.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].board",
+     "results[].chapter_count",
+     "results[].grade",
+     "results[].id",
+     "results[].plan_types",
+     "results[].revision",
+     "results[].structure",
+     "results[].subtitle",
+     "results[].syllabus_version",
+     "results[].title",
+     "results[].totals",
+     "results[].totals.bridge",
+     "results[].totals.regular",
+     "results[].totals.revision"
+    ],
+    "records": [
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_b is only a draft: not on sale, so not found.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such syllabus on sale.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "sales.catalogue_draft @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_b is only a draft: not on sale, so not found.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such syllabus on sale.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "sales.catalogue_draft @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_b is only a draft: not on sale, so not found.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such syllabus on sale.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "sales.catalogue_draft @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_b is only a draft: not on sale, so not found.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such syllabus on sale.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "sales.catalogue_draft @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_draft @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a's PDF as it is sold, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.catalogue_pdf @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a's PDF as it is sold, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.catalogue_pdf @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a's PDF as it is sold, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.catalogue_pdf @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a's PDF as it is sold, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.catalogue_pdf @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_pdf @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: choosing its days is refused NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: choosing its days is refused NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: choosing its days is refused NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: choosing its days is refused NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: no PDF of chosen days, NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection_pdf @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: no PDF of chosen days, NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection_pdf @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: no PDF of chosen days, NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection_pdf @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a is chapter-wise: no PDF of chosen days, NOT_A_BRIDGE_COURSE; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.catalogue_selection_pdf @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_selection_pdf @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ admin": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a as it is sold: its published revision, its packages priced as now and the pricing's rates.",
+   "result": {
+    "fields": [
+     "board",
+     "chapters",
+     "chapters[].bridge_classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "chapters[].revision_classes",
+     "grade",
+     "id",
+     "inclusions",
+     "package_title",
+     "packages",
+     "packages[].classes",
+     "packages[].fee_per_class",
+     "packages[].plan_type",
+     "packages[].single_payment",
+     "packages[].single_payment.price",
+     "packages[].single_payment.saving",
+     "packages[].title",
+     "packages[].total",
+     "plan_types",
+     "pricing",
+     "pricing.currency",
+     "pricing.offer_fee",
+     "pricing.single_payment_percent",
+     "pricing.single_payment_plan_types",
+     "pricing.standard_fee",
+     "pricing.version",
+     "revision",
+     "structure",
+     "subtitle",
+     "syllabus_version",
+     "title",
+     "totals",
+     "totals.bridge",
+     "totals.regular",
+     "totals.revision"
+    ],
+    "records": [
+     "new",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue_syllabus @ anon": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ mentor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ mentor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ parent_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ su_mentor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a as it is sold: its published revision, its packages priced as now and the pricing's rates.",
+   "result": {
+    "fields": [
+     "board",
+     "chapters",
+     "chapters[].bridge_classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "chapters[].revision_classes",
+     "grade",
+     "id",
+     "inclusions",
+     "package_title",
+     "packages",
+     "packages[].classes",
+     "packages[].fee_per_class",
+     "packages[].plan_type",
+     "packages[].single_payment",
+     "packages[].single_payment.price",
+     "packages[].single_payment.saving",
+     "packages[].title",
+     "packages[].total",
+     "plan_types",
+     "pricing",
+     "pricing.currency",
+     "pricing.offer_fee",
+     "pricing.single_payment_percent",
+     "pricing.single_payment_plan_types",
+     "pricing.standard_fee",
+     "pricing.version",
+     "revision",
+     "structure",
+     "subtitle",
+     "syllabus_version",
+     "title",
+     "totals",
+     "totals.bridge",
+     "totals.regular",
+     "totals.revision"
+    ],
+    "records": [
+     "new",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue_syllabus @ su_tutor": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a as it is sold: its published revision, its packages priced as now and the pricing's rates.",
+   "result": {
+    "fields": [
+     "board",
+     "chapters",
+     "chapters[].bridge_classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "chapters[].revision_classes",
+     "grade",
+     "id",
+     "inclusions",
+     "package_title",
+     "packages",
+     "packages[].classes",
+     "packages[].fee_per_class",
+     "packages[].plan_type",
+     "packages[].single_payment",
+     "packages[].single_payment.price",
+     "packages[].single_payment.saving",
+     "packages[].title",
+     "packages[].total",
+     "plan_types",
+     "pricing",
+     "pricing.currency",
+     "pricing.offer_fee",
+     "pricing.single_payment_percent",
+     "pricing.single_payment_plan_types",
+     "pricing.standard_fee",
+     "pricing.version",
+     "revision",
+     "structure",
+     "subtitle",
+     "syllabus_version",
+     "title",
+     "totals",
+     "totals.bridge",
+     "totals.regular",
+     "totals.revision"
+    ],
+    "records": [
+     "new",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue_syllabus @ superuser": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "syllabus_a as it is sold: its published revision, its packages priced as now and the pricing's rates.",
+   "result": {
+    "fields": [
+     "board",
+     "chapters",
+     "chapters[].bridge_classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "chapters[].revision_classes",
+     "grade",
+     "id",
+     "inclusions",
+     "package_title",
+     "packages",
+     "packages[].classes",
+     "packages[].fee_per_class",
+     "packages[].plan_type",
+     "packages[].single_payment",
+     "packages[].single_payment.price",
+     "packages[].single_payment.saving",
+     "packages[].title",
+     "packages[].total",
+     "plan_types",
+     "pricing",
+     "pricing.currency",
+     "pricing.offer_fee",
+     "pricing.single_payment_percent",
+     "pricing.single_payment_plan_types",
+     "pricing.standard_fee",
+     "pricing.version",
+     "revision",
+     "structure",
+     "subtitle",
+     "syllabus_version",
+     "title",
+     "totals",
+     "totals.bridge",
+     "totals.regular",
+     "totals.revision"
+    ],
+    "records": [
+     "new",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.catalogue_syllabus @ tutor_a": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ tutor_b": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.catalogue_syllabus @ unknown": {
+   "decision": "The catalogue on sale (accounts.0021): /api/sales/catalogue/ serves holders of accounts.view_sales_catalogue -- the BDE and ADMIN roles (a superuser holds it under D1) -- with the active syllabuses' published revisions and the pricing's rates only, and changes nothing. Managing syllabuses and the pricing stays the ADMIN role's.",
+   "note": "The catalogue on sale is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "sales.deactivate @ admin": {
    "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
    "note": "syllabus_a hidden from the sales to come.",
@@ -17096,6 +18136,170 @@
     "status": 403
    }
   },
+  "sales.enquiry_plan @ admin": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "fields": [
+     "current",
+     "history",
+     "latest_quote",
+     "lead",
+     "lead.id",
+     "lead.parent_name",
+     "lead.student_name",
+     "locked"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.enquiry_plan @ anon": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ mentor_a": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ mentor_b": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ parent_a": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ su_mentor": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "fields": [
+     "current",
+     "history",
+     "latest_quote",
+     "lead",
+     "lead.id",
+     "lead.parent_name",
+     "lead.student_name",
+     "locked"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.enquiry_plan @ su_tutor": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "fields": [
+     "current",
+     "history",
+     "latest_quote",
+     "lead",
+     "lead.id",
+     "lead.parent_name",
+     "lead.student_name",
+     "locked"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.enquiry_plan @ superuser": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "fields": [
+     "current",
+     "history",
+     "latest_quote",
+     "lead",
+     "lead.id",
+     "lead.parent_name",
+     "lead.student_name",
+     "locked"
+    ],
+    "records": [
+     "lead_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.enquiry_plan @ tutor_a": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ tutor_b": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.enquiry_plan @ unknown": {
+   "decision": "Student plan workflow: current quote metadata, immutable replacements and protected enquiry plan reading.",
+   "note": "Additive snapshot fields only; existing permissions and ownership restrictions remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "sales.pdf @ admin": {
    "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
    "note": "syllabus_a's PDF: what it offers (revision 1), priced at pricing_v1, as a download.",
@@ -18344,6 +19548,1390 @@
     "status": 403
    }
   },
+  "sales.quote @ admin": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a as it was issued: its rates, package, chapters and figures. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote @ anon": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ mentor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ mentor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ parent_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ su_mentor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a as it was issued: its rates, package, chapters and figures. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote @ su_tutor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a as it was issued: its rates, package, chapters and figures. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote @ superuser": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a as it was issued: its rates, package, chapters and figures. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote @ tutor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ tutor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote @ unknown": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ admin": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a withdrawn by an administrator, with why. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.id",
+     "cancelled_by.name",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "new",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote_cancel @ anon": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ mentor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ mentor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ parent_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ su_mentor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a withdrawn by an administrator, with why. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.id",
+     "cancelled_by.name",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "su_mentor",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote_cancel @ su_tutor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a withdrawn by an administrator, with why. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.id",
+     "cancelled_by.name",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "su_tutor",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote_cancel @ superuser": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "quote_a withdrawn by an administrator, with why. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "cancelled_by.id",
+     "cancelled_by.name",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin2",
+     "new",
+     "quote_a",
+     "superuser",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quote_cancel @ tutor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ tutor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_cancel @ unknown": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ admin": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "A new quote of syllabus_a's Regular course, the caller's own. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "admin",
+     "new",
+     "syllabus_a"
+    ],
+    "status": 201
+   }
+  },
+  "sales.quote_create @ anon": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ mentor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ mentor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ parent_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ su_mentor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "A new quote of syllabus_a's Regular course, the caller's own. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "new",
+     "su_mentor",
+     "syllabus_a"
+    ],
+    "status": 201
+   }
+  },
+  "sales.quote_create @ su_tutor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "A new quote of syllabus_a's Regular course, the caller's own. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "new",
+     "su_tutor",
+     "syllabus_a"
+    ],
+    "status": 201
+   }
+  },
+  "sales.quote_create @ superuser": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "A new quote of syllabus_a's Regular course, the caller's own. No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "cancel_reason",
+     "cancelled_at",
+     "cancelled_by",
+     "chapters",
+     "chapters[].classes",
+     "chapters[].id",
+     "chapters[].name",
+     "chapters[].position",
+     "chapters[].regular_classes",
+     "classes",
+     "created_at",
+     "created_by",
+     "created_by.id",
+     "created_by.name",
+     "currency",
+     "full_course",
+     "id",
+     "is_current",
+     "lead",
+     "lines",
+     "lines[].classes",
+     "lines[].fee_per_class",
+     "lines[].plan_type",
+     "lines[].single_payment",
+     "lines[].single_payment.price",
+     "lines[].single_payment.saving",
+     "lines[].title",
+     "lines[].total",
+     "offer_fee",
+     "payable_amount",
+     "plan_type",
+     "pricing_version",
+     "reference",
+     "revision",
+     "selection_status",
+     "single_payment_percent",
+     "single_payment_saving",
+     "standard_fee",
+     "status",
+     "supersedes",
+     "syllabus",
+     "syllabus.board",
+     "syllabus.grade",
+     "syllabus.id",
+     "syllabus.structure",
+     "syllabus.syllabus_version",
+     "syllabus.title",
+     "total_fee"
+    ],
+    "records": [
+     "new",
+     "superuser",
+     "syllabus_a"
+    ],
+    "status": 201
+   }
+  },
+  "sales.quote_create @ tutor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ tutor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_create @ unknown": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ admin": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "quote_a's PDF, drawn from the quote alone, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.quote_pdf @ anon": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ mentor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ mentor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ parent_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ su_mentor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "quote_a's PDF, drawn from the quote alone, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.quote_pdf @ su_tutor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "quote_a's PDF, drawn from the quote alone, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.quote_pdf @ superuser": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "quote_a's PDF, drawn from the quote alone, shown inline.",
+   "result": {
+    "content_type": "application/pdf",
+    "status": 200
+   }
+  },
+  "sales.quote_pdf @ tutor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ tutor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quote_pdf @ unknown": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ admin": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "Every quote for an administrator: quote_a (admin2's). No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].classes",
+     "results[].created_at",
+     "results[].created_by",
+     "results[].created_by.id",
+     "results[].created_by.name",
+     "results[].currency",
+     "results[].full_course",
+     "results[].id",
+     "results[].is_current",
+     "results[].lead",
+     "results[].payable_amount",
+     "results[].plan_type",
+     "results[].reference",
+     "results[].revision",
+     "results[].selection_status",
+     "results[].status",
+     "results[].supersedes",
+     "results[].syllabus",
+     "results[].syllabus.board",
+     "results[].syllabus.grade",
+     "results[].syllabus.id",
+     "results[].syllabus.structure",
+     "results[].syllabus.title",
+     "results[].total_fee"
+    ],
+    "records": [
+     "admin2",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quotes @ anon": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ mentor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ mentor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ parent_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ su_mentor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "Every quote for an administrator: quote_a (admin2's). No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].classes",
+     "results[].created_at",
+     "results[].created_by",
+     "results[].created_by.id",
+     "results[].created_by.name",
+     "results[].currency",
+     "results[].full_course",
+     "results[].id",
+     "results[].is_current",
+     "results[].lead",
+     "results[].payable_amount",
+     "results[].plan_type",
+     "results[].reference",
+     "results[].revision",
+     "results[].selection_status",
+     "results[].status",
+     "results[].supersedes",
+     "results[].syllabus",
+     "results[].syllabus.board",
+     "results[].syllabus.grade",
+     "results[].syllabus.id",
+     "results[].syllabus.structure",
+     "results[].syllabus.title",
+     "results[].total_fee"
+    ],
+    "records": [
+     "admin2",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quotes @ su_tutor": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "Every quote for an administrator: quote_a (admin2's). No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].classes",
+     "results[].created_at",
+     "results[].created_by",
+     "results[].created_by.id",
+     "results[].created_by.name",
+     "results[].currency",
+     "results[].full_course",
+     "results[].id",
+     "results[].is_current",
+     "results[].lead",
+     "results[].payable_amount",
+     "results[].plan_type",
+     "results[].reference",
+     "results[].revision",
+     "results[].selection_status",
+     "results[].status",
+     "results[].supersedes",
+     "results[].syllabus",
+     "results[].syllabus.board",
+     "results[].syllabus.grade",
+     "results[].syllabus.id",
+     "results[].syllabus.structure",
+     "results[].syllabus.title",
+     "results[].total_fee"
+    ],
+    "records": [
+     "admin2",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quotes @ superuser": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found. Student plan workflow: additive snapshot metadata identifies the current selection and replacement history.",
+   "note": "Every quote for an administrator: quote_a (admin2's). No permission widening; amounts and chapters remain historical snapshots.",
+   "result": {
+    "fields": [
+     "count",
+     "page",
+     "page_size",
+     "results",
+     "results[].classes",
+     "results[].created_at",
+     "results[].created_by",
+     "results[].created_by.id",
+     "results[].created_by.name",
+     "results[].currency",
+     "results[].full_course",
+     "results[].id",
+     "results[].is_current",
+     "results[].lead",
+     "results[].payable_amount",
+     "results[].plan_type",
+     "results[].reference",
+     "results[].revision",
+     "results[].selection_status",
+     "results[].status",
+     "results[].supersedes",
+     "results[].syllabus",
+     "results[].syllabus.board",
+     "results[].syllabus.grade",
+     "results[].syllabus.id",
+     "results[].syllabus.structure",
+     "results[].syllabus.title",
+     "results[].total_fee"
+    ],
+    "records": [
+     "admin2",
+     "quote_a",
+     "syllabus_a"
+    ],
+    "status": 200
+   }
+  },
+  "sales.quotes @ tutor_a": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ tutor_b": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.quotes @ unknown": {
+   "decision": "Quotes (accounts.0022): /api/sales/quotes/ lets holders of accounts.create_sales_quotes -- the BDE and ADMIN roles -- quote from the catalogue on sale and see their own quotes, and holders of accounts.manage_sales_quotes -- the ADMIN role alone (a superuser holds both under D1) -- see and cancel every quote. A quote the caller may not see is not found.",
+   "note": "Quotes are not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "sales.reactivate @ admin": {
    "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
    "note": "syllabus_a is active: nothing to reactivate (409 NOT_INACTIVE).",
@@ -18913,6 +21501,286 @@
    }
   },
   "sales.revision_pdf @ unknown": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ admin": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the pricing of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection @ anon": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ mentor_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ mentor_b": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ parent_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ su_mentor": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the pricing of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection @ su_tutor": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the pricing of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection @ superuser": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the pricing of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection @ tutor_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ tutor_b": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection @ unknown": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ admin": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the PDF of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection_pdf @ anon": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Not signed in: refused.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ mentor_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ mentor_b": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ parent_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ su_mentor": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the PDF of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection_pdf @ su_tutor": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the PDF of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection_pdf @ superuser": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "syllabus_a is chapter-wise: an administrator reaches the PDF of chosen days and is refused NOT_A_BRIDGE_COURSE -- only a Bridge Course is sold by the day; nothing is kept.",
+   "result": {
+    "error": "NOT_A_BRIDGE_COURSE",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Only a Bridge Course is sold by the day.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "sales.selection_pdf @ tutor_a": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ tutor_b": {
+   "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
+   "note": "Sales Management is not this role's: refused.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "sales.selection_pdf @ unknown": {
    "decision": "Sales Management (accounts.0020): /api/sales/ serves holders of accounts.manage_sales_syllabi -- and, for the pricing, accounts.manage_sales_pricing -- which only the ADMIN role may hold (a superuser holds them under D1).",
    "note": "Sales Management is not this role's: refused.",
    "result": {

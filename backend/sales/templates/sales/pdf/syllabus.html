@@ -12,7 +12,7 @@ fits on its page.
 <meta name="author" content="Eduport Plus">
 <link rel="stylesheet" href="syllabus.css">
 </head>
-<body>
+<body>{% if quote.cancelled %}<div class="cancelled-mark">CANCELLED</div>{% endif %}
 {% for page in chapter_pages %}
 <section class="sheet" id="sheet-chapters-{{ forloop.counter0 }}">
 {% include "sales/pdf/brand.html" %}
@@ -39,7 +39,7 @@ fits on its page.
 {% endfor %}
 <section class="sheet packages{% if compact %} compact{% endif %}" id="sheet-packages">
 {% include "sales/pdf/brand.html" %}
-<h2 class="package-title">{{ package_title }}</h2>
+<h2 class="package-title">{{ package_title }}</h2>{% if quote %}<p class="quote-ref">Quote {{ quote.reference }} · {{ quote.date }}</p>{% endif %}{% if quote.cancelled %}<p class="quote-cancelled">Cancelled on {{ quote.cancelled }}: this quote is no longer valid.</p>{% endif %}
 <div class="fee-label">Course Fee Details</div>
 <p class="per-class">Per Class Pricing</p>
 <div class="fees">

@@ -21,6 +21,14 @@ changes. The structure is fixed from the first publication on.
 Similar syllabuses -- the same grade, board, syllabus version and structure --
 are only a warning (D5): titles may tell offerings apart.
 
+A Bridge Course is sold whole or by the day (bridge_selection): the days chosen
+are rows of one of its published revisions, named by id -- never copied -- and
+choosing every day is the whole course, priced and drawn exactly as before.
+
+The catalogue on sale (catalogue_*) is what BDEs quote from: the active
+syllabuses' newest published revisions and the pricing's rates -- never a
+draft, a status, a history, the pricing's past versions or who did what.
+
 The activity log keeps a syllabus's revision numbers (in ``context``), never its
 content; a pricing version's entry keeps each figure as {"old", "new"}.
 """
@@ -33,8 +41,10 @@ from django.utils import timezone
 
 from activity.utils import log_activity
 
-from .models import TITLE_CHARS, PlanType, PricingVersion, Syllabus, SyllabusChapter, SyllabusRevision, SyllabusStatus
-from .pricing import active_pricing, card_plan_types, chapter_totals, packages, plain, plan_classes
+from .models import (
+    TITLE_CHARS, PlanType, PricingVersion, Structure, Syllabus, SyllabusChapter, SyllabusRevision, SyllabusStatus,
+)
+from .pricing import active_pricing, card_plan_types, chapter_totals, chosen_chapters, packages, plain, plan_classes
 from .wording import package_title_of, subtitle_of
 
 CONTENT_FIELDS = (
@@ -101,7 +111,7 @@ def with_totals(revisions):
     )
 
 
-def list_rows(syllabi):
+def list_rows(syllabi, include_subtitle=False):
     """One list row per syllabus (from listed()): its status and the revision it shows."""
     syllabi = list(syllabi)
     shown = {
@@ -120,6 +130,7 @@ def list_rows(syllabi):
             'published_revision': revision.number if syllabus.published_id else None,
             'draft_revision': numbers.get(syllabus.draft_id),
             'title': revision.title,
+            **({'subtitle': subtitle_of({'subtitle': revision.subtitle, 'structure': revision.structure})} if include_subtitle else {}),
             'grade': revision.grade,
             'board': revision.board,
             'syllabus_version': revision.syllabus_version,
@@ -228,6 +239,187 @@ def content_data(content, pricing=None):
     data['totals'] = {column: plain(total) for column, total in totals.items()}
     data['packages'] = [_package_data(package) for package in packages(content['plan_types'], chapters, pricing)] if pricing else None
     return data
+
+
+def bridge_selection(syllabus_id, number, chapter_ids):
+    """
+    The days of a Bridge Course's published revision ``number`` a purchase is
+    for: ``chapter_ids``, days of that revision, each once, at least one, and
+    selling some classes. Returns ``(revision, content, selected)``: the
+    revision, its content as the PDF draws it, and the chosen ids in the
+    course's order -- or None when every day is chosen, the whole course.
+    Nothing is written; a SalesError says why a choice is refused.
+    """
+    syllabus = Syllabus.objects.filter(pk=syllabus_id).first()
+    if syllabus is None:
+        raise SalesError('NOT_FOUND', 'No such syllabus.', 404)
+    revision = syllabus.revisions.filter(number=number).first()
+    if revision is None:
+        raise SalesError('NOT_FOUND', 'This syllabus has no such revision.', 404)
+    if revision.structure != Structure.BRIDGE_COURSE:
+        raise SalesError('NOT_A_BRIDGE_COURSE', 'Only a Bridge Course is sold by the day.')
+    if revision.published_at is None:
+        raise SalesError('NOT_PUBLISHED', f'Revision {revision.number} is a draft: days are sold from a published revision only.')
+    _refuse_inactive(syllabus)
+
+    chapters = list(revision.chapters.order_by('position'))
+    selected = choose(chapters, chapter_ids, PlanType.BRIDGE_COURSE, revision)
+    content = _content_of(revision, chapters)
+    return revision, content, (None if len(selected) == len(chapters) else selected)
+
+
+def choose(chapters, chapter_ids, plan_type, revision):
+    """
+    The ids of ``chapter_ids`` -- a Bridge Course's days, or a Chapter Plan's
+    chapters -- in the course's order: rows of ``revision`` (whose ``chapters``
+    they must be), each once, at least one, selling some classes of
+    ``plan_type``. A SalesError (INVALID_SELECTION) says what is wrong.
+    """
+    noun, where = ('day', 'this Bridge Course') if plan_type == PlanType.BRIDGE_COURSE else ('chapter', 'this syllabus')
+    wanted = [str(chapter_id) for chapter_id in chapter_ids]
+    if not wanted:
+        raise _invalid_selection(f'Choose at least one {noun}.')
+    if len(set(wanted)) != len(wanted):
+        raise _invalid_selection(f'Choose each {noun} once.')
+    if set(wanted) - {str(chapter.pk) for chapter in chapters}:
+        raise _invalid_selection(f'Choose {noun}s of revision {revision.number} of {where}.')
+    selected = [str(chapter.pk) for chapter in chosen_chapters(chapters, wanted)]
+    if plan_classes(plan_type, chapters, selected) <= 0:
+        raise _invalid_selection(f'The {noun}s chosen have no classes.')
+    return selected
+
+
+def selection_data(revision, content, selected, pricing):
+    """
+    A Bridge Course bought by the day, as the API answers it: the days chosen
+    (their day numbers and classes), their total, and the package priced by
+    ``pricing`` -- the whole course's when ``selected`` is None.
+    """
+    chapters = content['chapters']
+    shown = chapters if selected is None else chosen_chapters(chapters, selected)
+    days = {id(chapter) for chapter in shown}
+    [package] = packages(content['plan_types'], chapters, pricing, selected=selected)
+    return {
+        'syllabus': str(revision.syllabus_id),
+        'revision': revision.number,
+        'title': content['title'],
+        'full_course': selected is None,
+        'days': [
+            {'id': str(chapter['id']), 'day': day, 'name': chapter['name'], 'classes': plain(chapter['bridge_classes'])}
+            for day, chapter in enumerate(chapters, start=1) if id(chapter) in days
+        ],
+        'classes': plain(package.classes),
+        'pricing': {
+            'version': pricing.version, 'currency': pricing.currency,
+            'standard_fee': plain(pricing.standard_fee), 'offer_fee': plain(pricing.offer_fee),
+        },
+        'package': _package_data(package),
+    }
+
+
+# ---------------------------------------------------------------- the catalogue on sale
+
+# What a catalogue row shows of a syllabus on sale (from list_rows, which also has the Admin's workings).
+CATALOGUE_ROW_FIELDS = (
+    'id', 'revision', 'title', 'subtitle', 'grade', 'board', 'syllabus_version', 'structure', 'plan_types', 'chapter_count', 'totals',
+)
+
+
+def catalogue():
+    """The syllabuses on sale (from listed()): active, with a published revision -- the newest, the one sold."""
+    return filter_status(listed(Syllabus.objects.all()), SyllabusStatus.PUBLISHED)
+
+
+def by_grade_and_title(syllabi):
+    """``syllabi`` (from catalogue()) in the order a BDE browses them: grade, then the title they are sold under."""
+    # Keyed on the syllabus itself, as listed()'s own subquery: a reference to its published_id annotation
+    # would nest that annotation's outer reference inside this subquery and read another syllabus's revision.
+    sold = SyllabusRevision.objects.filter(syllabus=OuterRef('pk'), published_at__isnull=False).order_by('-number')
+    return (syllabi.annotate(sold_grade=Subquery(sold.values('grade')[:1]), sold_title=Subquery(sold.values('title')[:1]))
+            .order_by('sold_grade', 'sold_title', 'pk'))
+
+
+def catalogue_rows(syllabi):
+    """One row per syllabus on sale (from catalogue()): its published revision, and nothing of the Admin's workings."""
+    return [{field: row[field] for field in CATALOGUE_ROW_FIELDS} for row in list_rows(syllabi, include_subtitle=True)]
+
+
+def catalogue_revision(syllabus_id):
+    """The revision a syllabus on sale sells -- its newest published one -- or None when it is not on sale."""
+    syllabus = catalogue().filter(pk=syllabus_id).first()
+    return SyllabusRevision.objects.get(pk=syllabus.published_id) if syllabus else None
+
+
+def catalogue_detail(syllabus_id):
+    """
+    A syllabus on sale as a BDE quotes it: the revision it sells, its chapters
+    (by id, to choose a Bridge Course's days from), totals and packages priced
+    as now, and the pricing's rates and privilege. None when it is not on sale.
+    """
+    revision = catalogue_revision(syllabus_id)
+    if revision is None:
+        return None
+    pricing = active_pricing()
+    data = content_data(_content_of(revision), pricing)
+    return {
+        'id': str(revision.syllabus_id),
+        'revision': revision.number,
+        'title': data['title'],
+        # What the PDF prints: the Admin's line, or the default for the structure and title.
+        'subtitle': data['subtitle_display'],
+        'package_title': data['package_title_display'],
+        **{field: data[field] for field in (
+            'grade', 'board', 'syllabus_version', 'structure', 'plan_types', 'inclusions', 'chapters', 'totals', 'packages',
+        )},
+        'pricing': catalogue_pricing(pricing),
+    }
+
+
+def catalogue_pricing(pricing):
+    """The pricing in effect as quoting needs it -- its rates and privilege; no note, author, date or history."""
+    if pricing is None:
+        return None
+    return {
+        'version': pricing.version,
+        'currency': pricing.currency,
+        'standard_fee': plain(pricing.standard_fee),
+        'offer_fee': plain(pricing.offer_fee),
+        'single_payment_percent': plain(pricing.single_payment_percent),
+        'single_payment_plan_types': list(pricing.single_payment_plan_types),
+    }
+
+
+def catalogue_selection(syllabus_id, number, chapter_ids):
+    """
+    bridge_selection for a syllabus on sale, from the revision it sells:
+    ``number`` is the revision the BDE was shown. Once a newer one is
+    published the choice is refused (REVISION_CHANGED, with the revision now
+    sold) rather than read against rows the BDE never saw.
+    """
+    on_sale_revision(syllabus_id, number)
+    return bridge_selection(syllabus_id, number, chapter_ids)
+
+
+def on_sale_revision(syllabus_id, number):
+    """
+    Revision ``number`` of a syllabus on sale, when it is the one it sells: a
+    choice made from what a BDE was shown. NOT_FOUND when the syllabus is not
+    on sale or sells no such revision; REVISION_CHANGED (with the revision now
+    sold) once a newer one is published, rather than read against rows the BDE
+    never saw.
+    """
+    revision = catalogue_revision(syllabus_id)
+    if revision is None:
+        raise SalesError('NOT_FOUND', 'No such syllabus on sale.', 404)
+    if number > revision.number:
+        raise SalesError('NOT_FOUND', 'This syllabus sells no such revision.', 404)
+    if number != revision.number:
+        raise SalesError(
+            'REVISION_CHANGED',
+            f'This syllabus was updated to revision {revision.number}: reload it and choose the days again.',
+            revision=revision.number,
+        )
+    return revision
 
 
 def similar_syllabi(syllabus_id, revision):
@@ -532,6 +724,10 @@ def _draft_changed():
     return SalesError(
         'DRAFT_CHANGED', 'This draft was changed or published meanwhile. Reload it to see the latest version.',
     )
+
+
+def _invalid_selection(message):
+    return SalesError('INVALID_SELECTION', message, 400, fields={'chapter_ids': [message]})
 
 
 def _refuse_inactive(syllabus):

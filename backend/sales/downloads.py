@@ -6,6 +6,9 @@ PDFs do (reports.downloads):
                                                             or its draft before the first publication
     GET  /api/sales/syllabi/<id>/revisions/<number>/pdf/    one revision, a draft or a published one
     POST /api/sales/syllabi/pdf-preview/                    content not yet saved (the editor's preview)
+    POST /api/sales/syllabi/<id>/revisions/<number>/selection/pdf/
+                                                            a published Bridge Course's chosen days
+    GET  /api/sales/quotes/<id>/pdf/                        a quote, as it was issued (quote_pdf_response)
 
 Each prices the packages at the pricing in effect now; with none yet the
 answer is 409 NO_PRICING. ``?disposition=inline`` shows it in the browser (a
@@ -25,7 +28,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
 from .models import Structure
-from .pdf import syllabus_pdf
+from .pdf import quote_pdf, syllabus_pdf
 from .pricing import active_pricing
 
 
@@ -45,8 +48,12 @@ class SyllabusPdfView:
         return super().perform_content_negotiation(request, force=True)
 
 
-def pdf_response(request, content, suffix=''):
-    """``content`` (a syllabus's) as its PDF, priced as now: inline when the request asks, else a download."""
+def pdf_response(request, content, suffix='', selected=None):
+    """
+    ``content`` (a syllabus's) as its PDF, priced as now -- only a Bridge
+    Course's ``selected`` days, given their ids: inline when the request asks,
+    else a download.
+    """
     pricing = active_pricing()
     if pricing is None:
         return Response(
@@ -54,8 +61,29 @@ def pdf_response(request, content, suffix=''):
             status=status.HTTP_409_CONFLICT,
         )
     inline = request.query_params.get('disposition') == 'inline'
-    response = HttpResponse(syllabus_pdf(content, pricing), content_type='application/pdf')
+    response = HttpResponse(syllabus_pdf(content, pricing, selected=selected), content_type='application/pdf')
     response['Content-Disposition'] = f'{"inline" if inline else "attachment"}; filename="{pdf_filename(content, suffix)}"'
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def quote_pdf_response(request, quote):
+    """
+    ``quote``'s PDF (sales.quotes.quote_pdf_parts): drawn from the quote alone,
+    so it says what was quoted whatever has been published or priced since --
+    a cancelled one too, marked CANCELLED. 'Q-000012-Grade-7-CBSE-Bridge-Course.pdf',
+    '...-Cancelled.pdf' once cancelled; inline when the request asks.
+    """
+    from .quotes import quote_pdf_parts
+
+    content, rates, cards, selected, reference = quote_pdf_parts(quote)
+    inline = request.query_params.get('disposition') == 'inline'
+    response = HttpResponse(quote_pdf(content, rates, cards, selected, reference), content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'{"inline" if inline else "attachment"}; '
+        f'filename="{quote.reference}-{pdf_filename(content, "-Cancelled" if reference["cancelled"] else "")}"'
+    )
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response

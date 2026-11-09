@@ -164,6 +164,17 @@ CATALOGUE = {
     # needs either: the syllabus pages show the packages it prices.
     'accounts.manage_sales_syllabi': _entry('Manage syllabuses and plans', 'Sales', ADMIN_ONLY),
     'accounts.manage_sales_pricing': _entry('Manage the global pricing', 'Sales', ADMIN_ONLY),
+    # The catalogue on sale, accounts.0021: the active syllabuses' published
+    # revisions with their packages priced as now, the pricing's rates and
+    # privilege, their PDFs, and a Bridge Course priced by the days chosen --
+    # for BDEs quoting parents and administrators alike. It reads and prices;
+    # it never changes a syllabus or a price, nor shows a draft or a history.
+    'accounts.view_sales_catalogue': _entry('View and quote the plans on sale', 'Sales', BDE_AND_ADMIN),
+    # Quotes (sales.quotes), accounts.0022: what a parent was quoted, kept as it
+    # was issued. Whoever quotes -- a BDE, or an administrator -- sees their own
+    # quotes; seeing every quote and cancelling one are the administrators' alone.
+    'accounts.create_sales_quotes': _entry('Quote parents and see their own quotes', 'Sales', BDE_AND_ADMIN),
+    'accounts.manage_sales_quotes': _entry('View and cancel every quote', 'Sales', ADMIN_ONLY),
 }
 
 

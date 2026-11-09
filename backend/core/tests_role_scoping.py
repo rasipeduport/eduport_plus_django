@@ -56,16 +56,24 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
     # Their own leads' follow-ups and activity (BDE Hub redesign, Phase 6).
     ('api/bde/follow-ups/', 'get'),
     ('api/bde/activity/', 'get'),
+    # The catalogue on sale (accounts.view_sales_catalogue, accounts.0021): what they quote parents from. Its
+    # syllabus, PDF and selection routes take a syllabus on sale, so the sweep's made-up one is not found.
+    ('api/sales/catalogue/', 'get'),
+    # Their own quotes (accounts.create_sales_quotes, accounts.0022) -- none yet. Making one needs a valid body,
+    # so the sweep's empty one is refused; sales.tests_quotes covers it.
+    ('api/sales/quotes/', 'get'),
 }
 # What /me lists: BDE its workspace's permissions and its own leads' Demo
 # handoff (a Demo invitation, bookings.demo_invites), reports and conversion;
 # Sales TL the Conversion Tracker's (0015). Those seeded by 0015 and 0017
-# (parent communication) open no route until their phase's code asks for them.
+# (parent communication) open no route until their phase's code asks for them;
+# the catalogue on sale (0021) and quotes (0022) do.
 BDE_PERMISSIONS = [
     'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',
+    'accounts.create_sales_quotes',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',
     'accounts.send_lead_communications',
@@ -74,6 +82,7 @@ BDE_PERMISSIONS = [
     'accounts.view_own_enquiries',
     'accounts.view_own_lead_communications',
     'accounts.view_own_lead_reports',
+    'accounts.view_sales_catalogue',
 ]
 SALES_TL_PERMISSIONS = ['accounts.manage_team_conversion', 'accounts.view_conversion_tracker']
 METHODS = ('get', 'post', 'put', 'patch', 'delete')
