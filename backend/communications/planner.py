@@ -225,6 +225,11 @@ def lead_timezone_changed(lead, now):
     _refresh_lead_messages(lead, now)
 
 
+def lead_details_changed(lead, now):
+    """Admin corrected names/contact under the lead lock: refresh only unsent messages."""
+    _refresh_lead_messages(lead, now)
+
+
 def booking_cancelled(booking, now):
     """``booking`` was cancelled: nothing more is done or sent for it."""
     _close(booking, now, TaskResolution.BOOKING_CANCELLED, MessageCancelReason.BOOKING_CANCELLED)

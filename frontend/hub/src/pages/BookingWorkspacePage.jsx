@@ -294,6 +294,11 @@ export default function BookingWorkspacePage({ user, type }) {
               onRetryLead={reload}
               showLead={canViewLead}
               onOpenBooking={openBooking}
+              user={user}
+              onDetailsSaved={(updated, message) => {
+                setLead(updated);
+                changed(message);
+              }}
             />
           </TabsContent>
 

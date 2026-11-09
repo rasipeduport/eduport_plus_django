@@ -17,6 +17,7 @@ import { Panel, PanelEmpty } from '@/components/dashboard/dashboard-primitives';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { enquiryJourney } from '@/components/enquiries/workspace/enquiry-overview';
 import { ErrorState } from '@/components/page/states';
+import { EditLeadDetailsAction } from '@/components/leads/edit-lead-details-action';
 import { bookingState } from '@/lib/bookings';
 import { formatDay, slotLabel, sourceLabel } from '@/lib/enquiries';
 import { istMoment } from '@/lib/communications';
@@ -49,7 +50,7 @@ function FromLead({ loading, children }) {
  * lead to open -- each a placeholder until the lead arrives. Without the lead
  * to read, what the booking itself says of its enquiry (its source and BDE).
  */
-function EnquiryCard({ booking, lead, loading, showLead }) {
+function EnquiryCard({ booking, lead, loading, showLead, user, onDetailsSaved }) {
   const brief = booking.lead ?? {};
   const owner = lead ? lead.owner : brief.owner_bde;
   const ownedLater =
@@ -59,11 +60,14 @@ function EnquiryCard({ booking, lead, loading, showLead }) {
       icon={ClipboardListIcon}
       title="Enquiry"
       action={
-        showLead ? (
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/leads/${brief.id}`}>Open lead</Link>
-          </Button>
-        ) : null
+        <div className="flex flex-wrap gap-2">
+          <EditLeadDetailsAction user={user} leadId={brief.id} section="lead" onSaved={onDetailsSaved} />
+          {showLead ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/leads/${brief.id}`}>Open lead</Link>
+            </Button>
+          ) : null}
+        </div>
       }
     >
       <dl className="divide-y">
@@ -252,7 +256,7 @@ function AllBookingsCard({ lead, bookingId, onOpenBooking }) {
  * how it came in, any move, cancellation or Re-Demo) head the workspace
  * (BookingHeader).
  */
-export function BookingOverview({ booking, lead, leadFailure, onRetryLead, showLead, onOpenBooking }) {
+export function BookingOverview({ booking, lead, leadFailure, onRetryLead, showLead, onOpenBooking, user, onDetailsSaved }) {
   const brief = booking.lead ?? {};
   const loading = showLead && !lead && !leadFailure;
 
@@ -284,32 +288,47 @@ export function BookingOverview({ booking, lead, leadFailure, onRetryLead, showL
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="grid min-w-0 gap-4 lg:grid-cols-3 lg:items-stretch">
-        <Panel icon={UserRoundIcon} title="Parent">
+        <Panel
+          icon={UserRoundIcon}
+          title="Parent"
+          action={<EditLeadDetailsAction user={user} leadId={brief.id} section="parent" onSaved={onDetailsSaved} />}
+        >
           <dl className="divide-y">
-            <Field label="Name">{booking.parent_name}</Field>
+            <Field label="Name">{lead ? lead.parent_name : booking.parent_name}</Field>
             <Field label="Phone">
-              <span className="tabular-nums">{booking.phone}</span>
+              <span className="tabular-nums">{lead ? lead.phone : booking.phone}</span>
             </Field>
             <Field label="Email">
               <FromLead loading={loading}>{lead?.parent_email}</FromLead>
             </Field>
-            <Field label="Country">{brief.country}</Field>
+            <Field label="Country">{lead ? lead.country : brief.country}</Field>
             <Field label="Student timezone">
               <StudentTimezone zone={brief.student_timezone} />
             </Field>
           </dl>
         </Panel>
 
-        <Panel icon={GraduationCapIcon} title="Student">
+        <Panel
+          icon={GraduationCapIcon}
+          title="Student"
+          action={<EditLeadDetailsAction user={user} leadId={brief.id} section="student" onSaved={onDetailsSaved} />}
+        >
           <dl className="divide-y">
-            <Field label="Name">{booking.student_name}</Field>
-            <Field label="Class">{booking.grade}</Field>
-            <Field label="School">{brief.school_name}</Field>
-            <Field label="Syllabus">{brief.syllabus}</Field>
+            <Field label="Name">{lead ? lead.student_name : booking.student_name}</Field>
+            <Field label="Class">{lead ? lead.grade : booking.grade}</Field>
+            <Field label="School">{lead ? lead.school_name : brief.school_name}</Field>
+            <Field label="Syllabus">{lead ? lead.syllabus : brief.syllabus}</Field>
           </dl>
         </Panel>
 
-        <EnquiryCard booking={booking} lead={lead} loading={loading} showLead={showLead} />
+        <EnquiryCard
+          booking={booking}
+          lead={lead}
+          loading={loading}
+          showLead={showLead}
+          user={user}
+          onDetailsSaved={onDetailsSaved}
+        />
       </div>
 
       {enquiry}
