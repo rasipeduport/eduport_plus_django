@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     'bookings',
     'reports',
     'communications',
+    'sales',
 ]
 
 MIDDLEWARE = [
@@ -256,6 +257,8 @@ REST_FRAMEWORK = {
         'public_lead': env('PUBLIC_LEAD_THROTTLE_RATE', default='10/hour'),
         # Report PDF downloads, per signed-in account (reports.downloads): each is rendered afresh.
         'report_pdf': env('REPORT_PDF_THROTTLE_RATE', default='30/min'),
+        # Syllabus PDFs (sales.downloads): rendering one costs real CPU, as a report's does.
+        'syllabus_pdf': env('SYLLABUS_PDF_THROTTLE_RATE', default='30/min'),
     },
     # The browsable API renders interactive write forms for every endpoint --
     # a development tool. Production serves JSON only.

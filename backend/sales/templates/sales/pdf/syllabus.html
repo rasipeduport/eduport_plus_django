@@ -1,0 +1,77 @@
+{% comment %}
+A syllabus's "Plan & Price" PDF (sales.pdf): its chapter table, fifteen rows
+a page under the title, then the packages page. Relative URLs resolve in
+pdf_assets, the only place the renderer loads from. Each sheet's start and end
+carry an id ("sheet-..."): sales.pdf.spilled_sheets reads them to see that it
+fits on its page.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<meta name="author" content="Eduport Plus">
+<link rel="stylesheet" href="syllabus.css">
+</head>
+<body>
+{% for page in chapter_pages %}
+<section class="sheet" id="sheet-chapters-{{ forloop.counter0 }}">
+{% include "sales/pdf/brand.html" %}
+<h1 class="heading"><span>{{ title }}</span><span>{{ subtitle }}</span></h1>
+{% if bridge %}
+<table class="chapters bridge-course">
+<thead><tr><th class="serial">Day</th><th class="name-column">Chapter Name</th><th class="classes">No Of Classes</th></tr></thead>
+<tbody>
+{% for row in page.rows %}<tr><td>{{ row.position }}</td><td class="name">{{ row.name }}</td><td>{{ row.bridge }}</td></tr>
+{% endfor %}{% if page.last %}<tr class="total"><td></td><td>Total No Of Classes</td><td>{{ totals.bridge }}</td></tr>{% endif %}
+</tbody>
+</table>
+{% else %}
+<table class="chapters chapter-wise">
+<thead><tr><th class="serial">Sl No</th><th class="name-column">Chapter Name</th><th class="count regular">Regular Plan<br>(No Of Classes)</th><th class="count revision">Revision Plan<br>(No Of Classes)</th></tr></thead>
+<tbody>
+{% for row in page.rows %}<tr><td>{{ row.position }}</td><td class="name">{{ row.name }}</td><td>{{ row.regular }}</td><td>{{ row.revision }}</td></tr>
+{% endfor %}{% if page.last %}<tr class="total"><td></td><td>Total No Of Classes</td><td>{{ totals.regular }}</td><td>{{ totals.revision }}</td></tr>{% endif %}
+</tbody>
+</table>
+{% endif %}
+<div class="sheet-end" id="sheet-chapters-{{ forloop.counter0 }}-end"></div>
+</section>
+{% endfor %}
+<section class="sheet packages{% if compact %} compact{% endif %}" id="sheet-packages">
+{% include "sales/pdf/brand.html" %}
+<h2 class="package-title">{{ package_title }}</h2>
+<div class="fee-label">Course Fee Details</div>
+<p class="per-class">Per Class Pricing</p>
+<div class="fees">
+{% if fees.has_offer %}<span class="standard">Standard Fee: <s>{{ fees.standard }}</s></span><span class="offer"><span class="burst"><img src="starburst.svg" alt=""><span>Offer<br>Price</span></span>{{ fees.offer }}</span>
+{% else %}<span class="standard">Standard Fee: {{ fees.standard }}</span>{% endif %}
+</div>
+{% if packages %}
+<h3 class="section-label">Packages</h3>
+{% for package in packages %}
+<div class="card">
+<h3>{{ package.title }}</h3>
+<p class="classes">{{ package.classes_label }}</p>
+<table class="lines">
+<tr><td>Fee Per Class</td><td class="value">{{ package.fee_per_class }}</td></tr>
+{% if package.shows_class_count %}<tr><td>Number Of Classes</td><td class="value">{{ package.classes }}</td></tr>
+<tr><td>Total Fee</td><td class="value">{{ package.total }}</td></tr>
+{% else %}<tr class="strong"><td>Total Fee</td><td class="value">{{ package.total }}</td></tr>{% endif %}
+</table>
+{% if package.single_payment %}
+<table class="privilege"><tr>
+<td><div class="name">Single-Payment Privilege</div><div class="note">Pay In One Instalment And Get A Special Price</div><div class="save">Save <b>{{ package.single_payment.saving }}</b> Instantly</div></td>
+<td class="price">{{ package.single_payment.price }}</td>
+</tr></table>
+{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% if inclusions %}
+<h3 class="section-label">Inclusions</h3>
+<p class="inclusions">{% for line in inclusions %}<span><img src="check.svg" alt="">{{ line }}</span>{% endfor %}</p>
+{% endif %}
+<div class="sheet-end" id="sheet-packages-end"></div>
+</section>
+</body>
+</html>

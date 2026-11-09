@@ -157,6 +157,13 @@ CATALOGUE = {
     # own enquiries only, an administrator any lead they may read
     # (view_all_leads) -- which the code checks; holding this is not enough.
     'accounts.change_student_timezone': _entry("Correct a student's time zone", 'Leads', BDE_AND_ADMIN),
+
+    # Sales Management (sales app), accounts.0020: the syllabuses on offer --
+    # writing, previewing and publishing them -- and the global pricing they
+    # are sold at, each changed only by administrators. Reading the pricing
+    # needs either: the syllabus pages show the packages it prices.
+    'accounts.manage_sales_syllabi': _entry('Manage syllabuses and plans', 'Sales', ADMIN_ONLY),
+    'accounts.manage_sales_pricing': _entry('Manage the global pricing', 'Sales', ADMIN_ONLY),
 }
 
 

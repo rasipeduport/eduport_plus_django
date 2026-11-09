@@ -47,6 +47,7 @@ SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnosti
 SEED_COMMUNICATIONS = importlib.import_module('accounts.migrations.0017_communication_permissions')
 SEED_LEADS = importlib.import_module('accounts.migrations.0018_lead_management_permissions')
 SEED_STUDENT_TIMEZONE = importlib.import_module('accounts.migrations.0019_student_timezone_permission')
+SEED_SALES = importlib.import_module('accounts.migrations.0020_sales_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -94,6 +95,7 @@ ADMIN_ONLY = names(
     'view_all_bookings', 'assign_booking_tutor',
     'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
     'view_all_communications', 'manage_message_templates', 'view_all_leads', 'add_lead',
+    'manage_sales_syllabi', 'manage_sales_pricing',
 )
 TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report')
 # What later migrations add, one module each: BDE its booking links (0010),
@@ -138,6 +140,9 @@ LEAD_GRANTS = {'ADMIN': LEAD_PERMISSIONS}
 # own enquiries) and the Admin (any lead).
 STUDENT_TIMEZONE_PERMISSIONS = names('change_student_timezone')
 STUDENT_TIMEZONE_GRANTS = {'ADMIN': STUDENT_TIMEZONE_PERMISSIONS, 'BDE': STUDENT_TIMEZONE_PERMISSIONS}
+# Sales Management (0020): the syllabuses on offer and the global pricing, for the Admin alone.
+SALES_PERMISSIONS = names('manage_sales_syllabi', 'manage_sales_pricing')
+SALES_GRANTS = {'ADMIN': SALES_PERMISSIONS}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -151,7 +156,7 @@ NEW_ROLE_PERMISSIONS = {
     for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
 # What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
-# after 0018, and today.
+# after 0018, after 0019, and today.
 GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
 GROUP_PERMISSIONS_AT_0011 = {
     **GROUP_PERMISSIONS_AT_0010,
@@ -175,8 +180,11 @@ GROUP_PERMISSIONS_AT_0017 = {
 GROUP_PERMISSIONS_AT_0018 = {
     role: held | LEAD_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0017.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0019 = {
     role: held | STUDENT_TIMEZONE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0018.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0019.items()
 }
 
 
@@ -214,10 +222,11 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_67(self):
-        self.assertEqual(len(CATALOGUE), 67)
+    def test_the_catalogue_is_the_approved_69(self):
+        self.assertEqual(len(CATALOGUE), 69)
         self.assertLessEqual(
-            WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS,
+            WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
+            | SALES_PERMISSIONS,
             set(CATALOGUE),
         )
         # Every permission is carried by at least one role group today.
@@ -280,9 +289,11 @@ class CatalogueTests(PermissionTestCase):
             # 0018 renames assign_lead_owner (seeded by 0015): it covers reassigning too.
             + [(codename, SEED_LEADS.ASSIGN_OWNER_NAMES[1] if codename == SEED_LEADS.ASSIGN_OWNER else name)
                for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
-            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS,
+            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
+            + SEED_SALES.HUB_PERMISSIONS,
             hub_permission_meta(),
         )
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES.GRANTS.items()}, SALES_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
                          STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
@@ -904,6 +915,27 @@ class SeedFunctionTests(PermissionTestCase):
             )
         self.assertFalse(CATALOGUE['accounts.change_student_timezone']['grantable'])
 
+    def test_running_the_sales_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_SALES.grant_sales_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_manages_syllabuses_and_pricing(self):
+        held = {role: effective_permissions(self.make(f'sales_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertLessEqual(SALES_PERMISSIONS, held['ADMIN'])
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & SALES_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand anyone else the catalogue or its prices.
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in SALES_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'sales_{role.lower()}_2', role)) & SALES_PERMISSIONS, role)
+        for name in SALES_PERMISSIONS:
+            self.assertFalse(CATALOGUE[name]['grantable'], name)
+        root = self.make('root_sales', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(SALES_PERMISSIONS, effective_permissions(root))
+
     def test_who_reschedules_and_who_cancels(self):
         held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
         self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
@@ -980,7 +1012,7 @@ class NewRoleTests(PermissionTestCase):
 
 class MigrationReversalTests(TransactionTestCase):
     """
-    0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007
+    0020, 0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly to 0007
     and apply again with the same seeds, ending at the app's leaf.
     """
 
@@ -1053,7 +1085,19 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0019_student_timezone_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0019)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0020_sales_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0020 alone reverses: ADMIN's group is back to 0019's and the sales rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0019_student_timezone_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0019)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in SALES_PERMISSIONS],
+        ).exists())
 
         # 0019 alone reverses: the BDE and ADMIN groups are back to 0018's and the row gone.
         executor = MigrationExecutor(connection)

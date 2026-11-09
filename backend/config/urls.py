@@ -80,6 +80,8 @@ urlpatterns = [
     # Parent communications: each booking's, for the Hub (communications.views), and Meta's
     # WhatsApp webhook -- signed callbacks, no session (communications.webhooks).
     path('api/communications/', include('communications.urls', namespace='communications')),
+    # Sales Management for administrators: the syllabuses on offer and the global pricing.
+    path('api/sales/', include('sales.urls', namespace='sales')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
     path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),

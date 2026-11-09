@@ -1,0 +1,351 @@
+/*
+ * The syllabus "Plan & Price" PDFs (sales.pdf), after the Eduport Plus
+ * reference PDFs: an A4 sheet inside a yellow gridded border, the logo top
+ * right, blue headings, the chapter table in yellow and cream, and the
+ * packages page's fee details and cards. Sizes and colours are measured from
+ * those PDFs (in pt). Nothing is clipped: longer content runs onto further
+ * pages.
+ */
+
+@font-face { font-family: Manrope; font-weight: 400; src: url(fonts/Manrope-Regular.ttf); }
+@font-face { font-family: Manrope; font-weight: 500; src: url(fonts/Manrope-Medium.ttf); }
+@font-face { font-family: Manrope; font-weight: 600; src: url(fonts/Manrope-SemiBold.ttf); }
+@font-face { font-family: Manrope; font-weight: 700; src: url(fonts/Manrope-Bold.ttf); }
+
+/* The border: 18pt of yellow with a 1pt grid every 22.4pt. */
+@page {
+  size: A4;
+  margin: 18pt;
+  background: #D49A05 url(grid.svg) 8.6pt 8.6pt / 22.4pt 22.4pt repeat;
+}
+
+html {
+  font-family: Manrope, "DejaVu Sans", sans-serif;
+  font-size: 10pt;
+  line-height: 1.25;
+  color: #000000;
+}
+
+body { margin: 0; }
+
+/*
+ * One page's sheet, inside the border. No bottom padding: min-height carries a
+ * short sheet down to the border, and a full one (fifteen rows and the total)
+ * ends inside the page, as the references' do. sales.pdf draws a sheet that
+ * would run over again, with fewer rows (sheet-end marks where each ends).
+ */
+.sheet {
+  box-sizing: border-box;
+  min-height: 805.89pt;
+  padding: 21pt 33.5pt 0;
+  background: #FFFFFF;
+  break-after: page;
+}
+
+.sheet:last-child { break-after: auto; }
+
+.sheet-end { height: 0; }
+
+/* ------------------------------------------------------------- the logo */
+
+/* Floated beside the title's first line only: its short bottom margin lets the second line run under it. */
+.brand {
+  float: right;
+  width: 142pt;
+  margin: -2pt -8pt -16pt 12pt;
+  text-align: right;
+}
+
+.brand img {
+  display: block;
+  width: 142pt;
+}
+
+/* Centred under the wordmark, as in the references. */
+.brand .tagline {
+  margin: -2pt 0 0;
+  text-align: center;
+  font-size: 8.4pt;
+  font-weight: 500;
+  letter-spacing: 0.17em;
+  color: #222222;
+}
+
+/* ------------------------------------------------------ the chapter pages */
+
+.heading {
+  margin: 0;
+  font-size: 22.5pt;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #075DFF;
+}
+
+.heading span { display: block; }
+
+.chapters {
+  clear: both;
+  width: 100%;
+  margin-top: 15pt;
+  border-collapse: collapse;
+  font-weight: 600;
+  font-size: 10.6pt;
+  line-height: 1.2;
+}
+
+.chapters th,
+.chapters td {
+  height: 38.2pt;
+  padding: 0 8pt 0 24pt;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 0.75pt solid #000000;
+  overflow-wrap: anywhere;
+}
+
+.chapters thead th {
+  height: 59pt;
+  background: #FFBA07;
+  font-weight: 600;
+}
+
+.chapters thead th.count {
+  padding: 0 4pt;
+  text-align: center;
+}
+
+.chapters tbody td { background: #FFEFC8; }
+
+.chapters tr.total td { background: #FFD464; }
+
+/* The references print chapter names with each word capitalised. */
+.chapters td.name { text-transform: capitalize; }
+
+.chapters .serial { width: 15.2%; }
+.chapters.chapter-wise .name-column { width: 44.2%; }
+.chapters.chapter-wise .regular { width: 18.7%; }
+.chapters.chapter-wise .revision { width: 21.9%; }
+.chapters.bridge-course .name-column { width: 63%; }
+.chapters.bridge-course .classes { width: 21.8%; }
+
+/* ------------------------------------------------------ the packages page */
+
+.sheet.packages {
+  padding-right: 45.5pt;
+  background: #F9F8F9;
+  box-decoration-break: clone;
+}
+
+.packages .brand { margin-right: -17pt; }
+
+.package-title {
+  clear: both;
+  margin: 0;
+  padding: 43pt 0 6.5pt;
+  border-bottom: 1pt solid #B6B6B6;
+  font-size: 19pt;
+  font-weight: 400;
+  color: #393939;
+}
+
+.fee-label {
+  display: inline-block;
+  margin-top: 12pt;
+  padding: 5.5pt 17pt;
+  border-radius: 2pt;
+  background: #075DFF;
+  color: #FFFFFF;
+  font-size: 14.3pt;
+  font-weight: 600;
+}
+
+.per-class {
+  margin: 12pt 0 0;
+  font-size: 14pt;
+}
+
+.fees {
+  margin-top: 8pt;
+  padding-bottom: 12pt;
+  width: 81%;
+  border-bottom: 1pt solid #B6B6B6;
+  white-space: nowrap;
+}
+
+.standard {
+  font-size: 15.4pt;
+  font-weight: 700;
+  color: #555555;
+  vertical-align: middle;
+}
+
+.standard s {
+  font-weight: 500;
+  text-decoration-color: #FF4343;
+}
+
+.offer {
+  position: relative;
+  display: inline-block;
+  margin-left: 22pt;
+  padding: 8pt 15pt 8pt 32pt;
+  border-radius: 3pt;
+  background: #D1FFC1;
+  color: #30871E;
+  font-size: 13.5pt;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.burst {
+  position: absolute;
+  left: -17pt;
+  top: -0.5pt;
+  width: 36pt;
+  height: 36pt;
+}
+
+.burst img {
+  width: 36pt;
+  height: 36pt;
+}
+
+.burst span {
+  position: absolute;
+  left: 0;
+  top: 10pt;
+  width: 36pt;
+  color: #FFFFFF;
+  font-size: 7.4pt;
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+  transform: rotate(-14deg);
+}
+
+.section-label {
+  margin: 13pt 0 8pt;
+  font-size: 13.5pt;
+  font-weight: 400;
+  color: #075DFF;
+}
+
+/* WeasyPrint draws no box-shadow: a soft edge, deeper below, stands in for the cards' shadow. */
+.card {
+  margin-bottom: 10.5pt;
+  padding: 9pt 17pt 3pt;
+  border: 0.75pt solid #EBEAEB;
+  border-bottom: 2pt solid #E1E0E1;
+  border-radius: 7pt;
+  background: #FDFDFD;
+  break-inside: avoid;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 13.8pt;
+  font-weight: 400;
+}
+
+.card .classes {
+  margin: 1.5pt 0 9pt;
+  font-size: 10.5pt;
+  color: #6C6C6C;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14pt;
+}
+
+.lines td {
+  height: 39pt;
+  padding: 0;
+  border-top: 1pt solid #B6B6B6;
+  vertical-align: middle;
+}
+
+.lines td.value {
+  text-align: right;
+  font-weight: 700;
+}
+
+.lines tr.strong td { font-weight: 700; }
+
+/* Placed as the references place it: ~18.5pt below the Total Fee row, 10pt above the card's edge. */
+.privilege {
+  width: 100%;
+  margin: 6.25pt 0 6.75pt;
+  border-collapse: collapse;
+  border-radius: 3pt;
+  background: #EFFFEB;
+}
+
+/* Spacing measured against the references' box: title, note, pill and price offsets within ~0.5pt. */
+.privilege td {
+  padding: 12.5pt 20.5pt 14pt 21pt;
+  vertical-align: top;
+}
+
+.privilege .name { font-size: 13.7pt; }
+
+.privilege .note {
+  margin-top: 4.5pt;
+  font-size: 10.9pt;
+  color: #6C6C6C;
+}
+
+/* The "Save AED X Instantly" pill, sized to the references' (its text ~11.9pt). */
+.privilege .save {
+  display: inline-block;
+  margin-top: 8pt;
+  padding: 2.2pt 8.6pt;
+  border-radius: 20pt;
+  background: #D2FFC1;
+  color: #006B19;
+  font-size: 11.9pt;
+}
+
+.privilege .save b { font-weight: 700; }
+
+.privilege .price {
+  width: 32%;
+  padding-top: 21.75pt;
+  text-align: right;
+  font-size: 14.9pt;
+  font-weight: 600;
+}
+
+.inclusions {
+  margin-bottom: 0;
+  font-size: 10.2pt;
+}
+
+/* Each inclusion stays on one line while it fits; a longer one wraps within the page. */
+.inclusions span {
+  display: inline-block;
+  max-width: 100%;
+  margin-right: 9pt;
+}
+
+.inclusions img {
+  width: 9.5pt;
+  height: 9.5pt;
+  margin-right: 1pt;
+  vertical-align: -1.6pt;
+}
+
+/*
+ * The packages page tightened, when it would otherwise run onto another page
+ * (two single-payment boxes, a long heading, long inclusions): sales.pdf
+ * draws it again with this class.
+ */
+.packages.compact .package-title { padding-top: 14pt; }
+.packages.compact .fee-label { margin-top: 9pt; }
+.packages.compact .section-label { margin: 9pt 0 6pt; }
+.packages.compact .card { margin-bottom: 8pt; }
+.packages.compact .lines td { height: 31pt; }
+.packages.compact .privilege { margin: 3pt 0 5pt; }
+.packages.compact .privilege td { padding: 8pt 20.5pt 9pt 21pt; }
+.packages.compact .privilege .price { padding-top: 16pt; }

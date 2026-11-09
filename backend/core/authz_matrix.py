@@ -39,6 +39,7 @@ from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
 from invitations.sheets import GoogleSheetsService
+from sales.models import PricingVersion, Syllabus, SyllabusChapter, SyllabusRevision
 from sessions.models import Session, SessionFile
 from students.models import Student, StudentNote
 
@@ -302,6 +303,28 @@ def build_world():
         id=fixed_id('booking_a'), lead=w['lead_b'], slot=w['slot_a'], seat=1,
         referral_status=ReferralStatus.NO_REF,
     ))
+
+    # Sales Management: syllabus_a published (revision 1, no draft), syllabus_b
+    # never published (its draft revision 1), and the pricing in effect.
+    for label, published in (('syllabus_a', True), ('syllabus_b', False)):
+        w.add(label, Syllabus.objects.create(
+            id=fixed_id(label), created_by=w['admin2'], updated_by=w['admin2'], created_at=w.now, updated_at=w.now,
+        ))
+        revision = w.add(f'{label}_r1', SyllabusRevision.objects.create(
+            id=fixed_id(f'{label}_r1'), syllabus=w[label], number=1, **SALES_REVISION,
+            created_by=w['admin2'], updated_by=w['admin2'], created_at=w.now, updated_at=w.now,
+        ))
+        SyllabusChapter.objects.create(
+            id=fixed_id(f'{label}_ch1'), revision=revision, position=1, name='Matrix Chapter',
+            regular_classes=4, revision_classes=2,
+        )
+        if published:
+            SyllabusRevision.objects.filter(pk=revision.pk).update(published_at=w.now, published_by=w['admin2'])
+    w.add('pricing_v1', PricingVersion.objects.create(
+        id=fixed_id('pricing_v1'), version=1, currency='AED', standard_fee=45, offer_fee=35,
+        single_payment_percent=5, single_payment_plan_types=['REGULAR'], effective_from=w.now,
+        created_by=w['admin2'],
+    ))
     return w
 
 
@@ -313,6 +336,23 @@ class Scenario:
     def __init__(self, sid, method, path, body=None, fmt='json', callers=CALLERS, capture=None):
         self.sid, self.method, self.path, self.body, self.fmt = sid, method, path, body, fmt
         self.callers, self.capture = callers, capture
+
+
+# A syllabus revision's content (the matrix world's), and as the Admin sends a draft.
+SALES_REVISION = {
+    'title': 'Grade 8 CBSE', 'subtitle': 'Detailed Chapter-Wise 1:1 Learning Plan',
+    'package_title': 'Grade 8 CBSE – 1:1 Tuition Packages & Fee Details', 'grade': 8, 'board': 'CBSE',
+    'syllabus_version': 'New Syllabus', 'structure': 'CHAPTER_WISE', 'plan_types': ['REGULAR', 'REVISION'],
+    'inclusions': ['Personalized 1:1 live sessions'],
+}
+SALES_SYLLABUS = {
+    **SALES_REVISION, 'chapters': [{'name': 'Matrix Chapter', 'regular_classes': '4', 'revision_classes': '1.5'}],
+}
+
+
+def _draft_token(w):
+    """Publishing or discarding a world syllabus's draft (revision 1), as the Admin saw it."""
+    return {'revision': 1, 'updated_at': w.now.isoformat()}
 
 
 # A complete Demo report, as a tutor's submit or edit sends it.
@@ -706,6 +746,31 @@ SCENARIOS = [
     Scenario('tutor_reports.pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/pdf/'),
     Scenario('tutor_reports.revision_pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
     Scenario('tutor_reports.preview', 'post', '/api/tutor/bookings/demo/{booking_a}/report/preview/', DEMO_REPORT),
+
+    # --- Sales Management (administrators): the syllabuses on offer and the global pricing --
+    Scenario('sales.syllabi', 'get', '/api/sales/syllabi/'),
+    Scenario('sales.syllabus_create', 'post', '/api/sales/syllabi/', SALES_SYLLABUS),
+    Scenario('sales.syllabus', 'get', '/api/sales/syllabi/{syllabus_a}/'),
+    Scenario('sales.revision', 'get', '/api/sales/syllabi/{syllabus_a}/revisions/1/'),
+    # syllabus_a is published with no draft: its next draft starts; syllabus_b's draft saves and publishes.
+    Scenario('sales.draft_start', 'post', '/api/sales/syllabi/{syllabus_a}/draft/'),
+    Scenario('sales.draft_save', 'put', '/api/sales/syllabi/{syllabus_b}/draft/',
+             lambda w: {**SALES_SYLLABUS, 'updated_at': w.now.isoformat()}),
+    # syllabus_b was never published: its draft is the whole syllabus, so it is not discarded.
+    Scenario('sales.draft_discard', 'delete', '/api/sales/syllabi/{syllabus_b}/draft/', _draft_token),
+    Scenario('sales.publish', 'post', '/api/sales/syllabi/{syllabus_b}/publish/', _draft_token),
+    Scenario('sales.deactivate', 'post', '/api/sales/syllabi/{syllabus_a}/deactivate/'),
+    Scenario('sales.reactivate', 'post', '/api/sales/syllabi/{syllabus_a}/reactivate/'),
+    Scenario('sales.duplicate', 'post', '/api/sales/syllabi/{syllabus_a}/duplicate/'),
+    # The customer-facing PDF: what syllabus_a offers, one revision, and content not yet saved (the editor's preview).
+    Scenario('sales.pdf', 'get', '/api/sales/syllabi/{syllabus_a}/pdf/'),
+    Scenario('sales.revision_pdf', 'get', '/api/sales/syllabi/{syllabus_a}/revisions/1/pdf/?disposition=inline'),
+    Scenario('sales.pdf_preview', 'post', '/api/sales/syllabi/pdf-preview/?disposition=inline', SALES_SYLLABUS),
+    Scenario('sales.pricing', 'get', '/api/sales/pricing/'),
+    Scenario('sales.pricing_change', 'post', '/api/sales/pricing/', {
+        'currency': 'AED', 'standard_fee': '45', 'offer_fee': '30', 'single_payment_percent': '5',
+        'single_payment_plan_types': ['REGULAR'], 'note': 'Matrix',
+    }),
 ]
 
 
