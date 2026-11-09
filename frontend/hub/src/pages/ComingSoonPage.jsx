@@ -3,7 +3,6 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   BadgePercent,
-  BookMarked,
   Briefcase,
   ChartColumn,
   ClipboardPen,
@@ -58,12 +57,6 @@ const MODULES = {
     icon: ClipboardPen,
     title: 'Sales Punching',
     description: 'Record each sale as it closes: the plan, the payment and the BDE who made it.',
-    variant: 'plans',
-  },
-  salesSyllabus: {
-    icon: BookMarked,
-    title: 'Sales Syllabus',
-    description: 'The courses and syllabuses offered to parents, with what each plan includes.',
     variant: 'plans',
   },
   tutorEarnings: {

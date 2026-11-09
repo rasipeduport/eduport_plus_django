@@ -13,6 +13,7 @@
     "test:bookings": "node tests/bookings/run.mjs",
     "test:reports": "node tests/reports/run.mjs",
     "test:leads": "node tests/leads/run.mjs",
+    "test:sales": "node tests/sales/run.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

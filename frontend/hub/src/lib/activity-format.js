@@ -4,6 +4,7 @@ import { REDEMO_CLOSE_REASONS, cancelReasonLabel, rescheduleReasonLabel } from '
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
 import { reportFieldsText } from './reports';
+import { formatAmount } from './sales';
 
 // Short, human label per action — used for badges and the action filter.
 export const ACTION_LABELS = {
@@ -92,6 +93,16 @@ export const ACTION_LABELS = {
   'booking_slot.close': 'Slot closed',
   'booking_slot.reopen': 'Slot reopened',
   'booking_schedule.update': 'Booking times changed',
+  // Sales Management (backend sales.services): the revision number, never a syllabus's content.
+  'syllabus.create': 'Syllabus created',
+  'syllabus.start_draft': 'Syllabus draft started',
+  'syllabus.save_draft': 'Syllabus draft saved',
+  'syllabus.discard_draft': 'Syllabus draft discarded',
+  'syllabus.publish': 'Syllabus published',
+  'syllabus.deactivate': 'Syllabus deactivated',
+  'syllabus.reactivate': 'Syllabus reactivated',
+  'syllabus.duplicate': 'Syllabus duplicated',
+  'pricing.create_version': 'Pricing changed',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -113,6 +124,8 @@ export const ACTIVITY_ENTITY_TYPES = [
   { value: 'booking_link', label: 'Booking link' },
   { value: 'booking', label: 'Booking' },
   { value: 'lead', label: 'Enquiry' },
+  { value: 'syllabus', label: 'Syllabus' },
+  { value: 'pricing_version', label: 'Pricing' },
 ];
 
 // How an entry names what it is about, before its label ("Booking: Class 8 demo").
@@ -132,6 +145,8 @@ export const ENTITY_NOUN = {
   booking_slot: 'Slot',
   booking_schedule: 'Schedule',
   lead: 'Enquiry',
+  syllabus: 'Syllabus',
+  pricing_version: 'Pricing',
 };
 
 /** Who made an entry: their name or email -- or, with no account behind it, the page a parent used. */
@@ -431,6 +446,30 @@ export function describeActivity(row) {
     }
     case 'booking_slot.reopen':
       return 'Reopened the slot';
+    // Sales Management (backend sales.services): the revision number is in the context, never the content.
+    case 'syllabus.create':
+      return row.context?.reference ? `Loaded a syllabus as a draft from ${row.context.reference}` : 'Created a syllabus as a draft';
+    case 'syllabus.start_draft':
+      return `Started draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.save_draft':
+      return `Saved draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.discard_draft':
+      return `Discarded draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.publish':
+      return `Published revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.deactivate':
+      return 'Deactivated the syllabus';
+    case 'syllabus.reactivate':
+      return 'Reactivated the syllabus';
+    case 'syllabus.duplicate':
+      return 'Created a syllabus as a copy of another';
+    case 'pricing.create_version': {
+      // Each changed figure as { old, new }; the version numbers are in the context.
+      const version = row.context?.version ? `Pricing v${row.context.version}` : 'Pricing';
+      const offer = row.changes?.offer_fee?.new;
+      // The currency is logged only when it changed: the amount reads alone otherwise.
+      return offer ? `${version}: offer fee ${formatAmount(offer, row.changes?.currency?.new ?? '').trim()} a class` : `${version} saved`;
+    }
     case 'booking_schedule.update': {
       const parts = [];
       if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);
