@@ -16,6 +16,7 @@ import { bookingReportUrl, reportPdfFallbackName, reportPdfUrl } from '@/lib/rep
 import { savedTimezoneLabel } from '@/lib/timezone';
 import { CopyStatus } from '@/components/dashboard/share-link-buttons';
 import { PdfDownloadButton } from '@/components/reports/pdf-download-button';
+import { EditLeadDetailsAction } from '@/components/leads/edit-lead-details-action';
 import { Field, Fields, WorkspaceCard } from './parts';
 
 /**
@@ -80,7 +81,7 @@ function MessageDialog({ redemo, message, confirmed, open, onOpenChange }) {
  * WhatsApp text for the scheduled Re-Demo (the API's `parent_messages`, there
  * once one is booked) and the original Demo's report as a PDF.
  */
-export function RedemoSidePanel({ redemo }) {
+export function RedemoSidePanel({ redemo, user, onDetailsSaved }) {
   const [messageOpen, setMessageOpen] = useState(false);
   const lead = redemo.lead ?? {};
   const original = redemo.original;
@@ -90,7 +91,16 @@ export function RedemoSidePanel({ redemo }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <WorkspaceCard icon={UserRoundIcon} title="Student details">
+      <WorkspaceCard
+        icon={UserRoundIcon}
+        title="Student details"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <EditLeadDetailsAction user={user} leadId={lead.id} section="parent" label="Edit parent" onSaved={onDetailsSaved} />
+            <EditLeadDetailsAction user={user} leadId={lead.id} section="student" label="Edit student" onSaved={onDetailsSaved} />
+          </div>
+        }
+      >
         <Fields>
           <Field label="Student">{redemo.student_name}</Field>
           <Field label="Class">{lead.grade ?? redemo.grade}</Field>
