@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { DownloadIcon, FileSearchIcon, MessageCircleIcon } from 'lucide-react';
+import { DownloadIcon, EyeIcon, FileSearchIcon, MessageCircleIcon, Share2Icon } from 'lucide-react';
 
 import { cataloguePdfUrl, salesPdfError, syllabusWhatsAppMessage } from '@/lib/sales';
 import { whatsAppUrl } from '@/lib/enquiries';
@@ -9,7 +9,7 @@ import { SharePdfButton } from '@/components/reports/share-pdf-button';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 
 /** The same authenticated PDF actions in both catalogue entry points. */
-export function SyllabusActions({ syllabus, enquiry, disabled = false, onRefused }) {
+export function SyllabusActions({ syllabus, enquiry, disabled = false, onRefused, compact = false }) {
   const pdf = useSyllabusPdf();
   const url = cataloguePdfUrl(syllabus.id);
   const params = { revision: syllabus.revision };
@@ -19,18 +19,26 @@ export function SyllabusActions({ syllabus, enquiry, disabled = false, onRefused
   }, [pdf.refusal, onRefused]);
   const message = syllabusWhatsAppMessage([syllabus.title, syllabus.subtitle].filter(Boolean).join(' – '), enquiry?.parent_name);
   const whatsapp = whatsAppUrl(enquiry?.phone_dial_code, enquiry?.phone_number, message) ?? `https://wa.me/?text=${encodeURIComponent(message)}`;
+  const PreviewIcon = compact ? EyeIcon : FileSearchIcon;
+  const ShareIcon = compact ? Share2Icon : MessageCircleIcon;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" disabled={disabled || Boolean(pdf.pending)} onClick={() => pdf.preview(request)}>
-          <FileSearchIcon className="size-4" /> Preview syllabus PDF
+          <PreviewIcon className="size-4" /> {compact ? 'Preview' : 'Preview syllabus PDF'}
         </Button>
         <Button variant="outline" size="sm" disabled={disabled || Boolean(pdf.pending)} onClick={() => pdf.download(request)}>
-          <DownloadIcon className="size-4" /> Download syllabus PDF
+          <DownloadIcon className="size-4" /> {compact ? 'Download' : 'Download syllabus PDF'}
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <a href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label={`Share ${syllabus.title} through WhatsApp`}>
-            <MessageCircleIcon className="size-4" /> WhatsApp
+          <a
+            href={whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Share ${syllabus.title} through WhatsApp`}
+            title={compact ? 'Open WhatsApp, then attach the downloaded syllabus PDF.' : undefined}
+          >
+            <ShareIcon className="size-4" /> {compact ? 'Share' : 'WhatsApp'}
           </a>
         </Button>
         {!disabled && canSharePdf() ? (
@@ -46,9 +54,9 @@ export function SyllabusActions({ syllabus, enquiry, disabled = false, onRefused
           />
         ) : null}
       </div>
-      <p className="text-muted-foreground text-xs">
+      {/* <p className="text-muted-foreground text-xs">
         Download and attach the PDF in WhatsApp, or use Share PDF on a supported device. A parent link is not available.
-      </p>
+      </p> */}
       {pdf.error ? (
         <p role="alert" className="text-destructive text-xs">
           {pdf.error}

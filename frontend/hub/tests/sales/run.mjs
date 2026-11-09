@@ -1227,6 +1227,84 @@ function studentApi(extra = {}) {
 }
 const selectSyllabus = async (title = 'Grade 6 CBSE') => click(button(`Select ${title}`));
 
+test('Syllabus cards use catalogue totals and enabled plans, with a distinct Bridge Course structure', async () => {
+  const grade9 = { ...CATALOGUE_ROWS[0], title: 'Grade 9 CBSE', grade: 9, plan_types: ['REGULAR', 'REVISION', 'CHAPTER_PLAN', 'REGULAR_REVISION'],
+    totals: { regular: '79', revision: '41', bridge: null } };
+  const bridge = { ...CATALOGUE_ROWS[1], totals: { regular: null, revision: null, bridge: '30' } };
+  studentApi({ [`GET ${CATALOGUE}`]: list([bridge, grade9]) });
+  await open(enquiryPath, QUOTER);
+  const cards = [...document.querySelectorAll('ul[aria-label="Plans on sale"] article')];
+  assert.equal(cards.length, 2);
+  assert.equal(document.querySelector('table'), null, 'the enquiry catalogue uses cards at desktop widths too');
+  assert.match(clean(cards[0].textContent), /Grade 7 CBSEBridge Course.*30 classes/);
+  assert.doesNotMatch(clean(cards[0].textContent), /Regular|Revision|Plan options|Full Bridge Course|Selected Chapters/);
+  assert.match(clean(cards[1].textContent), /Grade 9 CBSEChapter-wise.*120 classes.*79 Regular · 41 Revision/);
+  const badges = cards[1].querySelector('[aria-label="Plan options for Grade 9 CBSE"]');
+  assert.deepEqual([...badges.querySelectorAll('[data-slot="badge"]')].map((badge) => clean(badge.textContent)),
+    ['Regular', 'Revision', 'Chapter Plan', 'Regular + Revision']);
+  assert.equal(calls('GET', CATALOGUE).length, 1);
+  assert.equal(calls('GET', onSale(PLAN_ID)).length, 0, 'cards need no detail requests');
+  await selectSyllabus('Grade 7 CBSE');
+  assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['full', 'selected']);
+  await mounted.pop().unmount();
+
+  studentApi({ [`GET ${CATALOGUE}`]: list([{ ...grade9, plan_types: ['REVISION'], totals: { regular: '1.5', revision: '2', bridge: null } }]),
+    [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, title: grade9.title, grade: 9, revision: 4, plan_types: ['REVISION'] } });
+  await open(enquiryPath, QUOTER);
+  const card = document.querySelector('ul[aria-label="Plans on sale"] article');
+  assert.match(clean(card.textContent), /3.5 classes.*1.5 Regular · 2 Revision/);
+  assert.deepEqual([...card.querySelectorAll('[aria-label^="Plan options"] [data-slot="badge"]')].map((badge) => clean(badge.textContent)), ['Revision']);
+  await selectSyllabus(grade9.title);
+  assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['REVISION']);
+  assert.match(bodyText(), /Revision 4/);
+});
+
+test('Syllabus card search, structure, board, grade and pagination retain the enquiry tab', async () => {
+  studentApi({ [`GET ${CATALOGUE}`]: { count: 26, results: CATALOGUE_ROWS } });
+  const page = await open(enquiryPath, QUOTER);
+  await click(button('Next'));
+  assert.equal(calls('GET', CATALOGUE).at(-1).params.page, 2);
+  const search = document.querySelector('input[aria-label="Search plans"]');
+  await typeInto(search, 'Grade 7');
+  await fire(search.closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.deepEqual(calls('GET', CATALOGUE).at(-1).params, { page: 1, page_size: 25, q: 'Grade 7' });
+  await choose('Filter by structure', 'Bridge Course');
+  await choose('Filter by board', 'CBSE');
+  await choose('Filter by grade', 'Grade 7');
+  assert.deepEqual(calls('GET', CATALOGUE).at(-1).params,
+    { page: 1, page_size: 25, q: 'Grade 7', structure: 'BRIDGE_COURSE', board: 'CBSE', grade: '7' });
+  assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
+  await click(button('Clear all filters'));
+  assert.deepEqual(calls('GET', CATALOGUE).at(-1).params, { page: 1, page_size: 25 });
+  assert.equal(search.value, '');
+  assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
+});
+
+test('Compact syllabus card actions preview and download each pinned PDF, sharing only the existing WhatsApp message', async () => {
+  studentApi(Object.fromEntries([PLAN_ID, BRIDGE_ID].map((id) => [`GET ${onSale(id, 'pdf/')}`, () => Promise.resolve({
+    data: new Blob(['%PDF-']), headers: { 'content-disposition': `attachment; filename="${id}.pdf"` },
+  })])));
+  await open(enquiryPath, QUOTER);
+  const cards = [...document.querySelectorAll('ul[aria-label="Plans on sale"] article')];
+  for (const [index, id] of [PLAN_ID, BRIDGE_ID].entries()) {
+    const card = cards[index];
+    const whatsapp = card.querySelector('a[aria-label$="through WhatsApp"]');
+    assert.equal(clean(whatsapp.textContent), 'Share');
+    const url = new URL(whatsapp.href);
+    assert.equal(url.hostname, 'wa.me');
+    assert.equal(url.pathname, '/971501234567');
+    assert.match(url.searchParams.get('text'), /Hello Riya Nair.*I will attach the syllabus PDF/);
+    assert.doesNotMatch(url.searchParams.get('text'), /https?:|localhost|blob:|\/api\//);
+    await click(button('Preview', card));
+    assert.ok(document.querySelector('iframe[src^="blob:"]'));
+    assert.deepEqual(calls('GET', onSale(id, 'pdf/')).at(-1).params, { disposition: 'inline', revision: 1 });
+    await fire(topDialog(), new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await click(button('Download', card));
+    assert.equal(saved.at(-1).name, `${id}.pdf`);
+    assert.deepEqual(calls('GET', onSale(id, 'pdf/')).at(-1).params, { revision: 1 });
+  }
+});
+
 test('Student quote: select syllabus first, then its enabled plan; fixed student and pricing are confirmed before saving', async () => {
   studentApi({ [`POST ${QUOTES}`]: quoteOf({ is_current: true }) });
   const page = await open(enquiryPath, QUOTER);
