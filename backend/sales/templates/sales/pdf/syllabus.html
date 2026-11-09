@@ -17,6 +17,7 @@ fits on its page.
 <section class="sheet" id="sheet-chapters-{{ forloop.counter0 }}">
 {% include "sales/pdf/brand.html" %}
 <h1 class="heading"><span>{{ title }}</span><span>{{ subtitle }}</span></h1>
+{% if quote.plan_label %}<p class="quote-ref">{{ quote.plan_label }}</p>{% endif %}
 {% if bridge %}
 <table class="chapters bridge-course">
 <thead><tr><th class="serial">Day</th><th class="name-column">Chapter Name</th><th class="classes">No Of Classes</th></tr></thead>
@@ -27,10 +28,10 @@ fits on its page.
 </table>
 {% else %}
 <table class="chapters chapter-wise">
-<thead><tr><th class="serial">Sl No</th><th class="name-column">Chapter Name</th><th class="count regular">Regular Plan<br>(No Of Classes)</th><th class="count revision">Revision Plan<br>(No Of Classes)</th></tr></thead>
+<thead><tr><th class="serial">Sl No</th><th class="name-column">Chapter Name</th>{% if regular_column %}<th class="count regular">Regular Plan<br>(No Of Classes)</th>{% endif %}{% if revision_column %}<th class="count revision">Revision Plan<br>(No Of Classes)</th>{% endif %}</tr></thead>
 <tbody>
-{% for row in page.rows %}<tr><td>{{ row.position }}</td><td class="name">{{ row.name }}</td><td>{{ row.regular }}</td><td>{{ row.revision }}</td></tr>
-{% endfor %}{% if page.last %}<tr class="total"><td></td><td>Total No Of Classes</td><td>{{ totals.regular }}</td><td>{{ totals.revision }}</td></tr>{% endif %}
+{% for row in page.rows %}<tr><td>{{ row.position }}</td><td class="name">{{ row.name }}</td>{% if regular_column %}<td>{{ row.regular }}</td>{% endif %}{% if revision_column %}<td>{{ row.revision }}</td>{% endif %}</tr>
+{% endfor %}{% if page.last %}<tr class="total"><td></td><td>Total No Of Classes</td>{% if regular_column %}<td>{{ totals.regular }}</td>{% endif %}{% if revision_column %}<td>{{ totals.revision }}</td>{% endif %}</tr>{% endif %}
 </tbody>
 </table>
 {% endif %}
@@ -39,7 +40,7 @@ fits on its page.
 {% endfor %}
 <section class="sheet packages{% if compact %} compact{% endif %}" id="sheet-packages">
 {% include "sales/pdf/brand.html" %}
-<h2 class="package-title">{{ package_title }}</h2>{% if quote %}<p class="quote-ref">Quote {{ quote.reference }} · {{ quote.date }}</p>{% endif %}{% if quote.cancelled %}<p class="quote-cancelled">Cancelled on {{ quote.cancelled }}: this quote is no longer valid.</p>{% endif %}
+<h2 class="package-title">{{ package_title }}</h2>{% if quote %}<p class="quote-ref">Quote {{ quote.reference }} · {{ quote.date }}{% if quote.plan_label %} · {{ quote.plan_label }}{% endif %}</p>{% endif %}{% if quote.cancelled %}<p class="quote-cancelled">Cancelled on {{ quote.cancelled }}: this quote is no longer valid.</p>{% endif %}
 <div class="fee-label">Course Fee Details</div>
 <p class="per-class">Per Class Pricing</p>
 <div class="fees">

@@ -57,8 +57,8 @@ export function QuoteFigures({ figures, currency }) {
 
 /** Saved chapter counts, including the Regular/Revision components quoted. */
 export function QuoteChapters({ quote }) {
-  const regular = ['REGULAR', 'REGULAR_REVISION', 'CHAPTER_PLAN'].includes(quote.plan_type);
-  const revision = ['REVISION', 'REGULAR_REVISION'].includes(quote.plan_type);
+  const regular = ['REGULAR', 'REGULAR_REVISION'].includes(quote.plan_type) || (quote.plan_type === 'CHAPTER_PLAN' && quote.class_mode !== 'REVISION');
+  const revision = ['REVISION', 'REGULAR_REVISION'].includes(quote.plan_type) || (quote.plan_type === 'CHAPTER_PLAN' && quote.class_mode === 'REVISION');
   const columns = [
     { key: 'position', header: 'No.', className: 'w-16 tabular-nums', cell: (row) => row.position },
     { key: 'name', header: 'Chapter', className: 'whitespace-normal', cell: (row) => row.name },

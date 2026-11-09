@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import api from '@/lib/api';
-import { QUOTES_URL, enquiryLabel, firstMessage, planTypeLabel, quoteCancelUrl, salesError } from '@/lib/sales';
+import { QUOTES_URL, enquiryLabel, firstMessage, quotePlanLabel, quoteCancelUrl, salesError } from '@/lib/sales';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FormDialog } from '@/components/form-dialog';
@@ -26,6 +26,7 @@ export function CreateQuoteDialog({
   syllabusId,
   detail,
   planType,
+  classMode = 'REGULAR',
   chapterIds,
   preview,
   coverage,
@@ -52,6 +53,7 @@ export function CreateQuoteDialog({
         syllabus: syllabusId,
         revision: detail.revision,
         plan_type: planType,
+        ...(planType === 'CHAPTER_PLAN' ? { class_mode: classMode } : {}),
         chapter_ids: chapterIds,
         lead: enquiry?.id ?? null,
         ...(enquiry ? { replaces: replaces ?? null, pricing_version: detail.pricing.version } : {}),
@@ -78,7 +80,7 @@ export function CreateQuoteDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Create quote"
-      description={`${detail.title} · ${planTypeLabel(planType)} · ${coverage}`}
+      description={`${detail.title} · ${quotePlanLabel({ plan_type: planType, class_mode: classMode, full_course: preview?.fullCourse })} · ${coverage}`}
       error={failure && !leadError ? failure.message : null}
       onConfirm={issue}
       confirmLabel="Issue quote"

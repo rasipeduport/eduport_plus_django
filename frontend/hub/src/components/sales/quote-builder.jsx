@@ -12,7 +12,7 @@ const QUOTED_AS = {
   REGULAR: 'The full course: every chapter’s Regular classes.',
   REVISION: 'The exam-oriented course: every chapter’s Revision classes.',
   REGULAR_REVISION: 'Both courses together, as two packages.',
-  CHAPTER_PLAN: 'Only the chapters you choose, their Regular classes.',
+  CHAPTER_PLAN: 'Only the chapters you choose, their classes.',
 };
 
 /**
@@ -34,6 +34,9 @@ export function QuotePlanCard({
   locked = false,
   bridgeMode,
   onBridgeMode,
+  classMode = 'REGULAR',
+  onClassMode,
+  selectionError,
 }) {
   const bridge = detail.structure === 'BRIDGE_COURSE';
   const chapterPlan = planType === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
@@ -42,12 +45,13 @@ export function QuotePlanCard({
   const ready = Boolean(preview) && !nothing && !noClasses && !locked;
 
   let hint = null;
-  if (nothing) hint = bridge ? 'Choose at least one chapter, or choose Full Bridge Course.' : 'Choose at least one chapter for the Chapter Plan.';
+  if (selectionError) hint = selectionError;
+  else if (nothing) hint = bridge ? 'Choose at least one chapter, or choose Full Bridge Course.' : 'Choose at least one chapter for the Chapter Plan.';
   else if (noClasses)
     hint = bridge
       ? 'The selected chapters have no classes: choose one that has some.'
       : chapterPlan
-        ? 'The chapters chosen have no Regular classes: choose one that has some.'
+        ? `The chapters chosen have no ${classMode === 'REVISION' ? 'Revision' : 'Regular'} classes: choose one that has some.`
         : 'This plan has no classes to quote.';
 
   return (
@@ -99,10 +103,12 @@ export function QuotePlanCard({
           chapters={detail.chapters}
           selected={chapterIds}
           onChange={onChapterIds}
+          classMode={classMode}
+          onClassMode={onClassMode}
           disabled={locked}
         />
       ) : null}
-      {hint ? <p className="text-muted-foreground text-sm">{hint}</p> : null}
+      {hint ? <p className="text-muted-foreground text-sm wrap-anywhere">{hint}</p> : null}
       {preview?.fullCourse && chapterPlan && !nothing ? <p className="text-muted-foreground text-sm">All chapters selected · Full course</p> : null}
       {preview && !nothing ? <QuoteFigures figures={preview} currency={detail.pricing.currency} /> : null}
       <div>

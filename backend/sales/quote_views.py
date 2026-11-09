@@ -24,7 +24,7 @@ from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission
 
 from . import quotes
 from .downloads import SyllabusPdfView, quote_pdf_response
-from .models import MAX_CHAPTERS, PlanType, QuoteStatus
+from .models import MAX_CHAPTERS, ChapterClassMode, PlanType, QuoteStatus
 from .services import SalesError
 from .views import _error, _invalid, _paged, _refused
 
@@ -36,6 +36,8 @@ class QuoteCreateSerializer(serializers.Serializer):
     # The revision the syllabus was shown at: a newer one published since is refused (REVISION_CHANGED).
     revision = serializers.IntegerField(min_value=1)
     plan_type = serializers.ChoiceField(choices=PlanType.choices)
+    # Omitted by older clients: Chapter Plan defaults to Regular; other plans have no mode.
+    class_mode = serializers.ChoiceField(choices=ChapterClassMode.choices, required=False)
     # A Chapter Plan's chapters or a Bridge Course's days (none, or every day: the whole course).
     chapter_ids = serializers.ListField(child=serializers.UUIDField(), max_length=MAX_CHAPTERS, required=False, default=list)
     # The enquiry it answers: the caller's own (or any lead, for whoever may read every lead).
