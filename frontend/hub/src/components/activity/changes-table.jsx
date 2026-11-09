@@ -17,6 +17,11 @@ const FIELD_LABELS = {
   mentor: 'Mentor',
   tutor: 'Tutor',
   student_timezone: 'Student timezone',
+  // A pricing version (backend sales.services): what changed from the version before.
+  standard_fee: 'Standard fee',
+  offer_fee: 'Offer fee',
+  single_payment_percent: 'Single-payment %',
+  single_payment_plan_types: 'Single-payment plans',
 };
 
 function fieldLabel(key) {

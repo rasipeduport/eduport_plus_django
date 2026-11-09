@@ -374,12 +374,42 @@ function withLeads(answers) {
   };
 }
 
+// Sales Management (Syllabus & Plans, Global Pricing), laid over the same
+// recorded answers: accounts.manage_sales_syllabi and manage_sales_pricing,
+// which the administrator's role group carries since accounts.0020 and a
+// superuser holds (D1), with a fixed list -- a published syllabus with a
+// draft waiting, and a Bridge Course draft -- and the pricing in effect.
+const SALES_PERMISSIONS = ['accounts.manage_sales_pricing', 'accounts.manage_sales_syllabi'];
+const SALES_ADMIN = { id: 'admin', name: 'Asha Admin' };
+const SALES_PRICING = { id: 'pricing-1', version: 1, currency: 'AED', standard_fee: '45', offer_fee: '35',
+  single_payment_percent: '5', single_payment_plan_types: ['REGULAR'], note: 'Current offer',
+  effective_from: '2026-10-27T04:00:00+00:00', created_by: SALES_ADMIN };
+const SALES_SYLLABI = { status: 200, body: { count: 2, page: 1, page_size: 25, results: [
+  { id: 'syllabus-a', status: 'PUBLISHED', revision: 1, published_revision: 1, draft_revision: 2, title: 'Grade 6 CBSE', grade: 6,
+    board: 'CBSE', syllabus_version: 'New Syllabus', structure: 'CHAPTER_WISE', plan_types: ['REGULAR', 'REVISION', 'REGULAR_REVISION'],
+    chapter_count: 10, totals: { regular: '38', revision: '19', bridge: null }, updated_at: '2026-10-27T05:00:00+00:00', updated_by: SALES_ADMIN },
+  { id: 'syllabus-b', status: 'DRAFT', revision: 1, published_revision: null, draft_revision: 1, title: 'Grade 7 CBSE', grade: 7,
+    board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE', plan_types: ['BRIDGE_COURSE'], chapter_count: 30,
+    totals: { regular: null, revision: null, bridge: '30' }, updated_at: '2026-10-27T05:00:00+00:00', updated_by: SALES_ADMIN },
+] } };
+const SALES_PRICING_ANSWER = { status: 200, body: { current: SALES_PRICING, versions: [{ ...SALES_PRICING, effective_until: null }] } };
+function withSales(answers) {
+  const me = answers['/api/auth/me/'];
+  const permissions = [...new Set([...me.body.user.permissions, ...SALES_PERMISSIONS])].sort();
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    '/api/sales/syllabi/': SALES_SYLLABI,
+    '/api/sales/pricing/': SALES_PRICING_ANSWER,
+  };
+}
+
 const CALLERS = {
-  admin: { answers: withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS)) },
-  superuser: { answers: withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS)) },
-  su_mentor: { answers: withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS)) },
+  admin: { answers: withSales(withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS))) },
+  superuser: { answers: withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS))) },
+  su_mentor: { answers: withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS))) },
   mentor_a: { answers: fixtures.callers.mentor_a },
   tutor_a: { answers: withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS) },
   tutor_b: { answers: withAssignedBookings(fixtures.callers.tutor_b) },
@@ -409,9 +439,9 @@ const PATHS = [
   // The BDE workspace's pages beyond My Enquiries (BDE Hub redesign, Phase 2).
   '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans',
   // The Admin Hub's new pages (Admin Hub redesign): the Admissions Dashboard on fixed dates, the Demo and
-  // Diagnostic Bookings pages, and the Sales & Finance modules still to come.
+  // Diagnostic Bookings pages, and the Sales & Finance modules: Syllabus & Plans, Global Pricing and those still to come.
   `/admissions?range=custom&from=${ADMISSIONS_RANGE.from}&to=${ADMISSIONS_RANGE.to}`, '/bookings/demo', '/bookings/diagnostic',
-  '/sales-dashboard', '/sales-module', '/sales-punching', '/sales-syllabus', '/tutor-earnings',
+  '/sales-dashboard', '/sales-module', '/sales-punching', '/sales-syllabus', '/sales-pricing', '/tutor-earnings',
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };

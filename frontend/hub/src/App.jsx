@@ -33,6 +33,10 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
+import SalesSyllabiPage from './pages/SalesSyllabiPage';
+import SalesSyllabusPage from './pages/SalesSyllabusPage';
+import SalesSyllabusEditorPage from './pages/SalesSyllabusEditorPage';
+import SalesPricingPage from './pages/SalesPricingPage';
 import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
 import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
 
@@ -222,11 +226,20 @@ function HubRoutes({ user, logout }) {
         <Route path="/follow-ups" element={page('/follow-ups', <FollowUpsPage />)} />
         <Route path="/sales" element={page('/sales', <ComingSoonPage module="sales" />)} />
         <Route path="/plans" element={page('/plans', <ComingSoonPage module="plans" />)} />
-        {/* The Admin Hub's Sales & Finance modules, still to come: nothing behind them yet. */}
+        {/* The Admin Hub's Sales & Finance modules still to come: nothing behind them yet. */}
         <Route path="/sales-dashboard" element={page('/sales-dashboard', <ComingSoonPage module="salesDashboard" />)} />
         <Route path="/sales-module" element={page('/sales-module', <ComingSoonPage module="salesModule" />)} />
         <Route path="/sales-punching" element={page('/sales-punching', <ComingSoonPage module="salesPunching" />)} />
-        <Route path="/sales-syllabus" element={page('/sales-syllabus', <ComingSoonPage module="salesSyllabus" />)} />
+        {/* Syllabus & Plans: every syllabus, a new one, one, and its draft (keyed apart, so saving a
+            new syllabus and opening its draft starts the editor afresh); and the Global Pricing. */}
+        <Route path="/sales-syllabus" element={page('/sales-syllabus', <SalesSyllabiPage user={user} />)} />
+        <Route path="/sales-syllabus/new" element={page('/sales-syllabus', <SalesSyllabusEditorPage key="new" />)} />
+        <Route path="/sales-syllabus/:syllabusId" element={page('/sales-syllabus', <SalesSyllabusPage />)} />
+        <Route
+          path="/sales-syllabus/:syllabusId/edit"
+          element={page('/sales-syllabus', <SalesSyllabusEditorPage key="edit" />)}
+        />
+        <Route path="/sales-pricing" element={page('/sales-pricing', <SalesPricingPage />)} />
         <Route path="/tutor-earnings" element={page('/tutor-earnings', <ComingSoonPage module="tutorEarnings" />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>

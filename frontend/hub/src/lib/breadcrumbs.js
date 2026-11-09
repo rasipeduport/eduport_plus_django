@@ -35,7 +35,8 @@ const breadcrumbConfig = {
   '/sales-dashboard': [{ label: 'Sales Dashboard' }],
   '/sales-module': [{ label: 'Sales Module' }],
   '/sales-punching': [{ label: 'Sales Punching' }],
-  '/sales-syllabus': [{ label: 'Sales Syllabus' }],
+  '/sales-syllabus': [{ label: 'Syllabus & Plans' }],
+  '/sales-pricing': [{ label: 'Global Pricing' }],
   '/tutor-earnings': [{ label: 'Tutor Earnings' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
   // heading (the activity log's, or a BDE's Activity), so the crumb only repeated it.
@@ -51,6 +52,20 @@ const breadcrumbPatterns = [
   { pattern: /^\/team\/[^/]+$/, trail: [{ label: 'Team', href: '/team' }, { label: 'Staff member' }] },
   { pattern: /^\/enquiries\/[^/]+$/, trail: [{ label: 'My Enquiries', href: '/enquiries' }, { label: 'Enquiry' }] },
   { pattern: /^\/leads\/[^/]+$/, trail: [{ label: 'Leads', href: '/leads' }, { label: 'Lead' }] },
+  // A syllabus (Sales & Finance): a new one, one, and its draft being edited.
+  {
+    pattern: /^\/sales-syllabus\/new$/,
+    trail: [{ label: 'Syllabus & Plans', href: '/sales-syllabus' }, { label: 'New syllabus' }],
+  },
+  {
+    pattern: /^\/sales-syllabus\/([^/]+)\/edit$/,
+    trail: ([, id]) => [
+      { label: 'Syllabus & Plans', href: '/sales-syllabus' },
+      { label: 'Syllabus', href: `/sales-syllabus/${id}` },
+      { label: 'Edit draft' },
+    ],
+  },
+  { pattern: /^\/sales-syllabus\/[^/]+$/, trail: [{ label: 'Syllabus & Plans', href: '/sales-syllabus' }, { label: 'Syllabus' }] },
   // A Re-Demo request's workspace, under Demo Bookings' Re-Demo requests.
   {
     pattern: /^\/bookings\/demo\/redemos\/[^/]+$/,

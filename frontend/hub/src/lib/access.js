@@ -74,6 +74,11 @@ export const PERMISSIONS = {
   // A booking's parent communication: every booking's (administrators), or a BDE's own leads'.
   viewAllCommunications: 'accounts.view_all_communications',
   viewOwnLeadCommunications: 'accounts.view_own_lead_communications',
+
+  // Sales Management (backend sales app), administrators only: the syllabuses on
+  // offer -- writing, previewing, publishing -- and the global pricing.
+  manageSalesSyllabi: 'accounts.manage_sales_syllabi',
+  manageSalesPricing: 'accounts.manage_sales_pricing',
 };
 
 const P = PERMISSIONS;
@@ -144,12 +149,15 @@ export const PAGE_PERMISSIONS = {
   '/follow-ups': [P.viewOwnLeadCommunications],
   '/sales': [P.viewOwnEnquiries],
   '/plans': [P.viewOwnEnquiries],
-  // The Admin Hub's Sales & Finance modules, still to come: each a Coming Soon
-  // page with nothing behind it yet, for whoever holds the staff dashboard.
+  // The Admin Hub's Sales & Finance modules. Syllabus & Plans and Global Pricing
+  // open on their own permissions (backend sales.views); the rest are still to
+  // come -- each a Coming Soon page with nothing behind it yet, for whoever
+  // holds the staff dashboard.
   '/sales-dashboard': [P.viewStaffDashboard],
   '/sales-module': [P.viewStaffDashboard],
   '/sales-punching': [P.viewStaffDashboard],
-  '/sales-syllabus': [P.viewStaffDashboard],
+  '/sales-syllabus': [P.manageSalesSyllabi],
+  '/sales-pricing': [P.manageSalesPricing],
   '/tutor-earnings': [P.viewStaffDashboard],
 };
 
@@ -159,11 +167,11 @@ const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings
 
 // Pages for administrators only: the Admin Hub's modules still to come. A
 // mentor or tutor holds view_staff_dashboard too, so these read the role as well.
+// (Syllabus & Plans and Global Pricing need permissions only administrators hold.)
 const ADMIN_PAGES = new Set([
   '/sales-dashboard',
   '/sales-module',
   '/sales-punching',
-  '/sales-syllabus',
   '/tutor-earnings',
 ]);
 
