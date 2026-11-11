@@ -385,7 +385,7 @@ test('Lead page: the parent, the child, where it came from, its owner and bookin
   assert.deepEqual([shown.Owner, shown.Received, 'Added by' in shown], ['Unassigned', '6 Nov 2026', false]);
   assert.equal(link('Call').getAttribute('href'), 'tel:+919876543210');
   assert.equal(link('WhatsApp').getAttribute('href'), 'https://wa.me/919876543210');
-  assert.equal(link('Open').getAttribute('href'), '/bookings/diagnostic?when=all&booking=b-9');
+  assert.equal(link('Open').getAttribute('href'), '/bookings/diagnostic/b-9');
 
   await click(button('Assign'));
   await choose('BDE', 'Anil Kumar');
