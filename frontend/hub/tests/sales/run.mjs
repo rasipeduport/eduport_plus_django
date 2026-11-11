@@ -1129,7 +1129,7 @@ const quotePosts = () => calls('POST', QUOTES);
 // Grade 6, Regular + Revision, as the API answers it (backend sales.quotes.quote_data).
 function quoteOf(extra = {}) {
   return {
-    id: QUOTE_ID, reference: 'Q-000007', status: 'ISSUED', created_at: '2026-11-09T06:30:00+00:00', created_by: BALA, lead: RIYA,
+    id: QUOTE_ID, reference: 'Q-000007', status: 'ISSUED', created_at: '2026-11-09T06:30:00+00:00', created_by: BALA, lead: RIYA, collection_mode: 'FULL', collection_intention_confirmed: true,
     syllabus: { id: PLAN_ID, title: 'Grade 6 CBSE', grade: 6, board: 'CBSE', structure: 'CHAPTER_WISE', syllabus_version: 'New Syllabus' },
     revision: 1, plan_type: 'REGULAR_REVISION', full_course: true, currency: 'AED', classes: '57', total_fee: '1995', payable_amount: '1929',
     pricing_version: 3, standard_fee: '45', offer_fee: '35', single_payment_percent: '5', single_payment_saving: '66', lines: PACKAGES,
@@ -1173,11 +1173,11 @@ async function search(label, text, root = document.body) {
 test('Prices: a quote is worked out as the API works it out -- two packages for Regular + Revision, chosen chapters, days or the whole course', () => {
   const grade6 = chaptersOf(GRADE_6, 'c');
   // Regular + Revision: two packages, each rounded on its own -- the Regular one's privilege only (the pricing names Regular).
-  let preview = harness.quotePreview('REGULAR_REVISION', grade6, [], ON_SALE_PRICING);
+  let preview = harness.quotePreview('REGULAR_REVISION', grade6, [], ON_SALE_PRICING, 'REGULAR', 'FULL');
   assert.deepEqual(preview.lines, PACKAGES);
   assert.deepEqual([preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse],
     ['57', '1995', '66', '1929', true]);
-  preview = harness.quotePreview('REVISION', grade6, [], ON_SALE_PRICING);
+  preview = harness.quotePreview('REVISION', grade6, [], ON_SALE_PRICING, 'REGULAR', 'FULL');
   assert.deepEqual([preview.lines.length, preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount],
     [1, '19', '665', '0', '665']);
   // A Chapter Plan: the chapters chosen, in the course's order, their Regular classes; no privilege names it.
@@ -1186,25 +1186,29 @@ test('Prices: a quote is worked out as the API works it out -- two packages for 
   assert.deepEqual(plan.package, { plan_type: 'CHAPTER_PLAN', title: harness.chapterPlanTitle, classes: '10', fee_per_class: '35', total: '350',
     single_payment: null });
   // Even a pricing giving every package it may name the privilege (backend PRIVILEGE_PLAN_TYPES, a CHECK in the database).
-  preview = harness.quotePreview('CHAPTER_PLAN', grade6, ['c-6', 'c-1'], { ...ON_SALE_PRICING, single_payment_plan_types: ['REGULAR', 'REVISION', 'BRIDGE_COURSE'] });
+  preview = harness.quotePreview('CHAPTER_PLAN', grade6, ['c-6', 'c-1'], { ...ON_SALE_PRICING, single_payment_plan_types: ['REGULAR', 'REVISION', 'BRIDGE_COURSE'] }, 'REGULAR', 'FULL');
   assert.deepEqual([preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse], ['350', '0', '350', false]);
   // A Bridge Course: by the day, or -- no day, or every day -- the whole course.
   const days = daysOf('day');
-  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-4', 'day-2'], ON_SALE_PRICING);
+  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-4', 'day-2'], ON_SALE_PRICING, 'REGULAR', 'FULL');
   assert.deepEqual([preview.lines[0].title, preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount, preview.fullCourse],
     [harness.selectedDaysTitle, '3.5', '122.5', '6.5', '116', false]);
   for (const ids of [[], days.map((day) => day.id)]) {
-    preview = harness.quotePreview('BRIDGE_COURSE', days, ids, ON_SALE_PRICING);
+    preview = harness.quotePreview('BRIDGE_COURSE', days, ids, ON_SALE_PRICING, 'REGULAR', 'FULL');
     assert.deepEqual([preview.lines, preview.payable_amount, preview.fullCourse], [bridgeOnSale().packages, '333', true]);
   }
   // A whole course past 99.5 classes is summed whole: 105 + 50 classes, 3,675 less 5% is 3,491.25 -> 3,491.
   const long = [{ regular_classes: '60', revision_classes: '50', bridge_classes: null }, { regular_classes: '45', revision_classes: '0', bridge_classes: null }];
-  preview = harness.quotePreview('REGULAR_REVISION', long, [], ON_SALE_PRICING);
+  preview = harness.quotePreview('REGULAR_REVISION', long, [], ON_SALE_PRICING, 'REGULAR', 'FULL');
   assert.deepEqual([preview.classes, preview.total_fee, preview.single_payment_saving, preview.payable_amount], ['155', '5425', '184', '5241']);
   // Fils kept to the end: 1.5 x 35.25 = 52.875, less 5% is 50.23125 -> 50, saving 2.875; payable 50.
-  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-2'], { ...ON_SALE_PRICING, offer_fee: '35.25' });
+  preview = harness.quotePreview('BRIDGE_COURSE', days, ['day-2'], { ...ON_SALE_PRICING, offer_fee: '35.25' }, 'REGULAR', 'FULL');
   assert.deepEqual([preview.total_fee, preview.single_payment_saving, preview.payable_amount], ['52.875', '2.875', '50']);
-  assert.equal(harness.quotePreview('REGULAR', grade6, [], null), null);
+  assert.equal(harness.quotePreview('REGULAR', grade6, [], null, 'REGULAR', 'FULL'), null);
+  for (const [fee, expected] of [['35.25', '53'], ['34.93', '52'], ['35', '53']]) {
+    const rounded = harness.quotePreview('BRIDGE_COURSE', days, ['day-2'], { ...ON_SALE_PRICING, offer_fee: fee, single_payment_percent: '0' }, 'REGULAR', 'FULL');
+    assert.equal(rounded.collection_amount, expected, 'whole AED rounds half up from the final package amount');
+  }
   assert.deepEqual([quoteOf(), BRIDGE_QUOTE, { plan_type: 'BRIDGE_COURSE', full_course: true }, { plan_type: 'CHAPTER_PLAN' }].map(harness.quotePlanLabel),
     ['Regular + Revision', 'Bridge Course · Selected Chapters', 'Full Bridge Course', 'Chapter Plan · Regular classes']);
   assert.deepEqual([harness.enquiryLabel(RIYA), harness.enquiryLabel({ parent_name: 'Omar Khan', student_name: '' }), harness.enquiryLabel(null)],
@@ -1225,19 +1229,293 @@ function studentApi(extra = {}) {
     ...extra,
   });
 }
+const chooseCompletePayment = async () => { const option = radio('Single / Complete Payment'); if (option && !option.checked) await click(option); };
 const selectSyllabus = async (title = 'Grade 6 CBSE') => click(button(`Select ${title}`));
+const PAYMENT_BDE = { ...QUOTER, permissions: [...QUOTER.permissions, 'accounts.manage_initial_sales'] };
+const SALE_URL = `/api/sales/enquiries/${RIYA.id}/sale/`;
+const paymentPath = `/enquiries/${RIYA.id}?tab=sales`;
+const saleQuote = (extra = {}) => quoteOf({ plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION', classes: '10', total_fee: '500',
+  payable_amount: '500', collection_amount: '500', single_payment_saving: '0', collection_mode: 'PARTIAL', ...extra });
+const saleState = (extra = {}) => ({ enquiry_id: RIYA.id, quote: saleQuote(), sale: null, purchase: null,
+  totals: { purchased_classes: '10', paid_classes: '0', unpaid_classes: '10', used_classes: '0', available_quota: '0',
+    package_amount: '500', paid_amount: '0', remaining_amount: '500' }, payments: [], can_collect: true, stripe_configured: false,
+  parent_email: 'parent@example.com', ...extra });
+const startedSale = (extra = {}) => ({ id: 'initial-sale', kind: 'NEW', token_paid: '0', parent_email: 'parent@example.com', student: null,
+  reservation_reference: null, expected_start_date: null, original_quote_id: QUOTE_ID, original_bde: BALA, ...extra });
+const initialPayment = (extra = {}) => ({ id: 'initial-payment', purpose: 'TUITION', method: 'TRANSFER', method_label: 'Account Transfer',
+  collection_mode: 'PARTIAL', amount: '300', currency: 'AED', classes: '6', status: 'SUCCEEDED', payment_date: '2026-11-09',
+  recorded_by: BALA, transaction_reference: 'BANK-001', proof_name: 'receipt.png', proof_url: '/api/sales/payments/initial-payment/proof/', ...extra });
+async function waitForAmount() {
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 230)); });
+  await settle();
+}
+
+test('Without initial-sales permission the Sales tab cannot request or mutate financial data', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState() });
+  await open(paymentPath, QUOTER);
+  assert.match(bodyText(), /do not have access to initial sales and payments/);
+  assert.equal(calls('GET', SALE_URL).length, 0);
+  assert.equal(button('Start New Sale'), undefined);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+});
+
+test('A refused foreign enquiry never loads its sale or offers collection controls', async () => {
+  studentApi({ [`GET ${ENQUIRIES}${RIYA.id}/`]: () => fail(404, { error: 'NOT_FOUND', message: 'No such enquiry.' }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.equal(calls('GET', SALE_URL).length, 0);
+  assert.equal(button('Start New Sale'), undefined);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+});
+
+test('Sales & Payment loads the immutable quote automatically and offers New or Token Sale without a catalogue request', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState() });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Selected quote.*Chapter Plan · Revision classes.*Purchased classes10.*AED 500/);
+  assert.ok(radio('New Sale'));
+  assert.ok(radio('Token Sale'));
+  assert.equal(calls('GET', CATALOGUE).length, 0);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+});
+
+test('Initial direct tuition form calculates on the server, uploads a receipt and becomes read-only after enrollment', async () => {
+  let state = saleState();
+  studentApi({
+    [`GET ${SALE_URL}`]: () => ok(state),
+    [`POST ${SALE_URL}`]: () => ok(state = saleState({ sale: startedSale() })),
+    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.equal(params.classes, '10'); return ok({ amount: '500', classes: '10', currency: 'AED' }); },
+    [`POST ${SALE_URL}payments/`]: ({ data }) => {
+      assert.equal(data.get('purpose'), 'TUITION'); assert.equal(data.get('collection_mode'), 'PARTIAL');
+      assert.equal(data.get('method'), 'TRANSFER'); assert.equal(data.get('amount'), '500');
+      assert.equal(data.get('payment_date'), '2026-01-01'); assert.equal(data.get('received_confirmed'), 'true');
+      assert.equal(data.get('proof').name, 'receipt.png'); assert.ok(data.get('request_id'));
+      state = saleState({ sale: startedSale({ student: { id: 'enrolled-student', student_code: 'EDP00018' } }),
+        totals: { purchased_classes: '10', paid_classes: '10', unpaid_classes: '0', used_classes: '0', available_quota: '10', package_amount: '500', paid_amount: '500', remaining_amount: '0' },
+        payments: [initialPayment({ amount: '500', classes: '10' })], can_collect: false });
+      return ok({ payment: state.payments[0], state });
+    },
+  });
+  await open(paymentPath, PAYMENT_BDE);
+  await click(button('Start New Sale'));
+  await waitForAmount();
+  assert.match(bodyText(), /Amount payable: AED 500/);
+  assert.equal(button('Generate Stripe payment link').disabled, true);
+  await choose('payment-method', 'Account Transfer');
+  assert.equal(button('Confirm received payment').disabled, true);
+  await typeInto(input('payment-date'), '2026-01-01');
+  const receipt = new File(['test PNG bytes'], 'receipt.png', { type: 'image/png' });
+  Object.defineProperty(input('payment-proof'), 'files', { configurable: true, value: [receipt] });
+  await fire(input('payment-proof'), new window.Event('change', { bubbles: true }));
+  const confirm = [...document.querySelectorAll('input[type="checkbox"]')].find((box) => box.closest('label')?.textContent.includes('actually been received'));
+  await click(confirm);
+  assert.equal(button('Confirm received payment').disabled, false);
+  await fire(button('Confirm received payment').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.match(bodyText(), /EDP00018.*Enrollment complete/);
+  assert.equal(button('Confirm received payment'), undefined);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.match(bodyText(), /Initial payment history.*AED 500/);
+});
+
+test('Token reservation requires an expected start date and requests exactly AED 100 with zero classes', async () => {
+  let posted;
+  studentApi({ [`GET ${SALE_URL}`]: saleState(), [`POST ${SALE_URL}`]: ({ data }) => {
+    posted = data;
+    return ok(saleState({ sale: startedSale({ kind: 'TOKEN', reservation_reference: 'TOK000001', expected_start_date: data.expected_start_date }) }));
+  }, [`GET ${SALE_URL}amount/`]: ({ params }) => {
+    assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' });
+    return ok({ amount: '100', classes: '0', currency: 'AED' });
+  } });
+  await open(paymentPath, PAYMENT_BDE);
+  await click(radio('Token Sale'));
+  await chooseCompletePayment();
+  assert.equal(input('token-start-date').required, true);
+  await typeInto(input('token-start-date'), '2027-01-10');
+  await click(button('Start token reservation'));
+  await waitForAmount();
+  assert.equal(posted.expected_start_date, '2027-01-10');
+  assert.match(bodyText(), /TOK000001.*2027-01-10/);
+  assert.match(bodyText(), /Collect token · AED 100.*No classes allocated/);
+  assert.equal(input('paid-classes'), null);
+  assert.doesNotMatch(bodyText(), /Enrollment complete/);
+});
+
+test('An issued complete-payment quote is read-only; changing intention requires a reviewed explicit replacement', async () => {
+  let state = saleState({ sale: startedSale(), quote: saleQuote({ collection_mode: 'FULL', single_payment_saving: '25', payable_amount: '475', collection_amount: '475' }) });
+  const replacement = `/api/sales/enquiries/${RIYA.id}/installment-quote/`;
+  studentApi({ [`GET ${SALE_URL}`]: () => ok(state), [`GET ${SALE_URL}amount/`]: { amount: '475', classes: '10', currency: 'AED' },
+    [`GET ${replacement}`]: ({ params }) => {
+      assert.deepEqual(params, { quote_id: QUOTE_ID, collection_mode: 'PARTIAL' });
+      return ok({ quote_id: QUOTE_ID, collection_mode: 'PARTIAL', collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 });
+    },
+    [`POST ${replacement}`]: ({ data }) => {
+      assert.deepEqual(data, { quote_id: QUOTE_ID, collection_mode: 'PARTIAL' });
+      state = saleState({ sale: startedSale(), quote: saleQuote({ id: 'replacement-quote', supersedes: QUOTE_ID }) });
+      return ok(state.quote);
+    },
+  });
+  await open(paymentPath, PAYMENT_BDE);
+  await waitForAmount();
+  assert.equal(document.getElementById('collection-mode'), null);
+  assert.equal(input('paid-classes').readOnly, true);
+  await click(button('Change collection intention'));
+  assert.equal(button('Issue replacement quote', topDialog()).disabled, true);
+  assert.match(clean(topDialog().textContent), /original quote and its history remain preserved/);
+  await choose('replacement-collection-mode', 'Partial Payment');
+  assert.match(clean(topDialog().textContent), /Replacement package: AED 500/);
+  assert.equal(calls('POST', replacement).length, 0);
+  await click(button('Issue replacement quote', topDialog()));
+  assert.equal(calls('POST', replacement).length, 1);
+  assert.equal(input('paid-classes').readOnly, false);
+});
+
+test('Generating a Stripe link remains pending and exposes sharing without marking a student enrolled', async () => {
+  const pending = initialPayment({ method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '500', classes: '10',
+    proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/test-session' });
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale(), stripe_configured: true }),
+    [`GET ${SALE_URL}amount/`]: { amount: '500', classes: '10', currency: 'AED' },
+    [`POST ${SALE_URL}payments/`]: ({ data }) => { assert.equal(data.get('method'), 'STRIPE'); return ok({ payment: pending,
+      state: saleState({ sale: startedSale(), payments: [pending], stripe_configured: true }) }); },
+  });
+  await open(paymentPath, PAYMENT_BDE);
+  await waitForAmount();
+  await click(button('Generate Stripe payment link'));
+  assert.match(bodyText(), /Awaiting payment/);
+  assert.ok(button('Copy payment link'));
+  assert.ok(document.querySelector('a[href*="checkout.stripe.com"]') || [...document.querySelectorAll('a')].some((a) => a.href.includes('wa.me') && decodeURIComponent(a.href).includes('checkout.stripe.com')));
+  assert.doesNotMatch(bodyText(), /Enrollment complete/);
+  assert.equal(input('payment-proof'), null);
+});
 const classModeRadio = (mode) => document.querySelector(`input[name="chapter-class-mode"][value="${mode}"]`);
+
+test('BDE Autopay reviews all dated class allocations on the server before creating the combined paid Checkout', async () => {
+  let reviewed;
+  const reviewedRows = [{ position: 0, classes: '2', amount: '100', due_at: null },
+    { position: 1, classes: '8', amount: '400', due_at: '2027-01-10T06:00:00Z' }];
+  const pending = initialPayment({ method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '100', classes: '2',
+    proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/autopay-test' });
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale(), quote: saleQuote({ collection_mode: 'AUTOPAY' }), billing_timezone: 'Asia/Dubai', stripe_configured: true, autopay_configured: true }),
+    [`GET ${SALE_URL}amount/`]: { amount: '500', classes: '10', currency: 'AED' },
+    [`POST ${SALE_URL}autopay/preview/`]: ({ data }) => { reviewed = data; return ok({ quote_id: QUOTE_ID, classes: '10', package_amount: '500', billing_timezone: 'Asia/Dubai', installments: reviewedRows, review_token: 'server-review', checkout_available: true }); },
+    [`POST ${SALE_URL}autopay/`]: ({ data }) => {
+      assert.equal(data.review_token, 'server-review'); assert.ok(data.request_id);
+      assert.deepEqual(data.installments, reviewed.installments);
+      assert.equal('amount' in data, false, 'the client never supplies a trusted schedule price');
+      return ok(saleState({ sale: startedSale(), quote: saleQuote({ collection_mode: 'AUTOPAY' }), payments: [pending], stripe_configured: true }));
+    },
+  });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.equal(document.getElementById('collection-mode'), null);
+  assert.match(bodyText(), /Asia\/Dubai/);
+  assert.equal(input('payment-proof'), null);
+  assert.equal(button('Confirm schedule & generate Stripe Checkout'), undefined);
+  await typeInto(input('autopay-initial-classes'), '2');
+  await typeInto(input('autopay-classes-0'), '8');
+  await typeInto(input('autopay-due-0'), '2027-01-10T10:00');
+  await fire(button('Review complete schedule').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.match(bodyText(), /Review · 10 classes · AED 500.*Initial payment · 2 classesAED 100.*Installment 1 · 8 classesAED 400/);
+  assert.equal(calls('POST', `${SALE_URL}autopay/`).length, 0);
+  await click(button('Confirm schedule & generate Stripe Checkout'));
+  assert.match(bodyText(), /Awaiting payment/);
+  assert.doesNotMatch(bodyText(), /Enrollment complete/);
+});
+
+test('Editing an Autopay schedule invalidates its review and failed validation cannot create Checkout', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale(), quote: saleQuote({ collection_mode: 'AUTOPAY' }), billing_timezone: 'Asia/Dubai' }),
+    [`GET ${SALE_URL}amount/`]: { amount: '500', classes: '10', currency: 'AED' },
+    [`POST ${SALE_URL}autopay/preview/`]: () => fail(400, { error: 'INVALID_SCHEDULE', message: 'Cover exactly the package classes.' }),
+  });
+  await open(paymentPath, PAYMENT_BDE); assert.equal(document.getElementById('collection-mode'), null);
+  await typeInto(input('autopay-initial-classes'), '2'); await typeInto(input('autopay-classes-0'), '9'); await typeInto(input('autopay-due-0'), '2027-01-10T10:00');
+  await fire(button('Review complete schedule').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.match(bodyText(), /Cover exactly the package classes/);
+  assert.equal(button('Confirm schedule & generate Stripe Checkout'), undefined);
+  await click(button('Add installment'));
+  assert.ok(input('autopay-classes-1'));
+  await click(button('Remove installment 2'));
+  assert.equal(input('autopay-classes-1'), null);
+});
+
+test('Autopay history is visible after enrollment while BDE collection controls remain absent', async () => {
+  const agreement = { id: 'agreement', status: 'ACTIVE', setup_status: 'READY', setup_message: '', billing_timezone: 'Asia/Dubai',
+    creator: { name: 'Bala', role: 'BDE' }, source: 'BDE_INITIAL', package_amount: '500', remaining_amount: '400', next_collection_at: '2027-01-10T06:00:00Z',
+    card_brand: 'visa', card_last4: '4242', stripe_customer_id: 'cus_test', stripe_payment_method_id: 'pm_test', installments: [
+      { id: 'initial', position: 0, classes: '2', amount: '100', status: 'PAID', due_at: null, attempts: [] },
+      { id: 'next', position: 1, classes: '8', amount: '400', status: 'FAILED', due_at: '2027-01-10T06:00:00Z',
+        attempts: [{ id: 'attempt', number: 1, status: 'FAILED', created_at: '2027-01-10T06:00:00Z', error_code: 'card_declined', stripe_payment_intent_id: 'pi_test' }] },
+    ] };
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale({ student: { id: 'student', student_code: 'EDP00018' } }), autopay: agreement }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /AutopayACTIVE.*Bala · BDE.*AED 400.*4242/);
+  assert.match(bodyText(), /unpaid installment blocks later collections/);
+  assert.equal(input('collection-mode'), null);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.equal(button('Generate initial Checkout again'), undefined);
+});
+
+test('Stripe Billing history shows independent outstanding invoices and provider recovery without BDE controls', async () => {
+  const agreement = { id: 'native-agreement', collection_engine: 'STRIPE_BILLING', billing_status: 'PROVISIONED',
+    billing_message: '', status: 'ACTIVE', setup_status: 'READY', billing_timezone: 'Asia/Dubai',
+    stripe_subscription_id: 'sub_native', stripe_subscription_status: 'past_due', stripe_schedule_id: 'sub_sched_native',
+    stripe_schedule_status: 'active', next_retry_at: '2027-01-28T06:00:00Z',
+    creator: { name: 'Bala', role: 'BDE' }, source: 'BDE_INITIAL', package_amount: '500', remaining_amount: '250',
+    next_collection_at: '2027-02-10T06:00:00Z', card_brand: 'visa', card_last4: '4242', stripe_customer_id: 'cus_test',
+    installments: [
+      { id: 'initial', position: 0, classes: '2', amount: '100', status: 'PAID', due_at: null, attempts: [] },
+      { id: 'december', position: 1, classes: '3', amount: '150', status: 'FAILED', due_at: '2026-12-10T06:00:00Z',
+        stripe_invoice_id: 'in_december', stripe_invoice_number: 'EDP-DEC', stripe_invoice_status: 'open',
+        next_payment_attempt: '2027-01-28T06:00:00Z', attempts: [] },
+      { id: 'january', position: 2, classes: '3', amount: '150', status: 'PAID', due_at: '2027-01-10T06:00:00Z',
+        stripe_invoice_id: 'in_january', stripe_invoice_number: 'EDP-JAN', stripe_invoice_status: 'paid', attempts: [] },
+      { id: 'february', position: 3, classes: '2', amount: '100', status: 'SCHEDULED', due_at: '2027-02-10T06:00:00Z', attempts: [] },
+    ] };
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale({ student: { id: 'student', student_code: 'EDP00018' } }), autopay: agreement }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Stripe Billing/);
+  assert.match(bodyText(), /past_due/);
+  assert.match(bodyText(), /EDP-DEC · open/);
+  assert.match(bodyText(), /EDP-JAN · paid/);
+  assert.match(bodyText(), /sub_native · sub_sched_native/);
+  assert.doesNotMatch(bodyText(), /unpaid installment blocks later collections/);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.equal(input('collection-mode'), null);
+  assert.equal(calls('POST', `${SALE_URL}payments/`).length, 0);
+});
+
+test('Parent authentication confirms the existing PaymentIntent through Stripe and never grants quota in the browser', async () => {
+  let confirmation;
+  window.Stripe = (key) => {
+    assert.equal(key, 'pk_test_fixture');
+    return { confirmCardPayment: async (...args) => { confirmation = args; return { paymentIntent: { status: 'succeeded' } }; } };
+  };
+  serve({ 'GET /api/sales/autopay/actions/private-fixture/': {
+    status: 'REQUIRES_CUSTOMER_ACTION', needs_action: true, amount: '150', package_amount: '500', currency: 'AED',
+    billing_timezone: 'Asia/Dubai', consent_text: 'Agreed card collections', terms_url: 'https://eduport.test/terms',
+    schedule: [{ position: 1, amount: '150', classes: '3', due_at: '2027-01-10T06:00:00Z' }],
+    publishable_key: 'pk_test_fixture', client_secret: 'pi_fixture_secret', payment_method_id: 'pm_fixture',
+  } });
+  try {
+    await open('/autopay/confirm/private-fixture', PAYMENT_BDE);
+    await click(button('Authenticate AED 150'));
+    assert.deepEqual(confirmation, ['pi_fixture_secret', { payment_method: 'pm_fixture' }]);
+    assert.match(bodyText(), /Authentication submitted.*once Stripe verifies the payment/);
+    assert.equal(globalThis.__salesApi.calls.filter((entry) => entry.method === 'POST').length, 0);
+    assert.doesNotMatch(bodyText(), /Enrollment complete|quota credited/);
+  } finally { delete window.Stripe; }
+});
 
 test('Chapter Plan mode switches preserve chapter ids, update the count column and recalculate the quote', async () => {
   studentApi();
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   assert.equal(classModeRadio('REGULAR'), null);
   await click(radio('Chapter Plan'));
+  await chooseCompletePayment();
   assert.equal(classModeRadio('REGULAR').checked, true);
   assert.equal(classModeRadio('REVISION').checked, false);
   await click(chapterBox(1));
+  await chooseCompletePayment();
   await click(chapterBox(2));
+  await chooseCompletePayment();
   assert.ok(headers().includes('Regular classes'));
   assert.match(bodyText(), /Chapter Plan PackageAED 315.*9 Classes × AED 35/);
   await click(classModeRadio('REVISION'));
@@ -1253,6 +1531,7 @@ test('Chapter Plan mode switches preserve chapter ids, update the count column a
   assert.match(bodyText(), /Chapter Plan PackageAED 315.*9 Classes × AED 35/);
   await click(button('Change syllabus'));
   await selectSyllabus();
+  await chooseCompletePayment();
   assert.equal(chapterBox(1).checked, true);
   assert.equal(classModeRadio('REGULAR').checked, true);
 });
@@ -1261,7 +1540,9 @@ test('Chapter Plan Select all and Clear work in both modes; the toggle is absent
   studentApi();
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Chapter Plan'));
+  await chooseCompletePayment();
   for (const [mode, classes] of [['REGULAR', '38'], ['REVISION', '19']]) {
     await click(classModeRadio(mode));
     await click(button('Select all'));
@@ -1279,6 +1560,7 @@ test('Chapter Plan Select all and Clear work in both modes; the toggle is absent
   }
   await click(button('Change syllabus'));
   await selectSyllabus('Grade 7 CBSE');
+  await chooseCompletePayment();
   for (const plan of ['Full Bridge Course', 'Selected Chapters']) {
     await click(radio(plan));
     assert.equal(classModeRadio('REGULAR'), null);
@@ -1292,8 +1574,11 @@ test('Missing, invalid and zero Revision counts block quoting without falling ba
     studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, chapters } });
     await open(enquiryPath, QUOTER);
     await selectSyllabus();
+  await chooseCompletePayment();
     await click(radio('Chapter Plan'));
+  await chooseCompletePayment();
     await click(chapterBox(1));
+  await chooseCompletePayment();
     await click(classModeRadio('REVISION'));
     assert.equal(chapterBox(1).checked, true);
     assert.equal(button('Create quote…').disabled, true);
@@ -1316,15 +1601,19 @@ test('Chapter Plan Revision request pins mode, chapters, revision and Admin pric
     [`POST ${QUOTES}`]: issued, [`GET ${quoteAt()}`]: issued });
   const page = await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Chapter Plan'));
+  await chooseCompletePayment();
   await click(chapterBox(1));
+  await chooseCompletePayment();
   await click(chapterBox(2));
+  await chooseCompletePayment();
   await click(classModeRadio('REVISION'));
-  assert.match(bodyText(), /Chapter Plan PackageAED 141.*4 Classes × AED 35.25/);
+  assert.match(bodyText(), /Chapter Plan PackageAED 141.*4 Classes/);
   await click(button('Create quote…'));
   assert.match(clean(topDialog().textContent), /Chapter Plan · Revision classes/);
   await click(button('Issue quote', topDialog()));
-  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION',
+  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION', collection_mode: 'FULL',
     chapter_ids: EVERY_WAY_ON_SALE.chapters.slice(0, 2).map((chapter) => chapter.id), lead: RIYA.id, replaces: null, pricing_version: ON_SALE_PRICING.version });
   assert.match(bodyText(), /Current selected plan.*Chapter Plan · Revision classes/);
   assert.ok(headers().includes('Revision classes'));
@@ -1357,6 +1646,7 @@ test('Syllabus cards use catalogue totals and enabled plans, with a distinct Bri
   assert.equal(calls('GET', CATALOGUE).length, 1);
   assert.equal(calls('GET', onSale(PLAN_ID)).length, 0, 'cards need no detail requests');
   await selectSyllabus('Grade 7 CBSE');
+  await chooseCompletePayment();
   assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['full', 'selected']);
   await mounted.pop().unmount();
 
@@ -1367,6 +1657,7 @@ test('Syllabus cards use catalogue totals and enabled plans, with a distinct Bri
   assert.match(clean(card.textContent), /3.5 classes.*1.5 Regular · 2 Revision/);
   assert.deepEqual([...card.querySelectorAll('[aria-label^="Plan options"] [data-slot="badge"]')].map((badge) => clean(badge.textContent)), ['Revision']);
   await selectSyllabus(grade9.title);
+  await chooseCompletePayment();
   assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['REVISION']);
   assert.match(bodyText(), /Revision 4/);
 });
@@ -1423,9 +1714,11 @@ test('Student quote: select syllabus first, then its enabled plan; fixed student
   assert.equal(radio('Regular Only'), undefined);
   assert.equal(button('Create quote…'), undefined);
   await selectSyllabus();
+  await chooseCompletePayment();
   assert.equal(radio('Regular Only').checked, false);
   assert.equal(button('Create quote…').disabled, true);
   await click(radio('Regular + Revision'));
+  await chooseCompletePayment();
   assert.match(bodyText(), /Revision Course .*PackageAED 665/);
   assert.match(bodyText(), /57 Classes.*AED 1,995.*AED 66.*AED 1,929/);
   await click(button('Create quote…'));
@@ -1434,7 +1727,7 @@ test('Student quote: select syllabus first, then its enabled plan; fixed student
   assert.equal(radio('No enquiry'), undefined);
   assert.equal(quotePosts().length, 0);
   await click(button('Issue quote', dialog));
-  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'REGULAR_REVISION', chapter_ids: [], lead: RIYA.id, replaces: null, pricing_version: ON_SALE_PRICING.version });
+  assert.deepEqual(quotePosts()[0].data, { syllabus: PLAN_ID, revision: 1, plan_type: 'REGULAR_REVISION', collection_mode: 'FULL', chapter_ids: [], lead: RIYA.id, replaces: null, pricing_version: ON_SALE_PRICING.version });
   assert.equal(page.location().pathname, `/enquiries/${RIYA.id}`);
   assert.match(bodyText(), /Current selected plan.*Q-000007.*57 Classes/);
   assert.match(bodyText(), /Quote history.*Q-000007/);
@@ -1447,13 +1740,18 @@ test('Student Chapter Plan: scoped chapters, calculation and validation; selecti
   studentApi({ [`POST ${QUOTES}`]: () => posts++ ? ok(quoteOf({ plan_type: 'CHAPTER_PLAN', full_course: false, is_current: true })) : fail(400, { error: 'VALIDATION_ERROR', message: 'Choose one of your own enquiries.', fields: { lead: ['Choose one of your own enquiries.'] } }) });
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Chapter Plan'));
+  await chooseCompletePayment();
   assert.equal(button('Create quote…').disabled, true);
   await click(chapterBox(7));
+  await chooseCompletePayment();
   await click(chapterBox(2));
+  await chooseCompletePayment();
   assert.match(bodyText(), /2 of 10 chapters chosen.*Chapter Plan PackageAED 350.*10 Classes × AED 35/);
   await click(button('Change syllabus'));
   await selectSyllabus();
+  await chooseCompletePayment();
   assert.equal(chapterBox(7).checked, true);
   assert.equal(chapterBox(2).checked, true);
   await click(button('Create quote…'));
@@ -1474,15 +1772,20 @@ test('Student Bridge Course: Full Bridge Course or Selected Chapters; stale revi
   });
   await open(enquiryPath, QUOTER);
   await selectSyllabus('Grade 7 CBSE');
+  await chooseCompletePayment();
   assert.deepEqual([...document.querySelectorAll('input[name="quote-plan-type"]')].map((el) => el.value), ['full', 'selected']);
   await click(radio('Full Bridge Course'));
+  await chooseCompletePayment();
   assert.match(bodyText(), /Bridge Course PackageAED 350.*10 Classes.*AED 333/);
   await click(radio('Selected Chapters'));
+  await chooseCompletePayment();
   assert.doesNotMatch(bodyText(), /Choose at least one chapter for the Chapter Plan/);
   assert.equal(button('Create quote…').disabled, true);
   await click(chapterBox(4));
+  await chooseCompletePayment();
   await click(chapterBox(2));
-  assert.match(bodyText(), /3.5 Classes.*AED 122.50.*AED 116/);
+  await chooseCompletePayment();
+  assert.match(bodyText(), /3.5 Classes.*AED 123.*AED 116/);
   await click(button('Create quote…'));
   current = bridgeOnSale({ revision: 2, prefix: 'r2' });
   await click(button('Issue quote', topDialog()));
@@ -1491,8 +1794,10 @@ test('Student Bridge Course: Full Bridge Course or Selected Chapters; stale revi
   assert.deepEqual(quotePosts()[0].data.chapter_ids, ['day-2', 'day-4']);
   await click(button('Try again'));
   await click(radio('Selected Chapters'));
+  await chooseCompletePayment();
   assert.equal(chapterBox(2).checked, false);
   await click(button('Select all'));
+  await chooseCompletePayment();
   assert.match(bodyText(), /All chapters selected · Full course/);
   await click(button('Create quote…'));
   assert.match(clean(topDialog().textContent), /full course/);
@@ -1514,7 +1819,9 @@ test('Common catalogue cannot create a quote; student selection requires permiss
   studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, pricing: null, packages: null } });
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Regular Only'));
+  await chooseCompletePayment();
   assert.equal(button('Create quote…').disabled, true);
   assert.match(bodyText(), /Pricing is not set up yet/);
 });
@@ -1528,6 +1835,7 @@ test('Saved student quote: replacement preserves history and sends the expected 
   await click(button('Edit / change plan'));
   assert.equal(radio('Regular + Revision').checked, true);
   await click(radio('Revision Only'));
+  await chooseCompletePayment();
   await click(button('Create quote…'));
   assert.match(clean(topDialog().textContent), /previous quote remains in history/);
   await click(button('Issue quote', topDialog()));
@@ -1550,7 +1858,7 @@ test('Tab order and Sales & Payment are preserved; locked plans can be viewed an
   await click(button('Download quote PDF'));
   assert.equal(saved.at(-1).name, 'Q-000007.pdf');
   await fire(button('Sales & Payment'), new window.MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
-  assert.match(bodyText(), /Coming Soon/);
+  assert.match(bodyText(), /do not have access to initial sales and payments/);
 });
 
 test('Catalogue sharing never sends an authenticated or localhost link; preview and download still work', async () => {
@@ -1560,7 +1868,8 @@ test('Catalogue sharing never sends an authenticated or localhost link; preview 
   const message = new URL(whatsapp.href).searchParams.get('text');
   assert.match(message, /Grade 6 CBSE.*Eduport Plus/);
   assert.doesNotMatch(message, /https?:|localhost|blob:|\/api\//);
-  assert.match(bodyText(), /Download and attach the PDF in WhatsApp/);
+  assert.equal(whatsapp.getAttribute('target'), '_blank');
+  assert.match(whatsapp.getAttribute('rel'), /noopener/);
   await click(button('Preview syllabus PDF'));
   assert.ok(document.querySelector('iframe[src^="blob:"]'));
   await fire(topDialog(), new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -1572,12 +1881,15 @@ test('Changing syllabus resets selections and shows only its enabled plans', asy
   studentApi({ [`GET ${onSale(PLAN_ID)}`]: { ...EVERY_WAY_ON_SALE, plan_types: ['REVISION'] } });
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   assert.equal(radio('Regular Only'), undefined);
   assert.ok(radio('Revision Only'));
   await click(button('Change syllabus'));
   await selectSyllabus('Grade 7 CBSE');
+  await chooseCompletePayment();
   assert.equal(radio('Revision Only'), undefined);
   await click(radio('Selected Chapters'));
+  await chooseCompletePayment();
   assert.ok(chapterBox(2).getAttribute('aria-label').includes(DAYS[1][0]));
   assert.equal(chapterBox(2).checked, false);
 });
@@ -1761,7 +2073,9 @@ test('Reviewed pricing changed: reload is required and the new price must be rev
   });
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Regular Only'));
+  await chooseCompletePayment();
   await click(button('Create quote…'));
   current = { ...EVERY_WAY_ON_SALE, pricing: { ...ON_SALE_PRICING, version: 4, offer_fee: '40' } };
   await click(button('Issue quote', topDialog()));
@@ -1769,6 +2083,7 @@ test('Reviewed pricing changed: reload is required and the new price must be rev
   assert.equal(button('Create quote…').disabled, true);
   await click(button('Try again'));
   await click(radio('Regular Only'));
+  await chooseCompletePayment();
   assert.match(bodyText(), /38 Classes × AED 40/);
 });
 
@@ -1781,7 +2096,9 @@ test('Concurrent plan replacement or payment lock refreshes the saved plan befor
     });
     await open(enquiryPath, QUOTER);
     await selectSyllabus();
+  await chooseCompletePayment();
     await click(radio('Regular Only'));
+  await chooseCompletePayment();
     await click(button('Create quote…'));
     const quote = quoteOf({ is_current: true });
     current = { ...emptyPlan, current: quote, latest_quote: quote.id, history: [rowOf(quote)], locked: code === 'PLAN_LOCKED' };
@@ -1826,10 +2143,13 @@ test('Small screens use syllabus and chapter cards throughout the student select
     await open(enquiryPath, QUOTER);
     assert.ok(document.querySelector('ul[aria-label="Plans on sale"]'));
     await selectSyllabus('Grade 7 CBSE');
+  await chooseCompletePayment();
     await click(radio('Selected Chapters'));
+  await chooseCompletePayment();
     assert.ok(document.querySelector('ul[aria-label="Chapters of the Bridge Course"]'));
     await click(chapterBox(2));
-    assert.match(bodyText(), /1.5 Classes.*AED 52.50/);
+  await chooseCompletePayment();
+    assert.match(bodyText(), /1.5 Classes.*AED 53/);
     assert.equal(button('Create quote…').disabled, false);
   } finally {
     window.innerWidth = width;
@@ -1840,11 +2160,192 @@ test('A stale syllabus PDF blocks a student quote until the revision is reloaded
   studentApi({ [`GET ${onSale(PLAN_ID, 'pdf/')}`]: () => fail(409, { error: 'REVISION_CHANGED', message: 'This syllabus was republished.', revision: 2 }) });
   await open(enquiryPath, QUOTER);
   await selectSyllabus();
+  await chooseCompletePayment();
   await click(radio('Regular Only'));
+  await chooseCompletePayment();
   await click(button('Preview syllabus PDF'));
   assert.deepEqual(calls('GET', onSale(PLAN_ID, 'pdf/'))[0].params, { disposition: 'inline', revision: 1 });
   assert.equal(button('Create quote…').disabled, true);
   assert.ok(button('Try again'));
+});
+
+test('Collection intention is mandatory; complete, partial and Autopay quotes price and hand off their fixed intention', async () => {
+  for (const [mode, label, payable] of [['FULL', 'Single / Complete Payment', '2627'], ['PARTIAL', 'Partial Payment', '2765'], ['AUTOPAY', 'Autopay', '2765']]) {
+    let issued;
+    const source = bridgeOnSale();
+    const detail = { ...source, pricing: { ...source.pricing, offer_fee: '276.5' } };
+    studentApi({
+      [`GET ${onSale(BRIDGE_ID)}`]: detail,
+      [`POST ${QUOTES}`]: ({ data }) => {
+        assert.equal(data.collection_mode, mode);
+        assert.equal('payable_amount' in data, false);
+        assert.equal('collection_amount' in data, false);
+        issued = quoteOf({ collection_mode: mode, collection_intention_confirmed: true, plan_type: 'BRIDGE_COURSE',
+          syllabus: BRIDGE_QUOTE.syllabus, classes: '10', total_fee: '2765', payable_amount: payable, collection_amount: payable,
+          single_payment_saving: mode === 'FULL' ? '138' : '0' });
+        return ok(issued);
+      },
+      [`GET ${SALE_URL}`]: () => ok(saleState({ quote: issued, sale: startedSale(), autopay_configured: false })),
+      [`GET ${SALE_URL}amount/`]: ({ params }) => {
+        assert.equal(params.collection_mode, mode);
+        return ok({ amount: payable, classes: '10', currency: 'AED' });
+      },
+    });
+    const page = await open(enquiryPath, PAYMENT_BDE);
+    await selectSyllabus('Grade 7 CBSE');
+    await click(radio('Full Bridge Course'));
+    const choices = [...document.querySelectorAll('input[name="quote-collection-intention"]')];
+    assert.equal(choices.length, 3);
+    assert.equal(choices.some((choice) => choice.checked), false, 'no collection intention is inferred from the course plan');
+    assert.equal(button('Create quote…').disabled, true);
+    assert.match(bodyText(), /Package before collection choiceAED 2,765/);
+    await click(document.querySelector(`input[name="quote-collection-intention"][value="${mode}"]`));
+    assert.equal(button('Create quote…').disabled, false);
+    assert.ok(bodyText().includes(label));
+    await click(button('Create quote…'));
+    assert.match(clean(topDialog().textContent), new RegExp(`AED ${mode === 'FULL' ? '2,627' : '2,765'}`));
+    await click(button('Issue quote', topDialog()));
+    await page.go(paymentPath); await settle();
+    assert.match(bodyText(), /Collection intention from quote/);
+    assert.ok(bodyText().includes(label));
+    assert.equal(document.getElementById('collection-mode'), null);
+    assert.equal(calls('POST', `/api/sales/enquiries/${RIYA.id}/installment-quote/`).length, 0);
+    if (mode === 'AUTOPAY') assert.ok(input('autopay-initial-classes'));
+    else { await waitForAmount(); assert.equal(input('paid-classes').readOnly, mode === 'FULL'); }
+    await mounted.pop().unmount();
+  }
+});
+
+test('Switching quote intention preserves chosen chapters and Revision class mode', async () => {
+  studentApi();
+  await open(enquiryPath, QUOTER);
+  await selectSyllabus();
+  await click(radio('Chapter Plan'));
+  await click(chapterBox(1));
+  await click(classModeRadio('REVISION'));
+  for (const mode of ['FULL', 'PARTIAL', 'AUTOPAY']) {
+    await click(document.querySelector(`input[name="quote-collection-intention"][value="${mode}"]`));
+    assert.equal(chapterBox(1).checked, true);
+    assert.equal(classModeRadio('REVISION').checked, true);
+    assert.ok(headers().includes('Revision classes'));
+    assert.match(bodyText(), /2 Classes × AED 35/);
+  }
+});
+
+test('Historical quotes without any purchase or collection block both sale types and never imply complete payment', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: saleQuote({ collection_intention_confirmed: false, collection_mode: 'FULL' }), can_collect: false }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Not recorded \(historical quote\)/);
+  assert.match(bodyText(), /historical quote has no recorded collection intention/);
+  assert.equal(button('Start New Sale').disabled, true);
+  await fire(button('Start New Sale').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.equal(calls('POST', SALE_URL).length, 0);
+  await click(radio('Token Sale'));
+  assert.equal(button('Start token reservation').disabled, true);
+  assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
+  await click(radio('New Sale'));
+  await click(button('Create replacement quote'));
+  assert.match(clean(topDialog().textContent), /Current: Not recorded \(historical quote\)/);
+  assert.equal(button('Issue replacement quote', topDialog()).disabled, true);
+  await click(document.getElementById('replacement-collection-mode'));
+  assert.equal(document.querySelectorAll('[role="option"]').length, 3);
+});
+
+test('Each explicit historical replacement intention enables New Sale while the original remains history', async () => {
+  for (const [mode, label] of [['FULL', 'Single / Complete Payment'], ['PARTIAL', 'Partial Payment'], ['AUTOPAY', 'Autopay']]) {
+    const old = saleQuote({ collection_intention_confirmed: false });
+    let state = saleState({ quote: old, can_collect: false });
+    const replacement = `/api/sales/enquiries/${RIYA.id}/installment-quote/`;
+    studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
+      [`GET ${replacement}`]: ({ params }) => { assert.equal(params.collection_mode, mode); return ok({ quote_id: old.id, collection_mode: mode, collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 }); },
+      [`POST ${replacement}`]: ({ data }) => { assert.equal(data.collection_mode, mode); state = saleState({ quote: saleQuote({ id: 'new-' + mode, collection_mode: mode, collection_intention_confirmed: true, supersedes: old.id }) }); return ok(state.quote); },
+      [`POST ${SALE_URL}`]: ({ data }) => { assert.deepEqual(data, { kind: 'NEW' }); state = { ...state, sale: startedSale() }; return ok(state); },
+      [`GET ${SALE_URL}amount/`]: { amount: '500', classes: '10', currency: 'AED' },
+    });
+    await open(paymentPath, PAYMENT_BDE);
+    await click(button('Create replacement quote'));
+    await choose('replacement-collection-mode', label);
+    await click(button('Issue replacement quote', topDialog()));
+    assert.equal(old.collection_intention_confirmed, false);
+    assert.equal(button('Start New Sale').disabled, false);
+    const priorSales = calls('POST', SALE_URL).length;
+    await click(button('Start New Sale'));
+    assert.equal(calls('POST', SALE_URL).length, priorSales + 1);
+    assert.ok(bodyText().includes(label));
+    if (mode === 'AUTOPAY') assert.ok(input('autopay-initial-classes'));
+    else await waitForAmount();
+    await mounted.pop().unmount();
+  }
+});
+
+test('An existing empty historical sale cannot collect or request a payment amount before replacement', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale(), quote: saleQuote({ collection_intention_confirmed: false }), can_collect: false }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Replacement quote required.*historical quote has no recorded collection intention/);
+  assert.equal(input('paid-classes'), null);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
+  assert.ok(button('Create replacement quote'));
+});
+
+test('Historical purchases retain frozen collection controls without a forced replacement', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale(), quote: saleQuote({ collection_intention_confirmed: false }), purchase: { id: 'historical-purchase', collection_mode: 'PARTIAL' } }),
+    [`GET ${SALE_URL}amount/`]: { amount: '300', classes: '6', currency: 'AED' } });
+  await open(paymentPath, PAYMENT_BDE); await waitForAmount();
+  assert.match(bodyText(), /Frozen collection terms/);
+  assert.equal(button('Create replacement quote'), undefined);
+  assert.equal(button('Change collection intention'), undefined);
+  assert.ok(input('paid-classes'));
+});
+
+test('Historical paid token reservation keeps payment history and can collect tuition without forced replacement', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: saleQuote({ collection_intention_confirmed: false }),
+      sale: startedSale({ kind: 'TOKEN', token_paid: '100', expected_start_date: '2027-01-10', reservation_reference: 'TOK-HISTORY' }),
+      payments: [initialPayment({ purpose: 'TOKEN', amount: '100', classes: '0' })] }),
+    [`GET ${SALE_URL}amount/`]: { amount: '400', classes: '10', currency: 'AED' } });
+  await open(paymentPath, PAYMENT_BDE); await waitForAmount();
+  assert.match(bodyText(), /TOK-HISTORY.*Token paid: AED 100/);
+  assert.equal(button('Create replacement quote'), undefined);
+  assert.ok(input('paid-classes'));
+  assert.match(bodyText(), /Initial payment history/);
+});
+
+test('Token Sale with an AUTOPAY quote stays blocked until an explicit FULL or PARTIAL replacement', async () => {
+  for (const [mode, label] of [['FULL', 'Single / Complete Payment'], ['PARTIAL', 'Partial Payment']]) {
+    let state = saleState({ quote: saleQuote({ collection_mode: 'AUTOPAY' }) });
+    const replacement = `/api/sales/enquiries/${RIYA.id}/installment-quote/`;
+    studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
+      [`GET ${replacement}`]: ({ params }) => { assert.equal(params.collection_mode, mode); return ok({ quote_id: QUOTE_ID, collection_mode: mode, collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 }); },
+      [`POST ${replacement}`]: ({ data }) => { assert.equal(data.collection_mode, mode); state = saleState({ quote: saleQuote({ id: 'token-' + mode, collection_mode: mode, supersedes: QUOTE_ID }) }); return ok(state.quote); },
+      [`POST ${SALE_URL}`]: ({ data }) => { assert.deepEqual(data, { kind: 'TOKEN', expected_start_date: '2027-01-10' }); state = { ...state, sale: startedSale({ kind: 'TOKEN', expected_start_date: data.expected_start_date, reservation_reference: 'TOK-NEW' }) }; return ok(state); },
+      [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
+    });
+    await open(paymentPath, PAYMENT_BDE);
+    assert.equal(button('Start New Sale').disabled, false, 'New Sale Autopay stays available');
+    await click(radio('Token Sale'));
+    assert.equal(button('Start token reservation').disabled, true);
+    assert.match(bodyText(), /Token Sale requires a FULL or PARTIAL quote/);
+    await click(button('Create replacement quote'));
+    await click(document.getElementById('replacement-collection-mode'));
+    assert.equal([...document.querySelectorAll('[role="option"]')].some((option) => clean(option.textContent) === 'Autopay'), false);
+    await click([...document.querySelectorAll('[role="option"]')].find((option) => clean(option.textContent) === label));
+    await click(button('Issue replacement quote', topDialog()));
+    await typeInto(input('token-start-date'), '2027-01-10');
+    assert.equal(button('Start token reservation').disabled, false);
+    await click(button('Start token reservation')); await waitForAmount();
+    assert.match(bodyText(), /Collect token · AED 100/);
+    assert.equal(input('autopay-initial-classes'), null);
+    await mounted.pop().unmount();
+  }
+});
+
+test('Existing invalid Token/AUTOPAY drafts cannot display collection or Autopay schedule controls', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale({ kind: 'TOKEN' }), quote: saleQuote({ collection_mode: 'AUTOPAY' }), can_collect: false }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Token Sale requires a FULL or PARTIAL quote/);
+  assert.equal(input('autopay-initial-classes'), null);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
 });
 
 // ------------------------------------------------------------------ run

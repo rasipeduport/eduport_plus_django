@@ -446,6 +446,12 @@ class Quote(models.Model):
     # NULL on historical quotes (Chapter Plans before this feature used Regular),
     # and on other plan types. Every new Chapter Plan stores its explicit mode.
     class_mode = models.CharField(max_length=8, choices=ChapterClassMode.choices, null=True, blank=True)
+    collection_mode = models.CharField(max_length=7, choices=[('FULL', 'Single / Complete Payment'), ('PARTIAL', 'Partial Payment'), ('AUTOPAY', 'Autopay')])
+    # Existing snapshots predate the mandatory question; never rewrite them
+    # to claim that a parent confirmed the implicit FULL default.
+    collection_intention_confirmed = models.BooleanField(default=False)
+    # Legacy NULL amounts are interpreted on first collection; new quotes pin rounding now.
+    collection_amount = models.DecimalField(max_digits=15, decimal_places=0, null=True, blank=True)
     # Every chapter (or day) of the revision: a whole course, as its own package.
     full_course = models.BooleanField()
     # The rates it was priced at, as that pricing version had them.
@@ -567,3 +573,8 @@ class QuoteChapter(models.Model):
             models.UniqueConstraint(fields=['quote', 'chapter'], name='sales_quote_chapters_once_each'),
             models.CheckConstraint(condition=Q(classes__gte=0), name='sales_quote_chapters_classes_not_negative'),
         ]
+
+
+# Django discovers this app's admission ledger alongside its catalogue models.
+from .payment_models import Payment, Purchase, Sale, SalesSequence, StripeCustomer, StripeEvent, StripeCheckoutOperation  # noqa: E402,F401
+from .autopay_models import AutopayAgreement, AutopayAttempt, AutopayInstallment  # noqa: E402,F401

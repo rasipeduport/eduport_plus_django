@@ -33,6 +33,11 @@ export default function AuthProvider({ children }) {
         return;
       }
 
+      if (meResponse.data.must_change_password) {
+        navigate('/change-password', { replace: true });
+        return;
+      }
+
       const profiles = meResponse.data.student_profiles || [];
       const selected = meResponse.data.student_profile || null;
       // Only 'EXPIRED' blocks access (a terminal exit state); 'INACTIVE' is a
@@ -86,7 +91,7 @@ export default function AuthProvider({ children }) {
           console.error('Failed to load dashboard stats', err);
         }
       }
-    } catch (error) {
+    } catch {
       setUser(null);
       setStudents([]);
       setStudentProfile(null);
@@ -142,6 +147,8 @@ export default function AuthProvider({ children }) {
       </div>
     );
   }
+
+  if (!user || user.must_change_password) return null;
 
   return children({ user, students, studentProfile, stats, reloadStats, switchStudent, logout });
 }

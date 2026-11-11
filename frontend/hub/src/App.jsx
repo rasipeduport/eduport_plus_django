@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AuthProvider from './context/AuthProvider';
+import PaymentReturnPage from './pages/PaymentReturnPage';
+import AutopayActionPage from './pages/AutopayActionPage';
 import SidebarLayout from './layout/SidebarLayout';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -262,6 +264,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/payment-return" element={<PaymentReturnPage />} />
+        <Route path="/autopay/confirm/:token" element={<AutopayActionPage />} />
         {/* A temporary password must be replaced before anything else: this
             page stands alone (no sidebar), and every other Hub route sends an
             account with must_change_password here. The API enforces the same. */}

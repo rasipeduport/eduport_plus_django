@@ -44,7 +44,7 @@ function formatMoment(value) {
  * slow to wait for. The API does the reading and the arithmetic; this only
  * reports what came back and asks the page to repaint.
  */
-function QuotaBar({ quota, studentId, canSync, onSynced }) {
+function QuotaBar({ quota, studentId, canSync, onSynced, paymentManaged = false }) {
   const [syncing, setSyncing] = useState(false);
   // { tone: 'success' | 'warning' | 'destructive', text } or null. Inline
   // rather than a toast, matching how every dialog in the Hub reports.
@@ -89,7 +89,7 @@ function QuotaBar({ quota, studentId, canSync, onSynced }) {
         ) : null
       }
       fields={[
-        { label: 'Purchased', value: `${formatNumber(purchased)} hrs` },
+        { label: paymentManaged ? 'Paid quota' : 'Purchased', value: `${formatNumber(purchased)} hrs` },
         { label: 'Used', value: `${formatNumber(used)} hrs` },
         {
           label: 'Remaining',
@@ -110,9 +110,9 @@ function QuotaBar({ quota, studentId, canSync, onSynced }) {
         </div>
         <p className="text-muted-foreground mt-2 text-xs">
           {purchased === 0
-            ? 'Nothing paid for yet — set "No of classes paid for" in the enrolment sheet before booking classes.'
+            ? paymentManaged ? 'No paid class quota available.' : 'Nothing paid for yet — set "No of classes paid for" in the enrolment sheet before booking classes.'
             : over
-              ? `Over the purchased quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
+              ? `Over the ${paymentManaged ? 'paid' : 'purchased'} quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
               : `${formatNumber(used)} of ${formatNumber(purchased)} hrs booked. Cancelled classes are not counted.`}
         </p>
         {notice ? (
@@ -232,7 +232,7 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
       ? {
           label: 'Quota remaining',
           value: `${formatNumber(quota.remaining_hours)} hrs`,
-          hint: `of ${formatNumber(quota.purchased)} hrs purchased`,
+          hint: `of ${formatNumber(quota.purchased)} hrs ${student.quota_source === 'PAYMENTS' ? 'paid' : 'purchased'}`,
           tone: quota.remaining_hours <= 0 ? 'destructive' : quota.remaining_hours <= 2 ? 'warning' : 'default',
         }
       : {
@@ -335,9 +335,10 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
         <FieldCard title="Assigned staff" fields={staffFields} />
         {quota ? (
           <QuotaBar
+            paymentManaged={student.quota_source === 'PAYMENTS'}
             quota={quota}
             studentId={student.id}
-            canSync={can(user, PERMISSIONS.syncStudentQuota)}
+            canSync={student.quota_source !== 'PAYMENTS' && can(user, PERMISSIONS.syncStudentQuota)}
             onSynced={onSynced}
           />
         ) : null}

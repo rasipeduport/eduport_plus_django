@@ -74,16 +74,19 @@ class FollowUpType(TextChoices):
     PRE_ACTIVITY_CALL = 'PRE_ACTIVITY_CALL', 'Pre-activity call'
     TUTOR_REPORT = 'TUTOR_REPORT', 'Share tutor report'
     REDEMO_CONFIRMATION = 'REDEMO_CONFIRMATION', 'Re-Demo confirmation'
+    TOKEN_TUITION = 'TOKEN_TUITION', 'Collect token reservation tuition'
 
 
 class FollowUpState(TextChoices):
     DUE_TODAY = 'DUE_TODAY', 'Due today'
     PENDING = 'PENDING', 'Pending'
+    OVERDUE = 'OVERDUE', 'Overdue'
 
 
 TODAY, UPCOMING = 'today', 'upcoming'
-DUE_FILTERS = (TODAY, UPCOMING)
+DUE_FILTERS = (TODAY, UPCOMING, 'overdue')
 _DUE_STATES = {TODAY: FollowUpState.DUE_TODAY, UPCOMING: FollowUpState.PENDING}
+_DUE_STATES['overdue'] = FollowUpState.OVERDUE
 _TYPE_ORDER = {value: index for index, value in enumerate(FollowUpType.values)}
 
 # How long the reminders an event starts are shown: a new enquiry's call from
@@ -109,6 +112,7 @@ class Item:
     # The parent confirmation's request message, once the parent was asked.
     request: Message = None
     actions: dict = field(default_factory=dict)
+    reservation: dict = None
 
 
 # ---------------------------------------------------------------- reading
@@ -147,10 +151,40 @@ def open_items(user, now, request=None, enquiry=None):
     ]
     if can[VIEW_OWN_LEAD_REPORTS]:
         items += _reports(user, now, enquiry)
+    if has_app_permission(user, 'accounts.manage_initial_sales', request):
+        items += _token_reservations(user, now, enquiry)
     end_of_today = _today_bounds(now)[1]
     for item in items:
-        item.state = FollowUpState.DUE_TODAY if item.due_at < end_of_today else FollowUpState.PENDING
+        if not item.state:
+            item.state = FollowUpState.DUE_TODAY if item.due_at < end_of_today else FollowUpState.PENDING
     return sorted(items, key=lambda item: (item.due_at, _TYPE_ORDER[item.type], str(item.id)))
+
+
+def _token_reservations(user, now, enquiry=None):
+    # Derived from one reservation row: no reminder jobs or duplicate records.
+    # A reassigned enquiry requires Admin review; it cannot leak back to its former owner.
+    from sales.payment_models import Sale
+    from sales.payments import received, token_state
+    from sales.quotes import _collection_amount, latest_quote
+    from sales.pricing import plain
+    reservations = Sale.objects.filter(kind='TOKEN', student__isnull=True, original_bde=user,
+                                       enquiry__owner_bde=user).select_related('enquiry')
+    if enquiry:
+        reservations = reservations.filter(enquiry_id=enquiry)
+    items = []
+    for sale in reservations:
+        paid = received(sale)
+        if not paid['token']:
+            continue
+        state = token_state(sale, paid, indian_today(now))
+        quote = latest_quote(sale.enquiry)
+        balance = _collection_amount(quote) - paid['amount'] if quote and quote.status == 'ISSUED' and quote.currency == 'AED' else None
+        due = datetime.combine(sale.expected_start_date - timedelta(days=3), time(hour=9), tzinfo=BOOKING_TIMEZONE)
+        items.append(Item(FollowUpType.TOKEN_TUITION, sale.pk, sale.enquiry, due,
+                          state={'OVERDUE': FollowUpState.OVERDUE, 'DUE': FollowUpState.DUE_TODAY, 'UPCOMING': FollowUpState.PENDING}[state],
+                          reservation={'reference': sale.reservation_reference, 'expected_start_date': sale.expected_start_date.isoformat(),
+                                       'token_status': state, 'payment_status': 'SUCCEEDED', 'remaining_amount': plain(balance)}))
+    return items
 
 
 def _enquiry_calls(user, now, enquiry):
@@ -259,7 +293,10 @@ def _reports(user, now, enquiry):
 def summary(items):
     """How many of ``items`` are due today and later, and how many in all."""
     states = Counter(item.state for item in items)
-    return {'total': len(items), TODAY: states[FollowUpState.DUE_TODAY], UPCOMING: states[FollowUpState.PENDING]}
+    result = {'total': len(items), TODAY: states[FollowUpState.DUE_TODAY], UPCOMING: states[FollowUpState.PENDING]}
+    if any(item.type == FollowUpType.TOKEN_TUITION for item in items):
+        result['overdue'] = states[FollowUpState.OVERDUE]
+    return result
 
 
 def filtered(items, due=None, follow_up_type=None):
@@ -280,6 +317,7 @@ def row(item, now):
     lead = item.lead
     booking = item.booking
     return {
+        **({'reservation': item.reservation} if item.reservation else {}),
         'id': str(item.id),
         'type': item.type,
         'type_label': FollowUpType(item.type).label,

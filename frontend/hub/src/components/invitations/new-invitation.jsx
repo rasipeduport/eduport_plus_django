@@ -227,8 +227,7 @@ function InvitationForm({ className, onSuccess }) {
     setError('');
     setSuccess('');
 
-    // Unlike the Hub, this backend does not re-read the enrolment sheet on
-    // create -- the verified record is forwarded as the invitation payload.
+    // The backend re-reads the enrollment sheet before issuing credentials.
     const payload = {
       role: 'student',
       email: verifiedStudent.email,

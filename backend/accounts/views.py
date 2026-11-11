@@ -9,12 +9,11 @@ from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 
 from students.models import Student
 from activity.models import ActivityLog
@@ -27,7 +26,6 @@ from core.students import (
     EP_STUDENT_COOKIE,
 )
 from .serializers import UserSerializer, StudentSerializer
-from .services import UserProvisioningService
 from .models import RoleChoices, normalize_username
 from .throttles import LoginIPThrottle, PasswordChangeThrottle
 
@@ -47,24 +45,8 @@ LOGIN_FAILED_RESPONSE = {
     "message": "Invalid username or password.",
 }
 
-# Google sign-in is for students only (Learn). Staff -- Admin, Mentor and Tutor
-# accounts, and any superuser or Django-admin account -- sign in to the Hub with
-# their username and password, whichever app or client sends the credential.
-# The caller has just proven they own the Google account, so the answer may
-# say which kind of account it is.
-GOOGLE_STAFF_REFUSED_RESPONSE = {
-    "error": "GOOGLE_SIGN_IN_STUDENTS_ONLY",
-    "message": "Google sign-in is only for students. Staff sign in to the Hub with their username and password.",
-}
-
-
 def is_student_account(user):
-    """Whether Google sign-in may open a session for ``user``: plain student accounts only."""
     return user.role == RoleChoices.STUDENT and not user.is_superuser and not user.is_staff
-
-
-class StaffInvitationRefused(Exception):
-    """Raised inside the provisioning transaction to undo a staff account."""
 
 
 def build_student_payload(request, user):
@@ -97,8 +79,7 @@ def csrf_token_for(request):
 
 # The backend recorded in new sessions; get_user() loads the user through it on
 # every later request. Named explicitly because two backends are configured
-# (settings.AUTHENTICATION_BACKENDS) and Google sign-in never calls
-# authenticate(), so login() could not pick one by itself.
+# (settings.AUTHENTICATION_BACKENDS) and login() must choose the session backend explicitly.
 SESSION_BACKEND = 'accounts.backends.LockoutModelBackend'
 
 
@@ -114,187 +95,6 @@ def establish_session(request, user):
     login(request, user, backend=SESSION_BACKEND)
 
 
-def verify_google_token(token: str) -> dict:
-    """
-    Verifies a Google ID token (Learn's student sign-in, kept until Phase 7)
-    against the configured OAuth client id and returns its email, name and
-    picture claims.
-    """
-    client_id = getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')
-
-    if not client_id:
-        raise ValueError("GOOGLE_OAUTH_CLIENT_ID settings parameter is not configured.")
-
-    try:
-        id_info = id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            client_id,
-            clock_skew_in_seconds=10
-        )
-        return {
-            "email": id_info.get("email"),
-            "name": id_info.get("name"),
-            "picture": id_info.get("picture")
-        }
-    except Exception as e:
-        logger.error(f"Google ID Token verification exception: {e}")
-        raise ValueError(f"Google token verification failed: {str(e)}")
-
-@method_decorator(csrf_protect, name='dispatch')
-class GoogleLoginView(APIView):
-    """
-    Accepts Google OAuth ID Token (credential JWT), validates against Google servers,
-    provisions the user if they are whitelisted via an Invitation, and logs them in.
-
-    Kept for Learn's student sign-in until Phase 7. Staff never sign in here:
-    an existing staff account is refused before any session exists, and a
-    staff invitation is never redeemed (see GOOGLE_STAFF_REFUSED_RESPONSE).
-    Login CSRF is enforced the same way as the password login: the SPA primes
-    the token through GET /api/auth/csrf/ before its first POST.
-    """
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    @method_decorator(ensure_csrf_cookie)  # Sets CSRF cookie on login call
-    def post(self, request, *args, **kwargs):
-        token = request.data.get("credential")
-        if not token:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "Google credential token is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            google_claims = verify_google_token(token)
-        except ValueError as e:
-            return Response(
-                {"error": "INVALID_CREDENTIAL", "message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        email = google_claims["email"]
-        name = google_claims["name"]
-        picture = google_claims["picture"]
-
-        # Check if the email exists in the Invitations table (whitelisted_emails)
-        from invitations.models import Invitation
-        if not Invitation.objects.filter(email=email).exists():
-            return Response(
-                {
-                    "error": "ACCESS_RESTRICTED",
-                    "message": "Access Restricted\n\nYour email is not authorized to access EduPlus.\n\nPlease contact your administrator for access."
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-
-
-        # Search for existing user
-        user = User.objects.filter(email=email).first()
-        is_new_user = False
-
-        if user and not is_student_account(user):
-            log_activity(
-                action="user.sign_in_failed",
-                entity_type="profile",
-                entity_id=str(user.id),
-                entity_label=user.full_name or user.username,
-                actor=user,
-                context={"reason": "google_staff_account"},
-                request=request,
-            )
-            return Response(GOOGLE_STAFF_REFUSED_RESPONSE, status=status.HTTP_403_FORBIDDEN)
-
-        if not user:
-            # First login: Onboard user using UserProvisioningService
-            try:
-                # The pending invitation decides the role. One for staff is
-                # never redeemed through Google: the account it created is
-                # rolled back and the invitation stays pending.
-                with transaction.atomic():
-                    user = UserProvisioningService.provision_user(
-                        email=email,
-                        google_name=name,
-                        google_avatar=picture
-                    )
-                    if not is_student_account(user):
-                        raise StaffInvitationRefused()
-                is_new_user = True
-            except StaffInvitationRefused:
-                logger.warning(f"Refused Google sign-in for {email}: a staff invitation is not redeemed through Google.")
-                return Response(GOOGLE_STAFF_REFUSED_RESPONSE, status=status.HTTP_403_FORBIDDEN)
-            except ValueError as e:
-                # Returned if no pending invitation exists, or if student code is missing
-                return Response(
-                    {"error": "INVITATION_REQUIRED", "message": str(e)},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            except Exception as e:
-                logger.error(f"Error provisioning user {email}: {e}")
-                return Response(
-                    {"error": "PROVISIONING_FAILED", "message": "Failed to provision user profile."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        # Handle active check
-        if not user.is_active:
-            return Response(
-                {"error": "USER_DISABLED", "message": "This account is inactive. Please contact admin."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # For existing student accounts, attach any children invited since their
-        # last login (new students provisioned above already have theirs).
-        if not is_new_user and user.role == 'STUDENT':
-            try:
-                UserProvisioningService.attach_pending_students(user, name)
-            except ValueError as e:
-                logger.warning(f"Could not attach pending students for {email}: {e}")
-
-        # Log session in Django (rotates the session key)
-        establish_session(request, user)
-
-        # If user existed, update avatar if Google provided a new one
-        if not is_new_user and picture and user.avatar_url != picture:
-            user.avatar_url = picture
-            user.save(update_fields=['avatar_url'])
-
-        # Write the sign-in to ActivityLog (a new user already gets a user.onboarded log)
-        if not is_new_user:
-            student = Student.objects.filter(profile=user).first()
-            ActivityLog.objects.create(
-                actor=user,
-                actor_email=user.email,
-                actor_name=user.full_name,
-                actor_role=user.role,
-                action="user.sign_in",
-                entity_type="profile",
-                entity_id=str(user.id),
-                entity_label=user.full_name or user.email,
-                student=student
-            )
-
-        # Serialize user response details
-        user_serializer = UserSerializer(user)
-        response_data = {
-            "status": "authenticated" if not is_new_user else "onboarded",
-            "is_new_user": is_new_user,
-            "user": user_serializer.data,
-        }
-
-        # Include Student specific info if applicable
-        if user.role == 'STUDENT':
-            response_data.update(build_student_payload(request, user))
-
-        # login() rotated the CSRF secret; hand the SPA the new token.
-        response_data["csrf_token"] = csrf_token_for(request)
-
-        return Response(
-            response_data,
-            status=status.HTTP_201_CREATED if is_new_user else status.HTTP_200_OK
-        )
-
 class CsrfTokenView(APIView):
     """
     GET /api/auth/csrf/ -- issues the CSRF cookie and returns the matching
@@ -309,6 +109,7 @@ class CsrfTokenView(APIView):
         return Response({"csrf_token": csrf_token_for(request)}, status=status.HTTP_200_OK)
 
 
+@method_decorator(sensitive_post_parameters('password'), name='dispatch')
 @method_decorator(csrf_protect, name='dispatch')
 class LoginView(APIView):
     """
@@ -322,7 +123,7 @@ class LoginView(APIView):
         login uses too; a per-address rate limit (LoginIPThrottle) sits in
         front of it;
       * student accounts are refused here, and only here: they sign in to
-        Learn with Google;
+        Learn through its dedicated username/password endpoint;
       * login CSRF enforced with csrf_protect; the SPA primes the token via
         GET /api/auth/csrf/;
       * Django's login() rotates the session key.
@@ -349,7 +150,7 @@ class LoginView(APIView):
 
         # Checked after the password, so a student account costs the same
         # hashing as any other and its refusal looks the same.
-        if user.role == RoleChoices.STUDENT:
+        if not self.accepts_user(user):
             log_activity(
                 action="user.sign_in_failed",
                 entity_type="profile",
@@ -383,6 +184,9 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    def accepts_user(self, user):
+        return user.role != RoleChoices.STUDENT
+
     @staticmethod
     def _invalid_input():
         return Response(
@@ -391,6 +195,16 @@ class LoginView(APIView):
         )
 
 
+class LearnLoginView(LoginView):
+    """Same session, CSRF, lockout and throttling as Hub; student accounts only."""
+    def accepts_user(self, user):
+        from invitations.models import Invitation
+        return is_student_account(user) and Invitation.objects.filter(
+            account=user, student__profile=user, role='STUDENT',
+            status__in=['PENDING', 'ACCEPTED']).exists()
+
+
+@method_decorator(sensitive_post_parameters('current_password', 'new_password'), name='dispatch')
 class ChangePasswordView(APIView):
     """
     POST /api/auth/change-password/ -- the signed-in user sets a new password.
@@ -402,6 +216,7 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [PasswordChangeThrottle]
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         current = request.data.get("current_password")
         new = request.data.get("new_password")
@@ -411,7 +226,7 @@ class ChangePasswordView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = request.user
+        user = User.objects.select_for_update().get(pk=request.user.pk)
         if not user.check_password(current):
             return Response(
                 {"error": "INVALID_CURRENT_PASSWORD", "message": "The current password is incorrect."},
@@ -438,6 +253,9 @@ class ChangePasswordView(APIView):
         user.must_change_password = False
         user.password_changed_at = timezone.now()
         user.save(update_fields=['password', 'must_change_password', 'password_changed_at', 'updated_at'])
+        from invitations.models import Invitation
+        Invitation.objects.filter(account=user, student__profile=user).update(
+            status='ACCEPTED', activated_at=timezone.now(), credential_ciphertext='', updated_at=timezone.now())
         # Re-key this session to the new hash so it survives; all others die.
         update_session_auth_hash(request._request, user)
 
@@ -465,7 +283,7 @@ class LogoutView(APIView):
         student = Student.objects.filter(profile=user).first() if user.role == 'STUDENT' else None
         ActivityLog.objects.create(
             actor=user,
-            actor_email=user.email,
+            actor_email=user.email or None,
             actor_name=user.full_name,
             actor_role=user.role,
             action="user.sign_out",
@@ -504,7 +322,7 @@ class MeView(APIView):
             "csrf_token": csrf_token_for(request),
         }
 
-        if user.role == 'STUDENT':
+        if user.role == 'STUDENT' and not user.must_change_password:
             response_data.update(build_student_payload(request, user))
 
         return Response(response_data, status=status.HTTP_200_OK)

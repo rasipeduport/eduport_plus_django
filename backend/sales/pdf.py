@@ -24,6 +24,7 @@ syllabus_pdf removes it as soon as the PDF is written.
 """
 import mimetypes
 import shutil
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
@@ -140,6 +141,15 @@ def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False, se
     ]
     pages = [rows[start:start + rows_per_page] for start in range(0, len(rows), rows_per_page)]
     totals = chapter_totals(shown)
+    collection_packages = []
+    if quote and quote.get('collection_amount') is not None and cards:
+        raw_total = sum((card.total - (card.single_payment[1] if card.single_payment else 0) for card in cards), Decimal('0'))
+        cumulative, allocated = Decimal('0'), Decimal('0')
+        for card in cards:
+            cumulative += card.total - (card.single_payment[1] if card.single_payment else 0)
+            target = (Decimal(quote['collection_amount']) * cumulative / raw_total).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+            collection_packages.append({'title': card.title, 'classes_label': classes_label(card.classes), 'amount': amount(target - allocated, currency)})
+            allocated = target
     return {
         'title': content['title'],
         'subtitle': subtitle_of(content),
@@ -173,6 +183,7 @@ def pdf_context(content, pricing, rows_per_page=ROWS_PER_PAGE, compact=False, se
         ],
         'inclusions': content['inclusions'],
         'quote': quote,
+        'collection_packages': collection_packages,
     }
 
 

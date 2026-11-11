@@ -71,8 +71,7 @@ class UserManager(BaseUserManager):
         """
         A unique username from an email's local part: ``jane.doe``, then
         ``jane.doe2``, ``jane.doe3``... Used wherever an account is created
-        without an explicit username (Google provisioning for Learn, legacy
-        fixtures that only know an email).
+        without an explicit username (legacy fixtures that only know an email).
         """
         base = derive_username_base(email)
         candidate = base
@@ -84,9 +83,11 @@ class UserManager(BaseUserManager):
         return candidate
 
     def create_user(self, email=None, password=None, username=None, **extra_fields):
-        if not email:
+        if not email and extra_fields.get('role', RoleChoices.STUDENT) != RoleChoices.STUDENT:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
+        email = self.normalize_email(email) if email else None
+        if not email and not username:
+            raise ValueError('A student username must be set')
         username = normalize_username(username) if username else self.derive_username(email)
         extra_fields.setdefault('is_active', True)
         user = self.model(username=username, email=email, **extra_fields)
@@ -112,15 +113,14 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # The sign-in identifier (USERNAME_FIELD). Email stays unique and required:
-    # invitations, the enrolment sheet and the activity snapshots key on it.
+    # Email is optional for students; username is their enrollment identity.
     username = models.CharField(
         max_length=USERNAME_MAX_LENGTH,
         unique=True,
         validators=[UnicodeUsernameValidator()],
         help_text=USERNAME_HELP_TEXT,
     )
-    email = models.EmailField(unique=True, db_index=True)
+    email = models.EmailField(unique=True, db_index=True, null=True, blank=True)
     full_name = models.CharField(max_length=255, blank=True, null=True)
     avatar_url = models.URLField(max_length=1024, blank=True, null=True)
     role = models.CharField(
@@ -237,7 +237,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.email} ({self.role})"
+        return f"{self.username} ({self.role})"
 
 
 # The staff roles that carry a role group. Students never do: Learn has no

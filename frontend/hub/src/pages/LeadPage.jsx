@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EnquirySalesPayment } from '@/components/enquiries/workspace/enquiry-sales-payment';
+import { EnquiryPlanChoosing } from '@/components/enquiries/workspace/enquiry-plan-choosing';
 import {
   ArrowLeftIcon,
   CalendarDaysIcon,
@@ -139,6 +142,7 @@ function Unavailable({ failure }) {
  * which every booking's Student Time follows.
  */
 export default function LeadPage({ user }) {
+  const [params, setParams] = useSearchParams();
   const { leadId } = useParams();
   const canAssign = can(user, PERMISSIONS.assignLeadOwner);
   const canOpenBookings = can(user, PERMISSIONS.viewAllBookings);
@@ -322,7 +326,14 @@ export default function LeadPage({ user }) {
         </Button>
         {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
       </div>
-      {content}
+      {lead && can(user, PERMISSIONS.manageInitialSales) ? (
+        <Tabs value={['overview', 'plan-choosing', 'sales'].includes(params.get('tab')) ? params.get('tab') : 'overview'} onValueChange={(tab) => { const next = new URLSearchParams(params); next.set('tab', tab); setParams(next); }}>
+          <TabsList variant="line"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="plan-choosing">Plan Choosing</TabsTrigger><TabsTrigger value="sales">Sales &amp; Payment</TabsTrigger></TabsList>
+          <TabsContent value="overview">{content}</TabsContent>
+          <TabsContent value="plan-choosing"><p className="mb-4 font-medium">{lead.student_name} · Parent: {lead.parent_name}</p><EnquiryPlanChoosing enquiry={lead} /></TabsContent>
+          <TabsContent value="sales"><p className="mb-4 font-medium">{lead.student_name} · Parent: {lead.parent_name}</p><EnquirySalesPayment enquiryId={lead.id} enquiry={lead} user={user} /></TabsContent>
+        </Tabs>
+      ) : content}
       {canAssign && lead ? (
         <AssignOwnerDialog
           lead={lead}

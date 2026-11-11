@@ -18,11 +18,9 @@ User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
-# Staff stopped signing in with Google, so they are no longer invited: Admin,
-# Mentor and Tutor accounts are created in Team (accounts/team.py) with a
-# username and a temporary password. Invitations are for students only. A
-# legacy staff invitation stays on record -- listed, and withdrawable -- but is
-# never created, edited or re-sent again, and Google sign-in never redeems it.
+# Staff accounts are managed in Team. Student credentials are issued at
+# enrollment or authorized Sheets import. Legacy email invitations remain
+# historical records and cannot provision accounts through Google.
 STAFF_INVITATIONS_RETIRED = {
     "error": "STAFF_INVITATIONS_RETIRED",
     "message": "Staff are no longer invited. Create their account in Team with a username and a temporary password.",
@@ -119,39 +117,10 @@ class LookupStudentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        email = student_data.get("email")
-        if not email:
-            return Response(
-                {"error": "MISSING_EMAIL", "message": "Student record found in sheet but email address is missing."},
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
-
+        email = student_data.get("email") or ''
         student_code = student_data.get("student_code")
-
-        # If this exact child is already enrolled, there is nothing to invite.
         if student_code and Student.objects.filter(student_code=student_code).exists():
-            return Response(
-                {
-                    "error": "STUDENT_ALREADY_ONBOARDED",
-                    "message": f"A student with code '{student_code}' is already enrolled.",
-                    "student_data": student_data
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # A parent account (role STUDENT) may own several children, so a
-        # registered STUDENT email is fine — only a staff account blocks reuse.
-        clashing_user = User.objects.filter(email=email).first()
-        if clashing_user and clashing_user.role != InvitationRoleChoices.STUDENT:
-            return Response(
-                {
-                    "error": "USER_ALREADY_REGISTERED",
-                    "message": f"A user with email '{email}' is already registered in the system.",
-                    "student_data": student_data
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+            return Response({"error": "STUDENT_ALREADY_ONBOARDED", "message": "Student already enrolled. Issue Learn credentials from their invitation row."}, status=400)
         # A pending invitation for THIS child can be edited rather than recreated.
         invitation = _find_student_invitation(email, student_code)
         if invitation:
@@ -193,13 +162,27 @@ class LookupStudentView(APIView):
 
 
 
+def invitation_data(inv):
+    student = inv.student
+    # Historical rows can be explicitly transitioned by Admin without
+    # re-enrolling or duplicating academic/payment records.
+    if not student and inv.role == 'STUDENT':
+        student = Student.objects.filter(student_code=(inv.extra_data or {}).get('student_code')).first()
+    return {
+        'id': str(inv.pk), 'email': inv.email, 'role': inv.role, 'status': inv.status,
+        'student_id': str(student.pk) if student else None,
+        'student_name': student.full_name if student else (inv.extra_data or {}).get('full_name', ''),
+        'student_code': student.student_code if student else (inv.extra_data or {}).get('student_code', ''),
+        'username': inv.account.username if inv.account_id else None,
+        'credentials_available': bool(inv.account_id and inv.account.must_change_password and inv.credential_ciphertext),
+        'legacy': not bool(inv.account_id), 'activated_at': inv.activated_at,
+        'created_at': inv.created_at, 'extra_data': inv.extra_data,
+        'invited_by': str(inv.invited_by_id) if inv.invited_by_id else None,
+        'invited_by_profile': {'id': str(inv.invited_by_id), 'full_name': inv.invited_by.full_name, 'email': inv.invited_by.email} if inv.invited_by_id else None,
+    }
+
+
 class CreateInvitationView(APIView):
-    """
-    Step 2: the inviter selects Mentor/Tutor/Meet Link and submits to create invitation whitelisting for students.
-    Staff are no longer invited (STAFF_INVITATIONS_RETIRED).
-    Also supports listing, editing, and deleting whitelist invitations. Each
-    method has its own permission; mentors hold none of them (decision D4).
-    """
     permission_classes = [IsAuthenticated, ByMethod(
         GET=HasAppPermission('accounts.view_invitations'),
         POST=HasAppPermission('accounts.create_invitation'),
@@ -207,319 +190,98 @@ class CreateInvitationView(APIView):
         DELETE=HasAppPermission('accounts.withdraw_invitation'),
     )]
 
-    def get(self, request, *args, **kwargs):
-        invitations = Invitation.objects.all().order_by('-created_at')
-        data = []
-        for inv in invitations:
-            invited_by_profile = None
-            if inv.invited_by:
-                invited_by_profile = {
-                    "id": str(inv.invited_by.id),
-                    "full_name": inv.invited_by.full_name or "",
-                    "email": inv.invited_by.email
-                }
-            data.append({
-                "id": str(inv.id),
-                "email": inv.email,
-                "role": inv.role,
-                "status": inv.status,
-                "created_at": inv.created_at.isoformat(),
-                "invited_by": inv.invited_by.id if inv.invited_by else None,
-                "invited_by_profile": invited_by_profile,
-                "extra_data": inv.extra_data
-            })
-        return Response(data, status=status.HTTP_200_OK)
+    def get(self, request):
+        return Response([invitation_data(inv) for inv in Invitation.objects.select_related(
+            'student', 'account', 'invited_by').all()])
 
-    def post(self, request, *args, **kwargs):
+    @transaction.atomic
+    def post(self, request):
+        """Keep the authorized Sheets enrollment import, now issuing credentials
+        immediately rather than provisioning academics at a Google login.
+        Phase 1 tuition enrollment calls the same credential service directly.
+        """
+        if str(request.data.get('role', 'STUDENT')).upper() != 'STUDENT':
+            return Response(STAFF_INVITATIONS_RETIRED, status=400)
+        from .credentials import new_account, create_invitation, issue_existing_student
+        from accounts.services import parse_admission_date
+        code = str(request.data.get('student_code', '')).strip()
+        if not code:
+            return Response({'error': 'INVALID_INPUT', 'message': 'student_code is required.'}, status=400)
+        # Serialize absent-row creation; class quota is always read server-side.
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))', ['learn-sheet-student', code])
+        student = Student.objects.filter(student_code=code).first()
+        if student:
+            inv = issue_existing_student(student.pk, request.user, request)
+            return Response({'invitation': invitation_data(inv)})
         data = request.data
-        role = data.get("role", "STUDENT").upper()
-        email = data.get("email")
+        if not data.get('full_name'):
+            return Response({'error': 'INVALID_INPUT', 'message': 'full_name is required.'}, status=400)
+        assignments = {}
+        for field, role in [('mentor', 'MENTOR'), ('tutor', 'TUTOR')]:
+            pk = request.data.get(f'{field}_id')
+            if pk and not User.objects.filter(pk=pk, role=role, is_active=True, deactivated_at__isnull=True).exists():
+                return Response({'error': f'INVALID_{role}', 'message': f'Select an active {field}.'}, status=400)
+            assignments[f'{field}_id'] = pk or None
+        account, password = new_account(code, data.get('full_name') or code, request.user)
+        student = Student.objects.create(
+            profile=account, student_code=code, full_name=data.get('full_name') or code,
+            **{key: data.get(key) or None for key in ['mobile_number', 'country', 'state', 'school_name', 'grade', 'syllabus']},
+            admission_date=parse_admission_date(data.get('admission_date')),
+            total_class_quota=_sheet_quota_for(code), **assignments,
+            meet_link=request.data.get('meet_link') or None)
+        legacy = Invitation.objects.filter(role='STUDENT', student__isnull=True, extra_data__student_code=code).first()
+        inv = create_invitation(student, account, password, request.user, invitation=legacy,
+                                extra_data={'source': 'SHEETS_ENROLLMENT', 'total_class_quota': str(student.total_class_quota)})
+        return Response({'status': 'created', 'message': 'Learn invitation created. Retrieve initial credentials in Invitations.', 'invitation': invitation_data(inv)}, status=201)
 
-        if role not in ("STUDENT", "MENTOR", "TUTOR", "ADMIN"):
-            return Response(
-                {"error": "INVALID_ROLE", "message": "Invalid invitation role specified."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def patch(self, request):
+        return Response({'error': 'EMAIL_INVITATIONS_RETIRED', 'message': 'Learn invitations use student usernames. Email changes do not issue or resend credentials.'}, status=410)
 
-        if not email or not email.strip():
-            return Response(
-                {"error": "INVALID_INPUT", "message": "email is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def delete(self, request):
+        inv = Invitation.objects.filter(pk=request.data.get('id')).first() if request.data.get('id') else Invitation.objects.filter(email=request.data.get('email')).first()
+        if not inv:
+            return Response({'error': 'NOT_FOUND'}, status=404)
+        if inv.student_id or inv.account_id or inv.status == 'ACCEPTED':
+            return Response({'error': 'INVITATION_RETAINED', 'message': 'Enrolled student credentials and invitation history cannot be withdrawn.'}, status=400)
+        log_activity('invitation.delete', 'invitation', inv.pk, request=request)
+        inv.delete()
+        return Response({'status': 'deleted', 'message': f"Invitation for {request.data.get('email')} has been withdrawn."})
 
-        email = email.strip().lower()
 
-        # Create or update the Invitation whitelist record
-        with transaction.atomic():
-            if role == "STUDENT":
-                student_code = data.get("student_code")
-                full_name = data.get("full_name")
-                if not student_code or not full_name:
-                    return Response(
-                        {"error": "INVALID_INPUT", "message": "student_code and full_name are required fields for students."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+class InvitationCredentialsView(APIView):
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.view_invitations'),
+                          HasAppPermission('accounts.change_invitation')]
 
-                # The exact child (by code) must not already be enrolled.
-                if Student.objects.filter(student_code=student_code).exists():
-                    return Response(
-                        {"error": "STUDENT_ALREADY_ONBOARDED", "message": f"A student with code '{student_code}' is already enrolled."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+    @transaction.atomic
+    def post(self, request, pk):
+        from .credentials import reveal_credentials
+        inv = Invitation.objects.filter(pk=pk).first()
+        if not inv or not inv.account_id:
+            return Response({'error': 'CREDENTIALS_UNAVAILABLE'}, status=404)
+        # Consistent account -> invitation locking with password change.
+        User.objects.select_for_update().get(pk=inv.account_id)
+        inv = Invitation.objects.select_for_update(of=('self',)).select_related('account', 'student').get(pk=pk)
+        password = reveal_credentials(inv)
+        if password is None:
+            return Response({'error': 'CREDENTIALS_ACTIVATED', 'message': 'The account is activated. Its temporary password has been erased.'}, status=409)
+        log_activity('invitation.credentials_revealed', 'invitation', inv.pk,
+                     student=inv.student, request=request, entity_label=inv.student.student_code)
+        response = Response({'username': inv.account.username, 'temporary_password': password,
+                             'student_code': inv.student.student_code})
+        response['Cache-Control'] = 'no-store, private'
+        response['Pragma'] = 'no-cache'
+        return response
 
-                # A registered STUDENT email is the parent; only a staff account blocks reuse.
-                clashing_user = User.objects.filter(email=email).first()
-                if clashing_user and clashing_user.role != InvitationRoleChoices.STUDENT:
-                    return Response(
-                        {"error": "USER_ALREADY_REGISTERED", "message": f"User with email '{email}' is already registered."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
 
-                # Assignments must be to ACTIVE staff of the right role
-                # (Hub parity: role='mentor'/'tutor' AND deactivated_at IS
-                # NULL) — deactivated staff can never receive new students.
-                mentor_id = data.get("mentor_id")
-                if mentor_id:
-                    if not User.objects.filter(
-                        id=mentor_id, role='MENTOR',
-                        deactivated_at__isnull=True, is_active=True
-                    ).exists():
-                        return Response(
-                            {"error": "INVALID_MENTOR", "message": f"Mentor with ID '{mentor_id}' is not an active mentor."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+class IssueStudentCredentialsView(APIView):
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.create_invitation')]
 
-                tutor_id = data.get("tutor_id")
-                if tutor_id:
-                    if not User.objects.filter(
-                        id=tutor_id, role='TUTOR',
-                        deactivated_at__isnull=True, is_active=True
-                    ).exists():
-                        return Response(
-                            {"error": "INVALID_TUTOR", "message": f"Tutor with ID '{tutor_id}' is not an active tutor."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                extra_data = {
-                    "student_code": student_code,
-                    "full_name": full_name,
-                    "mobile_number": data.get("mobile_number", ""),
-                    "country": data.get("country", ""),
-                    "state": data.get("state", ""),
-                    "school_name": data.get("school_name", ""),
-                    "grade": data.get("grade", ""),
-                    "syllabus": data.get("syllabus", ""),
-                    "admission_date": data.get("admission_date", ""),
-                    "remarks": data.get("remarks", ""),
-                    "mentor_id": mentor_id,
-                    "tutor_id": tutor_id,
-                    "meet_link": data.get("meet_link", ""),
-                    # Initial class quota, straight from the sheet's
-                    # "No of classes paid for" column. Consumed by
-                    # accounts.services._create_student_from_invitation when
-                    # the parent first signs in, so a newly enrolled student
-                    # can book immediately instead of sitting at 0 until the
-                    # next scheduled sync. The sync remains the source of
-                    # truth for every later change.
-                    "total_class_quota": _sheet_quota_for(student_code),
-                }
-
-                # Match an existing PENDING invitation for THIS child only, so a
-                # second child for the same parent email creates a new record.
-                invitation = _find_student_invitation(email, student_code)
-            else:
-                # Staff roles (ADMIN, MENTOR, TUTOR): see STAFF_INVITATIONS_RETIRED.
-                return Response(STAFF_INVITATIONS_RETIRED, status=status.HTTP_400_BAD_REQUEST)
-
-            if invitation and invitation.status == InvitationStatusChoices.ACCEPTED:
-                return Response(
-                    {"error": "INVITATION_ALREADY_ACCEPTED", "message": "This invitation has already been accepted."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if invitation:
-                invitation.role = role
-                invitation.extra_data = extra_data
-                invitation.invited_by = request.user
-                invitation.status = InvitationStatusChoices.PENDING
-                invitation.save()
-                status_str = "updated"
-                res_status = status.HTTP_200_OK
-            else:
-                invitation = Invitation.objects.create(
-                    email=email,
-                    role=role,
-                    extra_data=extra_data,
-                    invited_by=request.user,
-                    status=InvitationStatusChoices.PENDING
-                )
-                status_str = "created"
-                res_status = status.HTTP_201_CREATED
-
-            # Send invitation email
-            try:
-                from .emails import send_invitation_email
-                send_invitation_email(invitation)
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Failed to send invitation email to {email}: {e}")
-
-            log_activity(
-                action='invitation.create',
-                entity_type='invitation',
-                entity_id=str(invitation.id),
-                entity_label=invitation.email,
-                context={"role": invitation.role},
-                request=request,
-            )
-
-            return Response(
-                {
-                    "status": status_str,
-                    "message": f"Invitation for '{email}' has been successfully {status_str}.",
-                    "invitation": {
-                        "id": invitation.id,
-                        "email": invitation.email,
-                        "role": invitation.role,
-                        "status": invitation.status
-                    }
-                },
-                status=res_status
-            )
-
-    def patch(self, request, *args, **kwargs):
-        # Identify by id when provided (a parent email may have several invites);
-        # fall back to old_email for backward compatibility.
-        invite_id = request.data.get("id")
-        old_email = request.data.get("old_email")
-        new_email = request.data.get("new_email")
-
-        if not new_email or (not invite_id and not old_email):
-            return Response(
-                {"error": "INVALID_INPUT", "message": "new_email and one of id or old_email are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        new_email = new_email.strip().lower()
-
-        if invite_id:
-            invitation = Invitation.objects.filter(id=invite_id).first()
-        else:
-            invitation = Invitation.objects.filter(email=old_email.strip().lower()).first()
-        if not invitation:
-            return Response(
-                {"error": "NOT_FOUND", "message": "Invitation not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # A changed address would re-send a staff invitation nobody can redeem.
-        if invitation.role != InvitationRoleChoices.STUDENT:
-            return Response(STAFF_INVITATIONS_RETIRED, status=status.HTTP_400_BAD_REQUEST)
-
-        if invitation.status == InvitationStatusChoices.ACCEPTED:
-            return Response(
-                {"error": "INVITATION_ALREADY_ACCEPTED", "message": "Cannot edit an accepted invitation."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        old_email_value = invitation.email
-
-        # A genuine duplicate is the SAME child (student_code) under the new email.
-        code = (invitation.extra_data or {}).get("student_code")
-        clash = Invitation.objects.filter(email=new_email).exclude(id=invitation.id)
-        if code:
-            clash = clash.filter(extra_data__student_code=code)
-        if clash.exists():
-            return Response(
-                {"error": "INVITATION_EXISTS", "message": "An invitation for this student with the new email already exists."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # A registered STUDENT email may still own more children; only a staff
-        # account blocks the change.
-        clashing_user = User.objects.filter(email=new_email).first()
-        if clashing_user and clashing_user.role != InvitationRoleChoices.STUDENT:
-            return Response(
-                {"error": "USER_ALREADY_REGISTERED", "message": "A user with the new email is already registered."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        invitation.email = new_email
-        invitation.save()
-
-        # Send invitation email to the new address
+    def post(self, request, pk):
+        from .credentials import issue_existing_student
         try:
-            from .emails import send_invitation_email
-            send_invitation_email(invitation)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Failed to send invitation email to {new_email}: {e}")
-
-        log_activity(
-            action='invitation.update_email',
-            entity_type='invitation',
-            entity_id=str(invitation.id),
-            entity_label=new_email,
-            changes={"email": {"old": old_email_value, "new": new_email}},
-            request=request,
-        )
-
-        return Response({
-            "status": "updated",
-            "message": f"Invitation email updated from {old_email_value} to {new_email}."
-        }, status=status.HTTP_200_OK)
-
-    def delete(self, request, *args, **kwargs):
-        # Identify by id when provided (a parent email may have several invites);
-        # fall back to email for backward compatibility.
-        invite_id = request.data.get("id")
-        email = request.data.get("email")
-        if not invite_id and not email:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "id or email is required in delete payload."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if invite_id:
-            invitation = Invitation.objects.filter(id=invite_id).first()
-        else:
-            invitation = Invitation.objects.filter(email=email.strip().lower()).first()
-        if not invitation:
-            return Response(
-                {"error": "NOT_FOUND", "message": "Invitation not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # A legacy staff invitation is the Team's business: withdrawing one
-        # also takes accounts.manage_team.
-        if invitation.role != InvitationRoleChoices.STUDENT and not has_app_permission(
-            request.user, 'accounts.manage_team', request
-        ):
-            return Response(
-                {"error": "FORBIDDEN", "message": "Only team managers can withdraw staff invitations."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if invitation.status == InvitationStatusChoices.ACCEPTED:
-            return Response(
-                {"error": "INVITATION_ALREADY_ACCEPTED", "message": "Cannot delete an accepted invitation."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        invitation_id = str(invitation.id)
-        invitation_email = invitation.email
-        invitation.delete()
-
-        log_activity(
-            action='invitation.withdraw',
-            entity_type='invitation',
-            entity_id=invitation_id,
-            entity_label=invitation_email,
-            request=request,
-        )
-
-        return Response({
-            "status": "deleted",
-            "message": f"Invitation for {email} has been withdrawn."
-        }, status=status.HTTP_200_OK)
-
+            inv = issue_existing_student(pk, request.user, request)
+        except Student.DoesNotExist:
+            return Response({'error': 'NOT_FOUND'}, status=404)
+        return Response(invitation_data(inv))
