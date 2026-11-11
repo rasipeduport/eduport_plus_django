@@ -1,8 +1,16 @@
 # Permission regression review
 
+> Historical verification report: the results, counts, pass/fail findings and
+> artifact paths below belong to the original pre-Billing permission review.
+> They do not verify the subsequently implemented Stripe Billing P1 fixes or
+> later manual Stripe testing. The former custom retry-policy findings are
+> superseded by the Stripe Billing architecture decision. See the
+> [historical evidence guide](verification/README.md) for scope and the
+> [current Billing integration](stripe-billing-integration.md) for current behavior.
+
 The eight failed assertions/subtests and 91 authorization differences from the Learn report are resolved. The original baseline from `3d56003` and the existing approved decisions were preserved. Production permissions, role groups, API guards and pricing/enrollment implementations were not changed by this review. The corrected expectations are explicit test contracts in `backend/core/phase1_authz_expectations.py`.
 
-The confirmed Autopay retry policy is **not implemented**. It remains a separate Phase 1 completion blocker. The strict Hub UI snapshot failures documented below were not blanket-approved.
+At the time of this review, the former custom PaymentIntent retry acceptance audit failed. That policy has since been superseded by Stripe Billing's native retry/recovery architecture; it is not a current Billing completion blocker. The strict Hub UI snapshot failures recorded in this historical run were not blanket-approved.
 
 ## Baseline comparison and the 91 differences
 
@@ -20,7 +28,7 @@ The review does not calculate expected permissions from current production permi
 
 The [per-case ledger](verification/permission-review-results.json) lists every one of the original 91 cases, its reason, added fields, status and scope comparison. It also records the unchanged original baseline hash. No existing entry in `approved_changes.json` was overwritten during this review.
 
-The complete matrix now covers **239 scenarios**, **2,559 original-caller comparisons** and **696 new-role-world comparisons**. All current API routes are exercised. The fourteen new transport scenarios contribute 154 original-caller comparisons.
+The matrix in this run covered **239 scenarios**, **2,559 original-caller comparisons** and **696 new-role-world comparisons**. All API routes present at that time were exercised. The fourteen new transport scenarios contributed 154 original-caller comparisons.
 
 ## The eight original failed assertions
 
@@ -41,7 +49,7 @@ The first full backend run found one further outdated expectation: `CatalogueTes
 
 The fixture now applies that one explicit label change before comparing the complete final catalogue. An additional test runs the label migration forward/backward and verifies the same permission ID/codename/content type and unchanged group/user grant rows. No historical migration, production grant or permission ceiling was edited.
 
-## Verified security boundaries
+## Security boundaries verified in the original run
 
 - BDE can read/manage an assigned enquiry's initial sale; every tested staff transport returns 404 for another BDE's real enquiry/payment. No unassigned or foreign enquiry becomes accessible by guessing an ID.
 - After enrollment, fresh payment allocation, payment collection, Autopay setup and Checkout expiry/restart are denied. Quote replacement remains blocked by the existing immutable-plan conflict. Historical sale/receipt reads and unchanged idempotent replays remain available, without creating another purchase, payment, student, invitation or quota credit.
@@ -51,9 +59,9 @@ The fixture now applies that one explicit label change before comparing the comp
 - Parent action links require a signed attempt token, expire after seven days and expose a reusable PaymentIntent secret only for the valid corresponding authentication-required collection. Reading a link grants no quota. Failed/pending/authentication-required collections remain uncredited.
 - Learn username/password invitations remain separate from Hub staff login. Hub refuses Student credentials, Learn refuses staff/legacy unissued identities, Google login stays removed, and CSRF/first-login activation tests remain in the full backend regression run.
 
-## Autopay retry acceptance blocker
+## Historical custom PaymentIntent retry finding (superseded)
 
-The agreed behavior is an initial scheduled attempt plus **three retries**, **24 hours apart**, then **pause and Admin follow-up** after the fourth failed attempt. No additional policy confirmation is needed for these stated rules.
+The former custom PaymentIntent policy required an initial scheduled attempt plus **three retries**, **24 hours apart**, then **pause and Admin follow-up** after the fourth failed attempt. These are historical requirements, not the current Stripe Billing acceptance criteria.
 
 The separate acceptance audit deliberately expects that behavior. It advances the clock through all four collection checkpoints and delivers a signed failure after each actual charge. Observed result:
 
@@ -63,13 +71,9 @@ The separate acceptance audit deliberately expects that behavior. It advances th
 | Agreement after failed retry budget | PAUSED | **ACTIVE** |
 | Paid class quota after all failed collections | 2.0 | **2.0**, unchanged |
 
-This audit **fails**, rather than being skipped or marked expected-failure. It is kept separate from the permission regression suite because this review does not implement retries. The repeatable test is [autopay_retry_acceptance.py](verification/autopay_retry_acceptance.py); run its named test with that directory on PYTHONPATH and a disposable test database:
+This audit **failed** in its original run, rather than being skipped or marked expected-failure. Its source is preserved byte-for-byte as an [archived historical script](verification/archive/custom-paymentintent/autopay_retry_acceptance.py). It is not a current acceptance test; its fixture imports have since changed, so executing it against the current checkout would not reproduce the old environment.
 
-```sh
-python manage.py test autopay_retry_acceptance.RetryPolicyAcceptance.test_confirmed_policy_initial_plus_three_retries_then_pause --noinput
-```
-
-`collect_due()` excludes FAILED installments. `prepare_due()` only resumes SUBMITTING/UNKNOWN transport operations with the same attempt/idempotency key. Neither path creates the three business retries, enforces their 24-hour interval/cap, transitions to PAUSED or triggers an exhaustion-specific Admin follow-up. Existing failed-payment attention in Admin and the block on later unpaid installments do not satisfy that retry policy. The API's AWAITING_CONFIRMATION retry-policy label is also stale. These gaps are reported, not silently implemented or accepted as complete.
+In that pre-Billing implementation, `collect_due()` excluded FAILED installments and `prepare_due()` only resumed SUBMITTING/UNKNOWN transport operations with the same attempt/idempotency key. Neither path implemented the former retry budget or exhaustion follow-up, and the API still labeled the policy AWAITING_CONFIRMATION. Those were the gaps recorded by this audit. Current Billing agreements instead delegate recurring invoice collection and retry/recovery to Stripe; the old findings must not be applied to that engine as current acceptance requirements.
 
 ## Hub regressions retained for review
 
@@ -81,7 +85,7 @@ The booking-page suite has 69 failures with the **same failed test names** as th
 
 Two focused obsolete assertions were safely corrected: the Lead booking link now targets the existing direct detail route, and the PDF-sharing test checks the actual safe new-window link behavior instead of a removed help paragraph. The authenticated/local/blob URL prohibition, preview and authenticated download assertions remain intact. No sharing integration or production route was changed.
 
-## Exact final verification
+## Recorded verification results (original run)
 
 | Check | Final result |
 | --- | --- |
@@ -100,14 +104,14 @@ Two focused obsolete assertions were safely corrected: the Lead booking link now
 
 The initial full run executed 1,340 tests in 680.921 seconds with one failure (the stale 0025 label fixture described above). After correcting that expectation and adding the migration-identity test, the full 1,341-test rerun passed. No remaining backend authorization baseline failure was excluded, skipped or marked expected-failure.
 
-Raw logs and both before/after reports are retained in `/private/tmp/eduport-permission-review/`: `backend-final.log`, `authorization-tests.log`, `matrix-full-differences.json`, the `hub-*.log` files, `hub-access-all-results.json`, `hub-access-final-differences.json` and `retry-policy-audit.log`. The review ledger in this working tree is [permission-review-results.json](verification/permission-review-results.json); all files remain uncommitted.
+The original run recorded raw logs and before/after reports under `/private/tmp/eduport-permission-review/`: `backend-final.log`, `authorization-tests.log`, `matrix-full-differences.json`, the `hub-*.log` files, `hub-access-all-results.json`, `hub-access-final-differences.json` and `retry-policy-audit.log`. These are historical paths whose continued availability is not guaranteed. The retained review ledger is [permission-review-results.json](verification/permission-review-results.json).
 
 The retry audit uses signed webhook fixtures and mocked Stripe transport. No external Stripe charge or live-credential test was performed. Test databases and their four clones were disposable and separate from shared services.
 
-## Remaining blockers
+## Historical outstanding findings
 
-1. **Autopay retry implementation:** the confirmed initial-plus-three/24-hour policy, pause transition and exhaustion follow-up must be implemented before claiming that Phase 1 acceptance criterion is complete. The stale API status label must be corrected with that work.
-2. **Strict Hub UI regression baselines:** the 197 access snapshot differences and 69 earlier booking interaction failures still require a deliberate UI/fixture review. They were not approved away here. Every remaining case has its own ledger entry; no current access-denied result widened and no ordinary non-sales role requests initial-sale financial APIs in the access matrix.
+1. **Former custom Autopay retry implementation:** this was a blocker at the time of the original audit. It is superseded by the later Stripe Billing/native recovery decision and is not a current Billing P1 acceptance criterion.
+2. **Strict Hub UI regression baselines:** the original run left 197 access snapshot differences and 69 booking interaction failures for deliberate UI/fixture review. Each case is retained in the ledger; none was approved away. This cleanup did not rerun those suites or establish their current results.
 
 ## Changed files for this review
 
@@ -121,6 +125,6 @@ The retry audit uses signed webhook fixtures and mocked Stripe transport. No ext
 - frontend/hub/tests/sales/run.mjs: two additional financial-denial cases and updated sharing behavior assertion.
 - frontend/hub/tests/leads/run.mjs: existing direct booking-detail URL expectation.
 - docs/learn-enrollment-credentials.md and docs/phase1-autopay.md: current review/retry status.
-- This report, verification/permission-review-results.json and verification/autopay_retry_acceptance.py: full audit trail and repeatable retry acceptance check.
+- This report, verification/permission-review-results.json and verification/archive/custom-paymentintent/autopay_retry_acceptance.py: historical audit trail and archived source for the superseded retry acceptance check.
 
 No new database migrations were created. Shared databases/containers were not migrated or rebuilt. The current feature branch and all prior uncommitted work were preserved; nothing was committed or pushed.

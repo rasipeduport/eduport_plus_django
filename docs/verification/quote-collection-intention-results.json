@@ -1,0 +1,314 @@
+{
+  "feature": "Quote collection intention",
+  "branch": "feature/phase-1-sales-payments-enrollment",
+  "backend_final": {
+    "command": "python manage.py test accounts invitations students sales bookings sessions core --parallel 4 --noinput --verbosity 1",
+    "passed": 1366,
+    "seconds": 285.136,
+    "failures": 0,
+    "errors": 0,
+    "authorization_differences": 0,
+    "matrix": {
+      "scenarios": 240,
+      "original_callers": 2570,
+      "new_role_world": 699,
+      "comparisons": 3269,
+      "differences": 0
+    }
+  },
+  "hub": {
+    "sales": "79/79",
+    "leads": "37/37",
+    "learn_invitation": "10/10",
+    "reports": "30/30",
+    "access": {
+      "matching": 283,
+      "total": 480,
+      "unapproved": 197,
+      "same_difference_keys_as_permission_review": true,
+      "no_access_outcome_changes": 0
+    },
+    "bookings": {
+      "passing": 70,
+      "total": 139,
+      "failures": 69,
+      "same_failure_names_as_permission_review": true
+    }
+  },
+  "browser": {
+    "status": "passed",
+    "actualBackend": true,
+    "checks": [
+      "FULL: no default intention; issue blocked until explicit choice",
+      "FULL: real API quote pricing AED 2627, immutable mode confirmed",
+      "FULL: quote PDF generated",
+      "FULL: Sales loads fixed quote mode without a replacement",
+      "FULL: confirmed direct payment enrolls with only paid class quota",
+      "FULL: BDE post-enrollment payment restriction retained",
+      "PARTIAL: no default intention; issue blocked until explicit choice",
+      "PARTIAL: real API quote pricing AED 2765, immutable mode confirmed",
+      "PARTIAL: quote PDF generated",
+      "PARTIAL: Sales loads fixed quote mode without a replacement",
+      "Explicit intention changes preserve original snapshot and supersedes chain",
+      "PARTIAL: confirmed direct payment enrolls with only paid class quota",
+      "PARTIAL: BDE post-enrollment payment restriction retained",
+      "AUTOPAY: no default intention; issue blocked until explicit choice",
+      "AUTOPAY: real API quote pricing AED 2765, immutable mode confirmed",
+      "AUTOPAY: quote PDF generated",
+      "AUTOPAY: Sales loads fixed quote mode without a replacement",
+      "Autopay server schedule reconciles initial AED 553 + final AED 2212; unconfigured Stripe cannot generate Checkout",
+      "legacy_full: UI and both sale APIs require replacement, no implicit FULL or sale created",
+      "legacy_full: explicit FULL replacement starts New Sale; original snapshot/history unchanged",
+      "legacy_partial: UI and both sale APIs require replacement, no implicit FULL or sale created",
+      "legacy_partial: explicit PARTIAL replacement starts New Sale; original snapshot/history unchanged",
+      "legacy_autopay: UI and both sale APIs require replacement, no implicit FULL or sale created",
+      "legacy_autopay: explicit AUTOPAY replacement starts New Sale; original snapshot/history unchanged",
+      "token_auto_full: Token/AUTOPAY blocked in UI and API without creating reservation",
+      "token_auto_full: FULL replacement preserves original AUTOPAY quote; AED 100 token grants no ID/quota",
+      "token_auto_partial: Token/AUTOPAY blocked in UI and API without creating reservation",
+      "token_auto_partial: PARTIAL replacement preserves original AUTOPAY quote; AED 100 token grants no ID/quota",
+      "historical_purchase: existing frozen terms remain collectible without a forced replacement",
+      "historical_purchase: verified tuition preserves quote/purchase/token history and credits only six paid classes",
+      "historical_token: existing frozen terms remain collectible without a forced replacement",
+      "historical_token: verified tuition preserves quote/purchase/token history and credits only six paid classes"
+    ],
+    "measurements": {
+      "quote-complete-768": 768,
+      "quote-complete-390": 390,
+      "quote-complete-320": 320,
+      "quote-partial-768": 768,
+      "quote-partial-390": 390,
+      "quote-partial-320": 320,
+      "quote-autopay-768": 768,
+      "quote-autopay-390": 390,
+      "quote-autopay-320": 320,
+      "autopay-schedule-768": 768,
+      "autopay-schedule-390": 390,
+      "autopay-schedule-320": 320,
+      "historical-replacement-required-768": 768,
+      "historical-replacement-required-390": 390,
+      "historical-replacement-required-320": 320,
+      "token-autopay-blocked-768": 768,
+      "token-autopay-blocked-390": 390,
+      "token-autopay-blocked-320": 320
+    },
+    "screenshots": [
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-complete.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-complete-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/enrolled-complete.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-partial.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-partial-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/replacement-reviewed.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/enrolled-partial.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-autopay.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/quote-autopay-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/autopay-schedule.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/autopay-schedule-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/historical-replacement-required.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/historical-replacement-required-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/token-autopay-blocked.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/token-autopay-blocked-mobile.png",
+      "/private/tmp/eduport-collection-compatibility/screenshots/historical-token-preserved.png"
+    ],
+    "errors": []
+  },
+  "pending_business_decisions": [],
+  "external_limitations": [
+    "No external Stripe Test Mode charge: no credentials configured for the disposable browser environment. Signed webhook and SDK transport fixtures cover backend behavior.",
+    "The previously documented Autopay retry policy remains unimplemented and outside this quote-only change."
+  ],
+  "baseline.json": {
+    "sha256": "a3023fbe1c65c07c24bf8129109545e52570f9010b8670f9000aeaafa77d645e",
+    "unchanged_from_HEAD": true,
+    "unchanged_during_compatibility_follow_up": true
+  },
+  "approved_changes.json": {
+    "sha256": "039b498c2831f609dc492fd8c85a6a2a26e40c9f14bb7586cb5e5cabe4955706",
+    "unchanged_from_HEAD": false,
+    "unchanged_during_compatibility_follow_up": true
+  },
+  "migration_check": "No changes detected",
+  "system_check": "No issues",
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 37
+  },
+  "production_build": {
+    "status": "passed",
+    "seconds": 15.32,
+    "existing_chunk_warning": true
+  },
+  "guarded_browser_seed": "passed, fresh disposable database",
+  "files_changed_in_this_enhancement": [
+    "backend/sales/models.py",
+    "backend/sales/quotes.py",
+    "backend/sales/quote_views.py",
+    "backend/sales/payments.py",
+    "backend/sales/payment_views.py",
+    "backend/sales/autopay.py",
+    "backend/sales/templates/sales/pdf/syllabus.html",
+    "backend/sales/migrations/0012_quote_collection_intention.py",
+    "backend/sales/migrations/0013_quote_collection_integrity.py",
+    "backend/sales/tests_collection_intention.py",
+    "backend/sales/tests_collection_compatibility.py",
+    "backend/sales/tests_quotes.py",
+    "backend/sales/tests_chapter_modes.py",
+    "backend/sales/tests_student_plans.py",
+    "backend/sales/tests_payments.py",
+    "backend/sales/tests_autopay.py",
+    "backend/sales/tests_authorization.py",
+    "backend/core/authz_matrix.py",
+    "backend/core/phase1_authz_expectations.py",
+    "backend/core/tests_authz_matrix.py",
+    "frontend/hub/src/lib/sales.js",
+    "frontend/hub/src/lib/payments.js",
+    "frontend/hub/src/components/sales/quote-builder.jsx",
+    "frontend/hub/src/components/sales/quote-dialogs.jsx",
+    "frontend/hub/src/components/sales/quote-parts.jsx",
+    "frontend/hub/src/components/sales/collection-replacement-dialog.jsx",
+    "frontend/hub/src/components/enquiries/workspace/enquiry-plan-choosing.jsx",
+    "frontend/hub/src/components/enquiries/workspace/enquiry-sales-payment.jsx",
+    "frontend/hub/src/components/enquiries/workspace/autopay-builder.jsx",
+    "frontend/hub/tests/sales/run.mjs",
+    "frontend/hub/tests/sales/browser/collection-intention.mjs",
+    "frontend/hub/tests/sales/browser/seed.py",
+    "frontend/hub/tests/sales/browser/README.md",
+    "frontend/hub/package.json",
+    "docs/quote-collection-intention.md",
+    "docs/verification/quote-collection-intention-results.json"
+  ],
+  "isolated_services": "stopped after verification",
+  "before_compatibility_confirmation": {
+    "backend_final": {
+      "command": "python manage.py test accounts invitations students sales bookings sessions core --parallel 4 --noinput --verbosity 1",
+      "passed": 1353,
+      "seconds": 336.731,
+      "failures": 0,
+      "errors": 0,
+      "authorization_differences": 0,
+      "matrix": {
+        "scenarios": 240,
+        "original_callers": 2570,
+        "new_role_world": 699,
+        "comparisons": 3269,
+        "differences": 0
+      }
+    },
+    "hub": {
+      "sales": "72/72",
+      "leads": "37/37",
+      "learn_invitation": "10/10",
+      "reports": "30/30",
+      "access": {
+        "matching": 283,
+        "total": 480,
+        "unapproved": 197,
+        "same_difference_keys_as_permission_review": true,
+        "no_access_outcome_changes": 0
+      },
+      "bookings": {
+        "passing": 70,
+        "total": 139,
+        "failures": 69,
+        "same_failure_names_as_permission_review": true
+      }
+    },
+    "browser": {
+      "status": "passed",
+      "actualBackend": true,
+      "checks": [
+        "FULL: no default intention; issue blocked until explicit choice",
+        "FULL: real API quote pricing AED 2627, immutable mode confirmed",
+        "FULL: quote PDF generated",
+        "FULL: Sales loads fixed quote mode without a replacement",
+        "FULL: confirmed direct payment enrolls with only paid class quota",
+        "FULL: BDE post-enrollment payment restriction retained",
+        "PARTIAL: no default intention; issue blocked until explicit choice",
+        "PARTIAL: real API quote pricing AED 2765, immutable mode confirmed",
+        "PARTIAL: quote PDF generated",
+        "PARTIAL: Sales loads fixed quote mode without a replacement",
+        "Explicit intention changes preserve original snapshot and supersedes chain",
+        "PARTIAL: confirmed direct payment enrolls with only paid class quota",
+        "PARTIAL: BDE post-enrollment payment restriction retained",
+        "AUTOPAY: no default intention; issue blocked until explicit choice",
+        "AUTOPAY: real API quote pricing AED 2765, immutable mode confirmed",
+        "AUTOPAY: quote PDF generated",
+        "AUTOPAY: Sales loads fixed quote mode without a replacement",
+        "Autopay server schedule reconciles initial AED 553 + final AED 2212; unconfigured Stripe cannot generate Checkout"
+      ],
+      "measurements": {
+        "quote-complete-768": 768,
+        "quote-complete-390": 390,
+        "quote-complete-320": 320,
+        "quote-partial-768": 768,
+        "quote-partial-390": 390,
+        "quote-partial-320": 320,
+        "quote-autopay-768": 768,
+        "quote-autopay-390": 390,
+        "quote-autopay-320": 320,
+        "autopay-schedule-768": 768,
+        "autopay-schedule-390": 390,
+        "autopay-schedule-320": 320
+      },
+      "screenshots": [
+        "/private/tmp/eduport-collection-intention/screenshots/quote-complete.png",
+        "/private/tmp/eduport-collection-intention/screenshots/quote-complete-mobile.png",
+        "/private/tmp/eduport-collection-intention/screenshots/enrolled-complete.png",
+        "/private/tmp/eduport-collection-intention/screenshots/quote-partial.png",
+        "/private/tmp/eduport-collection-intention/screenshots/quote-partial-mobile.png",
+        "/private/tmp/eduport-collection-intention/screenshots/replacement-reviewed.png",
+        "/private/tmp/eduport-collection-intention/screenshots/enrolled-partial.png",
+        "/private/tmp/eduport-collection-intention/screenshots/quote-autopay.png",
+        "/private/tmp/eduport-collection-intention/screenshots/quote-autopay-mobile.png",
+        "/private/tmp/eduport-collection-intention/screenshots/autopay-schedule.png",
+        "/private/tmp/eduport-collection-intention/screenshots/autopay-schedule-mobile.png"
+      ],
+      "errors": []
+    },
+    "pending_business_decisions": [
+      "Historical uncollected quotes: explicit replacement to record an intention versus treating their old stored mode as agreed. Existing purchases/agreements remain frozen.",
+      "Autopay quote with Token Sale: block pending replacement to FULL/PARTIAL versus extending the existing New-Sale-only Autopay workflow. No token Autopay scheduling was added."
+    ],
+    "production_build": {
+      "status": "passed",
+      "seconds": 9.01,
+      "existing_chunk_warning": true
+    }
+  },
+  "confirmed_compatibility_decisions": [
+    "Uncollected historical quotes require an explicit FULL/PARTIAL/AUTOPAY replacement before starting or collecting a sale. Existing purchases or any collection retain their frozen terms.",
+    "Token Sale is blocked for AUTOPAY quotes until explicit FULL/PARTIAL replacement. No Token Autopay scheduling."
+  ],
+  "compatibility_follow_up": {
+    "new_backend_tests": 13,
+    "new_hub_tests": 7,
+    "new_migrations": 0,
+    "artifact_directory": "/private/tmp/eduport-collection-compatibility",
+    "full_backend_log": "backend-full.log",
+    "browser_log": "browser.log",
+    "existing_history_verified": [
+      "purchase without any collection",
+      "pending/failed/expired/successful collection rows",
+      "paid token reservation and credit",
+      "signed historical Stripe webhook idempotency",
+      "quote financial fields, lines, chapters and supersedes history"
+    ],
+    "files_changed": [
+      "backend/sales/payments.py",
+      "backend/sales/quotes.py",
+      "backend/sales/autopay.py",
+      "backend/sales/tests_collection_compatibility.py",
+      "backend/sales/tests_autopay.py",
+      "frontend/hub/src/lib/payments.js",
+      "frontend/hub/src/components/enquiries/workspace/enquiry-sales-payment.jsx",
+      "frontend/hub/src/components/sales/quote-parts.jsx",
+      "frontend/hub/src/components/sales/collection-replacement-dialog.jsx",
+      "frontend/hub/tests/sales/run.mjs",
+      "frontend/hub/tests/sales/browser/collection-intention.mjs",
+      "frontend/hub/tests/sales/browser/seed.py",
+      "frontend/hub/tests/sales/browser/README.md",
+      "docs/quote-collection-intention.md",
+      "docs/verification/quote-collection-intention-results.json"
+    ]
+  }
+}

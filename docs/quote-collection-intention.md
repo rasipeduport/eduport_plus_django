@@ -1,6 +1,14 @@
 # Quote collection intention
 
-The new-quote workflow requires the BDE to record **Single / Complete Payment**, **Partial Payment**, or **Autopay** after choosing the syllabus, plan and chapters. Selecting a course never implies complete payment. All work remains uncommitted on `feature/phase-1-sales-payments-enrollment`.
+> Historical verification scope: the test counts, outcomes, configuration
+> limitations and artifact paths in this report and its JSON evidence belong to
+> the original quote/compatibility runs. They do not verify the subsequently
+> implemented Stripe Billing P1 fixes or later manual Stripe testing. The old
+> custom retry-policy findings are superseded by the Stripe Billing architecture
+> decision. See the [historical evidence guide](verification/README.md) and the
+> [current Billing integration](stripe-billing-integration.md).
+
+The new-quote workflow requires the BDE to record **Single / Complete Payment**, **Partial Payment**, or **Autopay** after choosing the syllabus, plan and chapters. Selecting a course never implies complete payment. The verification sections below preserve the original enhancement and compatibility runs on `feature/phase-1-sales-payments-enrollment`.
 
 ## Pricing and immutable terms
 
@@ -44,9 +52,9 @@ The Sales & Payment summary and quote figures display “Not recorded (historica
 
 The two earlier schema migrations remain as described above. **No additional migrations were created for compatibility enforcement.**
 
-## Verification
+## Historical verification
 
-Final complete backend result: **1,366/1,366 tests passed in 285.136 seconds**, with zero failures/errors. This includes all 13 new compatibility tests and the complete authorization matrix, which reports **zero differences**. The previous 1,353-test verification is retained in the JSON report's `before_compatibility_confirmation` record.
+Recorded complete backend result for the original compatibility verification: **1,366/1,366 tests passed in 285.136 seconds**, with zero failures/errors. This included all 13 new compatibility tests and the complete authorization matrix, which reported **zero differences**. The previous 1,353-test verification is retained in the JSON report's `before_compatibility_confirmation` record. These are historical results, not a verification of the later Stripe Billing P1 changes.
 
 | Check | Result |
 | --- | --- |
@@ -69,7 +77,7 @@ The browser verifies both confirmed compatibility decisions, all three explicit 
 
 Backend compatibility cases cover historical snapshots with no purchase or collection, empty-sale API bypasses, purchase-only histories, all collection statuses, paid token continuity, signed historical Stripe webhook idempotency, both Token/AUTOPAY quote replacement paths, existing invalid Token/AUTOPAY drafts, unquoted token reservations and foreign-BDE denial. The earlier backend cases cover missing/invalid intention, tampered frontend prices, immutable mode/marker, each price, mode mismatch with no discount, direct/ordinary Stripe bypass of AUTOPAY, replacement in each direction using frozen original pricing, database-level agreement checks, quote PDF/summary, half-class allocation, mixed Regular/Revision packages and the token balance guard. Existing signed Stripe webhook, Autopay, enrollment, Learn, permissions, chapter/Bridge Course and Sheets quota regressions remain part of the complete suite.
 
-Current verification artifacts are in `/private/tmp/eduport-collection-compatibility/`; earlier attempts are retained in `/private/tmp/eduport-collection-intention/`. The first new compatibility fixtures violated existing supersedes/reference-length guards; after correcting them, two success fixtures still lacked required receipt/provider evidence. Those fixtures were corrected without disabling database triggers. The first expanded Hub run had one assertion using a cumulative request count across three cases; it now checks exactly one new request per case. The final complete backend and Hub Sales runs pass without suppressed or expected failures. The first payment run had five stale fixture assertions (full collection against a PARTIAL quote and a replacement missing its intention); those fixtures now explicitly record the intended mode. A new PDF test initially called the existing context helper with the wrong signature, then was corrected. The final token guard test expected HTTP 400 although the established `SalesError` contract returns 409; its expected status was corrected without weakening the guard. The browser runner initially used an obsolete button selector for the tab; its corrected route navigation passes. No production permission was relaxed to make these checks pass.
+The original verification recorded artifact paths under `/private/tmp/eduport-collection-compatibility/`; earlier attempts were recorded under `/private/tmp/eduport-collection-intention/`. These historical paths are not current-run artifacts and their continued availability is not guaranteed. The first new compatibility fixtures violated existing supersedes/reference-length guards; after correcting them, two success fixtures still lacked required receipt/provider evidence. Those fixtures were corrected without disabling database triggers. The first expanded Hub run had one assertion using a cumulative request count across three cases; it now checks exactly one new request per case. The final complete backend and Hub Sales runs at that time passed without suppressed or expected failures. The first payment run had five stale fixture assertions (full collection against a PARTIAL quote and a replacement missing its intention); those fixtures now explicitly record the intended mode. A new PDF test initially called the existing context helper with the wrong signature, then was corrected. The final token guard test expected HTTP 400 although the established `SalesError` contract returns 409; its expected status was corrected without weakening the guard. The browser runner initially used an obsolete button selector for the tab; its corrected route navigation passed in that run. No production permission was relaxed to make these checks pass.
 
 ## Pre-existing failures and external limitations
 
@@ -78,11 +86,11 @@ The broader Hub suites were rerun and compared with `verification/permission-rev
 - Strict access snapshots: **283/480 match**, with the **same 197 differing case keys**. No access-denied outcome changed. The original authorization baseline and approved-decision file are unchanged.
 - Bookings: **70/139 pass**, with the **same 69 failed test names** as the earlier Phase 1/permission review. Their existing per-case explanations remain in that review ledger.
 
-Those failures were not hidden, regenerated or approved away. The exact current results and baseline hashes are in `verification/quote-collection-intention-results.json`.
+Those failures were not hidden, regenerated or approved away. The recorded results from that run and its baseline hashes are in `verification/quote-collection-intention-results.json`.
 
-External Stripe Test Mode checkout was not performed: the disposable browser environment has no Stripe credentials. Existing backend tests exercise the SDK transport and signed/idempotent webhook behavior using fixtures; this does not establish an external charge or reusable-payment-method verification. Actual Stripe configuration and verification remain required.
+During that verification run, external Stripe Test Mode checkout was not performed: the disposable browser environment had no Stripe credentials. Backend tests exercised the SDK transport and signed/idempotent webhook behavior using fixtures; this did not establish an external charge or reusable-payment-method verification. This historical statement does not describe the outcome of later manual Stripe testing.
 
-The previously documented Autopay retry policy gap also remains: initial attempt plus three retries, 24 hours apart, then pause/Admin follow-up is **not implemented**. This quote-only change neither adds nor claims retry scheduling.
+At that time, the former custom retry policy (initial attempt plus three retries, 24 hours apart, then pause/Admin follow-up) was not implemented by this quote-only change. That policy is now superseded by the Stripe Billing/native recovery architecture and is not a current Billing acceptance requirement. See the [historical evidence guide](verification/README.md).
 
 ## Files changed for this enhancement
 
@@ -131,7 +139,7 @@ Documentation:
 - `docs/quote-collection-intention.md` (new)
 - `docs/verification/quote-collection-intention-results.json` (new)
 
-The browser runner is invoked with `npm run test:sales:browser`; its README describes the guarded disposable environment. Current raw logs, browser results and screenshots are retained in `/private/tmp/eduport-collection-compatibility/`; the earlier quote-only verification remains in `/private/tmp/eduport-collection-intention/`. Existing unrelated uncommitted Phase 1, Autopay, Learn and permission work remains preserved. Nothing was committed or pushed.
+The browser runner is invoked with `npm run test:sales:browser`; its README describes the guarded disposable environment. The original runs recorded raw logs, browser results and screenshots under `/private/tmp/eduport-collection-compatibility/` and `/private/tmp/eduport-collection-intention/`. Those paths and the original reports' working-tree statements describe their verification-time state, not current results, artifact availability or commit status.
 
 ## Files changed for the confirmed compatibility follow-up
 
