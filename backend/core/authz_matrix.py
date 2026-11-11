@@ -329,7 +329,7 @@ def build_world():
     # A quote (sales.quotes): admin2's, of syllabus_a's Regular course at pricing_v1 -- issued, not logged, so
     # the activity scenarios read as before.
     w.add('quote_a', sales_quotes.issue(
-        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR'),
+        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR', collection_mode='FULL'),
         quote_id=fixed_id('quote_a'),
     ))
     return w
@@ -469,7 +469,7 @@ SCENARIOS = [
     Scenario('auth.login.student', 'post', '/api/auth/login/', {'username': 'parent.a', 'password': PASSWORD}, callers=ONLY_ANON),
     Scenario('auth.login.unknown_role', 'post', '/api/auth/login/', {'username': 'unknown', 'password': PASSWORD}, callers=ONLY_ANON),
     Scenario('auth.login.wrong', 'post', '/api/auth/login/', {'username': 'admin', 'password': 'wrong-password'}, callers=ONLY_ANON),
-    Scenario('auth.google.empty', 'post', '/api/auth/google/', {}, callers=ONLY_ANON),
+    Scenario('auth.learn_login.empty', 'post', '/api/auth/learn/login/', {}, callers=ONLY_ANON),
     Scenario('auth.me', 'get', '/api/auth/me/', capture=_me),
     Scenario('auth.logout', 'post', '/api/auth/logout/'),
     Scenario('auth.change_password.wrong', 'post', '/api/auth/change-password/',
@@ -600,6 +600,8 @@ SCENARIOS = [
     Scenario('activity.subject_mentor_a', 'get', '/api/activity/?subject={mentor_a}', capture=_activity),
 
     # --- invitations ----------------------------------------------------------
+    Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
+    Scenario('invitations.issue_existing', 'post', '/api/invitations/students/{stu_a}/issue/', {}),
     Scenario('invitations.lookup', 'post', '/api/invitations/lookup-student/', {'student_code': 'MX-NEW2'}),
     Scenario('invitations.list', 'get', '/api/invitations/'),
     Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
@@ -796,7 +798,7 @@ SCENARIOS = [
     Scenario('sales.quotes', 'get', '/api/sales/quotes/'),
     Scenario('sales.enquiry_plan', 'get', '/api/sales/enquiries/{lead_a}/plan/'),
     Scenario('sales.quote_create', 'post', '/api/sales/quotes/',
-             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR'}),
+             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL'}),
     Scenario('sales.quote', 'get', '/api/sales/quotes/{quote_a}/'),
     Scenario('sales.quote_pdf', 'get', '/api/sales/quotes/{quote_a}/pdf/?disposition=inline'),
     Scenario('sales.quote_cancel', 'post', '/api/sales/quotes/{quote_a}/cancel/', {'reason': 'Matrix'}),
@@ -805,6 +807,32 @@ SCENARIOS = [
         'currency': 'AED', 'standard_fee': '45', 'offer_fee': '30', 'single_payment_percent': '5',
         'single_payment_plan_types': ['REGULAR'], 'note': 'Matrix',
     }),
+]
+
+
+# Phase 1 transports: same world/roles, no additional seeded data that could
+# change unrelated list scopes. Valid-object ownership, enrollment boundaries,
+# signed success/replay and parent tokens are covered by sales authorization tests.
+SCENARIOS += [
+    Scenario('initial_sales.read', 'get', '/api/sales/enquiries/{lead_a}/sale/'),
+    Scenario('initial_sales.foreign', 'get', '/api/sales/enquiries/{lead_b}/sale/'),
+    Scenario('initial_sales.start', 'post', '/api/sales/enquiries/{lead_a}/sale/', {'kind': 'NEW'}),
+    Scenario('initial_sales.amount', 'get', '/api/sales/enquiries/{lead_a}/sale/amount/?purpose=TUITION&classes=1&collection_mode=FULL'),
+    Scenario('initial_sales.collect', 'post', '/api/sales/enquiries/{lead_a}/sale/payments/',
+             {'request_id': str(fixed_id('payment_request')), 'purpose': 'TUITION', 'classes': '1', 'method': 'STRIPE'}),
+    Scenario('initial_sales.replacement', 'post', '/api/sales/enquiries/{lead_a}/installment-quote/', lambda w: {'quote_id': w.id('quote_a'), 'collection_mode': 'PARTIAL'}),
+    Scenario('initial_sales.replacement_preview', 'get', '/api/sales/enquiries/{lead_a}/installment-quote/?quote_id={quote_a}&collection_mode=PARTIAL'),
+    Scenario('initial_sales.proof', 'get', '/api/sales/payments/{stu_a}/proof/'),
+    Scenario('initial_sales.expire', 'post', '/api/sales/payments/{stu_a}/expire/', {}),
+    Scenario('initial_sales.student', 'get', '/api/sales/students/{stu_a}/initial-sale/'),
+    Scenario('initial_autopay.preview', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/preview/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}]}),
+    Scenario('initial_autopay.begin', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}],
+        'request_id': str(fixed_id('agreement_request')), 'review_token': 'not-signed'}),
+    Scenario('initial_autopay.restart', 'post', '/api/sales/autopay/{stu_a}/initial-checkout/', {'request_id': str(fixed_id('checkout_request'))}),
+    Scenario('initial_autopay.parent_invalid', 'get', '/api/sales/autopay/actions/invalid-proof/'),
+    Scenario('initial_sales.webhook_unsigned', 'post', '/api/sales/webhooks/stripe/', {}),
 ]
 
 

@@ -74,6 +74,7 @@ BDE_PERMISSIONS = [
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',
     'accounts.create_sales_quotes',
+    'accounts.manage_initial_sales',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',
     'accounts.send_lead_communications',
@@ -313,7 +314,7 @@ class ApiSweepTests(RoleScopingFixture):
 # other API view must be guarded by a permission (core.permissions).
 OPEN_VIEWS = {
     # The account basics: sign in and out, the CSRF token, the caller's own identity.
-    'CsrfTokenView', 'LoginView', 'GoogleLoginView', 'LogoutView', 'MeView', 'ChangePasswordView',
+    'CsrfTokenView', 'LoginView', 'LearnLoginView', 'LogoutView', 'MeView', 'ChangePasswordView',
     'SelectStudentView',
     # File downloads: the view scopes the file's parent row itself and answers
     # "no access to this file" (FileDownloadTests).
@@ -331,6 +332,9 @@ SERVICE_VIEWS = {
 # Views only Meta's servers may call: the WhatsApp webhook, guarded by the verify
 # token or the callback signature (communications.webhooks). No session is read.
 WEBHOOK_VIEWS = {'WhatsAppWebhookView'}
+# Public transports with explicit signed proof, not a staff session. Behavioral
+# tests also exercise absent/invalid/valid/expired proof and replay handling.
+SIGNED_PAYMENT_VIEWS = {'StripeWebhookView', 'ParentAutopayActionView'}
 # Permission classes that decide by catalogue permission (accounts.authz).
 PERMISSION_FACTORIES = ('HasAppPermission', 'HasAnyAppPermission', 'ByMethod', 'IsStudentUser')
 
@@ -366,6 +370,10 @@ class ViewPermissionTests(SimpleTestCase):
                 self.assertEqual(classes, [IsMetaCallback], view.__name__)
                 self.assertEqual(list(view.authentication_classes), [], view.__name__)
                 continue
+            if view.__name__ in SIGNED_PAYMENT_VIEWS:
+                self.assertEqual(classes, [AllowAny], view.__name__)
+                self.assertEqual(list(view.authentication_classes), [], view.__name__)
+                continue
             if not any(_decides_by_permission(permission) for permission in classes if permission is not IsAuthenticated):
                 unguarded.append(f'{route} ({view.__name__})')
         self.assertEqual(unguarded, [], 'API views without a permission guard')
@@ -373,6 +381,6 @@ class ViewPermissionTests(SimpleTestCase):
     def test_staff_endpoints_also_require_a_signed_in_account(self):
         # IsAuthenticated first, so an anonymous caller gets "not signed in" rather than "not allowed".
         for route, view in api_views():
-            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS | WEBHOOK_VIEWS:
+            if view.__name__ not in OPEN_VIEWS | SERVICE_VIEWS | WEBHOOK_VIEWS | SIGNED_PAYMENT_VIEWS:
                 with self.subTest(route=route):
                     self.assertIs(list(view.permission_classes)[0], IsAuthenticated)
