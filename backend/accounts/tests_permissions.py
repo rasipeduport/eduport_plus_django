@@ -50,6 +50,7 @@ SEED_STUDENT_TIMEZONE = importlib.import_module('accounts.migrations.0019_studen
 SEED_SALES = importlib.import_module('accounts.migrations.0020_sales_permissions')
 SEED_SALES_CATALOGUE = importlib.import_module('accounts.migrations.0021_sales_catalogue_permission')
 SEED_SALES_QUOTES = importlib.import_module('accounts.migrations.0022_sales_quote_permissions')
+SEED_INITIAL_SALES = importlib.import_module('accounts.migrations.0023_alter_hubpermission_options')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -151,6 +152,8 @@ SALES_CATALOGUE_GRANTS = {'ADMIN': SALES_CATALOGUE_PERMISSIONS, 'BDE': SALES_CAT
 # Quotes (0022): the BDE and the Admin quote; only the Admin sees every quote and cancels one.
 QUOTE_PERMISSIONS = names('create_sales_quotes', 'manage_sales_quotes')
 QUOTE_GRANTS = {'ADMIN': QUOTE_PERMISSIONS, 'BDE': names('create_sales_quotes')}
+INITIAL_SALES_PERMISSIONS = names('manage_initial_sales')
+INITIAL_SALES_GRANTS = {'ADMIN': INITIAL_SALES_PERMISSIONS, 'BDE': INITIAL_SALES_PERMISSIONS}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -160,7 +163,7 @@ NEW_ROLE_PERMISSIONS_AT_0014 = {
 # What they carry -- and, each its own modules only, may ever hold -- today.
 NEW_ROLE_PERMISSIONS = {
     role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
-    | STUDENT_TIMEZONE_GRANTS.get(role, set()) | SALES_CATALOGUE_GRANTS.get(role, set()) | QUOTE_GRANTS.get(role, set())
+    | STUDENT_TIMEZONE_GRANTS.get(role, set()) | SALES_CATALOGUE_GRANTS.get(role, set()) | QUOTE_GRANTS.get(role, set()) | INITIAL_SALES_GRANTS.get(role, set())
     for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
 # What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
@@ -197,9 +200,10 @@ GROUP_PERMISSIONS_AT_0020 = {
 GROUP_PERMISSIONS_AT_0021 = {
     role: held | SALES_CATALOGUE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0020.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0022 = {
     role: held | QUOTE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0021.items()
 }
+EXPECTED_GROUP_PERMISSIONS = {role: held | INITIAL_SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0022.items()}
 
 
 def permission(name):
@@ -236,11 +240,11 @@ class PermissionTestCase(TestCase):
 # ------------------------------------------------------------------ catalogue
 
 class CatalogueTests(PermissionTestCase):
-    def test_the_catalogue_is_the_approved_72(self):
-        self.assertEqual(len(CATALOGUE), 72)
+    def test_the_catalogue_includes_initial_sales(self):
+        self.assertEqual(len(CATALOGUE), 73)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
-            | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS,
+            | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS,
             set(CATALOGUE),
         )
         # Every permission is carried by at least one role group today.
@@ -296,21 +300,47 @@ class CatalogueTests(PermissionTestCase):
     def test_only_view_team_is_individually_grantable(self):
         self.assertEqual(grantable_permissions(), {VIEW_TEAM})
 
+    def test_learn_label_migration_preserves_permission_identity_and_all_grants(self):
+        from django.apps import apps
+        from types import SimpleNamespace
+        rename = importlib.import_module('accounts.migrations.0025_learn_invitation_permission_label')
+        permission = Permission.objects.get(content_type__app_label='accounts', codename='change_invitation')
+        identity = (permission.pk, permission.codename, permission.content_type_id)
+        groups = list(Group.permissions.through.objects.order_by('pk').values_list('pk', 'group_id', 'permission_id'))
+        users = list(User.user_permissions.through.objects.order_by('pk').values_list('pk', 'user_id', 'permission_id'))
+        schema = SimpleNamespace(connection=connection)
+        rename.restore_permission(apps, schema)
+        permission.refresh_from_db()
+        self.assertEqual(permission.name, "Change an invitation's email")
+        rename.rename_permission(apps, schema)
+        permission.refresh_from_db()
+        self.assertEqual(permission.name, 'Retrieve initial Learn credentials')
+        self.assertEqual((permission.pk, permission.codename, permission.content_type_id), identity)
+        self.assertEqual(list(Group.permissions.through.objects.order_by('pk').values_list('pk', 'group_id', 'permission_id')), groups)
+        self.assertEqual(list(User.user_permissions.through.objects.order_by('pk').values_list('pk', 'user_id', 'permission_id')), users)
+
     def test_the_migrations_seed_what_the_catalogue_declares(self):
-        self.assertEqual(
+        seeded_labels = (
             SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
             + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS
             # 0018 renames assign_lead_owner (seeded by 0015): it covers reassigning too.
             + [(codename, SEED_LEADS.ASSIGN_OWNER_NAMES[1] if codename == SEED_LEADS.ASSIGN_OWNER else name)
                for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
             + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
-            + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS,
-            hub_permission_meta(),
+            + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS + SEED_INITIAL_SALES.HUB_PERMISSIONS
         )
+        # 0025 changes only the invitation permission's display label. Preserve
+        # the historical 0008 seed and compare the final migrated catalogue.
+        self.assertEqual(dict(SEED.HUB_PERMISSIONS)['change_invitation'], "Change an invitation's email")
+        self.assertEqual([
+            (codename, 'Retrieve initial Learn credentials' if codename == 'change_invitation' else label)
+            for codename, label in seeded_labels
+        ], hub_permission_meta())
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES.GRANTS.items()}, SALES_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_CATALOGUE.GRANTS.items()},
                          SALES_CATALOGUE_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_QUOTES.GRANTS.items()}, QUOTE_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_INITIAL_SALES.GRANTS.items()}, INITIAL_SALES_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
                          STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
@@ -1081,7 +1111,7 @@ class NewRoleTests(PermissionTestCase):
 
 class MigrationReversalTests(TransactionTestCase):
     """
-    0022, 0021, 0020, 0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly
+    0023, 0022, 0021, 0020, 0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly
     to 0007
     and apply again with the same seeds, ending at the app's leaf.
     """
@@ -1167,7 +1197,16 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0022_sales_quote_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0022)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0023_alter_hubpermission_options')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0022_sales_quote_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0022)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='manage_initial_sales').exists())
 
         # 0022 alone reverses: the BDE and ADMIN groups are back to 0021's and the quote rows gone.
         executor = MigrationExecutor(connection)
@@ -1266,6 +1305,6 @@ class MigrationReversalTests(TransactionTestCase):
 
         # Back to the leaf, whichever migration that is now; 0016 (a tutor's Meet link) changes no group.
         executor = MigrationExecutor(connection)
-        executor.migrate(executor.loader.graph.leaf_nodes('accounts'))
+        executor.migrate(executor.loader.graph.leaf_nodes())
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
         self.assertIn('tutor_meet_link', self.profile_columns())

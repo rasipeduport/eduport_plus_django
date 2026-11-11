@@ -1,7 +1,7 @@
 import { ReceiptTextIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { orderedPlanTypes, planTypeLabel } from '@/lib/sales';
+import { orderedPlanTypes, planTypeLabel, QUOTE_COLLECTION_MODES } from '@/lib/sales';
 import { Button } from '@/components/ui/button';
 import { WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { ChapterPicker } from '@/components/sales/bridge-day-picker';
@@ -37,12 +37,14 @@ export function QuotePlanCard({
   classMode = 'REGULAR',
   onClassMode,
   selectionError,
+  collectionMode,
+  onCollectionMode,
 }) {
   const bridge = detail.structure === 'BRIDGE_COURSE';
   const chapterPlan = planType === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
   const nothing = chapterPlan && chapterIds.length === 0;
   const noClasses = !nothing && preview?.classes === '0';
-  const ready = Boolean(preview) && !nothing && !noClasses && !locked;
+  const ready = Boolean(preview) && !nothing && !noClasses && Boolean(collectionMode) && !locked;
 
   let hint = null;
   if (selectionError) hint = selectionError;
@@ -110,6 +112,14 @@ export function QuotePlanCard({
       ) : null}
       {hint ? <p className="text-muted-foreground text-sm wrap-anywhere">{hint}</p> : null}
       {preview?.fullCourse && chapterPlan && !nothing ? <p className="text-muted-foreground text-sm">All chapters selected · Full course</p> : null}
+      {preview && !nothing ? <fieldset className="grid gap-2 md:grid-cols-3" disabled={locked}>
+        <legend className="mb-2 text-sm font-medium">Collection intention <span className="text-muted-foreground">(required)</span></legend>
+        {QUOTE_COLLECTION_MODES.map((option) => <label key={option.value} className={cn('flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm', collectionMode === option.value && 'border-primary bg-muted/40')}>
+          <input type="radio" name="quote-collection-intention" aria-label={option.label} value={option.value} checked={collectionMode === option.value} onChange={() => onCollectionMode(option.value)} className="mt-0.5 accent-primary" required />
+          <span><span className="block font-medium">{option.label}</span><span className="text-muted-foreground block text-xs">{option.hint}</span></span>
+        </label>)}
+      </fieldset> : null}
+      {preview && !collectionMode ? <p className="text-muted-foreground text-sm">Choose how the parent intends to pay before creating the quote.</p> : null}
       {preview && !nothing ? <QuoteFigures figures={preview} currency={detail.pricing.currency} /> : null}
       <div>
         <Button onClick={onCreate} disabled={!ready}>

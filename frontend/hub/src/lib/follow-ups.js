@@ -4,6 +4,7 @@
 // every rule; this only labels what it returns.
 import { callReminder } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
+import { wholeAed } from '@/lib/payments';
 
 export const BDE_FOLLOW_UPS_URL = '/api/bde/follow-ups/';
 export const BDE_ACTIVITY_URL = '/api/bde/activity/';
@@ -12,6 +13,7 @@ export const BDE_ACTIVITY_URL = '/api/bde/activity/';
 export const FOLLOW_UP_DUE = [
   { value: 'today', label: 'Due today' },
   { value: 'upcoming', label: 'Upcoming' },
+  { value: 'overdue', label: 'Overdue' },
 ];
 
 // The reminders (backend followups.FollowUpType), in the order an enquiry meets them.
@@ -21,12 +23,14 @@ export const FOLLOW_UP_TYPES = [
   { value: 'PRE_ACTIVITY_CALL', label: 'Pre-activity call' },
   { value: 'TUTOR_REPORT', label: 'Share tutor report' },
   { value: 'REDEMO_CONFIRMATION', label: 'Re-Demo confirmation' },
+  { value: 'TOKEN_TUITION', label: 'Collect token reservation tuition' },
 ];
 
 // Each state's badge: due by the end of today, or later.
 export const FOLLOW_UP_STATE_VARIANTS = {
   DUE_TODAY: 'warning',
   PENDING: 'outline',
+  OVERDUE: 'destructive',
 };
 
 // Where the parent's confirmation request stands, once they were asked.
@@ -45,11 +49,18 @@ const TASKS = {
   NEW_ENQUIRY_CALL: 'Call the parent and guide them to book a Demo or Diagnostic.',
   TUTOR_REPORT: 'Review the report and share it with the parent.',
   REDEMO_CONFIRMATION: 'Tell the parent the Re-Demo’s date and time, then record their answer.',
+  TOKEN_TUITION: 'Collect tuition before the reserved class start date.',
 };
 
 /** What a reminder asks of the BDE now, in a sentence. */
 export function followUpTask(followUp, now = Date.now()) {
   switch (followUp.type) {
+    case 'TOKEN_TUITION': {
+      const reservation = followUp.reservation;
+      return reservation
+        ? `${reservation.reference} · Token paid · Expected start ${reservation.expected_start_date}. ${reservation.remaining_amount == null ? 'Choose a package before tuition collection.' : `${wholeAed(reservation.remaining_amount)} tuition balance.`}`
+        : TASKS.TOKEN_TUITION;
+    }
     case 'PARENT_CONFIRMATION':
       return followUp.request
         ? `Confirmation request ${REQUEST_STATES[followUp.request.status] ?? followUp.request.status_label.toLowerCase()}. Record the parent’s answer.`
@@ -74,6 +85,7 @@ export function followUpTask(followUp, now = Date.now()) {
  */
 export function followUpPath(followUp) {
   const { enquiry, booking } = followUp;
+  if (followUp.type === 'TOKEN_TUITION') return `/enquiries/${enquiry.id}?tab=sales`;
   if (followUp.type === 'TUTOR_REPORT') return `/enquiries/${enquiry.id}?tab=feedback`;
   return booking ? communicationPath(enquiry.id, booking) : `/enquiries/${enquiry.id}`;
 }

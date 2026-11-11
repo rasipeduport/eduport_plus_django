@@ -27,6 +27,7 @@ export function CreateQuoteDialog({
   detail,
   planType,
   classMode = 'REGULAR',
+  collectionMode,
   chapterIds,
   preview,
   coverage,
@@ -53,6 +54,7 @@ export function CreateQuoteDialog({
         syllabus: syllabusId,
         revision: detail.revision,
         plan_type: planType,
+        collection_mode: collectionMode,
         ...(planType === 'CHAPTER_PLAN' ? { class_mode: classMode } : {}),
         chapter_ids: chapterIds,
         lead: enquiry?.id ?? null,
@@ -85,7 +87,7 @@ export function CreateQuoteDialog({
       onConfirm={issue}
       confirmLabel="Issue quote"
       pendingLabel="Issuing…"
-      confirmDisabled={!preview}
+      confirmDisabled={!preview || !collectionMode}
       pending={pending}
       size="lg"
       contentClassName="max-h-[90vh] overflow-y-auto"

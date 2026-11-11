@@ -16,9 +16,14 @@ class InvitationStatusChoices(models.TextChoices):
 
 class Invitation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # Not unique: one email (a parent account) may receive several STUDENT
-    # invitations, one per child, which are all attached on login.
-    email = models.EmailField(db_index=True)
+    # Retained only as optional contact data for historical invitations.
+    email = models.EmailField(db_index=True, blank=True)
+    student = models.OneToOneField('students.Student', on_delete=models.PROTECT,
+                                  null=True, blank=True, related_name='learn_invitation')
+    account = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                  null=True, blank=True, related_name='learn_invitation')
+    credential_ciphertext = models.TextField(blank=True, editable=False)
+    activated_at = models.DateTimeField(null=True, blank=True)
     role = models.CharField(
         max_length=20,
         choices=InvitationRoleChoices.choices,

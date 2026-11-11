@@ -65,6 +65,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const [planType, setPlanType] = useState(null);
   const [bridgeMode, setBridgeMode] = useState(null);
   const [classMode, setClassMode] = useState('REGULAR');
+  const [collectionMode, setCollectionMode] = useState(null);
   const [chapterIds, setChapterIds] = useState([]);
   const [quoting, setQuoting] = useState(false);
   const [refusal, setRefusal] = useState(null);
@@ -83,6 +84,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
           initialQuote.revision === data.revision &&
           data.plan_types.includes(initialQuote.plan_type);
         setPlanType(restore ? initialQuote.plan_type : null);
+        setCollectionMode(restore && initialQuote.collection_intention_confirmed ? initialQuote.collection_mode : null);
         setClassMode(restore && initialQuote.plan_type === 'CHAPTER_PLAN' ? initialQuote.class_mode ?? 'REGULAR' : 'REGULAR');
         setBridgeMode(restore && initialQuote.plan_type === 'BRIDGE_COURSE' ? (initialQuote.full_course ? 'full' : 'selected') : null);
         const known = new Set(data.chapters.map((chapter) => chapter.id));
@@ -116,7 +118,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const partial = plan === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
   const ids = partial ? chapterIds : [];
   const selectionError = plan === 'CHAPTER_PLAN' ? chapterPlanError(detail.chapters, ids, classMode) : null;
-  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode) : null;
+  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode, collectionMode) : null;
   const disabled = locked || Boolean(refusal);
 
   return (
@@ -157,6 +159,8 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         onBridgeMode={setBridgeMode}
         chapterIds={chapterIds}
         onChapterIds={setChapterIds}
+        collectionMode={collectionMode}
+        onCollectionMode={setCollectionMode}
         classMode={classMode}
         onClassMode={setClassMode}
         selectionError={selectionError}
@@ -170,6 +174,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         syllabusId={syllabusId}
         detail={detail}
         planType={plan}
+        collectionMode={collectionMode}
         classMode={classMode}
         chapterIds={ids}
         preview={preview}

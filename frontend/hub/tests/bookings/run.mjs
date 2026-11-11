@@ -3607,9 +3607,9 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
     },
   });
   await open('/follow-ups', FOLLOW_UP_BDE);
-  // Nothing is ever overdue: a reminder leaves once its time is up.
+  // Booking reminders expire; paid token reservations can remain overdue.
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
-    ['All open5', 'Due today3', 'Upcoming2']);
+    ['All open5', 'Due today3', 'Upcoming2', 'Overdue']);
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
     'Call new enquiryDue todayCall the parent and guide them to book a Demo or Diagnostic.',
     'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',

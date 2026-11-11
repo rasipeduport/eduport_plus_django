@@ -94,7 +94,7 @@ CATALOGUE = {
     # Invitations
     'accounts.view_invitations': _entry('View invitations', 'Invitations'),
     'accounts.create_invitation': _entry('Invite students', 'Invitations'),
-    'accounts.change_invitation': _entry("Change an invitation's email", 'Invitations'),
+    'accounts.change_invitation': _entry('Retrieve initial Learn credentials', 'Invitations'),
     'accounts.withdraw_invitation': _entry('Withdraw invitations', 'Invitations'),
 
     # Booking links (the BDE workspace; bookings app)
@@ -175,6 +175,7 @@ CATALOGUE = {
     # quotes; seeing every quote and cancelling one are the administrators' alone.
     'accounts.create_sales_quotes': _entry('Quote parents and see their own quotes', 'Sales', BDE_AND_ADMIN),
     'accounts.manage_sales_quotes': _entry('View and cancel every quote', 'Sales', ADMIN_ONLY),
+    'accounts.manage_initial_sales': _entry('Manage initial sales and payments', 'Sales', BDE_AND_ADMIN),
 }
 
 

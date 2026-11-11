@@ -78,7 +78,7 @@ class CsrfEnforcementTests(APITestCase):
 
 
 class LoginCsrfTests(APITestCase):
-    """Login CSRF: the password and Google login POSTs need the token too."""
+    """Login CSRF: the Hub and Learn password login POSTs need the token too."""
 
     def setUp(self):
         User.objects.create_user(
@@ -101,8 +101,8 @@ class LoginCsrfTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_google_login_without_token_is_refused(self):
-        response = self.client.post('/api/auth/google/', {"credential": "x"}, format='json')
+    def test_learn_login_without_token_is_refused(self):
+        response = self.client.post('/api/auth/learn/login/', {"username": "student", "password": "temporary"}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.json()['error'], 'CSRF_FAILED')
 

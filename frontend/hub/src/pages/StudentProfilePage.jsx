@@ -11,6 +11,9 @@ import { AdditionalExamGradeSheet } from '@/components/exams/additional-exam-gra
 import { collectDocuments } from '@/lib/documents';
 import { ProfileHeader } from '@/components/students/profile/profile-header';
 import { OverviewTab } from '@/components/students/profile/overview-tab';
+import { EnquirySalesPayment } from '@/components/enquiries/workspace/enquiry-sales-payment';
+import { WorkspaceCard, Field, Fields } from '@/components/bookings/redemo-workspace/parts';
+import { quotePlanLabel } from '@/lib/sales';
 import { SessionsTab } from '@/components/students/profile/sessions-tab';
 import { ExamsTab } from '@/components/students/profile/exams-tab';
 import { HomeworkTab } from '@/components/students/profile/homework-tab';
@@ -231,6 +234,8 @@ export default function StudentProfilePage({ user }) {
               onOpenTab={setTab}
               onSynced={refresh}
             />
+            {student.learning_plan && !can(user, PERMISSIONS.manageInitialSales) ? <div className="mt-6"><WorkspaceCard title="Selected learning plan"><Fields><Field label="Syllabus">{student.learning_plan.syllabus}</Field><Field label="Plan">{quotePlanLabel(student.learning_plan)}</Field><Field label="Purchased classes">{student.learning_plan.purchased_classes}</Field><Field label="Paid class quota">{student.learning_plan.paid_classes}</Field></Fields><ul className="flex flex-col gap-1 text-sm">{student.learning_plan.chapters.map((chapter) => <li key={chapter.position}>{chapter.position}. {chapter.name} · {chapter.classes} classes</li>)}</ul></WorkspaceCard></div> : null}
+            {student.quota_source === 'PAYMENTS' && can(user, PERMISSIONS.manageInitialSales) ? <div className="mt-6"><EnquirySalesPayment studentId={studentId} user={user} /></div> : null}
           </TabsContent>
 
           <TabsContent value="sessions">

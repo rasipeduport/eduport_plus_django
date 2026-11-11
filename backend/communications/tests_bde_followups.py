@@ -311,7 +311,7 @@ class ApiTests(FollowUpTestCase):
         self.assertEqual((late.status_code, late.json()['error']), (409, 'CALL_CLOSED'))
 
     def test_filters_are_checked_and_every_other_caller_is_refused(self):
-        response = self.client.get(URL, {'due': 'overdue', 'type': 'REPORT_DISCUSSION', 'enquiry': 'x'})
+        response = self.client.get(URL, {'due': 'invalid', 'type': 'REPORT_DISCUSSION', 'enquiry': 'x'})
         self.assertEqual((response.status_code, sorted(response.json()['fields'])), (400, ['due', 'enquiry', 'type']))
         client = APIClient()
         client.force_authenticate(account('root', role='ADMIN', is_superuser=True, is_staff=True))

@@ -380,7 +380,7 @@ function withLeads(answers) {
 // superuser holds (D1), with a fixed list -- a published syllabus with a
 // draft waiting, and a Bridge Course draft -- and the pricing in effect.
 // Quotes (accounts.0022): the administrator's role group issues them and manages everyone's.
-const SALES_PERMISSIONS = ['accounts.create_sales_quotes', 'accounts.manage_sales_pricing', 'accounts.manage_sales_quotes',
+const SALES_PERMISSIONS = ['accounts.manage_initial_sales', 'accounts.create_sales_quotes', 'accounts.manage_sales_pricing', 'accounts.manage_sales_quotes',
   'accounts.manage_sales_syllabi'];
 const SALES_ADMIN = { id: 'admin', name: 'Asha Admin' };
 const SALES_PRICING = { id: 'pricing-1', version: 1, currency: 'AED', standard_fee: '45', offer_fee: '35',
@@ -446,7 +446,7 @@ const CALLERS = {
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2), the
     // catalogue on sale since accounts.0021 and quotes since accounts.0022.
     me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', CHANGE_STUDENT_TIMEZONE, 'accounts.create_demo_booking',
-      'accounts.create_sales_quotes',
+      'accounts.create_sales_quotes', 'accounts.manage_initial_sales',
       'accounts.manage_own_conversion', RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report',
       VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports',
       'accounts.view_sales_catalogue']),
@@ -491,6 +491,9 @@ for (const [caller, setup] of Object.entries(CALLERS)) {
 console.error = quiet;
 
 // ----------------------------------------------------------------- compare
+if (process.env.ACCESS_RESULTS_REPORT) {
+  writeFileSync(process.env.ACCESS_RESULTS_REPORT, `${JSON.stringify(results, null, 1)}\n`);
+}
 if (process.env.ACCESS_RECORD) {
   writeFileSync(BASELINE, `${JSON.stringify({ results }, null, 1)}\n`);
   console.log(`Recorded ${Object.keys(results).length} results to ${path.relative(hub, BASELINE)}.`);

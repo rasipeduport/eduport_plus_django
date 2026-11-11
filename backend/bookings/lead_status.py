@@ -28,12 +28,13 @@ Enrolled would come before all of these, but nothing in the database records
 an enrolment against a lead (a Student has no link to the lead it came from),
 so it is not derived: an enrolment status needs that link first.
 """
-from django.db.models import Case, CharField, DateTimeField, F, IntegerField, OuterRef, Q, Subquery, TextChoices, Value, When
+from django.db.models import Case, CharField, DateTimeField, Exists, F, IntegerField, OuterRef, Q, Subquery, TextChoices, Value, When
 
 from .models import CONDUCTED, BookingStatus, BookingType, DemoBooking, DiagnosticBooking
 
 
 class LeadStatus(TextChoices):
+    ENROLLED = 'ENROLLED', 'Enrolled'
     NEW = 'NEW', 'New'
     DIAGNOSTIC_BOOKED = 'DIAGNOSTIC_BOOKED', 'Diagnostic booked'
     DIAGNOSTIC_COMPLETED = 'DIAGNOSTIC_COMPLETED', 'Diagnostic completed'
@@ -92,8 +93,10 @@ def _deciding(model, now):
 
 def with_status(leads, now):
     """``leads`` annotated with ``lead_status`` (a LeadStatus value) as of ``now``."""
+    from sales.payment_models import Sale
     demo, diagnostic = _deciding(DemoBooking, now), _deciding(DiagnosticBooking, now)
     leads = leads.annotate(
+        academically_enrolled=Exists(Sale.objects.filter(enquiry_id=OuterRef('pk'), student__isnull=False)),
         demo_rank=Subquery(demo.values('rank')[:1]),
         demo_gives=Subquery(demo.values('gives')[:1]),
         demo_moment=Subquery(demo.values('moment')[:1]),
@@ -108,6 +111,7 @@ def with_status(leads, now):
         | (same_rank & Q(demo_rank__lt=BOOKED) & Q(demo_moment__gte=F('diagnostic_moment')))
     )
     return leads.annotate(lead_status=Case(
+        When(academically_enrolled=True, then=Value(LeadStatus.ENROLLED)),
         When(demo_gives__isnull=True, diagnostic_gives__isnull=True, then=Value(LeadStatus.NEW)),
         When(diagnostic_gives__isnull=True, then=F('demo_gives')),
         When(demo_gives__isnull=True, then=F('diagnostic_gives')),

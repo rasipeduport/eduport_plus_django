@@ -70,7 +70,43 @@ def serialize_student(student):
     The student row as both the Hub's students table and the profile header
     read it. Shape is load-bearing for the SPA -- extend, don't rename.
     """
+    learning_plan = None
+    autopay_summary = None
+    if student.quota_source == 'PAYMENTS':
+        from sales.payment_models import Purchase
+        from sales.pricing import plain
+        from sales import quotes
+        purchase = Purchase.objects.select_related('quote__revision', 'sale').filter(student=student, is_initial=True).first()
+        if purchase:
+            quote = purchase.quote
+            learning_plan = {'syllabus': quote.revision.title, 'revision': quote.revision.number,
+                             'plan_type': quote.plan_type, 'class_mode': quotes._class_mode(quote),
+                             'purchased_classes': plain(purchase.classes), 'paid_classes': plain(student.total_class_quota),
+                             'chapters': [{'position': row.chapter.position, 'name': row.chapter.name, 'classes': plain(row.classes)}
+                                          for row in quote.chapters.select_related('chapter').order_by('chapter__position')]}
+            from sales.autopay_models import AutopayAgreement
+            agreement = AutopayAgreement.objects.select_related('created_by').filter(purchase=purchase).first()
+            if agreement:
+                from sales.payments import received
+                future = agreement.installments.filter(position__gt=0).exclude(status='PAID')
+                if agreement.collection_engine == 'STRIPE_BILLING':
+                    future = future.filter(due_at__gt=timezone.now())
+                next_row = future.first()
+                attention = agreement.installments.filter(status__in=[
+                    'FAILED', 'REQUIRES_CUSTOMER_ACTION', 'REQUIRES_RECONCILIATION', 'UNKNOWN', 'VOID', 'UNCOLLECTIBLE']).first()
+                attention_status = attention.status if attention else None
+                if agreement.collection_engine == 'STRIPE_BILLING' and agreement.billing_status in ('REQUIRES_REVIEW', 'ERROR', 'UNKNOWN'):
+                    attention_status = agreement.billing_status
+                autopay_summary = {'id': str(agreement.pk), 'status': agreement.status, 'setup_status': agreement.setup_status,
+                    'billing_timezone': agreement.billing_timezone, 'next_collection_at': next_row.due_at.isoformat() if next_row else None,
+                    'remaining_amount': plain(purchase.amount - received(purchase.sale)['amount']),
+                    'creator': agreement.created_by.full_name or agreement.created_by.username, 'creator_role': agreement.creator_role, 'source': agreement.source,
+                    'attention_status': attention_status,
+                    'collection_engine': agreement.collection_engine, 'billing_status': agreement.billing_status,
+                    'stripe_subscription_id': agreement.stripe_subscription_id, 'stripe_subscription_status': agreement.stripe_subscription_status}
     return {
+        **({'learning_plan': learning_plan} if learning_plan else {}),
+        **({'autopay': autopay_summary} if autopay_summary else {}),
         "id": str(student.id),
         "student_code": student.student_code,
         "full_name": student.full_name,
@@ -84,6 +120,7 @@ def serialize_student(student):
         "created_at": student.created_at.isoformat(),
         "meet_link": student.meet_link or "",
         "total_class_quota": student.total_class_quota,
+        "quota_source": student.quota_source,
         "remarks_for_mentor": student.remarks_for_mentor or "",
         "status": student.status.lower(),
         "status_note": student.status_note or "",
@@ -105,6 +142,9 @@ def redact_student(data, user, request=None):
     removed rather than blanked so the SPA can tell "not visible to you" from
     "empty on the student".
     """
+    from accounts.authz import has_app_permission
+    if not (has_app_permission(user, 'accounts.view_all_students', request) and has_app_permission(user, 'accounts.manage_initial_sales', request)):
+        data.pop('autopay', None)
     if not _sees_full_record(user, request):
         kept = {key: value for key, value in data.items() if key in TUTOR_VISIBLE_FIELDS}
         if kept.get('profile'):

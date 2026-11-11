@@ -26,7 +26,7 @@ class ChapterModeApiTests(QuoteTestCase, APITestCase):
 
     def create(self, **extra):
         return self.client.post(QUOTES, {
-            'syllabus': str(self.grade6.pk), 'revision': 1, 'plan_type': 'CHAPTER_PLAN',
+            'syllabus': str(self.grade6.pk), 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'CHAPTER_PLAN',
             'chapter_ids': self.chapters[:2], 'pricing_version': 1, **extra,
         }, format='json')
 
@@ -177,7 +177,7 @@ class ChapterModeIntegrityTests(QuoteTestCase, TransactionTestCase):
         self.make_world()
 
     def snapshot(self):
-        return quotes.quote_snapshot(self.bde, syllabus_id=self.grade6.pk, revision=1,
+        return quotes.quote_snapshot(self.bde, collection_mode='FULL', syllabus_id=self.grade6.pk, revision=1,
                                      plan_type='CHAPTER_PLAN', chapter_ids=self.chapters[:2], class_mode='REVISION')
 
     def test_database_uses_the_selected_column_and_keeps_the_mode_immutable(self):
@@ -211,17 +211,21 @@ class ChapterModePricingTests(SimpleTestCase):
 class ChapterModeMigrationTests(QuoteTestCase, TransactionTestCase):
     def test_rollback_cannot_remove_the_mode_of_revision_quotes(self):
         self.make_world()
-        quote = quotes.issue(quotes.quote_snapshot(self.bde, syllabus_id=self.grade6.pk, revision=1,
+        quote = quotes.issue(quotes.quote_snapshot(self.bde, collection_mode='FULL', syllabus_id=self.grade6.pk, revision=1,
                                                   plan_type='CHAPTER_PLAN', chapter_ids=self.chapters[:1], class_mode='REVISION'))
-        with self.assertRaisesMessage(DatabaseError, 'their history must be preserved'):
-            MigrationExecutor(connection).migrate([('sales', '0006_quote_replacements')])
+        latest = MigrationExecutor(connection).loader.graph.leaf_nodes()
+        try:
+            with self.assertRaisesMessage(DatabaseError, 'their history must be preserved'):
+                MigrationExecutor(connection).migrate([('sales', '0006_quote_replacements')])
+        finally:
+            MigrationExecutor(connection).migrate(latest)
         quote.refresh_from_db()
         self.assertEqual(quote.class_mode, 'REVISION')
 
     def test_existing_chapter_quotes_survive_migration_without_rewriting_their_snapshot(self):
         self.make_world()
         old_target = [('sales', '0006_quote_replacements')]
-        new_target = [('sales', '0007_chapter_plan_class_mode')]
+        new_target = MigrationExecutor(connection).loader.graph.leaf_nodes()
         executor = MigrationExecutor(connection)
         executor.migrate(old_target)
         try:

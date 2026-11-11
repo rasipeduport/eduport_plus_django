@@ -1,3 +1,4 @@
+from django.test import override_settings
 import datetime as dt
 from io import StringIO
 from unittest.mock import patch
@@ -1443,6 +1444,7 @@ class SyncedQuotaFeedsTheExistingHourArithmeticTests(APITestCase):
         )
 
 
+@override_settings(LEARN_INVITATION_KEYS=['MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='])
 class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
     """
     A newly enrolled student must be able to book immediately, so the quota is
@@ -1476,7 +1478,6 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
 
     def _enrol(self, rows, code='EDP00041', email='razi@example.com'):
         """Invite, then sign the parent in, which is what creates the Student."""
-        from accounts.services import UserProvisioningService
 
         with patch(
             'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
@@ -1487,9 +1488,6 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
             }, format='json')
         self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
 
-        parent = User.objects.create_user(
-            email=email, password="pw", full_name="Razi Parent", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
         return Student.objects.get(student_code=code)
 
     def test_new_student_starts_at_the_sheets_paid_figure(self):
@@ -1526,7 +1524,6 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
 
     def test_sheets_failure_does_not_block_enrolment(self):
         """Google being down must not stop a student being invited."""
-        from accounts.services import UserProvisioningService
 
         with patch(
             'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows',
@@ -1538,9 +1535,6 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
             }, format='json')
         self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
 
-        parent = User.objects.create_user(
-            email="down@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
         student = Student.objects.get(student_code="EDP00041")
         self.assertEqual(student.total_class_quota, 0)
 
@@ -1549,7 +1543,6 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
         The retired manual top-up must not come back through the invitation
         form: a client-supplied figure is ignored in favour of the sheet's.
         """
-        from accounts.services import UserProvisioningService
 
         rows = [self._profile_row('EDP00041', paid='8')]
         with patch(
@@ -1562,11 +1555,8 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
             }, format='json')
 
         invitation = Invitation.objects.get(extra_data__student_code='EDP00041')
-        self.assertEqual(invitation.extra_data['total_class_quota'], 8)
+        self.assertEqual(str(invitation.extra_data['total_class_quota']), '8')
 
-        parent = User.objects.create_user(
-            email="razi@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
         self.assertEqual(Student.objects.get(student_code='EDP00041').total_class_quota, 8)
 
     def test_lookup_reports_the_paid_figure_for_the_enrolment_form(self):
@@ -1581,20 +1571,12 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
         # Profile fields and the quota come from ONE fetch of the same snapshot.
         self.assertEqual(fetch.call_count, 1)
 
-    def test_an_invitation_predating_this_key_still_enrols(self):
-        """Backward compatibility: extra_data written before the key existed."""
-        from accounts.services import UserProvisioningService
-
-        Invitation.objects.create(
-            email="legacy@example.com", role=InvitationRoleChoices.STUDENT,
-            status=InvitationStatusChoices.PENDING,
-            extra_data={"student_code": "EDP00099", "full_name": "Legacy"},
-        )
-        parent = User.objects.create_user(
-            email="legacy@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
-
-        self.assertEqual(Student.objects.get(student_code="EDP00099").total_class_quota, 0)
+    def test_legacy_invitation_alone_does_not_create_student_on_login(self):
+        Invitation.objects.create(email="legacy@example.com", role='STUDENT',
+            extra_data={'student_code': 'EDP00099', 'full_name': 'Legacy'})
+        response = self.client.post('/api/auth/google/', {'credential': 'old-token'})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Student.objects.filter(student_code='EDP00099').exists())
 
     def test_periodic_sync_still_takes_over_when_the_sheet_changes(self):
         """

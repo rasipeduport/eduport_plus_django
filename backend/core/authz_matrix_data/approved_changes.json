@@ -1056,6 +1056,25 @@
     "status": 403
    }
   },
+  "auth.google.empty @ anon": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": null
+  },
+  "auth.learn_login.empty @ anon": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "INVALID_INPUT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Username and password are required.",
+    "records": [],
+    "status": 400
+   }
+  },
   "auth.me @ admin": {
    "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
@@ -12699,6 +12718,45 @@
     "status": 400
    }
   },
+  "invitations.create.student @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "invitation",
+     "invitation.activated_at",
+     "invitation.created_at",
+     "invitation.credentials_available",
+     "invitation.email",
+     "invitation.extra_data",
+     "invitation.extra_data.full_name",
+     "invitation.extra_data.source",
+     "invitation.extra_data.student_code",
+     "invitation.extra_data.total_class_quota",
+     "invitation.id",
+     "invitation.invited_by",
+     "invitation.invited_by_profile",
+     "invitation.invited_by_profile.email",
+     "invitation.invited_by_profile.full_name",
+     "invitation.invited_by_profile.id",
+     "invitation.legacy",
+     "invitation.role",
+     "invitation.status",
+     "invitation.student_code",
+     "invitation.student_id",
+     "invitation.student_name",
+     "invitation.username",
+     "message",
+     "status"
+    ],
+    "message": "Learn invitation created. Retrieve initial credentials in Invitations.",
+    "records": [
+     "admin",
+     "new"
+    ],
+    "status": 201
+   }
+  },
   "invitations.create.student @ mentor_a": {
    "decision": "D4: mentors no longer have invitation access.",
    "note": "The Mentor role group carries no invitation permission, so every invitations endpoint refuses mentors (403).",
@@ -12721,6 +12779,269 @@
     ],
     "records": [],
     "status": 403
+   }
+  },
+  "invitations.create.student @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "invitation",
+     "invitation.activated_at",
+     "invitation.created_at",
+     "invitation.credentials_available",
+     "invitation.email",
+     "invitation.extra_data",
+     "invitation.extra_data.full_name",
+     "invitation.extra_data.source",
+     "invitation.extra_data.student_code",
+     "invitation.extra_data.total_class_quota",
+     "invitation.id",
+     "invitation.invited_by",
+     "invitation.invited_by_profile",
+     "invitation.invited_by_profile.email",
+     "invitation.invited_by_profile.full_name",
+     "invitation.invited_by_profile.id",
+     "invitation.legacy",
+     "invitation.role",
+     "invitation.status",
+     "invitation.student_code",
+     "invitation.student_id",
+     "invitation.student_name",
+     "invitation.username",
+     "message",
+     "status"
+    ],
+    "message": "Learn invitation created. Retrieve initial credentials in Invitations.",
+    "records": [
+     "new",
+     "su_mentor"
+    ],
+    "status": 201
+   }
+  },
+  "invitations.create.student @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "invitation",
+     "invitation.activated_at",
+     "invitation.created_at",
+     "invitation.credentials_available",
+     "invitation.email",
+     "invitation.extra_data",
+     "invitation.extra_data.full_name",
+     "invitation.extra_data.source",
+     "invitation.extra_data.student_code",
+     "invitation.extra_data.total_class_quota",
+     "invitation.id",
+     "invitation.invited_by",
+     "invitation.invited_by_profile",
+     "invitation.invited_by_profile.email",
+     "invitation.invited_by_profile.full_name",
+     "invitation.invited_by_profile.id",
+     "invitation.legacy",
+     "invitation.role",
+     "invitation.status",
+     "invitation.student_code",
+     "invitation.student_id",
+     "invitation.student_name",
+     "invitation.username",
+     "message",
+     "status"
+    ],
+    "message": "Learn invitation created. Retrieve initial credentials in Invitations.",
+    "records": [
+     "new",
+     "su_tutor"
+    ],
+    "status": 201
+   }
+  },
+  "invitations.create.student @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "invitation",
+     "invitation.activated_at",
+     "invitation.created_at",
+     "invitation.credentials_available",
+     "invitation.email",
+     "invitation.extra_data",
+     "invitation.extra_data.full_name",
+     "invitation.extra_data.source",
+     "invitation.extra_data.student_code",
+     "invitation.extra_data.total_class_quota",
+     "invitation.id",
+     "invitation.invited_by",
+     "invitation.invited_by_profile",
+     "invitation.invited_by_profile.email",
+     "invitation.invited_by_profile.full_name",
+     "invitation.invited_by_profile.id",
+     "invitation.legacy",
+     "invitation.role",
+     "invitation.status",
+     "invitation.student_code",
+     "invitation.student_id",
+     "invitation.student_name",
+     "invitation.username",
+     "message",
+     "status"
+    ],
+    "message": "Learn invitation created. Retrieve initial credentials in Invitations.",
+    "records": [
+     "new",
+     "superuser"
+    ],
+    "status": 201
+   }
+  },
+  "invitations.credentials @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials @ anon": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ mentor_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ mentor_b": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ parent_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials @ tutor_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ tutor_b": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials @ unknown": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.edit_email @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "EMAIL_INVITATIONS_RETIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Learn invitations use student usernames. Email changes do not issue or resend credentials.",
+    "records": [],
+    "status": 410
    }
   },
   "invitations.edit_email @ mentor_a": {
@@ -12747,6 +13068,306 @@
     "status": 403
    }
   },
+  "invitations.edit_email @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "EMAIL_INVITATIONS_RETIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Learn invitations use student usernames. Email changes do not issue or resend credentials.",
+    "records": [],
+    "status": 410
+   }
+  },
+  "invitations.edit_email @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "EMAIL_INVITATIONS_RETIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Learn invitations use student usernames. Email changes do not issue or resend credentials.",
+    "records": [],
+    "status": 410
+   }
+  },
+  "invitations.edit_email @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "error": "EMAIL_INVITATIONS_RETIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Learn invitations use student usernames. Email changes do not issue or resend credentials.",
+    "records": [],
+    "status": 410
+   }
+  },
+  "invitations.issue_existing @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "activated_at",
+     "created_at",
+     "credentials_available",
+     "email",
+     "extra_data",
+     "extra_data.full_name",
+     "extra_data.source",
+     "extra_data.student_code",
+     "id",
+     "invited_by",
+     "invited_by_profile",
+     "invited_by_profile.email",
+     "invited_by_profile.full_name",
+     "invited_by_profile.id",
+     "legacy",
+     "role",
+     "status",
+     "student_code",
+     "student_id",
+     "student_name",
+     "username"
+    ],
+    "records": [
+     "admin",
+     "new",
+     "stu_a"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.issue_existing @ anon": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ mentor_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ mentor_b": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ parent_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "activated_at",
+     "created_at",
+     "credentials_available",
+     "email",
+     "extra_data",
+     "extra_data.full_name",
+     "extra_data.source",
+     "extra_data.student_code",
+     "id",
+     "invited_by",
+     "invited_by_profile",
+     "invited_by_profile.email",
+     "invited_by_profile.full_name",
+     "invited_by_profile.id",
+     "legacy",
+     "role",
+     "status",
+     "student_code",
+     "student_id",
+     "student_name",
+     "username"
+    ],
+    "records": [
+     "new",
+     "stu_a",
+     "su_mentor"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.issue_existing @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "activated_at",
+     "created_at",
+     "credentials_available",
+     "email",
+     "extra_data",
+     "extra_data.full_name",
+     "extra_data.source",
+     "extra_data.student_code",
+     "id",
+     "invited_by",
+     "invited_by_profile",
+     "invited_by_profile.email",
+     "invited_by_profile.full_name",
+     "invited_by_profile.id",
+     "legacy",
+     "role",
+     "status",
+     "student_code",
+     "student_id",
+     "student_name",
+     "username"
+    ],
+    "records": [
+     "new",
+     "stu_a",
+     "su_tutor"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.issue_existing @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "activated_at",
+     "created_at",
+     "credentials_available",
+     "email",
+     "extra_data",
+     "extra_data.full_name",
+     "extra_data.source",
+     "extra_data.student_code",
+     "id",
+     "invited_by",
+     "invited_by_profile",
+     "invited_by_profile.email",
+     "invited_by_profile.full_name",
+     "invited_by_profile.id",
+     "legacy",
+     "role",
+     "status",
+     "student_code",
+     "student_id",
+     "student_name",
+     "username"
+    ],
+    "records": [
+     "new",
+     "stu_a",
+     "superuser"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.issue_existing @ tutor_a": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ tutor_b": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.issue_existing @ unknown": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.list @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
   "invitations.list @ mentor_a": {
    "decision": "D4: mentors no longer have invitation access.",
    "note": "The Mentor role group carries no invitation permission, so every invitations endpoint refuses mentors (403).",
@@ -12771,6 +13392,142 @@
     "status": 403
    }
   },
+  "invitations.list @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.list @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.list @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.list.alias @ admin": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
   "invitations.list.alias @ mentor_a": {
    "decision": "D4: mentors no longer have invitation access.",
    "note": "The Mentor role group carries no invitation permission, so every invitations endpoint refuses mentors (403).",
@@ -12793,6 +13550,108 @@
     ],
     "records": [],
     "status": 403
+   }
+  },
+  "invitations.list.alias @ su_mentor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.list.alias @ su_tutor": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
+   }
+  },
+  "invitations.list.alias @ superuser": {
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
+   "result": {
+    "fields": [
+     "[].activated_at",
+     "[].created_at",
+     "[].credentials_available",
+     "[].email",
+     "[].extra_data",
+     "[].extra_data.full_name",
+     "[].extra_data.student_code",
+     "[].id",
+     "[].invited_by",
+     "[].invited_by_profile",
+     "[].invited_by_profile.email",
+     "[].invited_by_profile.full_name",
+     "[].invited_by_profile.id",
+     "[].legacy",
+     "[].role",
+     "[].status",
+     "[].student_code",
+     "[].student_id",
+     "[].student_name",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "inv_legacy",
+     "inv_pending"
+    ],
+    "status": 200
    }
   },
   "invitations.lookup @ mentor_a": {

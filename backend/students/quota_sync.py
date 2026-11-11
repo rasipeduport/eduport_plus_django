@@ -184,7 +184,7 @@ def _students_by_code():
     reported and the first kept rather than letting the later one win silently.
     """
     by_code = {}
-    for student in Student.objects.all():
+    for student in Student.objects.filter(quota_source='SHEET'):
         key = (student.student_code or '').strip().upper()
         if not key:
             continue
@@ -399,6 +399,7 @@ TARGETED_UNCHANGED = 'unchanged'
 TARGETED_NOT_ENROLLED = 'not_enrolled'
 TARGETED_NO_VALUE = 'no_value'
 TARGETED_FAILED = 'failed'
+TARGETED_PAYMENT_MANAGED = 'payment_managed'
 
 
 def sync_one_student_quota(student_code):
@@ -420,6 +421,9 @@ def sync_one_student_quota(student_code):
     if student is None:
         logger.info("Single-student quota sync: %r is not an enrolled student; nothing to do.", key)
         return TARGETED_NOT_ENROLLED
+
+    if student.quota_source == 'PAYMENTS':
+        return TARGETED_PAYMENT_MANAGED
 
     try:
         rows = GoogleSheetsService.fetch_enrollment_rows()

@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Field, Fields } from '@/components/bookings/redemo-workspace/parts';
-import { classesLabel, formatAmount, labelOf, QUOTE_STATUSES } from '@/lib/sales';
+import { classesLabel, formatAmount, labelOf, QUOTE_STATUSES, wholeQuoteLineAmounts, quoteCollectionLabel } from '@/lib/sales';
+import { wholeAed } from '@/lib/payments';
 import { ResponsiveList } from '@/components/page/responsive-list';
 
 const STATUS_VARIANTS = { ISSUED: 'success', CANCELLED: 'destructive' };
@@ -19,36 +20,40 @@ export function QuoteStatusBadge({ status }) {
  */
 export function QuoteFigures({ figures, currency }) {
   const saving = Number(figures.single_payment_saving) > 0;
+  const collection = currency === 'AED' && figures.collection_subtotal != null;
+  const money = (value) => collection ? wholeAed(value) : formatAmount(value, currency);
+  const allocated = collection ? wholeQuoteLineAmounts(figures) : [];
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
-        {figures.lines.map((line) => (
+        {figures.lines.map((line, index) => (
           <li key={line.plan_type} className="bg-muted/40 rounded-lg border p-3 text-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <span className="font-medium">{line.title}</span>
-              <span className="font-semibold tabular-nums">{formatAmount(line.total, currency)}</span>
+              <span className="font-semibold tabular-nums">{money(collection ? allocated[index] : line.total)}</span>
             </div>
             <p className="text-muted-foreground text-xs tabular-nums">
-              {classesLabel(line.classes)} × {formatAmount(line.fee_per_class, currency)}
+              {classesLabel(line.classes)}{!collection || Number.isInteger(Number(line.fee_per_class)) ? ` × ${money(line.fee_per_class)}` : ''}
               {line.single_payment
-                ? ` · single payment ${formatAmount(line.single_payment.price, currency)} (saves ${formatAmount(line.single_payment.saving, currency)})`
+                ? ` · single payment ${money(line.single_payment.price)} (saves ${money(line.single_payment.saving)})`
                 : ''}
             </p>
           </li>
         ))}
       </ul>
       <Fields>
+        {figures.collection_mode ? <Field label="Collection intention">{figures.collection_intention_confirmed === false ? 'Not recorded (historical quote)' : quoteCollectionLabel(figures.collection_mode)}</Field> : null}
         <Field label="Classes">{classesLabel(figures.classes)}</Field>
         <Field label="Total fee">
-          <span className="tabular-nums">{formatAmount(figures.total_fee, currency)}</span>
+          <span className="tabular-nums">{money(collection ? figures.collection_subtotal : figures.total_fee)}</span>
         </Field>
         {saving ? (
           <Field label="Single-payment saving">
-            <span className="text-success tabular-nums">{formatAmount(figures.single_payment_saving, currency)}</span>
+            <span className="text-success tabular-nums">{money(collection ? figures.collection_discount : figures.single_payment_saving)}</span>
           </Field>
         ) : null}
-        <Field label="Payable at once">
-          <span className="font-semibold tabular-nums">{formatAmount(figures.payable_amount, currency)}</span>
+        <Field label={figures.collection_mode === 'FULL' ? 'Payable at once' : figures.collection_mode ? 'Agreed package amount' : 'Package before collection choice'}>
+          <span className="font-semibold tabular-nums">{money(collection ? figures.collection_amount : figures.payable_amount)}</span>
         </Field>
       </Fields>
     </div>

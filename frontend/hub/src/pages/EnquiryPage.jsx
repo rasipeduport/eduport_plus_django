@@ -27,6 +27,7 @@ import { EnquiryHeader } from '@/components/enquiries/workspace/enquiry-header';
 import { EnquiryNotes } from '@/components/enquiries/workspace/enquiry-notes';
 import { EnquiryOverview } from '@/components/enquiries/workspace/enquiry-overview';
 import { EnquiryPlanChoosing } from '@/components/enquiries/workspace/enquiry-plan-choosing';
+import { EnquirySalesPayment } from '@/components/enquiries/workspace/enquiry-sales-payment';
 import { HistoryTimeline } from '@/components/history/history-timeline';
 
 function EnquirySkeleton() {
@@ -68,7 +69,7 @@ function Unavailable({ failure }) {
  * every booking made for them (Bookings), the reports on those bookings to send
  * to the parent (Tutor Feedback, for holders of accounts.view_own_lead_reports),
  * the calls and parent messages still to do (Follow-ups, for holders of
- * accounts.view_own_lead_communications), Sales & Payment, still to come, and
+ * accounts.view_own_lead_communications), initial Sales & Payment, and
  * the notes staff keep on it -- the BDE, the tutors teaching its bookings and
  * the administrators (Notes, never the parent's) -- and every change to its
  * bookings, oldest first, with who made it and why (History, backend
@@ -263,17 +264,8 @@ export default function EnquiryPage({ user }) {
               <EnquiryPlanChoosing key={enquiry.id} enquiry={enquiry} />
             </TabsContent>
           ) : null}
-          {/* Still to come: says so. */}
           <TabsContent value="sales">
-            <EmptyState
-              icon={ReceiptIndianRupeeIcon}
-              title={
-                <span className="inline-flex flex-wrap items-center justify-center gap-2">
-                  Sales &amp; Payment <Badge variant="highlight">{COMING_SOON}</Badge>
-                </span>
-              }
-              description="The plan this family chooses, its payments and where they stand will appear here."
-            />
+            {can(user, PERMISSIONS.manageInitialSales) ? <EnquirySalesPayment enquiryId={enquiry.id} enquiry={enquiry} user={user} onChanged={refreshEnquiry} /> : <AccessDeniedState title="Sales & Payment" message="You do not have access to initial sales and payments." />}
           </TabsContent>
           <TabsContent value="notes">
             <EnquiryNotes enquiryId={enquiry.id} />

@@ -22,7 +22,7 @@ revision, a pricing version, a rounding rule -- changes what it says. The
 database holds it so (sales.0004).
 """
 from dataclasses import dataclass, replace
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import connection, transaction
 from django.db.models import OuterRef, Q, Subquery
@@ -72,9 +72,10 @@ class QuoteSnapshot:
     payable_amount: Decimal
     supersedes: object = None
     class_mode: str | None = None
+    collection_mode: str | None = None
 
 
-def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), lead_id=None, class_mode=None):
+def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), lead_id=None, class_mode=None, collection_mode=None):
     """
     ``plan_type`` of revision ``revision`` of syllabus ``syllabus_id`` --
     the revision it sells now -- priced at the pricing in effect, for
@@ -84,6 +85,8 @@ def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), l
     nothing; a SalesError says why it cannot be quoted.
     """
     sold = services.on_sale_revision(syllabus_id, revision)
+    if collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY'):
+        raise _invalid('collection_mode', 'Choose Single / Complete Payment, Partial Payment or Autopay before issuing the quote.')
     if plan_type not in sold.plan_types:
         raise _invalid('plan_type', f'{sold.title} is not sold as {PlanType(plan_type).label}.')
     if plan_type == PlanType.CHAPTER_PLAN:
@@ -123,6 +126,8 @@ def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), l
     if sum((line.classes for line in lines), ZERO) <= 0:
         raise _invalid('plan_type', 'This plan has no classes to quote.')
 
+    if collection_mode != 'FULL':
+        lines = [replace(line, single_payment=None) for line in lines]
     total_fee = sum((line.total for line in lines), ZERO)
     saving = sum((line.single_payment[1] for line in lines if line.single_payment), ZERO)
     return QuoteSnapshot(
@@ -130,12 +135,14 @@ def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), l
         full_course=len(covered) == len(chapters), lines=lines,
         chapters=[(chapter, _counted(chapter, plan_type, class_mode)) for chapter in covered],
         classes=sum((line.classes for line in lines), ZERO), total_fee=total_fee,
-        single_payment_saving=saving, payable_amount=total_fee - saving, class_mode=class_mode,
+        single_payment_saving=saving, payable_amount=total_fee - saving, class_mode=class_mode, collection_mode=collection_mode,
     )
 
 
 def issue(snapshot, quote_id=None):
     """``snapshot`` saved as the next quote -- its lines and chapters with it -- in one transaction."""
+    if snapshot.collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY'):
+        raise _invalid('collection_mode', 'Choose the collection intention before issuing the quote.')
     pricing = snapshot.pricing
     with transaction.atomic():
         # One issuer at a time, so numbers only ever go up and never repeat. Reads go on.
@@ -146,6 +153,9 @@ def issue(snapshot, quote_id=None):
             **({'id': quote_id} if quote_id else {}),
             number=last + 1, created_by=snapshot.owner, lead=snapshot.lead, supersedes=snapshot.supersedes, revision=snapshot.revision,
             pricing_version=pricing, plan_type=snapshot.plan_type, class_mode=snapshot.class_mode, full_course=snapshot.full_course,
+            collection_mode=snapshot.collection_mode,
+            collection_intention_confirmed=True,
+            collection_amount=snapshot.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP) if pricing.currency == 'AED' else None,
             currency=pricing.currency, standard_fee=pricing.standard_fee, offer_fee=pricing.offer_fee,
             single_payment_percent=pricing.single_payment_percent, classes=snapshot.classes,
             total_fee=snapshot.total_fee, single_payment_saving=snapshot.single_payment_saving,
@@ -186,9 +196,11 @@ def create_quote(actor, data, request=None):
     snapshot = quote_snapshot(
         actor, syllabus_id=data['syllabus'], revision=data['revision'], plan_type=data['plan_type'],
         chapter_ids=data.get('chapter_ids') or (), lead_id=data.get('lead'), class_mode=data.get('class_mode'),
+        collection_mode=data.get('collection_mode'),
     )
     if data.get('pricing_version') is not None and snapshot.pricing.version != data['pricing_version']:
         raise SalesError('PRICING_CHANGED', 'Pricing changed meanwhile. Reload the syllabus and review the new amount.')
+    validate_sale_snapshot(lead, snapshot)
     quote = issue(replace(snapshot, supersedes=previous))
     _log('quote.create', quote, request, actor, plan_type=quote.plan_type, class_mode=quote.class_mode, full_course=quote.full_course,
          revision=quote.revision.number, pricing_version=quote.pricing_version.version,
@@ -197,9 +209,26 @@ def create_quote(actor, data, request=None):
     return quote
 
 
+def validate_sale_snapshot(lead, snapshot):
+    """Retain the existing token balance guard for either replacement path."""
+    if lead:
+        from .payment_models import Sale
+        from .payments import TOKEN_AMOUNT, require_token_quote
+        if Sale.objects.filter(enquiry=lead, kind='TOKEN').exists():
+            require_token_quote(snapshot)
+            if snapshot.pricing.currency != 'AED' or snapshot.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP) <= TOKEN_AMOUNT:
+                raise SalesError('TOKEN_EXCEEDS_PACKAGE', 'A token reservation needs an AED package with a positive tuition balance beyond its token.')
+
+
 def cancel_quote(actor, quote_id, reason, request=None):
     """An issued quote withdrawn by an administrator, with why; a cancelled one stays as it is (ALREADY_CANCELLED)."""
     with transaction.atomic():
+        from .payment_models import Purchase
+        lead_id = Quote.objects.filter(pk=quote_id).values_list('lead_id', flat=True).first()
+        if lead_id:
+            Lead.objects.select_for_update().get(pk=lead_id)
+        if Purchase.objects.filter(quote_id=quote_id).exists():
+            raise SalesError('PLAN_LOCKED', 'A purchase already pins this quote; its payment history must be preserved.')
         quote = Quote.objects.select_for_update().filter(pk=quote_id).first()
         if quote is None:
             raise SalesError('NOT_FOUND', 'No such quote.', 404)
@@ -265,6 +294,11 @@ def quote_row(quote):
         'revision': revision.number,
         'plan_type': quote.plan_type,
         'class_mode': _class_mode(quote),
+        'collection_mode': quote.collection_mode,
+        'collection_intention_confirmed': quote.collection_intention_confirmed,
+        'collection_amount': plain(_collection_amount(quote)),
+        'collection_subtotal': plain(quote.total_fee.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+        'collection_discount': plain(quote.total_fee.quantize(Decimal('1'), rounding=ROUND_HALF_UP) - quote.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
         'full_course': quote.full_course,
         'supersedes': str(quote.supersedes_id) if quote.supersedes_id else None,
         'is_current': current,
@@ -342,6 +376,11 @@ def quote_pdf_parts(quote):
         'cancelled': _day(quote.cancelled_at) if quote.status == QuoteStatus.CANCELLED else None,
         'class_mode': _class_mode(quote),
         'plan_label': f'Chapter Plan · {ChapterClassMode(_class_mode(quote)).label} classes' if quote.plan_type == PlanType.CHAPTER_PLAN else None,
+        'collection_amount': plain(_collection_amount(quote)) if quote.currency == 'AED' else None,
+        'collection_subtotal': plain(quote.total_fee.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+        'collection_discount': plain(quote.total_fee.quantize(Decimal('1'), rounding=ROUND_HALF_UP) - quote.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+        'currency': quote.currency,
+        'collection_mode': quote.collection_mode,
     }
     rates = QuoteRates(currency=quote.currency, standard_fee=quote.standard_fee, offer_fee=quote.offer_fee)
     return content, rates, cards, (None if covered == every else sorted(covered)), reference
@@ -355,6 +394,10 @@ def _day(moment):
 
 def _class_mode(quote):
     return (quote.class_mode or ChapterClassMode.REGULAR) if quote.plan_type == PlanType.CHAPTER_PLAN else None
+
+
+def _collection_amount(quote):
+    return quote.collection_amount if quote.collection_amount is not None else quote.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
 
 
 def _counted(chapter, plan_type, class_mode=None):

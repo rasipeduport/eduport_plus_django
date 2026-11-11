@@ -54,7 +54,7 @@ export default function InvitationsPage({ user }) {
     <Page>
       <PageHeader
         title="Invitations"
-        description="Students invited to Eduport Plus, and where each invitation stands. Staff accounts are made in Team."
+        description="Learn accounts are created at enrollment. Share initial credentials securely here; activation requires a password change."
         actions={
           can(user, PERMISSIONS.createInvitation) ? (
             <NewInvitation initialOpen={initialOpen} onSuccess={fetchInvitations} />

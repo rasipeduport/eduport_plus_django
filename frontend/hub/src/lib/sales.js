@@ -402,7 +402,15 @@ function fromThousandths(n) {
  * `selectedIds` are a Chapter Plan's chapters or a Bridge Course's days (none,
  * or every day: the whole course). Null without pricing.
  */
-export function quotePreview(planType, chapters, selectedIds, pricing, classMode = 'REGULAR') {
+export const QUOTE_COLLECTION_MODES = [
+  { value: 'FULL', label: 'Single / Complete Payment', hint: 'Apply the configured single-payment discount, where available.' },
+  { value: 'PARTIAL', label: 'Partial Payment', hint: 'No single-payment discount.' },
+  { value: 'AUTOPAY', label: 'Autopay', hint: 'No single-payment discount. Set the schedule in Sales & Payment.' },
+];
+
+export const quoteCollectionLabel = (mode) => QUOTE_COLLECTION_MODES.find((option) => option.value === mode)?.label || 'Not selected';
+
+export function quotePreview(planType, chapters, selectedIds, pricing, classMode = 'REGULAR', collectionMode = null) {
   if (toCents(pricing?.offer_fee) === null) return null;
   let lines;
   let fullCourse = true;
@@ -418,6 +426,7 @@ export function quotePreview(planType, chapters, selectedIds, pricing, classMode
   } else {
     lines = packagePrices([planType], chapters, pricing);
   }
+  if (collectionMode !== 'FULL') lines = lines.map((line) => ({ ...line, single_payment: null }));
   const total = lines.reduce((sum, line) => sum + toThousandths(line.total), 0n);
   const saving = lines.reduce((sum, line) => sum + (line.single_payment ? toThousandths(line.single_payment.saving) : 0n), 0n);
   // A package's classes may pass 99.5 (a whole course): read them whole, not as a chapter's count.
@@ -428,10 +437,14 @@ export function quotePreview(planType, chapters, selectedIds, pricing, classMode
   return {
     lines,
     fullCourse,
+    collection_mode: collectionMode,
     classes: fromHalves(halves),
     total_fee: fromThousandths(total),
     single_payment_saving: fromThousandths(saving),
     payable_amount: fromThousandths(total - saving),
+    collection_amount: ((total - saving + 500n) / 1000n).toString(),
+    collection_subtotal: ((total + 500n) / 1000n).toString(),
+    collection_discount: (((total + 500n) / 1000n) - ((total - saving + 500n) / 1000n)).toString(),
   };
 }
 
@@ -441,6 +454,21 @@ export function quotePlanLabel(quote) {
   if (quote.plan_type === 'BRIDGE_COURSE') return quote.full_course ? 'Full Bridge Course' : 'Bridge Course · Selected Chapters';
   if (quote.plan_type === 'CHAPTER_PLAN') return `${label} · ${quote.class_mode === 'REVISION' ? 'Revision' : 'Regular'} classes`;
   return label;
+}
+
+/** Display-only whole-AED allocation. The backend independently validates collection. */
+export function wholeQuoteLineAmounts(figures) {
+  const total = toThousandths(figures.total_fee);
+  const rounded = BigInt(figures.collection_subtotal);
+  let cumulative = 0n;
+  let previous = 0n;
+  return figures.lines.map((line) => {
+    cumulative += toThousandths(line.total);
+    const target = total ? (2n * rounded * cumulative + total) / (2n * total) : 0n;
+    const allocated = (target - previous).toString();
+    previous = target;
+    return allocated;
+  });
 }
 
 /** "Riya Nair (parent of Arjun)": the enquiry a quote answers ('' for none). */

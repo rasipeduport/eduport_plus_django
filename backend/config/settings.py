@@ -188,6 +188,16 @@ STORAGES = {
 # there is deliberately no MEDIA_URL and nothing exposes this directory.
 MEDIA_ROOT = Path(env('MEDIA_ROOT', default=str(BASE_DIR / 'media')))
 
+# Phase 1 admissions. Hosted Checkout needs no publishable key in the Hub.
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_LIVE_MODE = env.bool('STRIPE_LIVE_MODE', default=False)
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
+AUTOPAY_TERMS_URL = env('AUTOPAY_TERMS_URL', default='')
+SALES_BILLING_TIMEZONE = env('SALES_BILLING_TIMEZONE', default='Asia/Dubai')
+SALES_EDP_MIN_NUMBER = env.int('SALES_EDP_MIN_NUMBER', default=0)
+PAYMENT_PROOF_MAX_BYTES = env.int('PAYMENT_PROOF_MAX_MB', default=10) * 1024 * 1024
+
 # Per-kind upload ceilings, in bytes. 50 MiB for documents/images matches the
 # Hub's homework bucket; video recordings get more room. Override per
 # environment with SESSION_CONTENT_MAX_MB_<KIND>.
@@ -426,7 +436,8 @@ LOGGING = {
 }
 
 # Google Integration Configuration
-GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
+# Independent of SECRET_KEY. First key encrypts; older keys decrypt during rotation.
+LEARN_INVITATION_KEYS = env.list('LEARN_INVITATION_KEYS', default=[])
 GOOGLE_SHEET_ID = env('GOOGLE_SHEET_ID', default='')
 GOOGLE_SERVICE_ACCOUNT_EMAIL = env('GOOGLE_SERVICE_ACCOUNT_EMAIL', default='')
 GOOGLE_PRIVATE_KEY = env('GOOGLE_PRIVATE_KEY', default='')
@@ -461,6 +472,14 @@ CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
 # lands, so an hour is about the longest a mentor should have to wait before a
 # top-up lets them book; one Google API call per run makes it cheap.
 CELERY_BEAT_SCHEDULE = {
+    'collect-due-autopay-installments': {
+        'task': 'sales.tasks.collect_due_autopay_installments',
+        'schedule': crontab(minute='*'),
+    },
+    'sync-stripe-student-metadata': {
+        'task': 'sales.tasks.sync_stripe_student_metadata',
+        'schedule': crontab(minute='*/15'),
+    },
     'sync-student-quotas-from-sheet': {
         'task': 'students.tasks.sync_student_quotas',
         'schedule': crontab(

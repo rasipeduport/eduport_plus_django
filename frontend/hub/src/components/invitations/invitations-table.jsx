@@ -18,10 +18,13 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
 
 // Where an invitation stands (backend invitations.InvitationStatusChoices).
 const STATUSES = [
+  { value: 'LEGACY', label: 'Credentials not issued', variant: 'secondary' },
   { value: 'PENDING', label: 'Pending', variant: 'warning' },
-  { value: 'ACCEPTED', label: 'Accepted', variant: 'success' },
+  { value: 'ACCEPTED', label: 'Activated', variant: 'success' },
   { value: 'EXPIRED', label: 'Expired', variant: 'secondary' },
 ];
+
+const accountStatus = (invitation) => invitation.legacy ? 'LEGACY' : invitation.status;
 
 function StatusBadge({ status }) {
   const shown = STATUSES.find((option) => option.value === status);
@@ -65,38 +68,38 @@ export function InvitationsTable({ data, user, onChanged }) {
   const filtered = Boolean(q || status);
   const rows = data.filter(
     (invitation) =>
-      (!q || (invitation.email ?? '').toLowerCase().includes(q.toLowerCase())) && (!status || invitation.status === status)
+      (!q || [invitation.student_name, invitation.student_code, invitation.username, invitation.email].filter(Boolean).join(' ').toLowerCase().includes(q.toLowerCase())) && (!status || accountStatus(invitation) === status)
   );
   const actions = (invitation) =>
-    invitation.status === 'ACCEPTED' ? null : <InvitationActionCell invitation={invitation} user={user} onChanged={onChanged} />;
+    <InvitationActionCell invitation={invitation} user={user} onChanged={onChanged} />;
 
   const columns = [
-    { key: 'email', header: 'Email', className: 'font-medium', cell: (invitation) => invitation.email },
-    { key: 'role', header: 'Role', cell: (invitation) => <Role role={invitation.role} /> },
-    { key: 'status', header: 'Status', cell: (invitation) => <StatusBadge status={invitation.status} /> },
+    { key: 'student', header: 'Student', className: 'font-medium', cell: (invitation) => <div>{invitation.student_name || invitation.email}<p className="text-muted-foreground text-xs">{invitation.student_code || 'Legacy invitation'}</p></div> },
+    { key: 'username', header: 'Username', cell: (invitation) => invitation.username || 'Not issued' },
+    { key: 'password', header: 'Temporary password', cell: (invitation) => <InvitationActionCell invitation={invitation} user={user} onChanged={onChanged} /> },
+    { key: 'status', header: 'Status', cell: (invitation) => <StatusBadge status={accountStatus(invitation)} /> },
     { key: 'invited', header: 'Invited At', className: 'whitespace-nowrap', cell: invitedAt },
     {
       key: 'by',
       header: 'Invited by',
       cell: (invitation) => invitedBy(invitation) ?? <span className="text-muted-foreground">—</span>,
     },
-    { key: 'actions', header: { srOnly: 'Actions' }, headerClassName: 'w-px', cell: actions },
   ];
 
   const renderCard = (invitation) => (
     <article className="bg-card flex h-full flex-col gap-3 rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate font-medium">{invitation.email}</h2>
+          <h2 className="truncate font-medium">{invitation.student_name || invitation.email}</h2><p className="text-muted-foreground text-sm">{invitation.student_code} · {invitation.username || 'Not issued'}</p>
           <div className="text-muted-foreground mt-1 text-sm">
             <Role role={invitation.role} />
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <StatusBadge status={invitation.status} />
-          {actions(invitation)}
+          <StatusBadge status={accountStatus(invitation)} />
         </div>
       </div>
+      {actions(invitation)}
       <p className="text-muted-foreground text-xs">
         {[`Invited ${invitedAt(invitation)}`, invitedBy(invitation) ? `by ${invitedBy(invitation)}` : null]
           .filter(Boolean)
@@ -113,7 +116,7 @@ export function InvitationsTable({ data, user, onChanged }) {
       <EmptyState
         icon={SearchXIcon}
         title="No invitations match these filters"
-        description="Try another email or status, or clear the filters."
+        description="Try another name, username or status, or clear the filters."
         action={
           <Button variant="outline" onClick={clear}>
             Clear all filters
@@ -132,7 +135,7 @@ export function InvitationsTable({ data, user, onChanged }) {
           value={q}
           onSearch={(text) => update({ q: text || null })}
           label="Search invitations"
-          placeholder="Search by email…"
+          placeholder="Search name, EDP ID or username…"
         />
         <FilterSelect
           label="Filter by status"

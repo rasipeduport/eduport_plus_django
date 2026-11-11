@@ -14,7 +14,9 @@
     "test:reports": "node tests/reports/run.mjs",
     "test:leads": "node tests/leads/run.mjs",
     "test:sales": "node tests/sales/run.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:learn-auth": "node tests/learn-auth/run.mjs",
+    "test:sales:browser": "node tests/sales/browser/collection-intention.mjs"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",

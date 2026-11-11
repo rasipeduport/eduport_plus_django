@@ -637,6 +637,10 @@ class StudentDetailView(APIView):
 
         from exams.services import exam_history_exists
         from homework.services import homework_history_exists
+        if hasattr(student, 'learn_invitation'):
+            return Response({'error': 'HAS_HISTORY',
+                             'message': 'This student has retained enrollment credentials. Set their status to "expired" instead.'},
+                            status=status.HTTP_409_CONFLICT)
         if (Session.objects.filter(student=student).exists() or exam_history_exists(student)
                 or homework_history_exists(student)):
             return Response(
@@ -755,6 +759,8 @@ class StudentQuotaSyncView(APIView):
         if not student:
             return _not_found()
 
+        if student.quota_source == 'PAYMENTS':
+            return Response({'error': 'PAYMENT_MANAGED_QUOTA', 'message': 'This student’s quota comes from verified payments and cannot be overwritten by the sheet.'}, status=409)
         outcome = sync_one_student_quota(student.student_code)
 
         if outcome == TARGETED_FAILED:

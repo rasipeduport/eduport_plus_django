@@ -133,6 +133,13 @@ export function createColumns(user, onChanged) {
       accessorKey: 'full_name',
       header: 'Name',
     },
+    ...(isAdmin && can(user, PERMISSIONS.manageInitialSales) ? [{
+      id: 'autopay', header: 'Autopay',
+      cell: ({ row }) => {
+        const agreement = row.original.autopay;
+        return agreement ? <div className="space-y-1 text-xs"><Badge variant={agreement.setup_status === 'READY' && !agreement.attention_status ? 'success' : 'warning'}>{(agreement.attention_status || agreement.status).replaceAll('_', ' ')}</Badge><p>{agreement.creator} · {agreement.creator_role}</p>{agreement.collection_engine === 'STRIPE_BILLING' ? <p>Stripe Billing · {agreement.stripe_subscription_status || agreement.billing_status.replaceAll('_', ' ')}</p> : null}<p>{agreement.next_collection_at ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: agreement.billing_timezone }).format(new Date(agreement.next_collection_at)) : 'No future collection'}</p></div> : '—';
+      },
+    }] : []),
     {
       accessorKey: 'status',
       header: 'Status',

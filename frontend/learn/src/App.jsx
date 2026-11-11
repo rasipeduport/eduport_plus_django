@@ -3,6 +3,7 @@ import AuthProvider from './context/AuthProvider';
 import StudentProvider from './context/StudentProvider';
 import { AppShell } from './components/student/app-shell';
 import LoginPage from './pages/LoginPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
 import AccessEndedPage from './pages/AccessEndedPage';
 import SelectProfilePage from './pages/SelectProfilePage';
@@ -24,6 +25,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route
           path="/*"
           element={

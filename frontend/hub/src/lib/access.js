@@ -85,6 +85,7 @@ export const PERMISSIONS = {
   // everyone's and cancelling them (the Admin's alone).
   createSalesQuotes: 'accounts.create_sales_quotes',
   manageSalesQuotes: 'accounts.manage_sales_quotes',
+  manageInitialSales: 'accounts.manage_initial_sales',
 };
 
 const P = PERMISSIONS;
