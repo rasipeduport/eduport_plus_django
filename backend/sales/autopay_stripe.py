@@ -28,7 +28,7 @@ def checkout_options(agreement, payment, attempt_id=None):
     consent_message = f'{agreement.consent_text} Read the [agreed schedule]({review_url}) and [Autopay terms]({agreement.terms_url}).'
     if len(consent_message) > 1200:
         raise payments.refusal('AUTOPAY_TERMS_INVALID', 'The configured terms link exceeds Stripe’s consent-text limit. Configure a shorter approved URL.', 503)
-    return {'metadata': metadata, 'payment_method_types': ['card'],
+    return {'metadata': metadata, 'allowed_payment_method_types': ['card'],
             'consent_collection': {'terms_of_service': 'required', 'payment_method_reuse_agreement': {'position': 'auto'}},
             'custom_text': {'terms_of_service_acceptance': {'message': consent_message}},
             'payment_intent_data': {'metadata': metadata, 'setup_future_usage': 'off_session'}}

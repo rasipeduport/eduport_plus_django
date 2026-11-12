@@ -162,7 +162,8 @@ class AutopayTests(QuoteTestCase, APITestCase):
         self.assertEqual(calls[0]['mode'], 'payment')
         self.assertEqual(calls[0]['payment_intent_data']['setup_future_usage'], 'off_session')
         self.assertEqual(calls[0]['consent_collection']['terms_of_service'], 'required')
-        self.assertEqual(calls[0]['payment_method_types'], ['card'])
+        self.assertEqual(calls[0]['allowed_payment_method_types'], ['card'])
+        self.assertNotIn('payment_method_types', calls[0])
         self.assertEqual(calls[0]['line_items'][0]['price_data']['unit_amount'], 10000)
         self.assertEqual(response.json()['autopay']['source'], 'BDE_INITIAL')
 
@@ -184,6 +185,8 @@ class AutopayTests(QuoteTestCase, APITestCase):
         self.assertEqual(params['mode'], ['payment'])
         self.assertEqual(params['payment_intent_data[setup_future_usage]'], ['off_session'])
         self.assertEqual(params['consent_collection[terms_of_service]'], ['required'])
+        self.assertEqual(params['allowed_payment_method_types[0]'], ['card'])
+        self.assertNotIn('payment_method_types[0]', params)
         self.assertEqual(params['customer'], ['cus_sdk_auto'])
         self.assertEqual(params['line_items[0][price_data][unit_amount]'], ['10000'])
         self.assertEqual(Student.objects.count(), 0)

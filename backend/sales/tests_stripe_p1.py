@@ -140,6 +140,64 @@ class StripeP1Tests(QuoteTestCase, APITransactionTestCase):
         self.assertEqual(gateway.v1.checkout.sessions.create.call_count, 1)
         self.assertEqual(StripeCheckoutOperation.objects.get().status, 'REQUIRES_REVIEW')
 
+    def test_explicit_replacement_corrects_card_parameter_without_rewriting_failed_history(self):
+        from . import autopay_stripe
+        self.assertEqual(self.start().status_code, 201)
+        gateway, _, _ = auto_helpers.AutopayTests.transport(self)
+        create = gateway.v1.checkout.sessions.create.side_effect
+        options = autopay_stripe.checkout_options
+
+        def historical_options(*args, **kwargs):
+            params = options(*args, **kwargs)
+            params['payment_method_types'] = params.pop('allowed_payment_method_types')
+            return params
+
+        gateway.v1.checkout.sessions.create.side_effect = stripe.InvalidRequestError(
+            'fixture: unsupported Checkout parameter', 'payment_method_types', http_status=400)
+        schedule, request_id = self.schedule(), uuid.uuid4()
+        with mock.patch('sales.stripe_gateway.client', return_value=gateway), mock.patch(
+                'sales.autopay_stripe.checkout_options', side_effect=historical_options):
+            rejected = self.begin(schedule, request_id)
+        self.assertEqual((rejected.status_code, rejected.json()['error']), (409, 'STRIPE_CHECKOUT_REJECTED'))
+        original = StripeCheckoutOperation.objects.get()
+        frozen_operation = copy.deepcopy(StripeCheckoutOperation.objects.values().get(pk=original.pk))
+        from .autopay_models import AutopayAttempt
+        frozen_attempt = copy.deepcopy(AutopayAttempt.objects.values().get(pk=original.pk))
+        agreement = AutopayAgreement.objects.get()
+        payment = Payment.objects.get()
+        purchase_id = payment.purchase_id
+        customer_id = StripeCustomer.objects.get().customer_id
+
+        with mock.patch('sales.stripe_gateway.client', return_value=gateway):
+            replay = self.begin(schedule, request_id)
+            self.assertEqual((replay.status_code, replay.json()['error']), (409, 'CHECKOUT_REVIEW_REQUIRED'))
+            self.assertEqual(gateway.v1.checkout.sessions.create.call_count, 1)
+            gateway.v1.checkout.sessions.create.side_effect = create
+            replacement_id = uuid.uuid4()
+            response = self.client.post(f'/api/sales/autopay/{agreement.pk}/initial-checkout/',
+                {'request_id': str(replacement_id)}, format='json')
+            self.assertEqual(response.status_code, 200, response.content)
+            replay = self.client.post(f'/api/sales/autopay/{agreement.pk}/initial-checkout/',
+                {'request_id': str(replacement_id)}, format='json')
+            self.assertEqual(replay.status_code, 200, replay.content)
+            self.assertEqual(gateway.v1.checkout.sessions.create.call_count, 2)
+        self.assertEqual(response.status_code, 200, response.content)
+        replacement = StripeCheckoutOperation.objects.get(pk=replacement_id)
+        self.assertEqual(replacement.request['allowed_payment_method_types'], ['card'])
+        self.assertNotIn('payment_method_types', replacement.request)
+        dispatched = gateway.v1.checkout.sessions.create.call_args.args[0]
+        self.assertEqual(dispatched['allowed_payment_method_types'], ['card'])
+        self.assertNotIn('payment_method_types', dispatched)
+        self.assertEqual(dispatched['customer'], customer_id)
+        self.assertEqual(StripeCheckoutOperation.objects.values().get(pk=original.pk), frozen_operation)
+        self.assertEqual(AutopayAttempt.objects.values().get(pk=original.pk), frozen_attempt)
+        self.assertEqual((Payment.objects.count(), Purchase.objects.count(), StripeCustomer.objects.count()), (1, 1, 1))
+        self.assertEqual((StripeCheckoutOperation.objects.count(), AutopayAttempt.objects.count()), (2, 2))
+        payment.refresh_from_db()
+        self.assertEqual(payment.purchase_id, purchase_id)
+        self.assertEqual(gateway.v1.customers.create.call_count, 1)
+        self.assertFalse(Student.objects.exists())
+
     def test_customer_response_loss_reuses_its_frozen_body_and_identity(self):
         self.start()
         gateway, _, _ = auto_helpers.AutopayTests.transport(self)
