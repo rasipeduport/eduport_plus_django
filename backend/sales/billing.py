@@ -89,8 +89,23 @@ def metadata(agreement):
             'collection_engine': ENGINE}
 
 
+def descriptive(agreement):
+    """Student and account references for people reading Stripe. Never used to validate."""
+    sale = agreement.purchase.sale
+    account = sale.account
+    meta = {'eduport_account_id': str(account.pk), 'eduport_account_ref': account.reference,
+            'enquiry_id': str(sale.enquiry_id), 'sale_id': str(sale.pk)}
+    if account.student_id:
+        meta.update(student_id=str(account.student_id), edp_student_id=account.student.student_code)
+    return meta
+
+
 def schedule_request(agreement, rows):
-    common = metadata(agreement)
+    # metadata() is what every validator checks and stays unchanged; the student
+    # references are added beside it and frozen with the request.
+    common = {**metadata(agreement), **descriptive(agreement)}
+    account = agreement.purchase.sale.account
+    refs = account.reference + (f' · {account.student.student_code}' if account.student_id else '')
     phases = []
     terms = phase_terms(rows)
     for term in terms:
@@ -101,6 +116,7 @@ def schedule_request(agreement, rows):
             'collection_method': 'charge_automatically',
             'automatic_tax': {'enabled': False}, 'default_tax_rates': '', 'discounts': '',
             'metadata': {**common, 'installment_id': term['id'], 'installment_position': str(term['position'])},
+            'description': f'{account.student_name} ({refs}) — Eduport Plus installment {term["position"]} of {len(terms)}'[:500],
             'items': [{'quantity': 1, 'price_data': {'currency': 'aed', 'product': agreement.stripe_product_id,
                 'unit_amount': term['amount'], 'tax_behavior': 'inclusive',
                 'recurring': {'interval': 'month', 'interval_count': term['months']}}}]})
@@ -133,7 +149,7 @@ def refresh_current_method(agreement, gateway=None, subscription=None):
     from .stripe_gateway import client
     try:
         gateway = gateway or client()
-        mapping = StripeCustomer.objects.get(enquiry_id=agreement.purchase.sale.enquiry_id)
+        mapping = StripeCustomer.objects.get(account_id=agreement.purchase.sale.account_id, customer_id=agreement.stripe_customer_id)
         if mapping.customer_id != agreement.stripe_customer_id or mapping.livemode != agreement.livemode or agreement.livemode != settings.STRIPE_LIVE_MODE:
             raise ValueError('Billing Customer and environment require review.')
         schedule = data(gateway.v1.subscription_schedules.retrieve(agreement.stripe_schedule_id)) if agreement.stripe_schedule_id else None
@@ -190,7 +206,7 @@ def refresh_current_method(agreement, gateway=None, subscription=None):
         agreement.card_brand, agreement.card_last4 = method.get('card', {}).get('brand', ''), method.get('card', {}).get('last4', '')
         agreement.setup_status, agreement.setup_message = 'READY', ''
         agreement.ready_at = agreement.ready_at or timezone.now()
-        if agreement.status != 'COMPLETED':
+        if agreement.status not in ('COMPLETED', 'CANCELLED'):
             agreement.status = 'ACTIVE'
         if subscription_id:
             agreement.stripe_subscription_id = subscription_id
@@ -198,7 +214,7 @@ def refresh_current_method(agreement, gateway=None, subscription=None):
             agreement.billing_status, agreement.billing_message, agreement.billing_issue_scope = 'PROVISIONED', '', ''
     except (stripe.StripeError, ValueError, payments.SalesError, StripeCustomer.DoesNotExist) as exc:
         agreement.setup_status = 'UNSUPPORTED' if agreement.setup_status == 'UNSUPPORTED' else 'INCOMPLETE'
-        if agreement.status != 'COMPLETED':
+        if agreement.status not in ('COMPLETED', 'CANCELLED'):
             agreement.status = 'SETUP_INCOMPLETE'
         agreement.setup_message = str(exc)[:255] if isinstance(exc, ValueError) else 'Current Billing payment-method verification is incomplete. Admin follow-up is required.'
     agreement.save(update_fields=['stripe_subscription_id', 'stripe_payment_method_id', 'card_brand', 'card_last4',
@@ -276,7 +292,9 @@ def _adopt_schedule(agreement_id, remote):
         agreement.billing_status, agreement.billing_message, agreement.billing_issue_scope = 'PROVISIONED', '', ''
         agreement.save(update_fields=['billing_status', 'billing_message', 'billing_issue_scope'])
     if remote.get('status') in ('canceled', 'aborted', 'released'):
-        problem(agreement.pk, 'The Stripe schedule was stopped or released. Review outstanding installments; historical terms were preserved.')
+        stopped_in_stripe(agreement, 'The Stripe schedule was stopped or released. Review outstanding installments; historical terms were preserved.')
+    elif agreement.cancelled_at and remote.get('status') in ('not_started', 'active'):
+        problem(agreement.pk, 'A Stripe schedule is running for a cancelled agreement. Cancel it in Stripe; no classes are credited for it automatically.')
     return agreement
 
 
@@ -286,7 +304,8 @@ def provision(agreement_id, reconcile_only=False, recover=False):
     initial = AutopayInstallment.objects.get(agreement_id=agreement_id, position=0)
     with transaction.atomic():
         agreement, _ = autopay.lock_installment(initial.pk)
-        if agreement.collection_engine != ENGINE or not agreement.initial_paid_at or agreement.setup_status != 'READY':
+        if (agreement.collection_engine != ENGINE or not agreement.initial_paid_at or agreement.setup_status != 'READY'
+                or agreement.cancelled_at):
             return
         if agreement.livemode != settings.STRIPE_LIVE_MODE or not agreement.purchase.sale.student_id:
             raise payments.refusal('BILLING_NOT_READY', 'Verified enrollment and matching Stripe mode are required.', 409)
@@ -352,22 +371,14 @@ def provision(agreement_id, reconcile_only=False, recover=False):
             raise ValueError('An agreed collection date has passed. The schedule cannot be silently backdated.')
         if agreement.installments.filter(position__gt=0).exclude(status='PAID').filter(Q(payment__isnull=False) | Q(attempts__isnull=False)).exists():
             raise ValueError('A future installment already has collection history. Reconcile it before provisioning Billing.')
-        mapping = StripeCustomer.objects.get(enquiry_id=agreement.purchase.sale.enquiry_id)
+        mapping = StripeCustomer.objects.get(account_id=agreement.purchase.sale.account_id, customer_id=agreement.stripe_customer_id)
         method = data(gateway.v1.payment_methods.retrieve(agreement.stripe_payment_method_id))
         if (mapping.customer_id != agreement.stripe_customer_id or mapping.livemode != agreement.livemode
                 or method.get('customer') != mapping.customer_id or bool(method.get('livemode')) != agreement.livemode
                 or method.get('type') != 'card' or method.get('card', {}).get('country') == 'IN'):
             raise ValueError('The saved card must be reusable for this Customer and environment; India-specific recurring mandates need a separate supported setup flow.')
-        product_id = f'eduport_autopay_{agreement.pk.hex}'
-        try:
-            product = data(gateway.v1.products.retrieve(product_id))
-        except stripe.InvalidRequestError as exc:
-            if exc.code != 'resource_missing':
-                raise
-            product = data(gateway.v1.products.create({'id': product_id, 'name': 'Eduport Plus agreed tuition installments',
-                'metadata': metadata(agreement)}, options={'idempotency_key': f'eduport-billing-product-{agreement.pk}'}))
-        if product.get('metadata', {}).get('autopay_id') != str(agreement.pk):
-            raise ValueError('Stripe Product reference belongs to a different agreement.')
+        from .customers import ensure_product
+        product_id = ensure_product(gateway, 'TUITION')
         with transaction.atomic():
             agreement = AutopayAgreement.objects.select_for_update().select_related('purchase__sale').get(pk=agreement.pk)
             if agreement.provisioning_generation != attempt_generation or agreement.stripe_schedule_id:
@@ -398,7 +409,7 @@ def provision(agreement_id, reconcile_only=False, recover=False):
 
 def provision_ready():
     ids = AutopayAgreement.objects.filter(collection_engine=ENGINE, initial_paid_at__isnull=False,
-        setup_status='READY', stripe_schedule_id__isnull=True,
+        setup_status='READY', stripe_schedule_id__isnull=True, cancelled_at__isnull=True,
         billing_status__in=['NOT_PROVISIONED', 'SUBMITTING', 'UNKNOWN']).values_list('pk', flat=True)
     for agreement_id in list(ids):
         try:
@@ -480,7 +491,7 @@ def _validate_invoice(agreement, installment, invoice):
 
 def _invoice_payment(invoice, gateway):
     rows = [data(row) for row in gateway.v1.invoice_payments.list({'invoice': invoice['id'], 'status': 'paid', 'limit': 100,
-        'expand': ['data.payment.payment_intent']}).auto_paging_iter()]
+        'expand': ['data.payment.payment_intent.latest_charge']}).auto_paging_iter()]
     if len(rows) != 1 or rows[0].get('amount_paid') != invoice['total']:
         raise ValueError('Invoice settlement needs reconciliation: exactly one full Stripe payment is required.')
     paid = rows[0]; reference = paid.get('payment') or {}
@@ -538,11 +549,15 @@ def _reconcile_invoice(event, record):
     gateway = client()
     invoice = data(gateway.v1.invoices.retrieve(event['data']['object']['id']))
     subscription_id, meta = _invoice_context(invoice)
-    if not subscription_id:
-        record.outcome = 'IGNORED'; return
-    subscription = data(gateway.v1.subscriptions.retrieve(subscription_id))
-    agreement = _subscription_agreement(subscription)
+    agreement = None
+    if subscription_id:
+        subscription = data(gateway.v1.subscriptions.retrieve(subscription_id))
+        agreement = _subscription_agreement(subscription)
     if agreement is None:
+        if invoice.get('status') == 'paid' and invoice.get('amount_paid'):
+            from . import review
+            from .ledger_models import ReviewKind
+            review.record(ReviewKind.UNMATCHED_INVOICE, invoice, record, 'A paid invoice outside any Django agreement was not credited.')
         record.outcome = 'IGNORED'; return
     installment = agreement.installments.filter(pk=internal_id(meta.get('installment_id')), position__gt=0).first()
     if not installment:
@@ -598,7 +613,9 @@ def _reconcile_invoice(event, record):
             raise ValueError('This Stripe payment has already credited another allocation.')
         _failed_charge_history(installment, event, intent, gateway)
         attempt = _attempt(installment, event, intent, paid)
-        payments.succeed(payment, provider_id=intent['id'])
+        from .stripe_gateway import card_evidence
+        charge_id, card = card_evidence(intent.get('latest_charge'))
+        payments.succeed(payment, provider_id=intent['id'], charge_id=charge_id if charge_id.startswith('ch_') else '', payer=card)
         installment.status, installment.paid_at = 'PAID', payment.verified_at
         installment.save(update_fields=['status', 'paid_at'])
         autopay.attempt_state(attempt, 'SUCCEEDED')
@@ -642,6 +659,10 @@ def process_event(event, record):
             subscription = data(client().v1.subscriptions.retrieve(obj['id']))
             agreement = _subscription_agreement(subscription)
             if not agreement:
+                if event['type'] == 'customer.subscription.created':
+                    from . import review
+                    from .ledger_models import ReviewKind
+                    review.record(ReviewKind.UNMATCHED_SUBSCRIPTION, subscription, record, 'A subscription Django did not create.')
                 record.outcome = 'IGNORED'; return
             agreement, _ = autopay.lock_installment(agreement.installments.get(position=0).pk)
             agreement.stripe_subscription_id = subscription['id']
@@ -655,7 +676,10 @@ def process_event(event, record):
                     'proration_behavior': 'none'}, options={'idempotency_key': f'eduport-billing-card-settings-{subscription["id"]}'})
             if not refresh_current_method(agreement, gateway, subscription):
                 mark_current_method_problem(agreement)
-            if subscription.get('status') in ('canceled', 'unpaid', 'paused', 'incomplete_expired') and agreement.installments.exclude(status='PAID').exists():
+            if subscription.get('status') in ('canceled', 'incomplete_expired'):
+                agreement.refresh_from_db()
+                stopped_in_stripe(agreement, 'Stripe subscription collection is stopped. Review its status and recovery settings; outstanding installments were preserved.')
+            elif subscription.get('status') in ('unpaid', 'paused') and agreement.installments.exclude(status='PAID').exists():
                 problem(agreement.pk, 'Stripe subscription collection is stopped. Review its status and recovery settings; outstanding installments were preserved.')
             elif subscription.get('pause_collection'):
                 problem(agreement.pk, 'Stripe invoice collection is paused. Review the native subscription settings; no unpaid classes were credited.')
@@ -673,3 +697,78 @@ def process_event(event, record):
             problem(agreement_id, str(exc))
         record.outcome, record.error = 'REJECTED', str(exc)[:255]
 
+
+
+def stopped_in_stripe(agreement, message):
+    """Keep Django in step when collection stops at Stripe. Admin cancellations are expected."""
+    if agreement.cancelled_at:
+        return
+    if agreement.installments.exclude(status='PAID').exists():
+        AutopayAgreement.objects.filter(pk=agreement.pk, cancelled_at__isnull=True).update(
+            status='CANCELLED', cancelled_at=timezone.now(), cancellation_source='STRIPE',
+            cancellation_reason='Collection was stopped in Stripe, not through Eduport Plus.')
+        problem(agreement.pk, message)
+
+
+def cancel_agreement(actor, agreement_id, values, request=None):
+    """Administrator cancellation (own decision or the parent's request).
+
+    Future collection stops; paid installments, payments, classes and the agreed
+    schedule stay as history. Stripe is told first: if it cannot confirm, nothing
+    changes in Django. Open invoices are not voided automatically.
+    """
+    from .stripe_gateway import client
+    from .student_accounts import is_admin
+    if not is_admin(actor, request):
+        raise payments.refusal('FORBIDDEN', 'Only an administrator can cancel Autopay.', 403)
+    agreement = AutopayAgreement.objects.select_related('purchase__sale').filter(pk=agreement_id).first()
+    if agreement is None:
+        raise payments.refusal('NOT_FOUND', 'No such Autopay agreement.', 404)
+    reason = ' '.join((values.get('reason') or '').split())
+    source = values.get('source') or 'ADMIN'
+    if len(reason) < 10:
+        raise payments.refusal('REASON_REQUIRED', 'Explain the cancellation (at least 10 characters).')
+    if source not in ('ADMIN', 'PARENT_REQUEST'):
+        raise payments.refusal('INVALID_SOURCE', 'Choose who asked for the cancellation.')
+    initial = agreement.installments.get(position=0)
+    with transaction.atomic():
+        agreement, _ = autopay.lock_installment(initial.pk)
+        if agreement.cancelled_at:
+            return agreement
+        if agreement.status == 'COMPLETED' or not agreement.installments.filter(position__gt=0).exclude(status='PAID').exists():
+            raise payments.refusal('NOTHING_TO_CANCEL', 'Every installment is already paid.', 409)
+        schedule_id = agreement.stripe_schedule_id if agreement.collection_engine == ENGINE else None
+    schedule_status = ''
+    if schedule_id:
+        gateway = client()
+        try:
+            remote = data(gateway.v1.subscription_schedules.cancel(schedule_id, {'invoice_now': False, 'prorate': False}))
+        except stripe.InvalidRequestError:
+            # Already stopped (for example by a concurrent cancellation): confirm, never assume.
+            try:
+                remote = data(gateway.v1.subscription_schedules.retrieve(schedule_id))
+            except stripe.StripeError as exc:
+                raise payments.refusal('STRIPE_UNAVAILABLE', 'Stripe could not confirm the cancellation. Nothing changed in Eduport Plus.', 503) from exc
+        except stripe.StripeError as exc:
+            raise payments.refusal('STRIPE_UNAVAILABLE', 'Stripe could not confirm the cancellation. Nothing changed in Eduport Plus.', 503) from exc
+        schedule_status = remote.get('status') or ''
+        if schedule_status not in ('canceled', 'completed', 'released'):
+            raise payments.refusal('STRIPE_UNAVAILABLE', 'Stripe did not confirm the cancellation. Nothing changed in Eduport Plus.', 503)
+    with transaction.atomic():
+        agreement, _ = autopay.lock_installment(initial.pk)
+        if agreement.cancelled_at:
+            return agreement
+        agreement.status, agreement.cancelled_at, agreement.cancelled_by = 'CANCELLED', timezone.now(), actor
+        agreement.cancellation_reason, agreement.cancellation_source = reason, source
+        fields = ['status', 'cancelled_at', 'cancelled_by', 'cancellation_reason', 'cancellation_source']
+        if schedule_status:
+            agreement.stripe_schedule_status = schedule_status
+            fields.append('stripe_schedule_status')
+        agreement.save(update_fields=fields)
+        # Installments that never started collecting are cancelled; ones with an
+        # invoice or payment attempt stay visible for follow-up.
+        agreement.installments.filter(position__gt=0, payment__isnull=True, stripe_invoice_id__isnull=True).exclude(
+            status='PAID').update(status='CANCELLED')
+        payments.audit('autopay.cancelled', agreement.purchase.sale, actor, request, agreement=str(agreement.pk),
+                       source=source, schedule=schedule_id)
+    return agreement

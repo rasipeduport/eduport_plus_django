@@ -12,7 +12,7 @@ New Sale also offers Autopay Setup. BDE enters the initial class count and all f
 
 Stripe generates a shareable hosted payment link. It stays Pending until a signed paid webhook is processed. Direct methods require the exact calculated amount, classes, receipt, payment date and confirmation of receipt. Payment dates default to today and can be backdated. Supported methods are Account Transfer, AJAS CEO UAE Account and AJAS CEO Indian Account.
 
-The first verified tuition payment immediately enrolls the student. For a ten-class AED 500 package, six paid classes collect AED 300, grant six quota and leave four classes / AED 200 unpaid. BDE collection then ends, including further payment links and direct records. Historical records remain readable in the enquiry. This Phase 1 boundary also leaves Admin's student profile read-only for collections; existing mentor assignment remains available.
+The first verified tuition payment immediately enrolls the student. For a ten-class AED 500 package, six paid classes collect AED 300, grant six quota and leave four classes / AED 200 unpaid. **Changed 2026-11-13:** the remaining balance of the same purchase can still be collected after enrollment (Stripe link or direct receipt) by the owning BDE or an Admin. It is a separate payment on the same sale and purchase; the agreed amount is unchanged. Class credit follows the existing rules: such a later payment records money only (it is shown as not added to the quota) while the crediting rule is decided. Autopay installments still credit their classes. Tokens remain pre-enrollment only and an Autopay purchase is collected by its schedule only. Admin's student profile stays read-only for collections; existing mentor assignment remains available. See [Student financial identity](student-financial-identity.md).
 
 ## Money and class allocation
 
@@ -46,7 +46,7 @@ Install `backend/requirements.txt`, including official `stripe==16.1.0`. No publ
 | `PAYMENT_PROOF_MAX_MB` | Private receipt size limit, default 10 |
 | `MEDIA_ROOT` | Existing durable private upload directory |
 
-The integration creates a Stripe Customer using the enquiry UUID and an idempotency key. Tuition reuses a Customer created for a token. After enrollment, the same Customer metadata receives the Student UUID and EDP ID. A failed metadata update cannot roll back a received payment; `sales.tasks.sync_stripe_student_metadata` retries every 15 minutes through the existing Celery worker/beat setup.
+Each student account has its own Stripe Customer (student name, parent as billing contact), reused by every payment and Autopay agreement of that student; see [Student financial identity](student-financial-identity.md). Customers created before student accounts are keyed by their enquiry, kept as they are and never renamed. After enrollment, the Customer metadata receives the Student UUID and EDP ID. A failed metadata update cannot roll back a received payment; `sales.tasks.sync_stripe_student_metadata` retries every 15 minutes through the existing Celery worker/beat setup.
 
 The shareable link is a **single-use Checkout Session URL**, with stored `cs_…` session ID, customer ID and later `pi_…` transaction ID. This deliberately uses the Checkout API rather than a reusable `plink_…` Payment Link because Checkout can bind the existing Customer explicitly. The API persists enquiry, quote, purchase and payment metadata on the Session and PaymentIntent. Generated links do not mark payments successful.
 

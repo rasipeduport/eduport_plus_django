@@ -280,14 +280,16 @@ def agreement_data(agreement, include_actions=False):
         'stripe_subscription_status': agreement.stripe_subscription_status,
         'stripe_schedule_id': agreement.stripe_schedule_id, 'stripe_schedule_status': agreement.stripe_schedule_status,
         'next_retry_at': min((row['next_payment_attempt'] for row in rows if row['next_payment_attempt']), default=None),
-        'terms_url': agreement.terms_url, 'consent_text': agreement.consent_text}
+        'terms_url': agreement.terms_url, 'consent_text': agreement.consent_text,
+        'cancelled_at': agreement.cancelled_at.isoformat() if agreement.cancelled_at else None,
+        'cancellation_source': agreement.cancellation_source or None, 'cancellation_reason': agreement.cancellation_reason or None,
+        'cancelled_by': (agreement.cancelled_by.full_name or agreement.cancelled_by.username) if agreement.cancelled_by_id else None}
 
 
 def lock_installment(installment_id):
-    from bookings.models import Lead
     installment = AutopayInstallment.objects.select_related('agreement__purchase__sale').get(pk=installment_id)
-    Lead.objects.select_for_update().get(pk=installment.agreement.purchase.sale.enquiry_id)
-    Sale.objects.select_for_update().get(pk=installment.agreement.purchase.sale_id)
+    from .stripe_gateway import lock_sale
+    lock_sale(installment.agreement.purchase.sale)
     agreement = AutopayAgreement.objects.select_for_update().select_related('purchase__sale').get(pk=installment.agreement_id)
     installment = AutopayInstallment.objects.select_for_update(of=('self',)).select_related('payment').get(pk=installment_id)
     return agreement, installment

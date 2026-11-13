@@ -836,6 +836,36 @@ SCENARIOS += [
 ]
 
 
+# Student financial identity: billing contact (BDE/Admin), audited identity
+# correction, Autopay cancellation and the Stripe review queue (Admin only).
+SCENARIOS += [
+    Scenario('student_accounts.billing_contact', 'put', '/api/sales/enquiries/{lead_a}/sale/billing-contact/', {'email': 'billing@matrix.test'}),
+    Scenario('student_accounts.correction', 'post', '/api/sales/accounts/{stu_a}/identity-correction/',
+             {'student_name': 'Matrix Child', 'reason': 'Matrix identity correction reason.'}),
+    Scenario('student_accounts.cancel_autopay', 'post', '/api/sales/autopay/{stu_a}/cancel/', {'reason': 'Matrix cancellation reason.'}),
+    Scenario('stripe_review.list', 'get', '/api/sales/stripe-review/'),
+    Scenario('stripe_review.resolve', 'post', '/api/sales/stripe-review/{stu_a}/resolve/', {'action': 'DISMISS', 'note': 'Matrix review note.'}),
+]
+
+
+# Additional purchases: the student's own mentor (or an administrator). The
+# matrix world's students have no student account and no additional sale, so
+# whoever gets past the permission and the mentor check is answered
+# NO_STUDENT_ACCOUNT or NOT_FOUND ({stu_a} stands in for a sale or payment ID).
+SCENARIOS += [
+    Scenario('additional_purchases.overview', 'get', '/api/sales/students/{stu_a}/purchases/'),
+    Scenario('additional_purchases.foreign', 'get', '/api/sales/students/{stu_b}/purchases/'),
+    Scenario('additional_purchases.create', 'post', '/api/sales/students/{stu_a}/purchases/', lambda w: {
+        'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL',
+        'request_id': str(fixed_id('additional_purchase_request'))}),
+    Scenario('additional_purchases.read', 'get', '/api/sales/purchases/{stu_a}/'),
+    Scenario('additional_purchases.amount', 'get', '/api/sales/purchases/{stu_a}/amount/?classes=1'),
+    Scenario('additional_purchases.collect', 'post', '/api/sales/purchases/{stu_a}/payments/',
+             {'request_id': str(fixed_id('additional_payment_request')), 'classes': '1'}),
+    Scenario('additional_purchases.expire', 'post', '/api/sales/purchases/{stu_a}/payments/{stu_a}/expire/', {}),
+]
+
+
 # ------------------------------------------------------------------ running
 
 class _Placeholders(dict):

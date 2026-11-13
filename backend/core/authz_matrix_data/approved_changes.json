@@ -696,6 +696,1014 @@
     "status": 200
    }
   },
+  "additional_purchases.amount @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.amount @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.amount @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.amount @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.amount @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.amount @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.collect @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.collect @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.collect @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.collect @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.collect @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.collect @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.create @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.create @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.create @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.create @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.create @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.create @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.create @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.create @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.create @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.create @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.create @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.expire @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.expire @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.expire @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.expire @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.expire @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.expire @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.foreign @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.foreign @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.foreign @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.foreign @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.foreign @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.foreign @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.foreign @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.foreign @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.foreign @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.foreign @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.foreign @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.overview @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.overview @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.overview @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.overview @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.overview @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.overview @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.overview @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.overview @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "additional_purchases.overview @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.overview @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.overview @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.read @ admin": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ anon": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.read @ mentor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ mentor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ parent_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.read @ su_mentor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ su_tutor": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ superuser": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_purchases.read @ tutor_a": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.read @ tutor_b": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_purchases.read @ unknown": {
+   "decision": "Additional purchases (2026-11-13): new routes for a Mentor's further purchase for their own student; accounts.create_additional_purchases (accounts.0026) is held by the MENTOR and ADMIN role groups only.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no additional sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "admissions.dashboard @ admin": {
    "decision": "Admin Hub redesign, Phase 2 (bookings.admissions): GET /api/admissions/dashboard/, read-only, opens for accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1). Over a span of Indian dates (the last seven by default) it counts the leads that came in and their pipeline stage, and the Demo and Diagnostic bookings for those dates; then today's bookings, what awaits an administrator, the latest leads and the latest admissions activity. The booking parts need accounts.view_all_bookings as well, the parents' confirmations accounts.view_all_communications, and the activity permission to read the activity log, scoped as the log is. Student Local Time (bookings.student_timezones): every lead and booking carries student_timezone -- the IANA zone the student books from, or null when it is not known -- for the student's own time beside the Indian one; a booking's lead brief carries it too.",
    "note": "Every lead and booking the administrators' Leads and Bookings pages list: lead_a and lead_b (the latest leads), booking_a; no booking is on today's date in the fixture world, so today's rows are empty. Fields added only: the same status, records and every earlier field.",
@@ -1076,8 +2084,8 @@
    }
   },
   "auth.me @ admin": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1092,6 +2100,7 @@
       "accounts.change_invitation",
       "accounts.change_student_details",
       "accounts.change_student_timezone",
+      "accounts.create_additional_purchases",
       "accounts.create_exam",
       "accounts.create_invitation",
       "accounts.create_sales_quotes",
@@ -1163,8 +2172,8 @@
    }
   },
   "auth.me @ mentor_a": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1173,6 +2182,7 @@
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_student_details",
+      "accounts.create_additional_purchases",
       "accounts.create_exam",
       "accounts.create_session",
       "accounts.manage_exam",
@@ -1217,8 +2227,8 @@
    }
   },
   "auth.me @ mentor_b": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1227,6 +2237,7 @@
       "accounts.cancel_exam",
       "accounts.cancel_session",
       "accounts.change_student_details",
+      "accounts.create_additional_purchases",
       "accounts.create_exam",
       "accounts.create_session",
       "accounts.manage_exam",
@@ -1271,8 +2282,8 @@
    }
   },
   "auth.me @ su_mentor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1288,6 +2299,7 @@
       "accounts.change_invitation",
       "accounts.change_student_details",
       "accounts.change_student_timezone",
+      "accounts.create_additional_purchases",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -1377,8 +2389,8 @@
    }
   },
   "auth.me @ su_tutor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1394,6 +2406,7 @@
       "accounts.change_invitation",
       "accounts.change_student_details",
       "accounts.change_student_timezone",
+      "accounts.create_additional_purchases",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -1483,8 +2496,8 @@
    }
   },
   "auth.me @ superuser": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022).",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
      "groups": [],
@@ -1500,6 +2513,7 @@
       "accounts.change_invitation",
       "accounts.change_student_details",
       "accounts.change_student_timezone",
+      "accounts.create_additional_purchases",
       "accounts.create_demo_booking",
       "accounts.create_exam",
       "accounts.create_invitation",
@@ -26317,6 +27331,694 @@
     "message": "This endpoint has been retired. Staff details are changed through PATCH /api/team/<id>/.",
     "records": [],
     "status": 410
+   }
+  },
+  "stripe_review.list @ admin": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "fields": [
+     "items"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "stripe_review.list @ anon": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ mentor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ mentor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ parent_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ su_mentor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "fields": [
+     "items"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "stripe_review.list @ su_tutor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "fields": [
+     "items"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "stripe_review.list @ superuser": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "fields": [
+     "items"
+    ],
+    "records": [],
+    "status": 200
+   }
+  },
+  "stripe_review.list @ tutor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ tutor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.list @ unknown": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ admin": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such review item.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "stripe_review.resolve @ anon": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ mentor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ mentor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ parent_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ su_mentor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such review item.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "stripe_review.resolve @ su_tutor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such review item.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "stripe_review.resolve @ superuser": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such review item.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "stripe_review.resolve @ tutor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ tutor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "stripe_review.resolve @ unknown": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ admin": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "SALE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Start the sale first.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "student_accounts.billing_contact @ anon": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ mentor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ mentor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ parent_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ su_mentor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "SALE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Start the sale first.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "student_accounts.billing_contact @ su_tutor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "SALE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Start the sale first.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "student_accounts.billing_contact @ superuser": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "SALE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Start the sale first.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "student_accounts.billing_contact @ tutor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ tutor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.billing_contact @ unknown": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ admin": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Autopay agreement.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.cancel_autopay @ anon": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ mentor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ mentor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ parent_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ su_mentor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Autopay agreement.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.cancel_autopay @ su_tutor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Autopay agreement.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.cancel_autopay @ superuser": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such Autopay agreement.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.cancel_autopay @ tutor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ tutor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.cancel_autopay @ unknown": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ admin": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student account.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.correction @ anon": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ mentor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ mentor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ parent_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ su_mentor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student account.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.correction @ su_tutor": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student account.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.correction @ superuser": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student account.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_accounts.correction @ tutor_a": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ tutor_b": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_accounts.correction @ unknown": {
+   "decision": "Student financial identity (2026-11-13): new routes; Admin oversight only, except the owning BDE for its enquiry billing contact.",
+   "note": "Non-Admin roles are refused (403). Admin and superusers reach the service: 200 for the empty review queue, 404 for the matrix placeholder IDs, SALE_REQUIRED for a billing contact before any sale.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
    }
   },
   "students.list @ su_mentor": {

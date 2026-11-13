@@ -226,7 +226,8 @@ class StripeP1Tests(QuoteTestCase, APITransactionTestCase):
         operation = StripeCheckoutOperation.objects.get()
         for model, filters, changes in [
             (StripeCheckoutOperation, {'pk': operation.pk}, {'request': {}}),
-            (StripeCustomer, {'enquiry_id': self.lead.pk}, {'customer_id': 'cus_other'}),
+            (StripeCustomer, {'account__origin_lead': self.lead.pk}, {'customer_id': 'cus_other'}),
+            (StripeCustomer, {'account__origin_lead': self.lead.pk}, {'creation_request': {}}),
         ]:
             with self.subTest(changes=changes), self.assertRaises(DatabaseError), transaction.atomic():
                 model.objects.filter(**filters).update(**changes)

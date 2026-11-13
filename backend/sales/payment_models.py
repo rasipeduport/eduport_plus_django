@@ -10,6 +10,11 @@ from django.utils import timezone
 class SaleKind(models.TextChoices):
     NEW = 'NEW', 'New Sale'
     TOKEN = 'TOKEN', 'Token Sale'
+    # A Mentor's further purchase for an enrolled student: its own Sale on the same account.
+    ADDITIONAL = 'ADDITIONAL', 'Additional purchase'
+
+
+INITIAL_KINDS = ('NEW', 'TOKEN')
 
 
 class CollectionMode(models.TextChoices):
@@ -38,12 +43,17 @@ class SalesSequence(models.Model):
 
 class Sale(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    enquiry = models.OneToOneField('bookings.Lead', on_delete=models.PROTECT, related_name='initial_sale')
-    original_bde = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='originated_sales')
+    # The student's financial account: every sale, payment and agreement of a
+    # child resolves to it, before and after enrollment.
+    account = models.ForeignKey('sales.StudentAccount', on_delete=models.PROTECT, related_name='sales')
+    # The enquiry an initial sale came from; additional purchases have none.
+    enquiry = models.OneToOneField('bookings.Lead', on_delete=models.PROTECT, null=True, blank=True, related_name='initial_sale')
+    original_bde = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='originated_sales')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_sales')
-    kind = models.CharField(max_length=5, choices=SaleKind.choices)
+    kind = models.CharField(max_length=10, choices=SaleKind.choices)
     original_quote = models.ForeignKey('sales.Quote', on_delete=models.PROTECT, null=True, blank=True, related_name='original_sales')
-    student = models.OneToOneField('students.Student', on_delete=models.PROTECT, null=True, blank=True, related_name='initial_sale')
+    # Set at enrollment for an initial sale; set from the start for an additional purchase.
+    student = models.ForeignKey('students.Student', on_delete=models.PROTECT, null=True, blank=True, related_name='sales')
     reservation_reference = models.CharField(max_length=30, unique=True, null=True, blank=True)
     expected_start_date = models.DateField(null=True, blank=True)
     parent_email = models.EmailField(blank=True)
@@ -52,8 +62,13 @@ class Sale(models.Model):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(condition=Q(kind='NEW') | Q(kind='TOKEN', expected_start_date__isnull=False, reservation_reference__isnull=False), name='sales_token_has_date_reference'),
-            models.CheckConstraint(condition=Q(student__isnull=True, enrolled_at__isnull=True) | Q(student__isnull=False, enrolled_at__isnull=False), name='sales_enrollment_fields_together'),
+            models.CheckConstraint(condition=Q(kind__in=['NEW', 'ADDITIONAL']) | Q(kind='TOKEN', expected_start_date__isnull=False, reservation_reference__isnull=False), name='sales_token_has_date_reference'),
+            models.CheckConstraint(condition=Q(kind__in=INITIAL_KINDS, student__isnull=True, enrolled_at__isnull=True)
+                                   | Q(kind__in=INITIAL_KINDS, student__isnull=False, enrolled_at__isnull=False)
+                                   | Q(kind='ADDITIONAL', student__isnull=False, enrolled_at__isnull=True), name='sales_enrollment_fields_together'),
+            models.CheckConstraint(condition=Q(kind__in=INITIAL_KINDS, enquiry__isnull=False, original_bde__isnull=False)
+                                   | Q(kind='ADDITIONAL', enquiry__isnull=True, reservation_reference__isnull=True), name='sales_kind_origin'),
+            models.UniqueConstraint(fields=['student'], condition=Q(kind__in=INITIAL_KINDS), name='sales_one_initial_sale_per_student'),
         ]
 
 
@@ -79,12 +94,26 @@ class Purchase(models.Model):
 
 
 class StripeCustomer(models.Model):
-    enquiry = models.OneToOneField('bookings.Lead', on_delete=models.PROTECT, primary_key=True, related_name='stripe_customer')
+    """One Stripe Customer per student account, per Stripe account and mode (sales.customers)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey('sales.StudentAccount', on_delete=models.PROTECT, related_name='stripe_customers')
+    # Before student accounts, a Customer was keyed by its enquiry. Kept as history.
+    legacy_enquiry = models.OneToOneField('bookings.Lead', on_delete=models.PROTECT, null=True, blank=True,
+                                          related_name='legacy_stripe_customer')
+    # The acct_… the Customer lives in; blank until verified for legacy mappings.
+    stripe_account_id = models.CharField(max_length=255, blank=True)
+    # LEGACY_PARENT Customers keep their original parent name and are never renamed.
+    label_format = models.CharField(max_length=20, default='STUDENT', choices=[('STUDENT', 'Student name, parent contact'),
+                                                                             ('LEGACY_PARENT', 'Legacy enquiry Customer (parent name)')])
     customer_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     livemode = models.BooleanField(default=False)
+    # Whether Django's current labels (and EDP ID once enrolled) are on the Customer.
     student_metadata_synced = models.BooleanField(default=False)
     creation_request = models.JSONField(default=dict, blank=True)
     creation_started_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['account', 'livemode', 'stripe_account_id'], name='sales_one_customer_per_account_env')]
 
 
 def proof_path(instance, filename):
@@ -115,7 +144,14 @@ class Payment(models.Model):
     stripe_checkout_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
     stripe_payment_intent = models.CharField(max_length=255, null=True, blank=True, unique=True)
     stripe_customer_id = models.CharField(max_length=255, blank=True)
+    stripe_charge_id = models.CharField(max_length=255, blank=True)
     payment_url = models.URLField(max_length=2048, blank=True)
+    # The latest declined attempt while the link stays payable; never a status.
+    failure_code = models.CharField(max_length=100, blank=True)
+    failure_message = models.CharField(max_length=255, blank=True)
+    # Who actually paid, as Stripe reported it (name, email, phone, country,
+    # card brand/last4/country). Evidence only: never used to identify a student.
+    payer_details = models.JSONField(default=dict, blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 

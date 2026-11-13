@@ -57,7 +57,8 @@ class CollectionCompatibilityTests(QuoteTestCase, APITestCase):
                 'chapters': list(quote.chapters.order_by('chapter__position').values())}
 
     def existing_sale(self, quote, kind='NEW'):
-        return Sale.objects.create(enquiry=self.lead, original_bde=self.bde, created_by=self.bde, original_quote=quote,
+        from .tests_payments import account_for
+        return Sale.objects.create(account=account_for(self.lead), enquiry=self.lead, original_bde=self.bde, created_by=self.bde, original_quote=quote,
             kind=kind, **({'expected_start_date': timezone.localdate() + timedelta(days=8),
                           'reservation_reference': 'TOK-' + uuid.uuid4().hex[:20]} if kind == 'TOKEN' else {}))
 

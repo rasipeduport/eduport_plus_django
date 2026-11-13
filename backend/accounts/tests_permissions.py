@@ -51,6 +51,7 @@ SEED_SALES = importlib.import_module('accounts.migrations.0020_sales_permissions
 SEED_SALES_CATALOGUE = importlib.import_module('accounts.migrations.0021_sales_catalogue_permission')
 SEED_SALES_QUOTES = importlib.import_module('accounts.migrations.0022_sales_quote_permissions')
 SEED_INITIAL_SALES = importlib.import_module('accounts.migrations.0023_alter_hubpermission_options')
+SEED_ADDITIONAL_PURCHASES = importlib.import_module('accounts.migrations.0026_additional_purchase_permission')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -154,6 +155,10 @@ QUOTE_PERMISSIONS = names('create_sales_quotes', 'manage_sales_quotes')
 QUOTE_GRANTS = {'ADMIN': QUOTE_PERMISSIONS, 'BDE': names('create_sales_quotes')}
 INITIAL_SALES_PERMISSIONS = names('manage_initial_sales')
 INITIAL_SALES_GRANTS = {'ADMIN': INITIAL_SALES_PERMISSIONS, 'BDE': INITIAL_SALES_PERMISSIONS}
+# Additional purchases (0026): a mentor's further purchase for their own student;
+# the Admin keeps oversight. Never the BDE's.
+ADDITIONAL_PURCHASE_PERMISSIONS = names('create_additional_purchases')
+ADDITIONAL_PURCHASE_GRANTS = {'ADMIN': ADDITIONAL_PURCHASE_PERMISSIONS, 'MENTOR': ADDITIONAL_PURCHASE_PERMISSIONS}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -203,7 +208,8 @@ GROUP_PERMISSIONS_AT_0021 = {
 GROUP_PERMISSIONS_AT_0022 = {
     role: held | QUOTE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0021.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {role: held | INITIAL_SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0022.items()}
+GROUP_PERMISSIONS_AT_0023 = {role: held | INITIAL_SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0022.items()}
+EXPECTED_GROUP_PERMISSIONS = {role: held | ADDITIONAL_PURCHASE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0023.items()}
 
 
 def permission(name):
@@ -241,10 +247,11 @@ class PermissionTestCase(TestCase):
 
 class CatalogueTests(PermissionTestCase):
     def test_the_catalogue_includes_initial_sales(self):
-        self.assertEqual(len(CATALOGUE), 73)
+        self.assertEqual(len(CATALOGUE), 74)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
-            | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS,
+            | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
+            | ADDITIONAL_PURCHASE_PERMISSIONS,
             set(CATALOGUE),
         )
         # Every permission is carried by at least one role group today.
@@ -328,6 +335,7 @@ class CatalogueTests(PermissionTestCase):
                for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
             + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
             + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS + SEED_INITIAL_SALES.HUB_PERMISSIONS
+            + SEED_ADDITIONAL_PURCHASES.HUB_PERMISSIONS
         )
         # 0025 changes only the invitation permission's display label. Preserve
         # the historical 0008 seed and compare the final migrated catalogue.
@@ -341,6 +349,8 @@ class CatalogueTests(PermissionTestCase):
                          SALES_CATALOGUE_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_QUOTES.GRANTS.items()}, QUOTE_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_INITIAL_SALES.GRANTS.items()}, INITIAL_SALES_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_ADDITIONAL_PURCHASES.GRANTS.items()},
+                         ADDITIONAL_PURCHASE_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
                          STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
@@ -419,7 +429,7 @@ class ResolverTests(PermissionTestCase):
 
     def test_grants_beyond_the_grantable_set_count_for_nothing(self):
         self.mentor.user_permissions.add(permission('accounts.view_all_students'), permission('accounts.change_user'))
-        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_ROLE_PERMISSIONS['MENTOR'])
+        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_GROUP_PERMISSIONS['MENTOR'])
 
     def test_a_student_holding_a_grant_still_holds_nothing(self):
         self.parent.user_permissions.add(permission(VIEW_TEAM))
@@ -443,7 +453,7 @@ class ResolverTests(PermissionTestCase):
                 f'INSERT INTO {User.groups.through._meta.db_table} (user_id, group_id) VALUES (%s, %s)',
                 [self.mentor.pk, role_group('ADMIN').pk],
             )
-        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_ROLE_PERMISSIONS['MENTOR'])
+        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_GROUP_PERMISSIONS['MENTOR'])
 
     def test_unknown_names_are_held_by_nobody(self):
         self.assertFalse(has_app_permission(self.root, 'accounts.no_such_thing'))
@@ -833,7 +843,7 @@ class RolePermissionsCommandTests(PermissionTestCase):
             self.run_command('snapshot', '--output', path)
             users = json.load(open(path))['users']
             self.assertEqual(users[str(self.admin.pk)]['team_access'], 'manage')
-            self.assertEqual(users[str(self.mentor.pk)]['permissions'], sorted(EXPECTED_ROLE_PERMISSIONS['MENTOR']))
+            self.assertEqual(users[str(self.mentor.pk)]['permissions'], sorted(EXPECTED_GROUP_PERMISSIONS['MENTOR']))
             self.assertIn('match', self.run_command('compare', path))
             role_group('MENTOR').permissions.remove(permission('accounts.sync_student_quota'))
             with self.assertRaises(CommandError):
@@ -1201,7 +1211,17 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0023_alter_hubpermission_options')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0023)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0026_additional_purchase_permission')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+
+        # 0026 alone reverses: the MENTOR and ADMIN groups are back to 0023's and its row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0025_learn_invitation_permission_label')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0023)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='create_additional_purchases').exists())
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0022_sales_quote_permissions')])

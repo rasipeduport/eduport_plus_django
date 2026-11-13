@@ -82,8 +82,6 @@ class BillingTests(QuoteTestCase, APITestCase):
         agreement = AutopayAgreement.objects.select_related('purchase__sale').get()
         self.assertEqual(agreement.collection_engine, engine)
         self.assertEqual(Student.objects.get().total_class_quota, 2)
-        product = f'eduport_autopay_{agreement.pk.hex}'
-        gateway.v1.products.retrieve.return_value = {'id': product, 'metadata': billing.metadata(agreement)}
         def create(request, options):
             phases = []
             for index, row in enumerate(request['phases']):

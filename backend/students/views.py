@@ -358,6 +358,14 @@ class StudentListView(APIView):
                         {"error": "INVALID_INPUT", "message": "Name cannot be empty."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+                student_account = getattr(student, 'account', None)
+                if value != student.full_name and student_account is not None and student_account.identity_locked_at:
+                    return Response(
+                        {"error": "IDENTITY_LOCKED", "account_reference": student_account.reference,
+                         "message": "This student's name is protected by their payment records. An administrator can "
+                                    "correct it with a reason through the audited identity correction."},
+                        status=status.HTTP_409_CONFLICT
+                    )
             else:
                 value = value or None
             old = getattr(student, field) or None

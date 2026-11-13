@@ -12,11 +12,24 @@ from . import payments, quotes
 from .payment_models import CollectionMode, Payment, PaymentMethod, Sale, SaleKind
 from .services import SalesError
 from .views import _invalid, _refused
+from .account_models import GuardianRelationship
+from .account_views import BillingContactSerializer
+
+
+class FamilySerializer(serializers.Serializer):
+    mode = serializers.ChoiceField(choices=['NEW_FAMILY', 'EXISTING_FAMILY'], default='NEW_FAMILY')
+    guardian_id = serializers.UUIDField(required=False)
 
 
 class SaleSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=SaleKind.choices)
     expected_start_date = serializers.DateField(required=False)
+    # The child's financial account: which family, and the parent details Django
+    # supplies to Stripe (parents never type them on Checkout).
+    family = FamilySerializer(required=False)
+    billing_contact = BillingContactSerializer(required=False)
+    relationship = serializers.ChoiceField(choices=GuardianRelationship.choices, required=False)
+    confirm_distinct_child = serializers.BooleanField(default=False)
 
 
 class AllocationSerializer(serializers.Serializer):
@@ -159,7 +172,7 @@ class InitialStudentSaleView(APIView):
     permission_classes = [IsAuthenticated, HasAppPermission(payments.MANAGE), HasAppPermission('accounts.view_all_students')]
 
     def get(self, request, pk):
-        sale = Sale.objects.filter(student_id=pk).first()
+        sale = Sale.objects.filter(student_id=pk, kind__in=['NEW', 'TOKEN']).first()
         if not sale:
             return Response({'error': 'NOT_FOUND'}, status=404)
         try:
