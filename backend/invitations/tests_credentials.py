@@ -81,8 +81,10 @@ class EnrollmentCredentialTests(QuoteTestCase, APITestCase):
         self.assertEqual((Student.objects.count(), Invitation.objects.count(), Payment.objects.count()), (1, 1, 1))
 
     def test_duplicate_signed_webhooks_do_not_recreate_credentials(self):
+        # No enquiry email: Learn credentials never depend on it. The billing
+        # contact given here has one, so Checkout shows it prefilled.
         self.lead.parent_email = ''; self.lead.save(update_fields=['parent_email'])
-        self.start(); gateway, _ = self.stripe_transport()
+        self.start(billing_contact={'full_name': 'Billing Parent', 'email': 'billing@phase1.test'}); gateway, _ = self.stripe_transport()
         with mock.patch('sales.stripe_gateway.client', return_value=gateway):
             self.assertEqual(self.collect(method='STRIPE').status_code, 201)
             payment = Payment.objects.get()
@@ -105,7 +107,11 @@ class EnrollmentCredentialTests(QuoteTestCase, APITestCase):
     def test_same_contact_email_creates_separate_sibling_credentials(self):
         self.start(); self.collect()
         first = Invitation.objects.get()
-        self.lead = self.new_lead(); self.start(); self.collect()
+        shared = self.lead.parent_email
+        self.lead = self.new_lead()
+        self.lead.parent_email = shared; self.lead.save(update_fields=['parent_email'])
+        # The same parent email: a person confirms this is a different child.
+        self.assertEqual(self.start(confirm_distinct_child=True).status_code, 201); self.collect()
         self.assertEqual(Student.objects.count(), 2)
         second = Invitation.objects.exclude(pk=first.pk).get()
         self.assertNotEqual(first.account_id, second.account_id)

@@ -24,6 +24,32 @@ from .payment_models import Payment, Purchase, Sale, StripeCustomer, StripeEvent
 from .tests_quotes import QuoteTestCase, lead_of
 
 
+PRODUCT_PURPOSES = {'eduport_plus_tuition': 'TUITION', 'eduport_plus_token': 'TOKEN'}
+
+
+def stripe_catalogue(gateway):
+    """The Stripe account and reusable products every mocked transport answers with."""
+    gateway.v1.accounts.retrieve_current.return_value = {'id': 'acct_test_unit'}
+    gateway.v1.products.retrieve.side_effect = lambda product_id: {
+        'id': product_id, 'active': True, 'metadata': {'eduport_product': PRODUCT_PURPOSES[product_id]}}
+    gateway.v1.checkout.sessions.list.return_value = SimpleNamespace(auto_paging_iter=lambda: iter([]))
+    return gateway
+
+
+def account_for(lead, email=None):
+    """A student account for fixtures that build sales directly."""
+    from .account_models import Guardian, StudentAccount, StudentGuardian
+    from .student_accounts import next_reference
+    account = StudentAccount.objects.filter(origin_lead=lead).first()
+    if account is None:
+        with transaction.atomic():
+            account = StudentAccount.objects.create(reference=next_reference(), origin_lead=lead, student_name=lead.student_name)
+            guardian = Guardian.objects.create(full_name=lead.parent_name, phone=lead.phone_key,
+                                               email=email or lead.parent_email or 'fixture-parent@phase1.test')
+            StudentGuardian.objects.create(account=account, guardian=guardian, is_billing_contact=True, basis='NEW_FAMILY')
+    return account
+
+
 class AllocationTests(SimpleTestCase):
     def test_whole_rounding_and_final_installment_conserve_total(self):
         self.assertEqual([payments.whole(D(x)) for x in ['52.875', '52.40', '52.50']], [D(53), D(52), D(53)])
@@ -68,7 +94,8 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
     def new_lead(self, owner=None, collection_mode='PARTIAL'):
         self.counter += 1
         lead = lead_of(owner or self.bde, f'Phase Student {self.counter}', f'508000{self.counter:03d}')
-        lead.parent_email = 'parent@phase1.test'
+        # Each fixture child is its own family; sibling tests share contacts explicitly.
+        lead.parent_email = f'parent{self.counter}@phase1.test'
         lead.save(update_fields=['parent_email'])
         quotes.create_quote(owner or self.bde, {'collection_mode': collection_mode, 'syllabus': self.bridge.pk, 'revision': 1, 'plan_type': 'BRIDGE_COURSE', 'lead': lead.pk})
         return lead
@@ -96,13 +123,14 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
             return {'id': f'cs_test_{len(calls)}', 'url': f'https://checkout.stripe.com/c/pay/session{len(calls)}',
                     **params, 'livemode': False, 'currency': 'aed', 'amount_total': params['line_items'][0]['price_data']['unit_amount']}
         gateway.v1.checkout.sessions.create.side_effect = checkout
+        stripe_catalogue(gateway)
         return gateway, calls
 
     def event(self, payment, event_id=None, event_type='checkout.session.completed', **overrides):
         obj = {'id': payment.stripe_checkout_id, 'object': 'checkout.session', 'customer': payment.stripe_customer_id,
                'amount_total': int(payment.amount) * 100, 'currency': 'aed', 'client_reference_id': str(payment.pk),
                'payment_status': 'paid', 'payment_intent': f'pi_{payment.pk.hex}',
-               'metadata': {'payment_id': str(payment.pk), 'enquiry_id': str(payment.sale.enquiry_id),
+               'metadata': {'payment_id': str(payment.pk), 'enquiry_id': str(payment.sale.enquiry_id or ''),
                             'sale_id': str(payment.sale_id), 'purchase_id': str(payment.purchase_id or ''),
                             'quote_id': str(payment.purchase.quote_id if payment.purchase_id else payment.sale.original_quote_id or '')}, **overrides}
         return {'id': event_id or f'evt_{uuid.uuid4().hex}', 'object': 'event', 'type': event_type,
@@ -209,9 +237,23 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
         self.assertEqual((first.status_code, second.status_code), (201, 201))
         self.assertEqual(first.json()['payment']['id'], second.json()['payment']['id'])
         self.assertEqual((Payment.objects.count(), Student.objects.count()), (1, 1))
-        self.assertEqual(self.collect().status_code, 403)
+        # After enrollment only the remaining balance of the same purchase can be
+        # collected: more than the 4 unpaid classes is refused, never credited.
+        over = self.collect()
+        self.assertEqual((over.status_code, over.json()['error']), (400, 'INVALID_ALLOCATION'))
+        token = self.collect(purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')
+        self.assertEqual((token.status_code, token.json()['error']), (403, 'ALREADY_ENROLLED'))
         self.assertEqual(self.collect(request_id=request_id, amount='500').status_code, 409)
-        self.assertEqual(self.client.get(self.url()).status_code, 200)
+        balance = self.collect(classes='4', amount='200')
+        self.assertEqual(balance.status_code, 201, balance.content)
+        self.assertEqual((Payment.objects.count(), Student.objects.count()), (2, 1))
+        # Existing class-credit rules only: enrollment credited the first 6 classes;
+        # the later balance payment records money and credits nothing automatically.
+        self.assertEqual(Student.objects.get().total_class_quota, D(6))
+        state = self.client.get(self.url()).json()
+        self.assertEqual((state['totals']['outstanding_amount'], state['totals']['fully_paid'], state['can_collect']), ('0', True, False))
+        self.assertEqual((state['totals']['class_quota'], state['totals']['classes_not_credited']), ('6', '4'))
+        self.assertEqual([row['classes_credited'] for row in state['payments']], [True, False])
 
     def test_discounted_installments_require_immutable_replacement(self):
         # Repin a quote at v1, where the Bridge single-payment privilege is 5%.
@@ -293,9 +335,23 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
                 self.calls = []
 
             def request(self, method, url, headers, post_data=None, **kwargs):
-                self.calls.append((method, url, headers, parse_qs(post_data)))
-                body = ({'id': 'cus_phase1', 'object': 'customer'} if url.endswith('/customers') else
-                        {'id': 'cs_test_sdk', 'object': 'checkout.session', 'url': 'https://checkout.stripe.com/c/pay/sdk'})
+                sent = parse_qs(post_data)
+                self.calls.append((method, url, headers, sent))
+                path = url.split('?')[0]
+                meta = {key[9:-1]: value[0] for key, value in sent.items() if key.startswith('metadata[')}
+                if path.endswith('/v1/account'):
+                    body = {'id': 'acct_test_unit', 'object': 'account'}
+                elif path.endswith('/v1/customers'):
+                    body = {'id': 'cus_phase1', 'object': 'customer', 'livemode': False, 'metadata': meta}
+                elif '/v1/products/' in path:
+                    body = {'id': 'eduport_plus_tuition', 'object': 'product', 'active': True, 'metadata': {'eduport_product': 'TUITION'}}
+                elif method == 'get' and path.endswith('/v1/checkout/sessions'):
+                    body = {'object': 'list', 'data': [], 'has_more': False, 'url': '/v1/checkout/sessions'}
+                else:
+                    body = {'id': 'cs_test_sdk', 'object': 'checkout.session', 'url': 'https://checkout.stripe.com/c/pay/sdk',
+                            'customer': 'cus_phase1', 'livemode': False, 'mode': 'payment', 'currency': 'aed',
+                            'client_reference_id': sent['client_reference_id'][0],
+                            'amount_total': int(sent['line_items[0][price_data][unit_amount]'][0]), 'metadata': meta}
                 return json.dumps(body), 200, {}
 
         transport = Transport()
@@ -305,13 +361,22 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
             self.assertIsInstance(client(), stripe.StripeClient)
             response = self.collect(method='STRIPE')
         self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(len(transport.calls), 2)
-        method, url, headers, params = transport.calls[1]
+        posts = [call for call in transport.calls if call[0] == 'post']
+        customer_post = next(call for call in posts if call[1].endswith('/v1/customers'))
+        self.assertEqual(customer_post[3]['name'], [self.lead.student_name])
+        self.assertEqual(customer_post[3]['email'], [self.lead.parent_email])
+        method, url, headers, params = posts[-1]
         self.assertEqual((method, url), ('post', 'https://api.stripe.com/v1/checkout/sessions'))
         self.assertEqual(params['customer'], ['cus_phase1'])
         self.assertEqual(params['line_items[0][price_data][unit_amount]'], ['30000'])
+        self.assertEqual(params['line_items[0][price_data][product]'], ['eduport_plus_tuition'])
+        self.assertEqual(params['allowed_payment_method_types[0]'], ['card'])
+        self.assertNotIn('customer_update[name]', params)
+        self.assertNotIn('phone_number_collection[enabled]', params)
+        self.assertIn(self.lead.student_name, params['custom_text[submit][message]'][0])
         self.assertEqual(params['metadata[enquiry_id]'], [str(self.lead.pk)])
-        self.assertTrue(headers['Idempotency-Key'].startswith('eduport-collection-'))
+        self.assertTrue(params['metadata[eduport_account_ref]'][0].startswith('SA-'))
+        self.assertTrue(headers['Idempotency-Key'].startswith('eduport-checkout-operation-'))
         self.assertEqual(Payment.objects.get().status, 'PENDING')
         self.assertEqual(Student.objects.count(), 0)
 
@@ -330,8 +395,8 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
             self.assertEqual(calls[1]['line_items'][0]['price_data']['unit_amount'], 40000)
             self.assertEqual(self.webhook(self.event(tuition)).status_code, 200)
             self.assertEqual(gateway.v1.customers.create.call_count, 1)
-            from .stripe_gateway import sync_customer_metadata
-            sync_customer_metadata(self.lead.pk)
+            from .customers import sync_labels
+            sync_labels(StripeCustomer.objects.get().pk)
             self.assertEqual(gateway.v1.customers.update.call_args.args[1]['metadata']['edp_student_id'], Student.objects.get().student_code)
             self.assertTrue(StripeCustomer.objects.get().student_metadata_synced)
 
@@ -432,7 +497,8 @@ class PaymentConcurrencyTests(QuoteTestCase, TransactionTestCase):
         lead = lead_of(self.bde, f'Concurrent {index}', f'507000{index:03d}')
         lead.parent_email = 'concurrent-parent@phase1.test'; lead.save(update_fields=['parent_email'])
         quotes.create_quote(self.bde, {'collection_mode': 'FULL', 'syllabus': self.bridge.pk, 'revision': 1, 'plan_type': 'BRIDGE_COURSE', 'lead': lead.pk})
-        payments.start_sale(self.bde, lead.pk, {'kind': 'NEW'})
+        # Siblings share the parent email: a person confirms they are different children.
+        payments.start_sale(self.bde, lead.pk, {'kind': 'NEW', 'confirm_distinct_child': True})
         return lead
 
     def data(self):
@@ -456,7 +522,8 @@ class PaymentConcurrencyTests(QuoteTestCase, TransactionTestCase):
 
     def test_two_simultaneous_initial_collections_cannot_enroll_or_credit_twice(self):
         results = self.run_parallel([self.lead, self.lead])
-        self.assertIn('ALREADY_ENROLLED', results)
+        # The second waits for the first; afterwards no unpaid class remains to collect.
+        self.assertEqual(sum(1 for value in results if value in ('ALREADY_ENROLLED', 'INVALID_ALLOCATION', 'PAYMENT_PENDING')), 1, results)
         self.assertEqual((Student.objects.count(), Payment.objects.count()), (1, 1))
         self.assertEqual(Student.objects.get().total_class_quota, D(10))
         from invitations.models import Invitation

@@ -73,6 +73,7 @@ class QuoteSnapshot:
     supersedes: object = None
     class_mode: str | None = None
     collection_mode: str | None = None
+    account: object = None  # an additional purchase's student account (instead of a lead)
 
 
 def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), lead_id=None, class_mode=None, collection_mode=None):
@@ -151,7 +152,7 @@ def issue(snapshot, quote_id=None):
         last = Quote.objects.order_by('-number').values_list('number', flat=True).first() or 0
         quote = Quote.objects.create(
             **({'id': quote_id} if quote_id else {}),
-            number=last + 1, created_by=snapshot.owner, lead=snapshot.lead, supersedes=snapshot.supersedes, revision=snapshot.revision,
+            number=last + 1, created_by=snapshot.owner, lead=snapshot.lead, account=snapshot.account, supersedes=snapshot.supersedes, revision=snapshot.revision,
             pricing_version=pricing, plan_type=snapshot.plan_type, class_mode=snapshot.class_mode, full_course=snapshot.full_course,
             collection_mode=snapshot.collection_mode,
             collection_intention_confirmed=True,

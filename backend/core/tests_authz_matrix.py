@@ -225,6 +225,10 @@ BDE_WORKSPACE = {
 # New quote metadata identifies the current selection; the chapter counts are
 # still read from the quote's immutable published revision.
 BDE_WORKSPACE.update(BDE_TRANSPORTS)
+# Its own enquiry's billing contact (no sale yet in this world); identity
+# correction, Autopay cancellation and the Stripe review queue are Admin-only.
+BDE_WORKSPACE['student_accounts.billing_contact'] = {'status': 400, 'error': 'SALE_REQUIRED', 'message': 'Start the sale first.',
+                                                     'records': [], 'fields': ['error', 'message']}
 
 BDE_WORKSPACE['sales.catalogue']['fields'] = sorted([*BDE_WORKSPACE['sales.catalogue']['fields'], 'results[].subtitle'])
 BDE_WORKSPACE['sales.quote_create']['fields'] = sorted([

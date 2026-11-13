@@ -1245,6 +1245,16 @@ const startedSale = (extra = {}) => ({ id: 'initial-sale', kind: 'NEW', token_pa
 const initialPayment = (extra = {}) => ({ id: 'initial-payment', purpose: 'TUITION', method: 'TRANSFER', method_label: 'Account Transfer',
   collection_mode: 'PARTIAL', amount: '300', currency: 'AED', classes: '6', status: 'SUCCEEDED', payment_date: '2026-11-09',
   recorded_by: BALA, transaction_reference: 'BANK-001', proof_name: 'receipt.png', proof_url: '/api/sales/payments/initial-payment/proof/', ...extra });
+/** The Start Sale body: the given fields, plus the default new-family account choice from the enquiry. */
+function assertSaleStart(data, expected) {
+  const { family, billing_contact: contact, relationship, confirm_distinct_child: confirmed, ...rest } = data;
+  assert.deepEqual(rest, expected);
+  assert.deepEqual(family, { mode: 'NEW_FAMILY' });
+  assert.equal(relationship, 'PARENT');
+  assert.equal(confirmed, false);
+  assert.equal(contact.full_name, RIYA.parent_name);
+  assert.equal(contact.email, 'parent@example.com');
+}
 async function waitForAmount() {
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 230)); });
   await settle();
@@ -1312,7 +1322,7 @@ test('Initial direct tuition form calculates on the server, uploads a receipt an
   assert.match(bodyText(), /EDP00018.*Enrollment complete/);
   assert.equal(button('Confirm received payment'), undefined);
   assert.equal(button('Generate Stripe payment link'), undefined);
-  assert.match(bodyText(), /Initial payment history.*AED 500/);
+  assert.match(bodyText(), /Payment history.*AED 500/);
 });
 
 test('Token reservation requires an expected start date and requests exactly AED 100 with zero classes', async () => {
@@ -1378,6 +1388,10 @@ test('Generating a Stripe link remains pending and exposes sharing without marki
   await open(paymentPath, PAYMENT_BDE);
   await waitForAmount();
   await click(button('Generate Stripe payment link'));
+  assert.equal(calls('POST', `${SALE_URL}payments/`).length, 0, 'nothing is generated before the review');
+  assert.match(clean(topDialog().textContent), /cannot be changed on Stripe; Stripe asks for the parent’s email only when Eduport Plus has none.*AED 500 · 10 classes/);
+  await click(button('Generate link', topDialog()));
+  assert.equal(calls('POST', `${SALE_URL}payments/`).length, 1);
   assert.match(bodyText(), /Awaiting payment/);
   assert.ok(button('Copy payment link'));
   assert.ok(document.querySelector('a[href*="checkout.stripe.com"]') || [...document.querySelectorAll('a')].some((a) => a.href.includes('wa.me') && decodeURIComponent(a.href).includes('checkout.stripe.com')));
@@ -2259,7 +2273,7 @@ test('Each explicit historical replacement intention enables New Sale while the 
     studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
       [`GET ${replacement}`]: ({ params }) => { assert.equal(params.collection_mode, mode); return ok({ quote_id: old.id, collection_mode: mode, collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 }); },
       [`POST ${replacement}`]: ({ data }) => { assert.equal(data.collection_mode, mode); state = saleState({ quote: saleQuote({ id: 'new-' + mode, collection_mode: mode, collection_intention_confirmed: true, supersedes: old.id }) }); return ok(state.quote); },
-      [`POST ${SALE_URL}`]: ({ data }) => { assert.deepEqual(data, { kind: 'NEW' }); state = { ...state, sale: startedSale() }; return ok(state); },
+      [`POST ${SALE_URL}`]: ({ data }) => { assertSaleStart(data, { kind: 'NEW' }); state = { ...state, sale: startedSale() }; return ok(state); },
       [`GET ${SALE_URL}amount/`]: { amount: '500', classes: '10', currency: 'AED' },
     });
     await open(paymentPath, PAYMENT_BDE);
@@ -2307,7 +2321,7 @@ test('Historical paid token reservation keeps payment history and can collect tu
   assert.match(bodyText(), /TOK-HISTORY.*Token paid: AED 100/);
   assert.equal(button('Create replacement quote'), undefined);
   assert.ok(input('paid-classes'));
-  assert.match(bodyText(), /Initial payment history/);
+  assert.match(bodyText(), /Payment history/);
 });
 
 test('Token Sale with an AUTOPAY quote stays blocked until an explicit FULL or PARTIAL replacement', async () => {
@@ -2317,7 +2331,7 @@ test('Token Sale with an AUTOPAY quote stays blocked until an explicit FULL or P
     studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
       [`GET ${replacement}`]: ({ params }) => { assert.equal(params.collection_mode, mode); return ok({ quote_id: QUOTE_ID, collection_mode: mode, collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 }); },
       [`POST ${replacement}`]: ({ data }) => { assert.equal(data.collection_mode, mode); state = saleState({ quote: saleQuote({ id: 'token-' + mode, collection_mode: mode, supersedes: QUOTE_ID }) }); return ok(state.quote); },
-      [`POST ${SALE_URL}`]: ({ data }) => { assert.deepEqual(data, { kind: 'TOKEN', expected_start_date: '2027-01-10' }); state = { ...state, sale: startedSale({ kind: 'TOKEN', expected_start_date: data.expected_start_date, reservation_reference: 'TOK-NEW' }) }; return ok(state); },
+      [`POST ${SALE_URL}`]: ({ data }) => { assertSaleStart(data, { kind: 'TOKEN', expected_start_date: '2027-01-10' }); state = { ...state, sale: startedSale({ kind: 'TOKEN', expected_start_date: data.expected_start_date, reservation_reference: 'TOK-NEW' }) }; return ok(state); },
       [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
     });
     await open(paymentPath, PAYMENT_BDE);
@@ -2346,6 +2360,236 @@ test('Existing invalid Token/AUTOPAY drafts cannot display collection or Autopay
   assert.equal(input('autopay-initial-classes'), null);
   assert.equal(button('Generate Stripe payment link'), undefined);
   assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
+});
+
+// ------------------------------------------------------------------ student accounts
+const saleAccount = (extra = {}) => ({ id: 'account-1', reference: 'SA-000101', student_name: 'Arjun', identity_locked: false, student: null,
+  billing_contact: { guardian_id: 'guardian-1', full_name: 'Riya Nair', email: 'parent@example.com', phone: '+971501234567', relationship: 'PARENT' },
+  guardians: [], stripe_customers: [], corrections: null, can_correct_identity: false, ...extra });
+const checkbox = (text) => [...document.querySelectorAll('input[type="checkbox"]')].find((box) => box.closest('label')?.textContent.includes(text));
+
+test('Start Sale suggests families sharing the parent contact and records only an explicit choice', async () => {
+  let posted, contact;
+  const candidates = [{ guardian_id: 'guardian-9', full_name: 'Riya Nair', matched_on: ['phone', 'email'],
+    children: [{ account_id: 'account-9', reference: 'SA-000099', student_name: 'Meera', student_code: 'EDP00099' }] }];
+  const started = saleState({ sale: startedSale(), account: saleAccount() });
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ family_candidates: candidates }),
+    [`POST ${SALE_URL}`]: ({ data }) => { posted = data; return ok(started); },
+    [`PUT ${SALE_URL}billing-contact/`]: ({ data }) => { contact = data; return ok(started); } });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /phone and email already belongs to a family.*Meera \(SA-000099 · EDP00099\)/);
+  assert.equal(button('Start New Sale').disabled, true, 'a person must confirm this is a different child');
+  await click(radio('Sibling in Riya Nair'));
+  await click(checkbox('different child'));
+  assert.equal(button('Start New Sale').disabled, false);
+  await click(button('Start New Sale'));
+  assert.deepEqual(posted.family, { mode: 'EXISTING_FAMILY', guardian_id: 'guardian-9' });
+  assert.equal(posted.confirm_distinct_child, true);
+  assert.equal(posted.billing_contact, undefined, 'an existing family keeps its own billing contact');
+  assert.match(bodyText(), /Student accountSA-000101.*Riya Nair/);
+  await click(button('Edit billing contact'));
+  await typeInto(input('edit-billing-email'), 'riya@example.com');
+  await click(button('Save contact', topDialog()));
+  assert.deepEqual(contact, { full_name: 'Riya Nair', email: 'riya@example.com', phone: '+971501234567' });
+});
+
+test('After enrollment the remaining balance is collected on the same sale after reviewing the student and contact', async () => {
+  const enrolled = { id: 'enrolled-student', student_code: 'EDP00018' };
+  const state = saleState({ sale: startedSale({ student: enrolled }), stripe_configured: true, can_collect: true,
+    account: saleAccount({ student: enrolled, identity_locked: true }), payments: [initialPayment({ classes: '6' })],
+    totals: { purchased_classes: '10', paid_classes: '6', unpaid_classes: '4', used_classes: '1', available_quota: '5', package_amount: '500',
+      paid_amount: '300', remaining_amount: '200', outstanding_amount: '200', refunded_amount: '0', net_collected: '300', fully_paid: false } });
+  let posted;
+  studentApi({ [`GET ${SALE_URL}`]: state,
+    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.equal(params.classes, '4'); return ok({ amount: '200', classes: '4', currency: 'AED', remaining_amount: '0' }); },
+    [`POST ${SALE_URL}payments/`]: ({ data }) => {
+      posted = data;
+      const pending = initialPayment({ id: 'balance', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '200', classes: '4',
+        proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/balance' });
+      return ok({ payment: pending, state: { ...state, payments: [...state.payments, pending] } });
+    } });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Outstanding balanceAED 200.*remaining balance of this purchase can still be collected/);
+  assert.match(bodyText(), /Collect remaining balance/);
+  await waitForAmount();
+  await click(button('Generate Stripe payment link'));
+  assert.match(clean(topDialog().textContent), /Arjun · SA-000101.*AED 200 · 4 classes.*Riya Nair · parent@example.com.*AED 0/);
+  await click(button('Generate link', topDialog()));
+  assert.equal(posted.get('classes'), '4');
+  assert.equal(posted.get('method'), 'STRIPE');
+  assert.match(bodyText(), /Awaiting payment/);
+});
+
+test('Only an administrator sees identity correction and Cancel Autopay, and both need a reason', async () => {
+  const enrolled = { id: 'enrolled-student', student_code: 'EDP00018' };
+  const agreement = { id: 'agreement', status: 'ACTIVE', setup_status: 'READY', setup_message: '', billing_timezone: 'Asia/Dubai',
+    collection_engine: 'STRIPE_BILLING', billing_status: 'PROVISIONED', billing_message: '', stripe_subscription_id: 'sub_test',
+    stripe_subscription_status: 'active', stripe_schedule_id: 'sub_sched_test', stripe_schedule_status: 'active', next_retry_at: null,
+    creator: { name: 'Bala', role: 'BDE' }, source: 'BDE_INITIAL', package_amount: '500', remaining_amount: '400',
+    next_collection_at: '2027-01-10T06:00:00Z', card_brand: 'visa', card_last4: '4242', stripe_customer_id: 'cus_test', stripe_payment_method_id: 'pm_test',
+    installments: [{ id: 'initial', position: 0, classes: '2', amount: '100', status: 'PAID', due_at: null, attempts: [] },
+      { id: 'next', position: 1, classes: '8', amount: '400', status: 'SCHEDULED', due_at: '2027-01-10T06:00:00Z', attempts: [] }] };
+  const base = { sale: startedSale({ student: enrolled }), autopay: agreement, can_collect: false };
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ ...base, account: saleAccount({ student: enrolled, identity_locked: true }) }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.equal(Boolean(button('Cancel Autopay')), false);
+  assert.equal(Boolean(button('Correct identity')), false);
+  assert.equal(Boolean(button('Generate Stripe payment link')), false, 'Autopay owns the remaining installments');
+  await mounted.pop().unmount();
+
+  let cancelled, corrected;
+  const admin = saleState({ ...base, can_cancel_autopay: true,
+    account: saleAccount({ student: enrolled, identity_locked: true, can_correct_identity: true, corrections: [] }) });
+  studentApi({ [`GET ${SALE_URL}`]: () => ok(admin),
+    [`POST /api/sales/accounts/account-1/identity-correction/`]: ({ data }) => { corrected = data; return ok(admin.account); },
+    [`POST /api/sales/autopay/agreement/cancel/`]: ({ data }) => { cancelled = data; return ok(saleState({ ...base,
+      account: admin.account, autopay: { ...agreement, status: 'CANCELLED', cancelled_at: '2026-11-13T06:00:00Z',
+        cancellation_source: data.source, cancellation_reason: data.reason, cancelled_by: 'Admin' } })); } });
+  await open(paymentPath, PAYMENT_BDE);
+  await click(button('Correct identity'));
+  assert.equal(button('Correct identity', topDialog()).disabled, true, 'a reason is required');
+  await typeInto(input('corrected-name'), 'Arjun Nair');
+  await typeText(input('correction-reason'), 'Spelling confirmed with the parent.');
+  await click(button('Correct identity', topDialog()));
+  assert.deepEqual(corrected, { student_name: 'Arjun Nair', reason: 'Spelling confirmed with the parent.' });
+  await click(button('Cancel Autopay'));
+  assert.equal(button('Cancel Autopay', topDialog()).disabled, true, 'a reason is required');
+  await click(radio('Parent’s request'));
+  await typeText(input('cancel-reason'), 'Parent asked to stop after this term.');
+  await click(button('Cancel Autopay', topDialog()));
+  assert.deepEqual(cancelled, { reason: 'Parent asked to stop after this term.', source: 'PARENT_REQUEST' });
+  assert.match(bodyText(), /Cancelled .* at the parent’s request \(Admin\): Parent asked to stop after this term/);
+  assert.equal(Boolean(button('Cancel Autopay')), false);
+});
+
+test('A balance payment records money only: the quota and the classes not added to it are shown, and the email is optional', async () => {
+  const enrolled = { id: 'enrolled-student', student_code: 'EDP00018' };
+  const balance = initialPayment({ id: 'balance', method: 'STRIPE', method_label: 'Stripe', amount: '200', classes: '4', proof_url: null, classes_credited: false });
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale({ student: enrolled }), can_collect: false,
+    account: saleAccount({ student: enrolled, identity_locked: true, billing_contact: { ...saleAccount().billing_contact, email: '' } }),
+    payments: [initialPayment({ classes_credited: true }), balance],
+    totals: { purchased_classes: '10', paid_classes: '10', unpaid_classes: '0', used_classes: '1', available_quota: '5', class_quota: '6',
+      classes_not_credited: '4', package_amount: '500', paid_amount: '500', remaining_amount: '0', outstanding_amount: '0', refunded_amount: '0',
+      net_collected: '500', fully_paid: true } }) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /Class quota6.*Paid, not added to quota4/);
+  assert.match(bodyText(), /No email yet: asked on Stripe/);
+  const history = rows().map((row) => clean(row.textContent)).filter((text) => /Account Transfer|Stripe/.test(text));
+  assert.equal(history.length, 2);
+  assert.equal(history[0].includes('Not added to quota'), false, 'the enrolling payment was credited');
+  assert.equal(history[1].includes('Not added to quota'), true);
+  await mounted.pop().unmount();
+
+  studentApi({ [`GET ${SALE_URL}`]: saleState() });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.ok(document.querySelector('label[for="billing-email"]')?.textContent.includes('Parent email (optional)'));
+  assert.equal(input('billing-email').required, false);
+});
+
+// ------------------------------------------------------------------ additional purchases
+const PURCHASE_STUDENT = 'student-1';
+const PURCHASES = `/api/sales/students/${PURCHASE_STUDENT}/purchases/`;
+const PURCHASE = '/api/sales/purchases/additional-sale/';
+const BUYING_MENTOR = { id: 'mentor-1', role: 'MENTOR', permissions: ['accounts.view_mentored_students', 'accounts.create_additional_purchases'] };
+const purchasesPath = `/students/${PURCHASE_STUDENT}?tab=purchases`;
+const studentProfile = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, full_name: 'Arjun', student_code: 'EDP00018', status: 'active',
+  quota_source: 'PAYMENTS', ...extra }, stats: { sessions: { total: 0 }, homework: { total: 0 }, exams: null },
+highlights: { next_session: null, last_session: null, next_exam: null } });
+const initialRow = (extra = {}) => ({ id: 'initial-sale', kind: 'NEW', created_at: '2026-11-09T06:30:00+00:00', quote_id: QUOTE_ID,
+  quote_reference: 'Q-000007', plan_type: 'CHAPTER_PLAN', classes: '10', package_amount: '500', paid_amount: '500', outstanding_amount: '0',
+  fully_paid: true, autopay_status: null, ...extra });
+const purchasesOverview = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
+  account: { id: 'account-1', reference: 'SA-000101' }, sales: [initialRow()], blockers: [], can_add: true, catalogue: CATALOGUE_ROWS,
+  syllabus: null, ...extra });
+const purchaseState = (extra = {}) => ({
+  sale: { id: 'additional-sale', kind: 'ADDITIONAL', created_at: '2026-11-13T06:30:00+00:00', created_by: { id: 'mentor-1', name: 'Meera Mentor' } },
+  student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
+  account: saleAccount({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018' }, identity_locked: true,
+    billing_contact: { ...saleAccount().billing_contact, email: '' } }),
+  quote: quoteOf({ id: 'bridge-quote', reference: 'Q-000020', lead: null, plan_type: 'BRIDGE_COURSE', full_course: true, classes: '10',
+    total_fee: '350', payable_amount: '333', collection_amount: '333', single_payment_saving: '17',
+    syllabus: { id: BRIDGE_ID, title: 'Grade 7 CBSE', grade: 7, board: 'CBSE', structure: 'BRIDGE_COURSE', syllabus_version: '' } }),
+  purchase: { id: 'additional-purchase', collection_mode: 'FULL' },
+  totals: { purchased_classes: '10', paid_classes: '0', unpaid_classes: '10', package_amount: '333', paid_amount: '0', outstanding_amount: '333',
+    fully_paid: false, classes_not_credited: '0' },
+  payments: [], can_collect: true, stripe_configured: true, ...extra });
+const tabNames = () => [...document.querySelectorAll('[role="tab"]')].map((tab) => clean(tab.textContent));
+async function pickOption(id, value) {
+  const element = input(id);
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(element, value);
+    element.dispatchEvent(new window.Event('change', { bubbles: true }));
+  });
+  await settle();
+}
+
+test('A mentor adds a purchase for their own student as a new sale, then collects it through its own Stripe link', async () => {
+  const figures = { plan_type: 'BRIDGE_COURSE', classes: '10', collection_mode: 'FULL', collection_subtotal: '350', collection_amount: '333',
+    collection_discount: '17', currency: 'AED', pricing_version: 3, lines: [] };
+  const link = initialPayment({ id: 'link-1', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '333', classes: '10',
+    collection_mode: 'FULL', proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/link-1', recorded_by: { id: 'mentor-1', name: 'Meera Mentor' } });
+  let reviewed, created, linked, expired = false;
+  serve({
+    [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
+    [`GET ${PURCHASES}`]: ({ params }) => ok(purchasesOverview(params?.syllabus === BRIDGE_ID ? { syllabus: bridgeOnSale() } : {})),
+    [`POST ${PURCHASES}`]: ({ data }) => {
+      if (data.preview) { reviewed = data; return ok({ preview: figures }); }
+      created = data;
+      return ok(purchaseState());
+    },
+    [`GET ${PURCHASE}`]: purchaseState(),
+    [`GET ${PURCHASE}amount/`]: ({ params }) => { assert.equal(params.classes, '10'); return ok({ amount: '333', classes: '10', currency: 'AED',
+      package_amount: '333', remaining_amount: '0', remaining_classes: '0' }); },
+    [`POST ${PURCHASE}payments/`]: ({ data }) => { linked = data; return ok({ payment: link, state: purchaseState({ payments: [link] }) }); },
+    [`POST ${PURCHASE}payments/link-1/expire/`]: () => { expired = true; return ok(purchaseState({ payments: [{ ...link, status: 'EXPIRED' }] })); },
+  });
+  await open(purchasesPath, BUYING_MENTOR);
+  assert.match(bodyText(), /Arjun · EDP00018SA-000101.*Initial purchase.*Q-000007/);
+  assert.equal(Boolean(button('Open')), false, 'the initial purchase stays with its sale');
+  await click(button('Add purchase'));
+  await pickOption('purchase-syllabus', BRIDGE_ID);
+  await click(radio('Full Bridge Course'));
+  assert.equal(Boolean(radio('Autopay')), false, 'Autopay for an additional purchase awaits a decision');
+  await click(radio('Single / Complete Payment'));
+  await click(button('Review purchase…'));
+  assert.deepEqual(reviewed, { syllabus: BRIDGE_ID, revision: 1, plan_type: 'BRIDGE_COURSE', collection_mode: 'FULL', chapter_ids: [], preview: true });
+  assert.match(clean(topDialog().textContent), /A new sale on SA-000101.*Arjun · EDP00018.*Grade 7 CBSE · Bridge Course · 10 classes.*Single \/ Complete Payment.*AED 350.*AED 17.*AED 333/);
+  await click(button('Add purchase', topDialog()));
+  const { request_id: requestId, ...rest } = created;
+  assert.match(requestId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(rest, { syllabus: BRIDGE_ID, revision: 1, plan_type: 'BRIDGE_COURSE', collection_mode: 'FULL', chapter_ids: [], pricing_version: 3 });
+  assert.match(bodyText(), /Additional purchase.*Outstanding balanceAED 333.*Added by Meera Mentor/);
+  await waitForAmount();
+  await click(button('Generate Stripe payment link'));
+  assert.match(clean(topDialog().textContent), /Arjun · SA-000101.*AED 333 · 10 classes.*Riya Nair · no email: the parent enters it on Stripe.*AED 0/);
+  await click(button('Generate link', topDialog()));
+  assert.deepEqual(Object.keys(linked).sort(), ['classes', 'request_id']);
+  assert.equal(linked.classes, '10');
+  assert.match(bodyText(), /Awaiting payment/);
+  await click(button('Expire unpaid link'));
+  assert.equal(expired, true);
+  assert.equal(calls('POST', `/api/sales/payments/link-1/expire/`).length, 0, 'never the initial sale’s route');
+});
+
+test('Purchases: only with the permission, for a student enrolled through payments; an earlier balance blocks a new one', async () => {
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile() });
+  await open(purchasesPath, { ...BUYING_MENTOR, permissions: ['accounts.view_mentored_students'] });
+  assert.equal(tabNames().includes('Purchases'), false);
+  await mounted.pop().unmount();
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile({ quota_source: 'SHEET' }) });
+  await open(purchasesPath, BUYING_MENTOR);
+  assert.equal(tabNames().includes('Purchases'), false, 'a sheet-managed student has no account to add to');
+  await mounted.pop().unmount();
+  assert.equal(calls('GET', PURCHASES).length, 0);
+
+  const blocker = { code: 'EARLIER_BALANCE_OUTSTANDING', sale_id: 'initial-sale',
+    message: 'An earlier sale still has AED 200 outstanding. Whether a new purchase may start meanwhile is not decided yet.' };
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
+    [`GET ${PURCHASES}`]: purchasesOverview({ can_add: false, blockers: [blocker], sales: [initialRow({ paid_amount: '300', outstanding_amount: '200', fully_paid: false })] }) });
+  await open(purchasesPath, BUYING_MENTOR);
+  assert.equal(tabNames().includes('Purchases'), true);
+  assert.match(bodyText(), /AED 200 outstanding\. Whether a new purchase may start meanwhile is not decided yet/);
+  assert.equal(button('Add purchase').disabled, true);
 });
 
 // ------------------------------------------------------------------ run

@@ -195,6 +195,11 @@ class LeadDetailView(APIView):
             return _no_lead()
         except InvalidLeadDetails as exc:
             return _error('VALIDATION_ERROR', exc.message, status.HTTP_400_BAD_REQUEST, fields={exc.field: [exc.message]})
+        except lead_admin.IdentityLocked as exc:
+            message = ('This child already has payments or a payment link, so the name is protected. '
+                       'An administrator can correct it with a reason in Sales & Payment.')
+            return _error('IDENTITY_LOCKED', message, status.HTTP_409_CONFLICT, account_id=str(exc.account.pk),
+                          account_reference=exc.account.reference, fields={'student_name': [message]})
         except LeadExists as exc:
             message = 'A lead for this child and phone number already exists. No details were changed.'
             return _error('LEAD_EXISTS', message, status.HTTP_409_CONFLICT, lead_id=str(exc.lead.pk),

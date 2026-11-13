@@ -31,6 +31,14 @@ def empty_sale(lead):
         'billing_timezone', 'autopay_configured', 'stripe_configured', 'can_collect', 'totals',
         *('totals.' + key for key in ('purchased_classes', 'paid_classes', 'unpaid_classes', 'used_classes',
             'available_quota', 'package_amount', 'paid_amount', 'remaining_amount')),
+        # Student financial identity (2026-11-13): the student account, family
+        # suggestions before a sale, refund/outstanding totals and the Admin-only
+        # Autopay cancellation flag. Additive fields; statuses are unchanged.
+        'account', 'family_candidates', 'can_cancel_autopay',
+        *('totals.' + key for key in ('refunded_amount', 'net_collected', 'outstanding_amount', 'fully_paid')),
+        # The student's credited class quota beside the classes paid but not credited
+        # under the existing rules (a later balance payment records money only).
+        *('totals.' + key for key in ('class_quota', 'classes_not_credited')),
     ])}
 
 

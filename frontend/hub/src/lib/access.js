@@ -86,6 +86,9 @@ export const PERMISSIONS = {
   createSalesQuotes: 'accounts.create_sales_quotes',
   manageSalesQuotes: 'accounts.manage_sales_quotes',
   manageInitialSales: 'accounts.manage_initial_sales',
+  // A further purchase for an enrolled student (backend accounts.0026): the student's own
+  // mentor, or an administrator. The API checks the mentor on every request.
+  createAdditionalPurchases: 'accounts.create_additional_purchases',
 };
 
 const P = PERMISSIONS;

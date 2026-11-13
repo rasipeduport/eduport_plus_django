@@ -115,6 +115,8 @@ def start_sale(actor, enquiry_id, data, request=None):
     require_compatible_quote(lead, quote, kind)
     if existing:
         return existing
+    from .student_accounts import open_account
+    account = open_account(actor, lead, data, request)
     expected = data.get('expected_start_date')
     reference = None
     if kind == SaleKind.TOKEN:
@@ -124,10 +126,12 @@ def start_sale(actor, enquiry_id, data, request=None):
             raise refusal('TOKEN_EXCEEDS_PACKAGE', 'A token reservation requires a package worth more than AED 100.')
         from .enrollment import next_number
         reference = f'TOK{next_number("TOKEN"):06d}'
+    from .student_accounts import billing_guardian
+    guardian = billing_guardian(account)
     sale = Sale.objects.create(
-        enquiry=lead, original_bde=lead.owner_bde, created_by=actor, original_quote=quote,
+        account=account, enquiry=lead, original_bde=lead.owner_bde, created_by=actor, original_quote=quote,
         kind=kind, expected_start_date=expected if kind == SaleKind.TOKEN else None,
-        reservation_reference=reference, parent_email=(lead.parent_email or '').lower().strip(),
+        reservation_reference=reference, parent_email=guardian.email if guardian else '',
     )
     audit('sale.create', sale, actor, request, kind=kind, quote=str(quote.pk) if quote else None)
     return sale
@@ -225,9 +229,9 @@ def preview_collection(actor, enquiry_id, data, request=None):
     sale = Sale.objects.filter(enquiry=lead).first()
     if not sale:
         raise refusal('SALE_REQUIRED', 'Start the sale first.')
-    if sale.student_id:
-        raise refusal('ALREADY_ENROLLED', 'Further payment collection belongs to the enrolled-student workflow.', 403)
     purchase = Purchase.objects.filter(sale=sale, is_initial=True).first()
+    if sale.student_id and (data['purpose'] != 'TUITION' or purchase is None):
+        raise refusal('ALREADY_ENROLLED', 'After enrollment only the remaining tuition of this purchase can be collected.', 403)
     quote = purchase.quote if purchase else current_quote(actor, lead, request, optional=data['purpose'] == 'TOKEN')
     if not purchase:
         require_compatible_quote(lead, quote, sale.kind)
@@ -249,8 +253,20 @@ def preview_collection(actor, enquiry_id, data, request=None):
             'remaining_amount': plain(amount - paid['amount'] - due), 'remaining_classes': plain(classes - paid['classes'] - selected)}
 
 
+def classes_credited(payment, installment=None):
+    """Whether the existing rules credited this payment's classes: enrollment credits
+    the tuition received up to then, and Autopay installments credit their own."""
+    if payment.purpose != 'TUITION' or payment.status != PaymentStatus.SUCCEEDED:
+        return False
+    if installment is not None and installment.position > 0:
+        return True
+    sale = payment.sale
+    return bool(sale.kind != 'ADDITIONAL' and sale.enrolled_at and payment.verified_at and payment.verified_at <= sale.enrolled_at)
+
+
 def payment_data(payment):
     from .autopay_models import AutopayInstallment
+    from .refunds import payment_extras
     installment = AutopayInstallment.objects.filter(payment=payment).first()
     latest = installment.attempts.order_by('-number').first() if installment and installment.position == 0 else None
     return {
@@ -267,15 +283,19 @@ def payment_data(payment):
         'payment_url': latest.checkout_url if latest else payment.payment_url or None,
         'collection_source': 'AUTOPAY' if installment and installment.position > 0 else 'INITIAL_AUTOPAY' if installment else 'INITIAL',
         'stripe_payment_intent': payment.stripe_payment_intent,
+        'stripe_charge_id': payment.stripe_charge_id or None,
         'stripe_invoice_id': installment.stripe_invoice_id if installment else None,
         'stripe_invoice_status': installment.stripe_invoice_status if installment else None,
+        'failure_code': payment.failure_code or None, 'failure_message': payment.failure_message or None,
+        'payer': payment.payer_details or None,
+        'classes_credited': classes_credited(payment, installment),
         'verified_at': payment.verified_at.isoformat() if payment.verified_at else None,
+        **payment_extras(payment),
     }
 
 
 def sale_data(actor, enquiry_id, request=None):
     from . import autopay
-    from .autopay_models import AutopayAgreement
     lead = accessible_lead(actor, enquiry_id, request)
     sale = Sale.objects.select_related('student', 'original_bde').filter(enquiry=lead).first()
     quote = quotes.latest_quote(lead)
@@ -291,12 +311,29 @@ def sale_data(actor, enquiry_id, request=None):
     classes = purchase.classes if purchase else quote.classes if quote and quote.status == 'ISSUED' else ZERO
     from sessions.services import calculate_credits_used
     used = Decimal(str(calculate_credits_used(sale.student))) if sale and sale.student_id else ZERO
-    can_collect = not (sale and sale.student_id)
-    if can_collect and not purchase:
-        try:
-            require_compatible_quote(lead, quote, sale.kind if sale else SaleKind.NEW)
-        except SalesError:
-            can_collect = False
+    from .autopay_models import AutopayAgreement
+    agreement = AutopayAgreement.objects.filter(purchase=purchase).first() if purchase else None
+    if sale and sale.student_id:
+        # After enrollment: the remaining tuition of the same purchase, unless Autopay owns it.
+        can_collect = bool(purchase) and classes - paid['classes'] > 0 and agreement is None
+    else:
+        can_collect = True
+        if not purchase:
+            try:
+                require_compatible_quote(lead, quote, sale.kind if sale else SaleKind.NEW)
+            except SalesError:
+                can_collect = False
+    from .ledger_models import Refund
+    from . import student_accounts
+    refunded = Refund.objects.filter(payment__sale=sale, status__in=['succeeded', 'pending', 'requires_action']).aggregate(
+        n=Sum('amount'))['n'] if sale else None
+    refunded = refunded or ZERO
+    account = sale.account if sale else getattr(lead, 'student_account', None)
+    payments_shown = list(sale.payments.filter(Q(purpose='TOKEN') | Q(purchase__is_initial=True)).select_related('recorded_by', 'sale')) if sale else []
+    from .autopay_models import AutopayInstallment
+    installments = {row.payment_id: row for row in AutopayInstallment.objects.filter(payment__in=payments_shown)}
+    not_credited = sum((row.classes for row in payments_shown if row.purpose == 'TUITION' and row.status == PaymentStatus.SUCCEEDED
+                        and not classes_credited(row, installments.get(row.pk))), ZERO)
     return {
         'enquiry_id': str(lead.pk), 'quote': quotes.quote_data(quote) if quote else None,
         'sale': {
@@ -311,14 +348,30 @@ def sale_data(actor, enquiry_id, request=None):
         'purchase': {'id': str(purchase.pk), 'collection_mode': purchase.collection_mode} if purchase else None,
         'totals': {'purchased_classes': plain(classes), 'paid_classes': plain(paid['classes']),
                    'unpaid_classes': plain(classes - paid['classes']), 'used_classes': plain(used),
-                   'available_quota': plain(paid['classes'] - used), 'package_amount': plain(amount),
-                   'paid_amount': plain(paid['amount']), 'remaining_amount': plain(amount - paid['amount']) if amount is not None else None},
-        'payments': [payment_data(payment) for payment in sale.payments.filter(Q(purpose='TOKEN') | Q(purchase__is_initial=True)).select_related('recorded_by')] if sale else [],
-        'autopay': autopay.agreement_data(AutopayAgreement.objects.filter(purchase=purchase).first(),
+                   # Credited quota is the student's own; paid classes are the classes the
+                   # received payments covered. They differ only by classes_not_credited.
+                   'available_quota': plain((sale.student.total_class_quota if sale and sale.student_id else paid['classes']) - used),
+                   'class_quota': plain(sale.student.total_class_quota) if sale and sale.student_id else None,
+                   'classes_not_credited': plain(not_credited), 'package_amount': plain(amount),
+                   'paid_amount': plain(paid['amount']), 'remaining_amount': plain(amount - paid['amount']) if amount is not None else None,
+                   # Refunds are tracked separately; until a refund policy is approved
+                   # they change neither the outstanding balance nor class quota.
+                   'refunded_amount': plain(refunded), 'net_collected': plain(paid['amount'] - refunded),
+                   'outstanding_amount': plain(amount - paid['amount']) if amount is not None else None,
+                   'fully_paid': amount is not None and paid['amount'] >= amount},
+        'payments': [payment_data(payment) for payment in payments_shown],
+        'autopay': autopay.agreement_data(agreement,
             include_actions=has_app_permission(actor, 'accounts.view_all_students', request)) if purchase else None,
         'billing_timezone': settings.SALES_BILLING_TIMEZONE, 'autopay_configured': autopay.configured(),
         'can_collect': can_collect,
-        'stripe_configured': stripe_configured(), 'parent_email': sale.parent_email if sale else lead.parent_email,
+        'can_cancel_autopay': bool(agreement) and agreement.status not in ('COMPLETED', 'CANCELLED')
+                              and student_accounts.is_admin(actor, request),
+        'account': student_accounts.account_data(account, actor, request),
+        # Before a sale starts: existing families sharing this parent's phone or
+        # email. Suggestions only; the BDE decides and the choice is recorded.
+        'family_candidates': student_accounts.family_candidates(lead) if not sale else None,
+        'stripe_configured': stripe_configured(),
+        'parent_email': (student_accounts.billing_guardian(account).email if account and account.billing_link() else lead.parent_email),
     }
 
 
@@ -366,8 +419,8 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
                             or existing.received_confirmed != data.get('received_confirmed', False)))):
                     raise refusal('IDEMPOTENCY_CONFLICT', 'That request ID was already used for a different collection.', 409)
                 return existing
-            if sale.student_id:
-                raise refusal('ALREADY_ENROLLED', 'BDE collection ends at enrollment. This phase does not collect further student payments.', 403)
+            if sale.student_id and (data['purpose'] != 'TUITION' or not Purchase.objects.filter(sale=sale, is_initial=True).exists()):
+                raise refusal('ALREADY_ENROLLED', 'After enrollment only the remaining tuition of this purchase can be collected.', 403)
             from .autopay_models import AutopayAgreement
             if AutopayAgreement.objects.filter(purchase__sale=sale).exists():
                 raise refusal('AUTOPAY_EXISTS', 'Continue the existing initial Autopay agreement instead of collecting another payment.', 409)
@@ -379,8 +432,9 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
             amount = Decimal(preview['amount'])
             purchase = None
             if data['purpose'] == 'TUITION':
-                from invitations.credentials import credential_cipher
-                credential_cipher()  # Verify delivery configuration before collecting money.
+                if not sale.student_id:
+                    from invitations.credentials import credential_cipher
+                    credential_cipher()  # Verify delivery configuration before collecting money.
                 purchase = Purchase.objects.filter(sale=sale, is_initial=True).first()
                 if purchase is None:
                     quote = current_quote(actor, lead, request)
@@ -411,6 +465,9 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
                 payment.proof.save(f'receipt{extension}', data['proof'], save=False)
                 stored_proof = payment.proof
             payment.save(force_insert=True)
+            # A payment record or link exists: the child's identity is now correction-only.
+            from .student_accounts import lock_identity
+            lock_identity(sale.account)
             agreement = None
             if data.get('_autopay_snapshot'):
                 from .autopay import persist_schedule, link_initial
@@ -429,32 +486,41 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
         raise
 
 
-def succeed(payment, actor=None, request=None, provider_id=None):
-    """Called only under the enquiry lock after direct receipt or signed provider verification."""
+def succeed(payment, actor=None, request=None, provider_id=None, charge_id='', payer=None):
+    """Called only under the sale lock (stripe_gateway.lock_sale) after direct receipt or signed provider verification."""
     if payment.status == PaymentStatus.SUCCEEDED:
         return
     if payment.status not in (PaymentStatus.PENDING, PaymentStatus.FAILED):
         raise refusal('PAYMENT_CLOSED', 'This payment is no longer collectible.', 409)
+    enrolled_before = bool(payment.sale.student_id)
     payment.status = PaymentStatus.SUCCEEDED
     payment.verified_at = timezone.now()
     if provider_id:
         payment.stripe_payment_intent = provider_id
         payment.payment_date = timezone.localdate()
-    payment.save(update_fields=['status', 'verified_at', 'stripe_payment_intent', 'payment_date'])
+    if charge_id and not payment.stripe_charge_id:
+        payment.stripe_charge_id = charge_id
+    if payer and not payment.payer_details:
+        payment.payer_details = payer
+    payment.save(update_fields=['status', 'verified_at', 'stripe_payment_intent', 'payment_date', 'stripe_charge_id', 'payer_details'])
     if payment.purpose == 'TUITION':
         from .autopay_models import AutopayInstallment
-        if payment.sale.student_id and AutopayInstallment.objects.filter(payment=payment, position__gt=0).exists():
+        # Existing class-credit rules only: an Autopay installment adds its classes,
+        # and the first verified tuition enrolls with the classes paid so far. A
+        # later one-time payment (a remaining balance) records money only; no rule
+        # credits its classes yet, so none are credited automatically.
+        if enrolled_before and AutopayInstallment.objects.filter(payment=payment, position__gt=0).exists():
             from students.models import Student
             student = Student.objects.select_for_update().get(pk=payment.sale.student_id)
             if student.quota_source != 'PAYMENTS':
                 raise refusal('QUOTA_SOURCE_CONFLICT', 'This payment-managed student’s quota needs administrative review.', 409)
             student.total_class_quota += payment.classes
             student.save(update_fields=['total_class_quota'])
-        else:
+        elif not enrolled_before:
             from .enrollment import enroll
             enroll(payment.sale, payment.purchase, actor or payment.recorded_by, request)
     from .autopay_models import AutopayInstallment
     automatic = AutopayInstallment.objects.filter(payment=payment, position__gt=0).exists()
     audit('payment.received', payment.sale, None if automatic else actor or payment.recorded_by, request,
           payment=str(payment.pk), amount=plain(payment.amount), classes=plain(payment.classes),
-          collection_source='AUTOPAY' if automatic else 'INITIAL')
+          collection_source='AUTOPAY' if automatic else 'BALANCE' if enrolled_before else 'INITIAL')

@@ -434,6 +434,8 @@ class Quote(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     # The enquiry it answers, when the BDE names one: where the parent's confirmation will attach.
     lead = models.ForeignKey('bookings.Lead', on_delete=models.PROTECT, null=True, blank=True, related_name='sales_quotes')
+    # Or the student account an additional purchase is for (sales.additional_purchases); never both.
+    account = models.ForeignKey('sales.StudentAccount', on_delete=models.PROTECT, null=True, blank=True, related_name='quotes')
     # Replacing a student's plan issues another snapshot; the old quote is never
     # rewritten or cancelled implicitly. At most one quote directly replaces it.
     supersedes = models.OneToOneField(
@@ -483,6 +485,7 @@ class Quote(models.Model):
         ]
         constraints = [
             models.CheckConstraint(condition=Q(number__gte=1), name='sales_quotes_number_from_one'),
+            models.CheckConstraint(condition=Q(lead__isnull=True) | Q(account__isnull=True), name='sales_quotes_lead_or_account'),
             models.CheckConstraint(condition=Q(status__in=QuoteStatus.values), name='sales_quotes_known_status'),
             models.CheckConstraint(condition=Q(plan_type__in=PlanType.values), name='sales_quotes_known_plan_type'),
             models.CheckConstraint(
@@ -578,3 +581,5 @@ class QuoteChapter(models.Model):
 # Django discovers this app's admission ledger alongside its catalogue models.
 from .payment_models import Payment, Purchase, Sale, SalesSequence, StripeCustomer, StripeEvent, StripeCheckoutOperation  # noqa: E402,F401
 from .autopay_models import AutopayAgreement, AutopayAttempt, AutopayInstallment  # noqa: E402,F401
+from .account_models import Guardian, StudentAccount, StudentGuardian, StudentIdentityCorrection  # noqa: E402,F401
+from .ledger_models import Dispute, Refund, StripeReviewItem  # noqa: E402,F401

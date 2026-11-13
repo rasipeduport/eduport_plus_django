@@ -147,6 +147,14 @@ def add_lead(admin, details, request=None):
     return lead
 
 
+class IdentityLocked(Exception):
+    """The child already has payments or a payment link: use the audited identity correction."""
+
+    def __init__(self, account):
+        super().__init__(account.reference)
+        self.account = account
+
+
 def update_lead_details(admin, lead_id, details, request=None):
     """
     Apply validated LeadDetailsUpdateSerializer fields under the lead's lock.
@@ -175,6 +183,11 @@ def update_lead_details(admin, lead_id, details, request=None):
             changed = {field: value for field, value in values.items() if getattr(lead, field) != value}
             if not changed:
                 return lead
+            if 'student_name' in changed:
+                from sales.student_accounts import locked_account_for_lead
+                locked = locked_account_for_lead(lead.pk)
+                if locked is not None:
+                    raise IdentityLocked(locked)
             for field, value in changed.items():
                 setattr(lead, field, value)
             try:
@@ -190,6 +203,10 @@ def update_lead_details(admin, lead_id, details, request=None):
 
             if {'parent_name', 'student_name', 'phone_key'} & changed.keys():
                 planner.lead_details_changed(lead, timezone.now())
+            if 'student_name' in changed:
+                # Before any payment the student account still follows the enquiry.
+                from sales.student_accounts import mirror_unlocked_name
+                mirror_unlocked_name(lead)
             # As on lead intake, record field names, not private contact values.
             log_activity(
                 action='lead.update_details', entity_type='lead', entity_id=lead.id,

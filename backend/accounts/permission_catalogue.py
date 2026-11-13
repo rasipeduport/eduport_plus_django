@@ -30,6 +30,7 @@ TUTOR_ONLY = ('TUTOR',)
 BDE_ONLY = ('BDE',)
 SALES_TL_ONLY = ('SALES_TL',)
 BDE_AND_ADMIN = ('BDE', 'ADMIN')
+MENTOR_AND_ADMIN = ('MENTOR', 'ADMIN')
 ADMIN_AND_SALES_TL = ('ADMIN', 'SALES_TL')
 
 VIEW_TEAM = 'accounts.view_team'
@@ -176,6 +177,10 @@ CATALOGUE = {
     'accounts.create_sales_quotes': _entry('Quote parents and see their own quotes', 'Sales', BDE_AND_ADMIN),
     'accounts.manage_sales_quotes': _entry('View and cancel every quote', 'Sales', ADMIN_ONLY),
     'accounts.manage_initial_sales': _entry('Manage initial sales and payments', 'Sales', BDE_AND_ADMIN),
+    # Additional purchases (sales.additional_purchases), accounts.0026: a mentor's
+    # further purchase for one of their own enrolled students -- a new Sale on the
+    # student's existing account. Never a BDE's.
+    'accounts.create_additional_purchases': _entry('Create additional purchases for their students', 'Sales', MENTOR_AND_ADMIN),
 }
 
 

@@ -71,18 +71,21 @@ def refresh_setup(agreement_id, checkout=None):
         if agreement.collection_engine == 'STRIPE_BILLING' and method.get('card', {}).get('country') == 'IN':
             agreement.setup_status = 'UNSUPPORTED'
             raise ValueError('India-issued cards need a Stripe Subscription mandate setup flow. The initial tuition payment is retained; automatic setup requires follow-up.')
-        mapping = StripeCustomer.objects.get(enquiry_id=agreement.purchase.sale.enquiry_id)
+        mapping = StripeCustomer.objects.get(account_id=agreement.purchase.sale.account_id, customer_id=agreement.stripe_customer_id)
         if (mapping.customer_id != agreement.stripe_customer_id or mapping.livemode != agreement.livemode
                 or method.get('customer') != agreement.stripe_customer_id or bool(method.get('livemode')) != agreement.livemode):
             raise ValueError('The reusable method is not attached to the correct Customer and Stripe environment.')
         agreement.stripe_payment_method_id = method_id
         agreement.card_brand = method.get('card', {}).get('brand', '')
         agreement.card_last4 = method.get('card', {}).get('last4', '')
-        agreement.setup_status, agreement.status, agreement.setup_message = 'READY', 'ACTIVE', ''
+        agreement.setup_status, agreement.setup_message = 'READY', ''
+        if agreement.status != 'CANCELLED':
+            agreement.status = 'ACTIVE'
         agreement.ready_at = agreement.ready_at or timezone.now()
     except (stripe.StripeError, ValueError, StripeCustomer.DoesNotExist, AttributeError) as exc:
         agreement.setup_status = 'UNSUPPORTED' if agreement.setup_status == 'UNSUPPORTED' else 'INCOMPLETE'
-        agreement.status = 'SETUP_INCOMPLETE'
+        if agreement.status != 'CANCELLED':
+            agreement.status = 'SETUP_INCOMPLETE'
         agreement.setup_message = str(exc)[:255] if isinstance(exc, ValueError) else 'Stripe payment-method verification is incomplete. Admin follow-up is required.'
     agreement.save(update_fields=['consent_verified_at', 'stripe_payment_method_id', 'card_brand', 'card_last4',
                                   'setup_status', 'status', 'setup_message', 'ready_at'])
@@ -157,7 +160,14 @@ def process_event(event, record):
             record.outcome, record.error = 'REJECTED', 'This PaymentIntent has already been credited.'
             return
         attempt.stripe_payment_intent_id = pi_id
-        payments.succeed(payment, provider_id=pi_id)
+        charge_id, payer = '', None
+        if checkout:
+            from .stripe_gateway import checkout_evidence
+            charge_id, payer = checkout_evidence(obj)
+        payments.succeed(payment, provider_id=pi_id, charge_id=charge_id, payer=payer)
+        if checkout:
+            from .student_accounts import capture_checkout_email
+            capture_checkout_email(payment.sale, (obj.get('customer_details') or {}).get('email'), payment)
         installment.status, installment.paid_at = 'PAID', payment.verified_at
         installment.save(update_fields=['status', 'paid_at'])
         autopay.attempt_state(attempt, 'SUCCEEDED')

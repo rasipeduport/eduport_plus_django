@@ -1,5 +1,7 @@
 from django.urls import path
 from .autopay_views import AutopayScheduleView, BeginAutopayView, RestartInitialCheckoutView, ParentAutopayActionView
+from .account_views import BillingContactView, CancelAutopayView, IdentityCorrectionView, ResolveReviewView, StripeReviewView
+from .purchase_views import PurchaseAmountView, PurchaseExpireView, PurchasePaymentsView, PurchaseView, StudentPurchasesView
 
 from .quote_views import EnquiryPlanView, QuoteCancelView, QuoteDetailView, QuotePdfView, QuotesView
 from .payment_views import (InitialSalesView, CollectionAmountView, CollectPaymentView, InstallmentQuoteView,
@@ -26,6 +28,19 @@ urlpatterns = [
     path('payments/<uuid:pk>/expire/', ExpirePaymentView.as_view(), name='expire_payment'),
     path('students/<uuid:pk>/initial-sale/', InitialStudentSaleView.as_view(), name='student_initial_sale'),
     path('webhooks/stripe/', StripeWebhookView.as_view(), name='stripe_webhook'),
+    # Student financial identity: billing contact, audited corrections, Autopay
+    # cancellation and the review queue for Stripe activity Django did not create.
+    path('enquiries/<uuid:pk>/sale/billing-contact/', BillingContactView.as_view(), name='billing_contact'),
+    path('accounts/<uuid:pk>/identity-correction/', IdentityCorrectionView.as_view(), name='identity_correction'),
+    path('autopay/<uuid:pk>/cancel/', CancelAutopayView.as_view(), name='cancel_autopay'),
+    path('stripe-review/', StripeReviewView.as_view(), name='stripe_review'),
+    path('stripe-review/<uuid:pk>/resolve/', ResolveReviewView.as_view(), name='resolve_stripe_review'),
+    # Additional purchases: a Mentor's further Sale for their own enrolled student.
+    path('students/<uuid:pk>/purchases/', StudentPurchasesView.as_view(), name='student_purchases'),
+    path('purchases/<uuid:pk>/', PurchaseView.as_view(), name='purchase'),
+    path('purchases/<uuid:pk>/amount/', PurchaseAmountView.as_view(), name='purchase_amount'),
+    path('purchases/<uuid:pk>/payments/', PurchasePaymentsView.as_view(), name='purchase_payments'),
+    path('purchases/<uuid:pk>/payments/<uuid:payment_id>/expire/', PurchaseExpireView.as_view(), name='purchase_expire'),
     path('syllabi/', SyllabiView.as_view(), name='syllabi'),
     path('syllabi/pdf-preview/', SyllabusPdfPreviewView.as_view(), name='pdf_preview'),
     path('syllabi/<uuid:pk>/', SyllabusDetailView.as_view(), name='syllabus'),

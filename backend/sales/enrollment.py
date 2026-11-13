@@ -34,20 +34,27 @@ def enroll(sale, purchase, actor, request=None):
     if paid['classes'] <= 0:
         raise refusal('TUITION_REQUIRED', 'Only verified tuition can enroll a student.')
     from invitations.credentials import new_account, create_invitation
+    from .account_models import StudentAccount
     lead = sale.enquiry
+    # The student account owns the child's identity (locked once money arrived).
+    student_account = StudentAccount.objects.select_for_update().get(pk=sale.account_id)
     code = f'EDP{next_number("EDP"):05d}'
-    account, password = new_account(code, lead.student_name, actor)
+    account, password = new_account(code, student_account.student_name, actor)
     from bookings.models import DemoBooking, BookingStatus
     demo = (DemoBooking.objects.filter(lead=lead, assigned_tutor__isnull=False)
             .exclude(status__in=[BookingStatus.CANCELLED, BookingStatus.RESCHEDULED])
             .select_related('assigned_tutor').order_by('-slot__starts_at', '-created_at').first())
     student = Student.objects.create(
-        profile=account, student_code=code, full_name=lead.student_name,
+        profile=account, student_code=code, full_name=student_account.student_name,
         mobile_number=lead.phone_key, country=lead.country, school_name=lead.school_name,
         grade=lead.grade, syllabus=purchase.quote.revision.board, timezone=lead.student_timezone or None,
         admission_date=timezone.localdate(), total_class_quota=paid['classes'], quota_source='PAYMENTS',
         tutor=demo.assigned_tutor if demo else None, meet_link=demo.tutor_meet_link if demo else None,
     )
+    # The account keeps its SA reference and gains the Student/EDP ID; it is
+    # linked first so the sale's student always equals its account's student.
+    student_account.student = student
+    student_account.save(update_fields=['student'])
     sale.student = student
     sale.enrolled_at = timezone.now()
     sale.save(update_fields=['student', 'enrolled_at'])
@@ -57,7 +64,10 @@ def enroll(sale, purchase, actor, request=None):
                       extra_data={'source': 'INITIAL_SALE', 'enquiry_id': str(lead.pk), 'sale_id': str(sale.pk)})
     audit('student.enrolled', sale, actor, request, student_code=student.student_code,
           quote=str(purchase.quote_id), purchased_classes=str(purchase.classes), paid_classes=str(paid['classes']))
-    # Keep the existing Stripe customer mapping after academic enrollment.
-    from .stripe_gateway import sync_customer_metadata
-    transaction.on_commit(lambda: sync_customer_metadata(lead.pk))
+    # Same Customer after enrollment; its labels gain the EDP ID (legacy ones only metadata).
+    from .payment_models import StripeCustomer
+    from .customers import sync_labels
+    rows = list(StripeCustomer.objects.filter(account_id=sale.account_id, customer_id__isnull=False).values_list('pk', flat=True))
+    StripeCustomer.objects.filter(pk__in=rows).update(student_metadata_synced=False)
+    transaction.on_commit(lambda: [sync_labels(row) for row in rows])
     return student

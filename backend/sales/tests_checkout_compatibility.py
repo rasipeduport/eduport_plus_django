@@ -18,9 +18,11 @@ from .services import SalesError
                    HUB_URL='https://hub.example.test', STRIPE_LIVE_MODE=False)
 class CheckoutCompatibilityTests(SimpleTestCase):
     def setUp(self):
-        self.sale = SimpleNamespace(pk=uuid.uuid4(), enquiry_id=uuid.uuid4())
-        self.purchase = SimpleNamespace(pk=uuid.uuid4(), sale=self.sale, sale_id=self.sale.pk,
-                                        quote_id=uuid.uuid4())
+        self.account = SimpleNamespace(pk=uuid.uuid4(), reference='SA-000001', student_name='Fixture Student',
+                                       student_id=None, student=None)
+        self.sale = SimpleNamespace(pk=uuid.uuid4(), enquiry_id=uuid.uuid4(), account=self.account)
+        self.purchase = SimpleNamespace(pk=uuid.uuid4(), sale=self.sale, sale_id=self.sale.pk, classes=Decimal('10'),
+                                        quote_id=uuid.uuid4(), quote=SimpleNamespace(reference='Q-000001'))
         self.payment = SimpleNamespace(pk=uuid.uuid4(), sale=self.sale, purchase=self.purchase,
                                        purchase_id=self.purchase.pk, purpose='TUITION',
                                        amount=Decimal('100'), classes=Decimal('2'))
@@ -36,12 +38,17 @@ class CheckoutCompatibilityTests(SimpleTestCase):
         self.customer_model.objects.filter.return_value.first.return_value = self.mapping
         self.operation_model.objects.create.side_effect = lambda **fields: SimpleNamespace(
             **fields, payment_id=fields['payment'].pk)
+        # Django supplies the billing contact and the student's Customer row.
+        self.guardian = SimpleNamespace(pk=uuid.uuid4(), full_name='Fixture Parent', email='parent@fixture.test')
+        self.enterContext(mock.patch('sales.student_accounts.billing_guardian', return_value=self.guardian))
+        self.prepared = self.enterContext(mock.patch('sales.customers.prepared_mapping', return_value=self.mapping))
 
     def test_initial_request_is_card_only_and_preserves_consent_and_off_session_setup(self):
         operation = checkout.prepare(self.payment, agreement=self.agreement)
         params = operation.request
         self.assertEqual(params['allowed_payment_method_types'], ['card'])
         self.assertNotIn('payment_method_types', params)
+        self.assertEqual(params['wallet_options'], {'link': {'display': 'never'}})
         self.assertEqual(params['consent_collection'], {
             'terms_of_service': 'required', 'payment_method_reuse_agreement': {'position': 'auto'}})
         self.assertEqual(params['payment_intent_data']['setup_future_usage'], 'off_session')

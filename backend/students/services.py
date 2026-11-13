@@ -76,7 +76,8 @@ def serialize_student(student):
         from sales.payment_models import Purchase
         from sales.pricing import plain
         from sales import quotes
-        purchase = Purchase.objects.select_related('quote__revision', 'sale').filter(student=student, is_initial=True).first()
+        purchase = Purchase.objects.select_related('quote__revision', 'sale').filter(
+            student=student, is_initial=True, sale__kind__in=['NEW', 'TOKEN']).first()
         if purchase:
             quote = purchase.quote
             learning_plan = {'syllabus': quote.revision.title, 'revision': quote.revision.number,

@@ -12,6 +12,7 @@ import { collectDocuments } from '@/lib/documents';
 import { ProfileHeader } from '@/components/students/profile/profile-header';
 import { OverviewTab } from '@/components/students/profile/overview-tab';
 import { EnquirySalesPayment } from '@/components/enquiries/workspace/enquiry-sales-payment';
+import { StudentPurchases } from '@/components/sales/additional-purchases';
 import { WorkspaceCard, Field, Fields } from '@/components/bookings/redemo-workspace/parts';
 import { quotePlanLabel } from '@/lib/sales';
 import { SessionsTab } from '@/components/students/profile/sessions-tab';
@@ -25,7 +26,7 @@ import { TabSkeleton } from '@/components/students/profile/profile-primitives';
 // What each tab needs loaded before it can render. The Overview is served by
 // the profile request itself; Documents is assembled from the other tabs'
 // payloads, so opening it pulls all of them in. Activity and Notes own their
-// own fetching, since both paginate.
+// own fetching, since both paginate; Purchases owns its own, as a workflow.
 //
 // A tutor is refused the exam endpoints outright (403), so their Documents
 // tab must not ask for them -- it is built from classes and homework alone.
@@ -35,6 +36,7 @@ const TAB_RESOURCES = {
   exams: ['exams', 'additionalExams'],
   homework: ['homework'],
   documents: ['sessions', 'exams', 'additionalExams', 'homework'],
+  purchases: [],
   activity: [],
   notes: [],
 };
@@ -78,6 +80,9 @@ export default function StudentProfilePage({ user }) {
   const [homeworkSheetId, setHomeworkSheetId] = useState(null);
   const [additionalExamId, setAdditionalExamId] = useState(null);
 
+  // Only a student enrolled through Eduport Plus payments has an account to add a purchase to.
+  const canPurchase = can(user, PERMISSIONS.createAdditionalPurchases) && profile?.student?.quota_source === 'PAYMENTS';
+
   // Exams are a mentor <-> student affair; the API tells us so by sending no
   // exam stats at all, which keeps the tab list and the API in step.
   const tabs = useMemo(() => {
@@ -96,10 +101,11 @@ export default function StudentProfilePage({ user }) {
         : []),
       { key: 'homework', label: 'Homework', count: profile?.stats?.homework?.total },
       { key: 'documents', label: 'Documents' },
+      ...(canPurchase ? [{ key: 'purchases', label: 'Purchases' }] : []),
       { key: 'activity', label: 'Activity' },
       { key: 'notes', label: 'Notes' },
     ];
-  }, [canViewExams, profile]);
+  }, [canViewExams, canPurchase, profile]);
 
   const requested = searchParams.get('tab') || 'overview';
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
@@ -289,6 +295,12 @@ export default function StudentProfilePage({ user }) {
               />
             )}
           </TabsContent>
+
+          {canPurchase ? (
+            <TabsContent value="purchases">
+              <StudentPurchases studentId={studentId} />
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="activity">
             <ActivityTab studentId={studentId} user={user} />

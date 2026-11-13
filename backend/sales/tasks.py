@@ -15,7 +15,6 @@ def collect_due_autopay_installments():
 
 @shared_task
 def sync_stripe_student_metadata():
-    from .payment_models import StripeCustomer
-    from .stripe_gateway import sync_customer_metadata
-    for enquiry_id in StripeCustomer.objects.filter(student_metadata_synced=False, customer_id__isnull=False, enquiry__initial_sale__student__isnull=False).values_list('enquiry_id', flat=True):
-        sync_customer_metadata(enquiry_id)
+    # Retries Customer label pushes (student name, guardian contact, EDP ID).
+    from .customers import sync_pending
+    sync_pending()

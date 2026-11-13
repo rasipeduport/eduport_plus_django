@@ -129,7 +129,7 @@ Unrecognized events are ignored, and mismatched invoices are quarantined for
 review. Collection on a mismatched draft/open invoice is disabled using native
 `auto_advance=false`; its frozen amount is never repaired silently.
 
-Provisioning uses deterministic Product IDs, stable idempotency keys, a frozen
+Provisioning uses the shared `eduport_plus_tuition` product (agreements provisioned earlier keep their own product, frozen in their request; see [Student financial identity](student-financial-identity.md)), stable idempotency keys, a frozen
 request and discovery of any existing matching Customer schedule before creation.
 An ambiguous response is reconciled, not followed by a fresh subscription. Beyond
 the safe idempotency window, an absent remote schedule requires technical review
@@ -213,7 +213,8 @@ You must review the following yourself:
    not silently activate Autopay.
 
 Cancellation, pause/resume and native recovery updates made at Stripe are
-synchronized. This change adds no new student Financials/cancellation/retry UI.
+synchronized. An Admin can also cancel an agreement with a reason (2026-11-13;
+see [Student financial identity](student-financial-identity.md)). This change adds no new student Financials/cancellation/retry UI.
 The finite schedule cancels at its last phase end; Stripe cancellation may stop
 automatic recovery on older open invoices. Those remain visible for follow-up,
 not silently added to another installment.

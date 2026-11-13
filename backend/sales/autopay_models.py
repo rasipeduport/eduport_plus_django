@@ -43,6 +43,13 @@ class AutopayAgreement(models.Model):
     provisioning_generation = models.PositiveIntegerField(default=0)
     provisioning_key_started_at = models.DateTimeField(null=True, blank=True)
     provisioning_rejection_verified = models.BooleanField(default=False)
+    # Set once when future collection stops: by an administrator (on their own
+    # decision or the parent's request) or observed from Stripe.
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='+')
+    cancellation_reason = models.TextField(blank=True)
+    cancellation_source = models.CharField(max_length=20, blank=True, choices=[('ADMIN', 'Administrator'), ('PARENT_REQUEST', 'Parent request'),
+                                                                              ('STRIPE', 'Stopped in Stripe')])
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
 

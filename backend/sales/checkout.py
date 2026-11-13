@@ -13,16 +13,46 @@ from django.utils import timezone
 
 from . import payments
 from .payment_models import Payment, Sale, StripeCheckoutOperation, StripeCustomer
+from .pricing import plain
 
 
 def data(value):
     return value if isinstance(value, dict) else value.to_dict()
 
 
-def _lock(enquiry_id):
-    from bookings.models import Lead
-    Lead.objects.select_for_update().get(pk=enquiry_id)
-    return Sale.objects.select_for_update().get(enquiry_id=enquiry_id)
+def _lock(sale_id):
+    """Collection lock order: the sale's enquiry (when it has one), then the sale."""
+    from .stripe_gateway import lock_sale
+    return lock_sale(Sale.objects.get(pk=sale_id))
+
+
+# Payment methods offered on hosted Checkout. Card only for now; Stripe Link is
+# hidden as well. Extend this list (and its wallet options) to add methods later.
+PAYMENT_METHOD_TYPES = ['card']
+WALLET_OPTIONS = {'link': {'display': 'never'}}
+
+
+def account_metadata(account):
+    meta = {'eduport_account_id': str(account.pk), 'eduport_account_ref': account.reference}
+    if account.student_id:
+        meta.update(student_id=str(account.student_id), edp_student_id=account.student.student_code)
+    return meta
+
+
+def labels(payment, account, guardian):
+    """What the parent sees on hosted Checkout, and how the payment is named in Stripe."""
+    refs = account.reference + (f' · {account.student.student_code}' if account.student_id else '')
+    if payment.purpose == 'TOKEN':
+        what = 'admission token (AED 100, no classes)'
+        description = f'Eduport Plus admission token — {account.student_name} ({refs})'
+    else:
+        quote = payment.purchase.quote
+        what = f'tuition, {plain(payment.classes)} of {plain(payment.purchase.classes)} classes · quote {quote.reference}'
+        description = f'Eduport Plus tuition — {account.student_name} ({refs}) · {plain(payment.classes)} classes · {quote.reference}'
+    contact = f' Billing contact: {guardian.full_name}.' if guardian and guardian.full_name else ''
+    message = (f'You are paying for {account.student_name} ({refs}): Eduport Plus {what}.{contact} '
+               'Student and purchase details are managed by Eduport Plus.')
+    return description[:1000], message[:1200]
 
 
 def prepare(payment, agreement=None, attempt_id=None):
@@ -34,29 +64,42 @@ def prepare(payment, agreement=None, attempt_id=None):
             raise payments.refusal('IDEMPOTENCY_CONFLICT', 'The Checkout request belongs to another payment.', 409)
         return existing
     sale = payment.sale
-    customer = StripeCustomer.objects.filter(enquiry_id=sale.enquiry_id).first()
-    if customer and customer.livemode != settings.STRIPE_LIVE_MODE:
-        raise payments.refusal('STRIPE_MODE_MISMATCH', 'This enquiry’s Customer belongs to a different Stripe mode.', 409)
-    if customer is None:
-        frozen = {'name': sale.enquiry.parent_name, 'phone': sale.enquiry.phone_key,
-                  'metadata': {'enquiry_id': str(sale.enquiry_id), 'eduport_customer_request': str(sale.enquiry_id)}}
-        if sale.parent_email:
-            frozen['email'] = sale.parent_email
-        customer = StripeCustomer.objects.create(enquiry_id=sale.enquiry_id, livemode=settings.STRIPE_LIVE_MODE,
-                                                 creation_request=frozen)
-    meta = {'payment_id': str(payment.pk), 'enquiry_id': str(sale.enquiry_id), 'sale_id': str(sale.pk),
-            'purchase_id': str(payment.purchase_id or ''),
-            'quote_id': str(payment.purchase.quote_id if payment.purchase_id else sale.original_quote_id or '')}
+    account = sale.account
+    from .customers import PRODUCTS, prepared_mapping
+    from .student_accounts import billing_guardian
+    # Django's parent email is on the Customer when known: Checkout then prefills
+    # it and does not let it be edited. Without one, Checkout asks for it and the
+    # verified webhook saves it (student_accounts.capture_checkout_email).
+    guardian = billing_guardian(account)
+    # The student's own Customer for this mode: reused by every sale and by Autopay.
+    prepared_mapping(account)
+    meta = {key: value for key, value in {
+        'payment_id': str(payment.pk), 'enquiry_id': str(sale.enquiry_id or ''), 'sale_id': str(sale.pk),
+        'purchase_id': str(payment.purchase_id or ''),
+        'quote_id': str(payment.purchase.quote_id if payment.purchase_id else sale.original_quote_id or '')}.items() if value}
+    meta.update(account_metadata(account))
+    description, message = labels(payment, account, guardian)
     params = {'mode': 'payment', 'client_reference_id': str(payment.pk),
+        # Card (with wallets) only. Django supplies the Customer, so Checkout asks
+        # for no name, phone, address or email; customer_update stays at its
+        # default ("never"), so nothing typed at Checkout can rename the student.
+        'allowed_payment_method_types': list(PAYMENT_METHOD_TYPES), 'wallet_options': WALLET_OPTIONS,
         'line_items': [{'price_data': {'currency': 'aed', 'unit_amount': int(payment.amount) * 100,
-            'product_data': {'name': 'Eduport Plus token reservation' if payment.purpose == 'TOKEN'
-                             else f'Eduport Plus tuition · {payment.classes} classes'}}, 'quantity': 1}],
-        'metadata': meta, 'payment_intent_data': {'metadata': meta},
+                                       'product': PRODUCTS['TOKEN' if payment.purpose == 'TOKEN' else 'TUITION'][0]}, 'quantity': 1}],
+        'metadata': meta, 'payment_intent_data': {'metadata': meta, 'description': description},
+        'custom_text': {'submit': {'message': message}},
         'success_url': f'{settings.HUB_URL.rstrip("/")}/payment-return?result=submitted',
         'cancel_url': f'{settings.HUB_URL.rstrip("/")}/payment-return?result=cancelled'}
     if agreement:
         from .autopay_stripe import checkout_options
-        params.update(checkout_options(agreement, payment, operation_id))
+        options = checkout_options(agreement, payment, operation_id)
+        combined = {**options['metadata'], **account_metadata(account)}
+        params['metadata'] = combined
+        params['payment_intent_data'] = {**options['payment_intent_data'], 'metadata': combined, 'description': description}
+        params['allowed_payment_method_types'] = options['allowed_payment_method_types']
+        params['wallet_options'] = WALLET_OPTIONS
+        params['consent_collection'] = options['consent_collection']
+        params['custom_text'] = {**params['custom_text'], **options['custom_text']}
     # Freeze the timestamped parent-review URL and every other parameter ONCE.
     params = copy.deepcopy(params)
     params['metadata']['checkout_operation_id'] = str(operation_id)
@@ -66,52 +109,9 @@ def prepare(payment, agreement=None, attempt_id=None):
         idempotency_key=f'eduport-checkout-operation-{operation_id}')
 
 
-def _customer(operation, gateway):
-    enquiry_id = operation.payment.sale.enquiry_id
-    with transaction.atomic():
-        _lock(enquiry_id)
-        mapping = StripeCustomer.objects.select_for_update().get(enquiry_id=enquiry_id)
-        if mapping.livemode != operation.livemode:
-            raise ValueError('Checkout Customer environment does not match.')
-        if mapping.customer_id:
-            return mapping.customer_id
-        if not mapping.creation_request:
-            raise ValueError('The Customer has no durable creation request. Manual reconciliation is required.')
-        started = mapping.creation_started_at
-        if not started:
-            mapping.creation_started_at = timezone.now()
-            mapping.save(update_fields=['creation_started_at'])
-    matches = []
-    if started:
-        # Recover by the frozen operation marker, never by email. Absence never
-        # authorizes a new key after an uncertain expired request.
-        matches = [data(row) for row in gateway.v1.customers.list({'limit': 100}).auto_paging_iter()
-                   if data(row).get('metadata', {}).get('eduport_customer_request') == str(enquiry_id)]
-    if len(matches) > 1:
-        raise ValueError('Multiple Customers match this creation request. No automatic merge or creation is permitted.')
-    if matches:
-        remote = matches[0]
-    elif started and started < timezone.now() - timedelta(hours=23):
-        raise ValueError('Customer creation is unconfirmed beyond the safe idempotency window. Manual reconciliation is required.')
-    else:
-        remote = data(gateway.v1.customers.create(mapping.creation_request,
-            options={'idempotency_key': f'eduport-customer-{enquiry_id}-{mapping.livemode}'}))
-    if (not remote.get('id') or remote.get('deleted') or bool(remote.get('livemode')) != mapping.livemode
-            or any(remote.get('metadata', {}).get(k) != v for k, v in mapping.creation_request['metadata'].items())):
-        raise ValueError('The recovered Customer does not match the frozen enquiry request.')
-    with transaction.atomic():
-        _lock(enquiry_id)
-        mapping = StripeCustomer.objects.select_for_update().get(enquiry_id=enquiry_id)
-        if mapping.customer_id and mapping.customer_id != remote['id']:
-            raise ValueError('Another Customer is already bound. Historical references were not changed.')
-        mapping.customer_id = remote['id']
-        mapping.save(update_fields=['customer_id'])
-    return remote['id']
-
-
 def _bind_customer(operation, customer_id):
     with transaction.atomic():
-        _lock(operation.payment.sale.enquiry_id)
+        _lock(operation.payment.sale_id)
         payment = Payment.objects.select_for_update().get(pk=operation.payment_id)
         if payment.stripe_customer_id and payment.stripe_customer_id != customer_id:
             raise ValueError('Payment Customer is already fixed to another identity.')
@@ -126,21 +126,27 @@ def _bind_customer(operation, customer_id):
 
 
 def validate(operation, remote, customer_id):
+    from .customers import same_metadata
     request = operation.request
-    if (not remote.get('id') or remote.get('customer') != customer_id
+    if (not remote.get('id') or not customer_id or remote.get('customer') != customer_id
             or bool(remote.get('livemode')) != operation.livemode or remote.get('mode') != 'payment'
             or remote.get('currency') != 'aed' or remote.get('client_reference_id') != str(operation.payment_id)
             or remote.get('amount_total') != request['line_items'][0]['price_data']['unit_amount']
-            or any(remote.get('metadata', {}).get(k) != v for k, v in request['metadata'].items())):
+            or not same_metadata(remote.get('metadata'), request['metadata'])):
         raise ValueError('Checkout response differs from the durable request, amount or Customer.')
 
 
 @transaction.atomic
 def bind(operation_id, remote):
     operation = StripeCheckoutOperation.objects.select_related('payment__sale').get(pk=operation_id)
-    _lock(operation.payment.sale.enquiry_id)
-    operation = StripeCheckoutOperation.objects.select_for_update().select_related('payment').get(pk=operation_id)
-    customer_id = StripeCustomer.objects.get(enquiry_id=operation.payment.sale.enquiry_id).customer_id
+    _lock(operation.payment.sale_id)
+    operation = StripeCheckoutOperation.objects.select_for_update().select_related('payment__sale').get(pk=operation_id)
+    # The Session must be on one of this student's own Customers (never a sibling's).
+    owned = set(StripeCustomer.objects.filter(account_id=operation.payment.sale.account_id, livemode=operation.livemode)
+                .exclude(customer_id=None).values_list('customer_id', flat=True))
+    customer_id = remote.get('customer') if remote.get('customer') in owned else None
+    if operation.payment.stripe_customer_id and operation.payment.stripe_customer_id != customer_id:
+        customer_id = None
     validate(operation, remote, customer_id)
     if operation.stripe_checkout_id and operation.stripe_checkout_id != remote['id']:
         raise ValueError('Another Session is already bound to this Checkout operation.')
@@ -175,7 +181,7 @@ def accept_webhook(obj):
 @transaction.atomic
 def rejected(operation_id):
     operation = StripeCheckoutOperation.objects.select_related('payment__sale').get(pk=operation_id)
-    _lock(operation.payment.sale.enquiry_id)
+    _lock(operation.payment.sale_id)
     operation = StripeCheckoutOperation.objects.select_for_update().get(pk=operation_id)
     if operation.status == 'BOUND':
         return
@@ -205,8 +211,12 @@ def fulfill(operation_id):
         raise payments.refusal('CHECKOUT_REVIEW_REQUIRED', operation.message, 409)
     try:
         gateway = client()
-        customer_id = _customer(operation, gateway)
+        from .customers import PRODUCTS, customer_for, ensure_product
+        customer_id = customer_for(operation.payment.sale.account_id, gateway, operation.livemode)
         _bind_customer(operation, customer_id)
+        product = operation.request['line_items'][0]['price_data'].get('product')
+        if product:
+            ensure_product(gateway, next(purpose for purpose, (pid, _name) in PRODUCTS.items() if pid == product))
         matches = [data(row) for row in gateway.v1.checkout.sessions.list(
             {'customer': customer_id, 'limit': 100}).auto_paging_iter()
             if data(row).get('metadata', {}).get('checkout_operation_id') == str(operation.pk)]
@@ -215,12 +225,12 @@ def fulfill(operation_id):
         if matches:
             return bind(operation.pk, matches[0])
         with transaction.atomic():
-            _lock(operation.payment.sale.enquiry_id)
+            _lock(operation.payment.sale_id)
             operation = StripeCheckoutOperation.objects.select_for_update().select_related('payment__sale').get(pk=operation_id)
             if operation.status == 'BOUND':
                 return operation
-            if operation.payment.status != 'PENDING' or operation.payment.sale.student_id:
-                raise ValueError('This initial payment is closed. No new Checkout may be created.')
+            if operation.payment.status != 'PENDING':
+                raise ValueError('This payment is closed. No new Checkout may be created.')
             if operation.started_at and operation.started_at < timezone.now() - timedelta(hours=23):
                 raise ValueError('Checkout creation is unconfirmed beyond its safe idempotency window. No fresh Session was created.')
             operation.started_at = operation.started_at or timezone.now()
