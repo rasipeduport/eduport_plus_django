@@ -6,7 +6,7 @@ function when(value, zone) {
   return value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: zone }).format(new Date(value)) : 'Initial Checkout';
 }
 
-export function AutopaySummary({ agreement }) {
+export function AutopaySummary({ agreement, action = null }) {
   if (!agreement) return null;
   const initial = agreement.installments.find((row) => row.position === 0);
   const billing = agreement.collection_engine === 'STRIPE_BILLING';
@@ -25,6 +25,7 @@ export function AutopaySummary({ agreement }) {
     </dl>
     {agreement.setup_message ? <p role="status" className="text-sm">{agreement.setup_message}</p> : null}
     {billing && agreement.billing_message ? <p role="status" className="text-sm">{agreement.billing_message}</p> : null}
+    {agreement.cancelled_at ? <p role="status" className="text-sm">Cancelled {when(agreement.cancelled_at, agreement.billing_timezone)} · {agreement.cancellation_source === 'PARENT_REQUEST' ? 'at the parent’s request' : agreement.cancellation_source === 'STRIPE' ? 'stopped in Stripe' : 'by an administrator'}{agreement.cancelled_by ? ` (${agreement.cancelled_by})` : ''}{agreement.cancellation_reason ? `: ${agreement.cancellation_reason}` : ''}</p> : null}
     <p className="text-muted-foreground text-xs">{billing ? 'Stripe Billing manages recurring invoices and payment recovery using the account’s recovery settings. Outstanding installments stay separate; only verified payments credit classes.' : 'Historical PaymentIntent agreement. An unpaid installment blocks later collections until this agreement is explicitly migrated to Stripe Billing.'}</p>
     <ol className="divide-y rounded-md border px-3" aria-label="Autopay installments">
       {agreement.installments.map((row) => <li key={row.id} className="min-w-0 py-3 text-sm">
@@ -36,5 +37,6 @@ export function AutopaySummary({ agreement }) {
     </ol>
     <p className="text-muted-foreground break-all font-mono text-xs">{agreement.stripe_customer_id} {agreement.stripe_payment_method_id ? `· ${agreement.stripe_payment_method_id}` : ''}</p>
     {billing ? <p className="text-muted-foreground break-all font-mono text-xs">{agreement.stripe_subscription_id || 'Subscription not started'} · {agreement.stripe_schedule_id || 'Schedule not provisioned'}{agreement.stripe_schedule_status ? ` · ${agreement.stripe_schedule_status}` : ''}</p> : null}
+    {action && !agreement.cancelled_at && agreement.status !== 'COMPLETED' ? action : null}
   </WorkspaceCard>;
 }
