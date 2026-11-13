@@ -199,6 +199,12 @@ existing automatic card-settings updates remain (decision pending):
 
 Neither collects money or changes any amount or date.
 
+Updating a scheduled subscription makes Stripe restart its running phase at that
+moment, so a phase that has already started may start later than agreed. The
+schedule check accepts that, strictly inside the phase's own window and matching
+Stripe's current phase. End dates, phases yet to start, metadata, installment
+references, amounts, products, prices and intervals stay exact.
+
 **Cancellation:** Admin action (reason required; *administrator decision* or
 *parent's request*). Stripe cancels the schedule first
 (`invoice_now=false, prorate=false`); if Stripe cannot confirm, nothing changes.
@@ -235,7 +241,10 @@ the sale has one) → sale → payment. Students are never matched by email or p
 `manage.py reconcile_stripe_ledger --days 30` lists completed Sessions, paid
 invoices, succeeded PaymentIntents, refunds and disputes that the Django ledger
 does not account for, and Django payments missing at Stripe. Its Stripe client
-refuses every non-GET request. `--record-review` queues unmatched objects.
+refuses every non-GET request. It also reports an invoice already linked to an
+installment whose outcome differs (paid, void or uncollectible on one side
+only) as `MISMATCH INCONSISTENT`, for example a payment Stripe took while a
+webhook was missed. Nothing is credited. `--record-review` queues the findings.
 Admin review API: `GET /api/sales/stripe-review/?status=OPEN`,
 `POST /api/sales/stripe-review/<id>/resolve/` (`DISMISS` or `LINK` + note).
 

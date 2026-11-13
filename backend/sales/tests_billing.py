@@ -6,9 +6,11 @@ import copy
 import uuid
 from datetime import datetime, timedelta, timezone as utc
 from decimal import Decimal as D
+from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 
+from django.core.management import call_command
 from django.db import DatabaseError, connection, transaction
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
@@ -17,7 +19,8 @@ from rest_framework.test import APITestCase, APIClient
 from students.models import Student
 from . import autopay, billing, services, tests_autopay as helpers, tests_payments as initial_helpers
 from .autopay_models import AutopayAgreement, AutopayAttempt
-from .payment_models import Payment
+from .ledger_models import StripeReviewItem
+from .payment_models import Payment, StripeEvent
 from .services import SalesError
 from .tests_quotes import QuoteTestCase
 
@@ -53,6 +56,124 @@ class BillingPhaseTests(SimpleTestCase):
     def test_malformed_remote_internal_identifiers_are_not_database_queries(self):
         for value in [None, '', 'not-an-internal-uuid', 'sub_remote']:
             self.assertIsNone(billing.internal_id(value))
+
+
+def recorded_schedule():
+    """A schedule as Stripe Test held it on 2026-11-13, references replaced: four
+    monthly phases from 07:00:00 UTC, AED 350 then three of AED 700, provisioned and not yet started."""
+    agreement = SimpleNamespace(pk=uuid.UUID(int=1), purchase_id=uuid.UUID(int=2), purchase=SimpleNamespace(quote_id=uuid.UUID(int=3)),
+                                schedule_digest='recorded-digest', stripe_customer_id='cus_recorded', livemode=False)
+    common = billing.metadata(agreement)
+    instant = lambda *args: int(datetime(*args, tzinfo=utc.utc).timestamp())
+    terms = [(instant(2026, 12, 12, 7, 11), 35000), (instant(2027, 1, 12, 7, 11), 70000),
+             (instant(2027, 2, 12, 7, 11), 70000), (instant(2027, 3, 12, 7, 11), 70000)]
+    agreement.billing_request = {'start_date': instant(2026, 11, 13, 7), 'end_behavior': 'cancel', 'metadata': common, 'phases': [
+        {'end_date': end, 'metadata': {**common, 'installment_id': f'installment-{n}', 'installment_position': str(n)},
+         'items': [{'quantity': 1, 'price_data': {'currency': 'aed', 'product': 'prod_recorded', 'unit_amount': amount,
+                                                  'recurring': {'interval': 'month', 'interval_count': 1}}}]}
+        for n, (end, amount) in enumerate(terms, start=1)]}
+    request = agreement.billing_request
+    phases = [{'start_date': request['start_date'] if index == 0 else request['phases'][index - 1]['end_date'],
+               'end_date': phase['end_date'], 'metadata': dict(phase['metadata']), 'billing_cycle_anchor': 'phase_start',
+               'proration_behavior': 'none', 'discounts': [], 'default_tax_rates': [], 'automatic_tax': {'enabled': False},
+               'items': [{'quantity': 1, 'price': {'id': f'price_recorded_{index}', **phase['items'][0]['price_data']}}]}
+              for index, phase in enumerate(request['phases'])]
+    remote = {'id': 'sub_sched_recorded', 'customer': 'cus_recorded', 'livemode': False, 'metadata': dict(common),
+              'status': 'not_started', 'end_behavior': 'cancel', 'current_phase': None, 'subscription': None, 'phases': phases}
+    return agreement, remote
+
+
+def running(remote, index=0, moved=0):
+    """``remote`` in phase ``index``, which Stripe restarted ``moved`` seconds after its agreed start."""
+    remote = copy.deepcopy(remote)
+    remote.update(status='active', subscription='sub_recorded')
+    remote['phases'][index]['start_date'] += moved
+    remote['current_phase'] = {key: remote['phases'][index][key] for key in ('start_date', 'end_date')}
+    return remote
+
+
+class ScheduleValidationTests(SimpleTestCase):
+    """Stripe restarts a running phase when its subscription is updated; nothing else may move."""
+
+    def setUp(self):
+        self.agreement, self.remote = recorded_schedule()
+
+    def refused(self, remote, message=billing.SCHEDULE_DATES_DIFFER):
+        with self.assertRaisesMessage(ValueError, message):
+            billing._validate_schedule(self.agreement, remote)
+
+    def test_the_recorded_card_settings_update_moves_the_started_phase_19_seconds_later(self):
+        billing._validate_schedule(self.agreement, self.remote)  # As provisioned.
+        billing._validate_schedule(self.agreement, running(self.remote))  # Phase 1 starts on time.
+        # 07:00:00 -> 07:00:19: Django set the new subscription's card options and Stripe restarted the phase.
+        recorded = running(self.remote, moved=19)
+        billing._validate_schedule(self.agreement, recorded)
+        # Later transitions keep the completed phase's later start; a phase running now may be restarted too.
+        later = running(recorded, index=1)
+        later['phases'][0]['start_date'] = recorded['phases'][0]['start_date']
+        billing._validate_schedule(self.agreement, later)
+        billing._validate_schedule(self.agreement, running(later, index=1, moved=5))
+        # A schedule stopped after that restart (an Admin cancellation) still reconciles.
+        stopped = {**recorded, 'status': 'canceled', 'current_phase': None, 'canceled_at': recorded['phases'][0]['start_date'] + 3600}
+        billing._validate_schedule(self.agreement, stopped)
+
+    def test_a_started_phase_never_starts_earlier_than_agreed(self):
+        self.refused(running(self.remote, moved=-19))
+
+    def test_a_started_phase_cannot_start_at_or_after_its_own_end(self):
+        window = self.remote['phases'][0]['end_date'] - self.remote['phases'][0]['start_date']
+        for moved in (window, window + 60):
+            with self.subTest(moved=moved):
+                self.refused(running(self.remote, moved=moved))
+
+    def test_end_dates_stay_exact(self):
+        for index in (0, 2):
+            remote = running(self.remote, moved=19)
+            remote['phases'][index]['end_date'] += 60
+            if index + 1 < len(remote['phases']):
+                remote['phases'][index + 1]['start_date'] += 60
+            if index == 0:
+                remote['current_phase']['end_date'] += 60
+            with self.subTest(phase=index):
+                self.refused(remote)
+
+    def test_phases_yet_to_start_and_unstarted_schedules_stay_exact(self):
+        future = running(self.remote, moved=19)
+        future['phases'][1]['start_date'] += 60
+        self.refused(future)
+        unstarted = copy.deepcopy(self.remote)
+        unstarted['phases'][0]['start_date'] += 19
+        self.refused(unstarted)
+        early_stop = {**running(self.remote, moved=19), 'status': 'canceled', 'current_phase': None,
+                      'canceled_at': self.remote['phases'][0]['start_date'] + 10}
+        self.refused(early_stop)
+
+    def test_the_moved_start_must_be_stripes_current_phase(self):
+        disagreeing = running(self.remote, moved=19)
+        disagreeing['current_phase']['start_date'] -= 10
+        self.refused(disagreeing)
+        unknown = running(self.remote, moved=19)
+        unknown['current_phase']['end_date'] += 1
+        self.refused(unknown)
+
+    def test_everything_else_stays_strict_after_a_restart(self):
+        pricing = 'Stripe phase pricing differs from the frozen installment.'
+        cases = [
+            (lambda r: r['phases'][0]['metadata'].update(installment_id='installment-9'), billing.SCHEDULE_DATES_DIFFER),
+            (lambda r: r['phases'][2]['metadata'].update(installment_position='7'), billing.SCHEDULE_DATES_DIFFER),
+            (lambda r: r['phases'][0]['items'][0]['price'].update(unit_amount=35100), pricing),
+            (lambda r: r['phases'][1]['items'][0]['price'].update(product='prod_other'), pricing),
+            (lambda r: r['phases'][0]['items'][0]['price']['recurring'].update(interval_count=2), pricing),
+            (lambda r: r['phases'][0].update(proration_behavior='create_prorations'), pricing),
+            (lambda r: r.update(end_behavior='release'), 'Stripe schedule phases do not match the frozen provisioning request.'),
+            (lambda r: r['phases'].pop(), 'Stripe schedule phases do not match the frozen provisioning request.'),
+            (lambda r: r.update(customer='cus_other'), 'Stripe schedule does not match this agreement, Customer and environment.'),
+        ]
+        for index, (change, message) in enumerate(cases):
+            remote = running(self.remote, moved=19)
+            change(remote)
+            with self.subTest(case=index):
+                self.refused(remote, message)
 
 
 @override_settings(STRIPE_SECRET_KEY='sk_test_unit_only', STRIPE_WEBHOOK_SECRET='whsec_unit_only',
@@ -295,3 +416,68 @@ class BillingTests(QuoteTestCase, APITestCase):
                         {'billing_request': {}}]:
             with self.subTest(changes=changes), self.assertRaises(DatabaseError), transaction.atomic():
                 AutopayAgreement.objects.filter(pk=agreement.pk).update(**changes)
+
+
+    def schedule_event(self, gateway, remote, status=200):
+        gateway.v1.subscription_schedules.retrieve.return_value = remote
+        event = {'id': f'evt_{uuid.uuid4().hex}', 'livemode': False, 'type': 'subscription_schedule.updated', 'data': {'object': remote}}
+        with mock.patch('sales.stripe_gateway.client', return_value=gateway):
+            response = self.webhook(event)
+        self.assertEqual(response.status_code, status, response.content)
+        return StripeEvent.objects.get(event_id=event['id'])
+
+    def test_the_first_installment_card_settings_update_keeps_the_schedule_provisioned(self):
+        agreement, gateway, _ = self.provisioned()
+        # As recorded: Stripe starts phase 1, then Django's card-settings update restarts it 19 seconds later.
+        remote = running(gateway.v1.subscription_schedules.retrieve.return_value, moved=19)
+        remote['subscription'] = 'sub_native'
+        self.assertEqual(self.schedule_event(gateway, remote).outcome, 'PROCESSED')
+        agreement.refresh_from_db()
+        self.assertEqual((agreement.billing_status, agreement.billing_message), ('PROVISIONED', ''))
+        # Earlier than agreed is not Stripe's restart: the agreement needs review, as before.
+        remote['phases'][0]['start_date'] = remote['current_phase']['start_date'] = remote['phases'][0]['start_date'] - 38
+        record = self.schedule_event(gateway, remote, status=400)
+        self.assertEqual((record.outcome, record.error), ('REJECTED', billing.SCHEDULE_DATES_DIFFER))
+        agreement.refresh_from_db()
+        self.assertEqual((agreement.billing_status, agreement.billing_message), ('REQUIRES_REVIEW', billing.SCHEDULE_DATES_DIFFER))
+
+    def reconcile(self, gateway, invoices, *args):
+        for resource in (gateway.v1.checkout.sessions, gateway.v1.payment_intents, gateway.v1.refunds, gateway.v1.disputes):
+            resource.list.return_value = page([])
+        gateway.v1.invoices.list.return_value = page(invoices)
+        out = StringIO()
+        with mock.patch('sales.management.commands.reconcile_stripe_ledger.stripe.StripeClient', return_value=gateway):
+            call_command('reconcile_stripe_ledger', *args, stdout=out)
+        return out.getvalue()
+
+    def test_reconciliation_reports_a_linked_invoice_paid_at_stripe_but_not_in_django(self):
+        agreement, gateway, _ = self.provisioned()
+        row = agreement.installments.get(position=1)
+        # As recorded: invoice.created arrived, then Stripe paid the invoice while no webhook could reach Django.
+        self.deliver(agreement, gateway, row, 'invoice.created', 'draft')
+        row.refresh_from_db()
+        self.assertEqual((row.status, row.stripe_invoice_id), ('INVOICE_DRAFT', 'in_native_1'))
+        paid = {**self.invoice(agreement, row), 'amount_paid': int(row.amount) * 100}
+        output = self.reconcile(gateway, [paid])
+        self.assertIn('MISMATCH INCONSISTENT: in_native_1 · Stripe invoice is paid; Django records installment 1 as INVOICE_DRAFT.', output)
+        self.assertFalse(StripeReviewItem.objects.exists())
+        self.reconcile(gateway, [paid], '--record-review')
+        self.reconcile(gateway, [paid], '--record-review')
+        item = StripeReviewItem.objects.get()
+        self.assertEqual((item.kind, item.object_id, item.source, item.amount), ('INCONSISTENT', 'in_native_1', 'RECONCILIATION', row.amount))
+        # Reporting credits nothing and changes nothing.
+        row.refresh_from_db()
+        self.assertEqual((row.status, Student.objects.get().total_class_quota, Payment.objects.count()), ('INVOICE_DRAFT', 2, 1))
+        gateway.v1.invoices.update.assert_not_called()
+
+    def test_reconciliation_accepts_matching_outcomes_and_reports_a_django_payment_stripe_voided(self):
+        agreement, gateway, _ = self.provisioned()
+        first, second = agreement.installments.filter(position__in=[1, 2]).order_by('position')
+        self.deliver(agreement, gateway, first)
+        self.deliver(agreement, gateway, second, 'invoice.created', 'draft')
+        paid = {**self.invoice(agreement, first), 'amount_paid': int(first.amount) * 100}
+        draft = self.invoice(agreement, second, status='draft')
+        self.assertIn('Stripe and the Django ledger agree for this window.', self.reconcile(gateway, [paid, draft]))
+        self.assertIn('Stripe and the Django ledger agree for this window.', self.reconcile(gateway, [paid, {**draft, 'status': 'open'}]))
+        output = self.reconcile(gateway, [{**paid, 'status': 'void'}, draft])
+        self.assertIn('MISMATCH INCONSISTENT: in_native_1 · Stripe invoice is void; Django records installment 1 as PAID.', output)

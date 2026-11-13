@@ -230,6 +230,31 @@ def mark_current_method_problem(agreement):
         problem(agreement.pk, agreement.setup_message, scope='PAYMENT_METHOD')
 
 
+SCHEDULE_DATES_DIFFER = 'Stripe schedule dates or installment references do not match the agreed schedule.'
+
+
+def _running_since(request, remote):
+    """Stripe's current phase, or {'start_date': when the schedule stopped}; None before it starts.
+
+    The current phase must be one of the frozen phases: it is found by its end date, which never moves.
+    """
+    current = remote.get('current_phase') or {}
+    if current:
+        if current.get('end_date') not in [phase['end_date'] for phase in request['phases']]:
+            raise ValueError(SCHEDULE_DATES_DIFFER)
+        return current
+    stopped = remote.get('canceled_at') or remote.get('completed_at') or remote.get('released_at')
+    return {'start_date': stopped} if stopped else None
+
+
+def _started_later(actual_start, start, end, running):
+    """Stripe restarts a running phase when its subscription is updated, as Django does once to set
+    the new subscription's card options. So a phase that had already started may start later than
+    agreed, inside its own window. Its end, and every phase yet to start, stay exact."""
+    return (running is not None and isinstance(actual_start, int) and start < actual_start < end
+            and actual_start <= running['start_date'])
+
+
 def _validate_schedule(agreement, remote):
     if (identifier(remote.get('customer')) != agreement.stripe_customer_id or bool(remote.get('livemode')) != agreement.livemode
             or any(remote.get('metadata', {}).get(k) != v for k, v in metadata(agreement).items())):
@@ -240,11 +265,16 @@ def _validate_schedule(agreement, remote):
     phases = remote.get('phases', [])
     if request and (len(phases) != len(request['phases']) or remote.get('end_behavior') != 'cancel'):
         raise ValueError('Stripe schedule phases do not match the frozen provisioning request.')
+    running = _running_since(request, remote)
     for index, (actual, expected) in enumerate(zip(phases, request.get('phases', []))):
         start = request['start_date'] if index == 0 else request['phases'][index - 1]['end_date']
-        if (actual.get('start_date') != start or actual.get('end_date') != expected['end_date']
+        if ((actual.get('start_date') != start and not _started_later(actual.get('start_date'), start, expected['end_date'], running))
+                or actual.get('end_date') != expected['end_date']
                 or any(actual.get('metadata', {}).get(k) != v for k, v in expected['metadata'].items())):
-            raise ValueError('Stripe schedule dates or installment references do not match the agreed schedule.')
+            raise ValueError(SCHEDULE_DATES_DIFFER)
+        # Stripe's current phase is this one only with this phase's own start.
+        if running and running.get('end_date') == expected['end_date'] and actual.get('start_date') != running.get('start_date'):
+            raise ValueError(SCHEDULE_DATES_DIFFER)
         items = actual.get('items') or []
         if len(items) != 1 or items[0].get('quantity') != 1:
             raise ValueError('Stripe schedule has an unexpected item allocation.')
