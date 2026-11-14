@@ -35,6 +35,7 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
+import SalesDashboardPage from './pages/SalesDashboardPage';
 import SalesSyllabiPage from './pages/SalesSyllabiPage';
 import SalesSyllabusPage from './pages/SalesSyllabusPage';
 import SalesSyllabusEditorPage from './pages/SalesSyllabusEditorPage';
@@ -237,8 +238,9 @@ function HubRoutes({ user, logout }) {
         {/* Quotes: a BDE's own, or every one for an administrator, and one quote as it was issued. */}
         <Route path="/quotes" element={page('/quotes', <QuotesPage user={user} />)} />
         <Route path="/quotes/:quoteId" element={page('/quotes', <QuotePage user={user} />)} />
-        {/* The Admin Hub's Sales & Finance modules still to come: nothing behind them yet. */}
-        <Route path="/sales-dashboard" element={page('/sales-dashboard', <ComingSoonPage module="salesDashboard" />)} />
+        {/* The Sales Dashboard: sales and collections across every student, for administrators. */}
+        <Route path="/sales-dashboard" element={page('/sales-dashboard', <SalesDashboardPage />)} />
+        {/* Sales & Finance modules still to come, with no sidebar item: nothing behind them yet. */}
         <Route path="/sales-module" element={page('/sales-module', <ComingSoonPage module="salesModule" />)} />
         <Route path="/sales-punching" element={page('/sales-punching', <ComingSoonPage module="salesPunching" />)} />
         {/* Syllabus & Plans: every syllabus, a new one, one, and its draft (keyed apart, so saving a

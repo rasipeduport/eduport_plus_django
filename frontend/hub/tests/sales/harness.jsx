@@ -2,9 +2,9 @@
 // account, the way App.jsx routes them -- Syllabus & Plans (/sales-syllabus,
 // /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit), Global
 // Pricing (/sales-pricing), the BDE's Plans & Pricing (/plans,
-// /plans/:syllabusId), Quotes (/quotes, /quotes/:quoteId) and a student's
-// profile (/students/:studentId, for its Purchases tab) -- with only the API a
-// stand-in (api-stub.js).
+// /plans/:syllabusId), Quotes (/quotes, /quotes/:quoteId), the Sales Dashboard
+// (/sales-dashboard) and a student's profile (/students/:studentId, for its
+// Purchases tab) -- with only the API a stand-in (api-stub.js).
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -14,6 +14,7 @@ import AutopayActionPage from '@/pages/AutopayActionPage';
 import EnquiryPage from '@/pages/EnquiryPage';
 import QuotePage from '@/pages/QuotePage';
 import QuotesPage from '@/pages/QuotesPage';
+import SalesDashboardPage from '@/pages/SalesDashboardPage';
 import SalesPricingPage from '@/pages/SalesPricingPage';
 import SalesSyllabiPage from '@/pages/SalesSyllabiPage';
 import SalesSyllabusEditorPage from '@/pages/SalesSyllabusEditorPage';
@@ -48,6 +49,7 @@ export async function mount(path, user, { layout = false } = {}) {
       { path: '/quotes', element: inLayout(<QuotesPage user={user} />) },
       { path: '/quotes/:quoteId', element: inLayout(<QuotePage user={user} />) },
       { path: '/students/:studentId', element: inLayout(<StudentProfilePage user={user} />) },
+      { path: '/sales-dashboard', element: inLayout(<SalesDashboardPage />) },
     ],
     { initialEntries: [path] }
   );

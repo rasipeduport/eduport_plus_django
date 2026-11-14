@@ -3,7 +3,6 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   Briefcase,
-  ChartColumn,
   ClipboardPen,
   LayoutDashboard,
   ReceiptIndianRupee,
@@ -16,8 +15,8 @@ import { ComingSoon } from '@/components/page/coming-soon';
 
 // The modules still to come -- the BDE workspace's, then the Admin Hub's
 // common Dashboard and Sales & Finance, and the Tutor Hub's Hourly Earnings --
-// each offered in the sidebar, and
-// nothing behind it yet but this page. `variant` picks the card beside the
+// each offered in the sidebar (Sales Module and Sales Punching no longer are),
+// and nothing behind it yet but this page. `variant` picks the card beside the
 // mascot (components/page/coming-soon): a chart filling in, or plans. The page
 // leads back to the Dashboard, or -- for the Dashboard itself -- on to `next`.
 const MODULES = {
@@ -33,12 +32,6 @@ const MODULES = {
     description: 'One overview of Eduport Plus: admissions, academics and sales together at a glance.',
     variant: 'sales',
     next: { to: '/academics-dashboard', label: 'Open the Academics Dashboard' },
-  },
-  salesDashboard: {
-    icon: ChartColumn,
-    title: 'Sales Dashboard',
-    description: 'Sales performance across the team: conversions, revenue and targets at a glance.',
-    variant: 'sales',
   },
   salesModule: {
     icon: Briefcase,

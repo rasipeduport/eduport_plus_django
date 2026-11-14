@@ -2,14 +2,12 @@ import {
   BadgePercent,
   BookMarked,
   BookOpen,
-  Briefcase,
   CalendarCheck,
   CalendarCheck2,
   CalendarClock,
   ChartColumn,
   ClipboardCheck,
   ClipboardList,
-  ClipboardPen,
   GraduationCap,
   History,
   Inbox,
@@ -102,9 +100,11 @@ const STAFF_WORKSPACE = {
 
 // The Admin Hub: its common Dashboard (still to come) on top, then the
 // admissions pipeline (its dashboard, every lead, the Demo and Diagnostic
-// bookings and their slots), the Sales & Finance modules still to come, the
-// academic modules with their dashboard, the staff and invitations, and the
-// activity log.
+// bookings and their slots), Sales & Finance (the Sales Dashboard, the
+// syllabuses and plans on offer, every quote, and Tutor Earnings still to
+// come), the academic modules with their dashboard, the staff and
+// invitations, and the activity log. Sales Module and Sales Punching keep
+// their pages (lib/access, App.jsx) but have no item here.
 const ADMIN_WORKSPACE = {
   name: 'Admin Hub',
   collapsible: true,
@@ -132,9 +132,7 @@ const ADMIN_WORKSPACE = {
     {
       label: 'Sales & Finance',
       items: [
-        { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn, badge: COMING_SOON },
-        { title: 'Sales Module', url: '/sales-module', icon: Briefcase, badge: COMING_SOON },
-        { title: 'Sales Punching', url: '/sales-punching', icon: ClipboardPen, badge: COMING_SOON },
+        { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn },
         { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true, alsoOn: ['/sales-pricing'] },
         { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
         { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },

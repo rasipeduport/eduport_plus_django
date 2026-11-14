@@ -56,8 +56,13 @@ def current_quote(actor, lead, request=None, optional=False):
     return quote
 
 
+def received_payments(rows):
+    """The payments of ``rows`` that count as received on their sale: its token and its purchase's tuition, once verified."""
+    return rows.filter(Q(purpose='TOKEN') | Q(purchase__is_initial=True), status=PaymentStatus.SUCCEEDED)
+
+
 def received(sale):
-    paid = sale.payments.filter(Q(purpose='TOKEN') | Q(purchase__is_initial=True), status=PaymentStatus.SUCCEEDED)
+    paid = received_payments(sale.payments.all())
     return {
         'classes': paid.filter(purpose='TUITION').aggregate(n=Sum('classes'))['n'] or ZERO,
         'amount': paid.aggregate(n=Sum('amount'))['n'] or ZERO,
