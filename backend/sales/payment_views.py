@@ -43,7 +43,8 @@ class AllocationSerializer(serializers.Serializer):
         return data
 
 
-class PaymentSerializer(AllocationSerializer):
+class ReceiptSerializer(serializers.Serializer):
+    """A collection: a Stripe link, or money already received (any other method) with its receipt."""
     request_id = serializers.UUIDField()
     method = serializers.ChoiceField(choices=PaymentMethod.choices)
     amount = serializers.DecimalField(max_digits=15, decimal_places=0, min_value=1, required=False)
@@ -56,6 +57,10 @@ class PaymentSerializer(AllocationSerializer):
         if value > timezone.localdate():
             raise serializers.ValidationError('A received payment cannot be dated in the future.')
         return value
+
+
+class PaymentSerializer(AllocationSerializer, ReceiptSerializer):
+    pass
 
 
 class InitialSalesView(APIView):

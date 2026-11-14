@@ -76,19 +76,21 @@ class InitialSalesAuthorizationTests(InitialSalesFixture, QuoteTestCase, APITest
                 self.assertEqual(client.get(f'/api/sales/students/{Student.objects.get().pk}/initial-sale/').status_code, 403)
         self.assertEqual(Payment.objects.count(), 1)
 
-    def test_after_enrollment_the_bde_can_only_collect_the_remaining_balance(self):
+    def test_after_enrollment_the_bde_can_no_longer_collect(self):
         self.start(); result = self.collect(); self.assertEqual(result.status_code, 201)
         payment = Payment.objects.get(); student = Student.objects.get()
         original_password = student.profile.password
         self.assertEqual(self.client.get(self.url()).status_code, 200)
-        self.assertTrue(self.client.get(self.url()).json()['can_collect'])  # 4 of 10 classes remain unpaid.
+        # 4 of 10 classes remain unpaid, but the student's Finance tab collects them now.
+        self.assertFalse(self.client.get(self.url()).json()['can_collect'])
         responses = self.staff_requests(self.client, payment.pk)
-        # History, idempotent start, own receipt and a remaining-balance amount
-        # stay available. Collecting more than the 4 unpaid classes is refused;
-        # Autopay setup is pre-enrollment only; a received payment cannot be
-        # expired; a pinned replacement conflicts.
-        self.assertEqual([res.status_code for res in responses], [200, 201, 200, 400, 409, 403, 403, 200, 409])
-        self.assertEqual((responses[3].json()['error'], responses[8].json()['error']), ('INVALID_ALLOCATION', 'PAYMENT_NOT_PENDING'))
+        # History, idempotent start and own receipt stay available. Any amount or
+        # collection is refused once enrolled; Autopay setup is pre-enrollment
+        # only; a received payment cannot be expired; a pinned replacement conflicts.
+        self.assertEqual([res.status_code for res in responses], [200, 201, 403, 403, 409, 403, 403, 200, 409])
+        self.assertEqual([responses[index].json()['error'] for index in (2, 3, 8)], ['ALREADY_ENROLLED', 'ALREADY_ENROLLED', 'PAYMENT_NOT_PENDING'])
+        # Nor can the BDE reach the student's finance.
+        self.assertEqual(self.client.get(f'/api/sales/students/{student.pk}/finance/').status_code, 403)
         self.assertEqual((Payment.objects.count(), Purchase.objects.count(), Student.objects.count(), Invitation.objects.count()), (1, 1, 1, 1))
         student.refresh_from_db()
         self.assertEqual((student.total_class_quota, student.profile.password), (6, original_password))

@@ -84,6 +84,45 @@ def has_collection_history(lead):
             or Payment.objects.filter(sale__enquiry=lead).exists())
 
 
+def enrolled_refusal():
+    """The enquiry's sale is pre-enrollment only: afterwards the student's finance (sales.student_finance) collects."""
+    return refusal('ALREADY_ENROLLED', 'The student is enrolled. Their mentor or an administrator collects further payments '
+                   'from the student’s Finance tab.', 403)
+
+
+def same_collection(existing, sale, actor, data):
+    """Whether a retried request ID repeats ``existing`` exactly; anything else is an idempotency conflict."""
+    direct = data['method'] != PaymentMethod.STRIPE
+    return (existing.sale_id == sale.pk and existing.recorded_by_id == actor.pk and existing.method == data['method']
+            and existing.classes == data['classes']
+            and all(getattr(existing, key) == data[key] for key in ('purpose', 'collection_mode') if key in data)
+            and (not direct or (existing.amount == data.get('amount')
+                                and existing.payment_date == data.get('payment_date', existing.payment_date)
+                                and existing.transaction_reference == data.get('transaction_reference', '')
+                                and existing.received_confirmed == data.get('received_confirmed', False))))
+
+
+def check_receipt(data, amount):
+    """A direct receipt (not Stripe): confirmed received, exactly the amount due, with its proof."""
+    if not data.get('received_confirmed'):
+        raise refusal('RECEIPT_NOT_CONFIRMED', 'Confirm that the money has actually been received.')
+    if data.get('amount') != amount:
+        raise refusal('AMOUNT_MISMATCH', f'This class allocation requires exactly AED {plain(amount)}.')
+    if not data.get('proof'):
+        raise refusal('PROOF_REQUIRED', 'Attach the payment receipt or screenshot.')
+
+
+def store_proof(payment, upload):
+    """Validates ``upload`` and stores it as ``payment``'s receipt; returns the stored file (to delete on failure)."""
+    from .payment_uploads import validate_proof
+    content_type, extension = validate_proof(upload)
+    payment.proof_extension = extension
+    payment.proof_content_type = content_type
+    payment.proof_name = os.path.basename(upload.name)[:255]
+    payment.proof.save(f'receipt{extension}', upload, save=False)
+    return payment.proof
+
+
 def require_token_quote(quote):
     if quote and quote.collection_mode == 'AUTOPAY':
         raise refusal('TOKEN_AUTOPAY_NOT_ALLOWED',
@@ -229,9 +268,9 @@ def preview_collection(actor, enquiry_id, data, request=None):
     sale = Sale.objects.filter(enquiry=lead).first()
     if not sale:
         raise refusal('SALE_REQUIRED', 'Start the sale first.')
+    if sale.student_id:
+        raise enrolled_refusal()
     purchase = Purchase.objects.filter(sale=sale, is_initial=True).first()
-    if sale.student_id and (data['purpose'] != 'TUITION' or purchase is None):
-        raise refusal('ALREADY_ENROLLED', 'After enrollment only the remaining tuition of this purchase can be collected.', 403)
     quote = purchase.quote if purchase else current_quote(actor, lead, request, optional=data['purpose'] == 'TOKEN')
     if not purchase:
         require_compatible_quote(lead, quote, sale.kind)
@@ -314,8 +353,8 @@ def sale_data(actor, enquiry_id, request=None):
     from .autopay_models import AutopayAgreement
     agreement = AutopayAgreement.objects.filter(purchase=purchase).first() if purchase else None
     if sale and sale.student_id:
-        # After enrollment: the remaining tuition of the same purchase, unless Autopay owns it.
-        can_collect = bool(purchase) and classes - paid['classes'] > 0 and agreement is None
+        # After enrollment the student's Finance tab collects (sales.student_finance).
+        can_collect = False
     else:
         can_collect = True
         if not purchase:
@@ -410,17 +449,11 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
                 raise refusal('SALE_REQUIRED', 'Start the sale first.')
             existing = Payment.objects.filter(request_id=data['request_id']).first()
             if existing:
-                if (existing.sale_id != sale.pk or existing.recorded_by_id != actor.pk
-                        or existing.purpose != data['purpose'] or existing.method != data['method']
-                        or existing.classes != data['classes'] or existing.collection_mode != data['collection_mode']
-                        or (data['method'] != 'STRIPE' and (existing.amount != data.get('amount')
-                            or existing.payment_date != data.get('payment_date', existing.payment_date)
-                            or existing.transaction_reference != data.get('transaction_reference', '')
-                            or existing.received_confirmed != data.get('received_confirmed', False)))):
+                if not same_collection(existing, sale, actor, data):
                     raise refusal('IDEMPOTENCY_CONFLICT', 'That request ID was already used for a different collection.', 409)
                 return existing
-            if sale.student_id and (data['purpose'] != 'TUITION' or not Purchase.objects.filter(sale=sale, is_initial=True).exists()):
-                raise refusal('ALREADY_ENROLLED', 'After enrollment only the remaining tuition of this purchase can be collected.', 403)
+            if sale.student_id:
+                raise enrolled_refusal()
             from .autopay_models import AutopayAgreement
             if AutopayAgreement.objects.filter(purchase__sale=sale).exists():
                 raise refusal('AUTOPAY_EXISTS', 'Continue the existing initial Autopay agreement instead of collecting another payment.', 409)
@@ -444,12 +477,7 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
                     lead.plan_changes_locked_at = timezone.now()
                     lead.save(update_fields=['plan_changes_locked_at'])
             if data['method'] != PaymentMethod.STRIPE:
-                if not data.get('received_confirmed'):
-                    raise refusal('RECEIPT_NOT_CONFIRMED', 'Confirm that the money has actually been received.')
-                if data.get('amount') != amount:
-                    raise refusal('AMOUNT_MISMATCH', f'This class allocation requires exactly AED {plain(amount)}.')
-                if not data.get('proof'):
-                    raise refusal('PROOF_REQUIRED', 'Attach the payment receipt or screenshot.')
+                check_receipt(data, amount)
             payment = Payment(id=data['request_id'], request_id=data['request_id'], sale=sale, purchase=purchase,
                               purpose=data['purpose'], method=data['method'], collection_mode=data['collection_mode'],
                               amount=amount, classes=data['classes'], recorded_by=actor,
@@ -457,13 +485,7 @@ def _prepare_collection(actor, enquiry_id, data, request=None):
                               received_confirmed=data.get('received_confirmed', False),
                               transaction_reference=data.get('transaction_reference', ''))
             if data['method'] != PaymentMethod.STRIPE:
-                from .payment_uploads import validate_proof
-                content_type, extension = validate_proof(data['proof'])
-                payment.proof_extension = extension
-                payment.proof_content_type = content_type
-                payment.proof_name = os.path.basename(data['proof'].name)[:255]
-                payment.proof.save(f'receipt{extension}', data['proof'], save=False)
-                stored_proof = payment.proof
+                stored_proof = store_proof(payment, data['proof'])
             payment.save(force_insert=True)
             # A payment record or link exists: the child's identity is now correction-only.
             from .student_accounts import lock_identity

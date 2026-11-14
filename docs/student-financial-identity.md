@@ -94,9 +94,10 @@ duplicate the email, so none is used.
 - **Partial payments:** each payment is its own `Payment` and its own Stripe
   Checkout Session on the **same** Sale, purchase and student account. The
   agreed package amount never changes; the sale shows each payment, the amount
-  received and the outstanding balance. After the first verified tuition payment
-  enrolls the student, the BDE owner or an Admin can generate another one-time
-  link for the remaining balance. No new Sale or purchase is created. Tokens
+  received and the outstanding balance. Once the first verified tuition payment
+  enrolls the student, the enquiry collects nothing more (`ALREADY_ENROLLED`):
+  the student's mentor or an Admin collects the remaining balance from the
+  student profile's **Finance** tab (see below). No new Sale or purchase is created. Tokens
   remain pre-enrollment only; a sale with an Autopay agreement is collected by
   its schedule only.
 - **Class credit is unchanged:** the first verified tuition payment enrolls the
@@ -118,7 +119,7 @@ duplicate the email, so none is used.
 ## Additional purchases (Mentor)
 
 A student's own mentor (or an Admin) adds a further purchase from the student
-profile's **Purchases** tab. BDEs hold no permission for it.
+profile's **Finance** tab. BDEs hold no permission for it.
 
 - It is a **new Sale** (`ADDITIONAL`) on the student's existing account, with its
   own quote (on the account, not a lead), purchase and payments. Earlier sales,
@@ -128,14 +129,12 @@ profile's **Purchases** tab. BDEs hold no permission for it.
   single-payment discount applies to Complete Payment where the pricing allows).
   The reviewed `pricing_version` is checked when it is created
   (`PRICING_CHANGED`). Creation is idempotent on `request_id`.
-- Collection: one-time Stripe links (complete or partial), with the same
-  allocation, amount checks and single-pending-link rule as the initial sale.
-  Token does not apply (it reserves admission before enrollment).
+- Collection: as any purchase after enrollment (Finance tab, below). Token does
+  not apply (it reserves admission before enrollment).
 - Refused until decided: Autopay (`AUTOPAY_PENDING_DECISION`), an earlier sale
   with an outstanding balance (`EARLIER_BALANCE_OUTSTANDING`) or a running
   Autopay (`EARLIER_AUTOPAY_ACTIVE`), and a student without an account
-  (`NO_STUDENT_ACCOUNT`, e.g. sheet-managed). Direct receipts (bank transfer)
-  are not offered for additional purchases.
+  (`NO_STUDENT_ACCOUNT`, e.g. sheet-managed).
 - Its payments **record money only** (`classes_not_credited`): no existing rule
   credits an additional purchase's classes.
 
@@ -248,6 +247,29 @@ webhook was missed. Nothing is credited. `--record-review` queues the findings.
 Admin review API: `GET /api/sales/stripe-review/?status=OPEN`,
 `POST /api/sales/stripe-review/<id>/resolve/` (`DISMISS` or `LINK` + note).
 
+## Student Finance tab (after enrollment)
+
+The student profile's **Finance** tab is the one place a student's purchases are
+collected after enrollment, by the student's own mentor or an Admin
+(`accounts.create_additional_purchases`; BDEs and tutors are refused). It lists
+every sale on the student's account (the initial sale and each additional
+purchase), totals classes and amounts from the purchase and payment records,
+and shows Autopay agreements in brief.
+
+- **Collection** (`sales.student_finance`): for any of the student's purchases,
+  a one-time Stripe link or a direct receipt (Account Transfer or an AJAS
+  account) with its proof, confirmation and reference. The amount is always
+  calculated from the purchase (`payments.allocation`); a receipt must state
+  exactly that amount. Receipts pass the same checks as the BDE's
+  (`payments.check_receipt`, `store_proof`). Complete Payment purchases are
+  collected whole; one pending link per sale; a purchase with an Autopay
+  agreement is collected by its schedule only (`AUTOPAY_EXISTS`).
+- **Class credit is unchanged:** every payment collected here records money
+  only (`classes_credited: false`); enrollment credited the initial tuition and
+  Autopay installments credit their own.
+- Requests are idempotent on `request_id`, made under the sale lock, and settled
+  once by `payments.succeed`.
+
 ## API
 
 | Endpoint | Who |
@@ -258,8 +280,10 @@ Admin review API: `GET /api/sales/stripe-review/?status=OPEN`,
 | `POST /api/sales/autopay/<id>/cancel/` | Admin (`reason`, `source` = `ADMIN` / `PARENT_REQUEST`) |
 | `GET /api/sales/stripe-review/`, `POST …/<id>/resolve/` | Admin |
 | `GET/POST /api/sales/students/<id>/purchases/` | The student's mentor, or an Admin (`accounts.create_additional_purchases`). GET: the account's sales, blockers, the catalogue on sale (`?syllabus=` adds its detail). POST: `preview: true` prices; otherwise creates (`request_id`, optional `pricing_version`). |
-| `GET /api/sales/purchases/<sale id>/`, `GET …/amount/?classes=` | Same |
-| `POST /api/sales/purchases/<sale id>/payments/` (`request_id`, `classes`), `POST …/payments/<payment id>/expire/` | Same |
+| `GET /api/sales/students/<id>/finance/` | Same. Totals, every purchase with its balance and `payment_status`, Autopay in brief, blockers. |
+| `GET /api/sales/students/<id>/payments/?sale=&status=&method=&page=&page_size=` | Same. Every payment on the account, newest first, paged. |
+| `GET /api/sales/purchases/<sale id>/`, `GET …/amount/?classes=` | Same, for any of the student's sales (initial or additional) |
+| `POST /api/sales/purchases/<sale id>/payments/` (`request_id`, `classes`; `method` defaults to `STRIPE`, else `amount`, `payment_date`, `received_confirmed`, `transaction_reference`, `proof` as multipart), `POST …/payments/<payment id>/expire/`, `GET …/payments/<payment id>/proof/` | Same |
 
 "Admin" here is the existing financial-oversight pair
 `accounts.manage_initial_sales` + `accounts.manage_sales_quotes`. The Admin lead
@@ -314,8 +338,8 @@ purchases exist.
 
 ## Known limitations
 
-- An additional purchase's payments record money only: no class-credit rule
-  exists for them yet. Autopay, purchases while an earlier sale has an
+- Payments collected after enrollment (remaining balances and additional
+  purchases) record money only: no class-credit rule exists for them yet. Autopay, purchases while an earlier sale has an
   outstanding balance or a running Autopay, and sheet-managed students
   (no account) are refused with explicit codes until decided.
 - A parent email typed on Checkout is kept only after a verified payment and

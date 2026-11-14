@@ -40,3 +40,23 @@ export function AutopaySummary({ agreement, action = null }) {
     {action && !agreement.cancelled_at && agreement.status !== 'COMPLETED' ? action : null}
   </WorkspaceCard>;
 }
+
+/**
+ * An Autopay agreement at a glance (sales.student_finance autopay_brief): its
+ * purchase, status, progress and next collection. Managing it is the AutoPay tab's.
+ */
+export function AutopayBrief({ agreement }) {
+  const attention = agreement.attention_status;
+  const status = (attention || agreement.status).replaceAll('_', ' ').toLowerCase();
+  return <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm">
+    <div className="min-w-0">
+      <p className="font-medium">{agreement.reference} · {agreement.installments_paid} of {agreement.installments_total} payments made</p>
+      <p className="text-muted-foreground text-xs">
+        {agreement.cancelled_at ? `Cancelled ${when(agreement.cancelled_at, agreement.billing_timezone)}`
+          : agreement.next_collection_at ? `Next collection ${when(agreement.next_collection_at, agreement.billing_timezone)}` : 'No collection scheduled'}
+        {' · '}{wholeAed(agreement.remaining_amount)} remaining{agreement.card_last4 ? ` · ${agreement.card_brand} ···· ${agreement.card_last4}` : ''}
+      </p>
+    </div>
+    <Badge variant={attention ? 'warning' : agreement.status === 'ACTIVE' || agreement.status === 'COMPLETED' ? 'success' : 'outline'} className="capitalize">{status}</Badge>
+  </div>;
+}

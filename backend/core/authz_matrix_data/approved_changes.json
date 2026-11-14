@@ -28021,6 +28021,582 @@
     "status": 403
    }
   },
+  "student_finance.foreign @ admin": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.foreign @ anon": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.foreign @ mentor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.foreign @ mentor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.foreign @ parent_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.foreign @ su_mentor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.foreign @ su_tutor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.foreign @ superuser": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.foreign @ tutor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.foreign @ tutor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.foreign @ unknown": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.overview @ admin": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.overview @ anon": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.overview @ mentor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.overview @ mentor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.overview @ parent_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.overview @ su_mentor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.overview @ su_tutor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.overview @ superuser": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.overview @ tutor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.overview @ tutor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.overview @ unknown": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.payments @ admin": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.payments @ anon": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.payments @ mentor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.payments @ mentor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such student among yours.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.payments @ parent_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.payments @ su_mentor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.payments @ su_tutor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.payments @ superuser": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NO_STUDENT_ACCOUNT",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This student was not enrolled through Eduport Plus payments, so they have no student account to add a purchase to. A decision is needed for sheet-managed students.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "student_finance.payments @ tutor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.payments @ tutor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.payments @ unknown": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.proof @ admin": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ anon": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.proof @ mentor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ mentor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ parent_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.proof @ su_mentor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ su_tutor": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ superuser": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such purchase.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "student_finance.proof @ tutor_a": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.proof @ tutor_b": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "student_finance.proof @ unknown": {
+   "decision": "Student finance (2026-11-14): new read routes on an enrolled student's purchases and payments (finance overview, payment history, receipt download), for the same audience as additional purchases: accounts.create_additional_purchases (accounts.0026), held by the MENTOR and ADMIN role groups only. No permission was added.",
+   "note": "Callers without the permission are refused (403), BDE and Sales TL included. The assigned mentor and administrators reach the service: the matrix students have no student account (NO_STUDENT_ACCOUNT, 409) and no sale (NOT_FOUND, 404); another mentor's student is NOT_FOUND (404).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "students.list @ su_mentor": {
    "decision": "D1: a superuser holds every catalogue permission, whatever their role.",
    "note": "A superuser with the Mentor or Tutor role is no longer held to that role's scope: they act as an administrator (same results as the Admin-role superuser). The Django admin warns about the combination.",

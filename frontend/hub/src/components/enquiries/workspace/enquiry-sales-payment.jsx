@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
 import { whatsAppUrl } from '@/lib/enquiries';
 import { quotePlanLabel, salesError, quoteCollectionLabel } from '@/lib/sales';
-import { collectionCompatibility, collectPaymentUrl, expirePaymentUrl, initialStudentSaleUrl, PAYMENT_METHODS, paymentToday, saleAmountUrl, saleUrl, wholeAed } from '@/lib/payments';
+import { collectionCompatibility, collectPaymentUrl, expirePaymentUrl, PAYMENT_METHODS, paymentToday, saleAmountUrl, saleUrl, wholeAed } from '@/lib/payments';
 import { useLinkCopy } from '@/hooks/use-link-copy';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,16 @@ export function QuoteSummary({ quote }) {
       </details>
     </WorkspaceCard>
   );
+}
+
+/** Money already received outside Stripe: the amount, its date, the receipt, a reference and the confirmation. */
+export function DirectPaymentFields({ amount, onAmount, date, onDate, onProof, reference, onReference, confirmed, onConfirmed }) {
+  return <>
+    <div className="grid gap-4 sm:grid-cols-2"><div className="flex flex-col gap-1.5"><Label htmlFor="received-amount">Amount received (whole AED)</Label><Input id="received-amount" type="number" step="1" min="1" required value={amount} onChange={(event) => onAmount(event.target.value)} /></div><div className="flex flex-col gap-1.5"><Label htmlFor="payment-date">Payment date</Label><Input id="payment-date" type="date" max={paymentToday()} value={date} onChange={(event) => onDate(event.target.value)} required /></div></div>
+    <div className="flex flex-col gap-1.5"><Label htmlFor="payment-proof">Payment screenshot / receipt</Label><Input id="payment-proof" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" required onChange={(event) => onProof(event.target.files?.[0] ?? null)} /></div>
+    <div className="flex flex-col gap-1.5"><Label htmlFor="transaction-reference">Transaction reference (optional)</Label><Input id="transaction-reference" maxLength={255} value={reference} onChange={(event) => onReference(event.target.value)} /></div>
+    <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="accent-primary mt-1" checked={confirmed} onChange={(event) => onConfirmed(event.target.checked)} />I confirm this amount has actually been received.</label>
+  </>;
 }
 
 function QuoteCompatibilityNotice({ enquiryId, state, issue, tokenSale, onChanged }) {
@@ -119,8 +129,7 @@ function CollectPayment({ enquiryId, state, onChanged }) {
   const [replacing, setReplacing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const requestId = useRef(crypto.randomUUID());
-  const enrolled = Boolean(state.sale.student);
-  const autopaySelected = !token && !enrolled && state.sale.kind === 'NEW' && mode === 'AUTOPAY';
+  const autopaySelected = !token && state.sale.kind === 'NEW' && mode === 'AUTOPAY';
   const effectiveMode = token ? 'FULL' : autopaySelected ? 'PARTIAL' : mode;
   const direct = method !== 'STRIPE';
 
@@ -153,7 +162,7 @@ function CollectPayment({ enquiryId, state, onChanged }) {
     finally { setPending(false); }
   };
   return (
-    <WorkspaceCard icon={WalletIcon} title={token ? 'Collect token · AED 100' : enrolled ? 'Collect remaining balance' : 'Collect initial tuition'}>
+    <WorkspaceCard icon={WalletIcon} title={token ? 'Collect token · AED 100' : 'Collect initial tuition'}>
       {!token ? <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5"><Label>{state.quote?.collection_intention_confirmed === false ? 'Frozen collection terms' : 'Collection intention from quote'}</Label><p className="text-sm font-medium">{quoteCollectionLabel(mode)}</p><p className="text-muted-foreground text-xs">Changing this intention requires an explicit replacement quote.</p>{!state.purchase ? <Button type="button" size="sm" variant="outline" className="self-start" onClick={() => setReplacing(true)}>Change collection intention</Button> : null}</div>
         {!autopaySelected ? <div className="flex flex-col gap-1.5"><Label htmlFor="paid-classes">Classes covered by this payment</Label><Input id="paid-classes" form="initial-payment-form" type="number" step="0.5" min="0.5" max={state.totals.unpaid_classes} value={classes} onChange={(event) => setClasses(event.target.value)} readOnly={mode === 'FULL'} required /></div> : null}
@@ -162,12 +171,8 @@ function CollectPayment({ enquiryId, state, onChanged }) {
         {calculationError ? <div className="flex flex-col items-start gap-2"><p role="alert" className="text-destructive text-sm">{calculationError.message}</p>{calculationError.code === 'REPLACEMENT_REQUIRED' ? <Button type="button" variant="outline" onClick={() => setReplacing(true)}>Change collection intention</Button> : null}</div> : null}
         <p role="status" className="text-sm">Amount payable: <strong>{preview ? wholeAed(preview.amount) : '—'}</strong>{token ? ' · No classes allocated' : ''}</p>
         <div className="flex max-w-sm flex-col gap-1.5"><Label htmlFor="payment-method">Payment method</Label><Select value={method} onValueChange={setMethod} disabled={pending}><SelectTrigger id="payment-method" className="w-full"><SelectValue /></SelectTrigger><SelectContent>{PAYMENT_METHODS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
-        {direct ? <>
-          <div className="grid gap-4 sm:grid-cols-2"><div className="flex flex-col gap-1.5"><Label htmlFor="received-amount">Amount received (whole AED)</Label><Input id="received-amount" type="number" step="1" min="1" required value={amount} onChange={(event) => setAmount(event.target.value)} /></div><div className="flex flex-col gap-1.5"><Label htmlFor="payment-date">Payment date</Label><Input id="payment-date" type="date" max={paymentToday()} value={date} onChange={(event) => setDate(event.target.value)} required /></div></div>
-          <div className="flex flex-col gap-1.5"><Label htmlFor="payment-proof">Payment screenshot / receipt</Label><Input id="payment-proof" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" required onChange={(event) => setProof(event.target.files?.[0] ?? null)} /></div>
-          <div className="flex flex-col gap-1.5"><Label htmlFor="transaction-reference">Transaction reference (optional)</Label><Input id="transaction-reference" maxLength={255} value={reference} onChange={(event) => setReference(event.target.value)} /></div>
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="accent-primary mt-1" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm this amount has actually been received.</label>
-        </> : !state.stripe_configured ? <p className="text-muted-foreground text-sm">Stripe payments are currently unavailable. Choose a direct payment method.</p> : null}
+        {direct ? <DirectPaymentFields amount={amount} onAmount={setAmount} date={date} onDate={setDate} onProof={setProof}
+          reference={reference} onReference={setReference} confirmed={confirmed} onConfirmed={setConfirmed} /> : !state.stripe_configured ? <p className="text-muted-foreground text-sm">Stripe payments are currently unavailable. Choose a direct payment method.</p> : null}
         {error ? <p role="alert" className="text-destructive text-sm wrap-anywhere">{error}</p> : null}
         <div><Button disabled={pending || !preview || (direct ? !confirmed || !proof : !state.stripe_configured)}>{pending ? 'Submitting…' : direct ? 'Confirm received payment' : 'Generate Stripe payment link'}</Button></div>
       </form>}
@@ -223,11 +228,11 @@ export function PaymentHistory({ rows }) {
   return <WorkspaceCard icon={WalletIcon} title="Payment history"><ResponsiveList label="Payments" columns={columns} rows={rows} minTableWidth={760} renderCard={(row) => <article className="flex flex-col gap-2 rounded-lg border p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{wholeAed(row.amount)}</strong><span>{row.status}</span></div><p>{row.method_label} · {row.payment_date} · {row.classes} classes{notCredited(row) ? ' · not added to quota' : ''}</p><p className="text-muted-foreground break-all">{row.transaction_reference || row.stripe_payment_intent || row.recorded_by.name}</p>{row.proof_url ? <Button variant="outline" size="sm" onClick={() => files.download(row.proof_url, row.proof_name)}>Download receipt</Button> : null}</article>} />{files.error ? <p role="alert" className="text-destructive text-sm">{files.error}</p> : null}{files.dialog}</WorkspaceCard>;
 }
 
-export function EnquirySalesPayment({ enquiryId, enquiry, user, studentId, onChanged }) {
+export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
-  const endpoint = studentId ? initialStudentSaleUrl(studentId) : saleUrl(enquiryId);
+  const endpoint = saleUrl(enquiryId);
   const refresh = (next) => { if (next) setData(next); else setReload((key) => key + 1); onChanged?.(); };
   useEffect(() => {
     let active = true;
@@ -241,24 +246,24 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, studentId, onCha
     const timer = setTimeout(() => setReload((key) => key + 1), 10000);
     return () => clearTimeout(timer);
   }, [pendingPayment, reload]);
-  if (error && !data) return studentId && error.status === 404 ? null : <ErrorState message={error.message} onRetry={() => refresh()} />;
+  if (error && !data) return <ErrorState message={error.message} onRetry={() => refresh()} />;
   if (!data) return <Skeleton className="h-48 w-full" aria-busy="true" />;
   const enrolled = Boolean(data.sale?.student);
   const compatibilityIssue = collectionCompatibility(data);
   return <div className="flex min-w-0 flex-col gap-4">
-    <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{studentId ? 'Initial enrollment & purchase' : 'Sales & Payment'}</h2><Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button></div>
+    <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Sales &amp; Payment</h2><Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button></div>
     {error ? <ErrorState message={error.message} onRetry={() => refresh()} /> : null}
     {data.quote ? <QuoteSummary quote={data.quote} /> : <Notice>Choose a plan and issue a quote before collecting tuition. A token reservation can be started before a package is chosen.</Notice>}
-    {data.sale && data.account ? <StudentAccountCard enquiryId={enquiryId} account={data.account} onChanged={refresh} readOnly={Boolean(studentId)} /> : null}
+    {data.sale && data.account ? <StudentAccountCard enquiryId={enquiryId} account={data.account} onChanged={refresh} /> : null}
     {data.sale ? <WorkspaceCard icon={WalletIcon} title={data.sale.kind === 'TOKEN' ? 'Token reservation' : 'New Sale'} action={enrolled ? <Badge variant="success">Enrolled</Badge> : null}>
       {data.sale.kind === 'TOKEN' ? <p className="text-sm">{data.sale.reservation_reference} · Expected start: {data.sale.expected_start_date} · {data.sale.token_status} · Token paid: {wholeAed(data.sale.token_paid)}</p> : null}
       <SaleFields rows={[["Purchased classes", data.totals.purchased_classes], ["Paid classes", data.totals.paid_classes], ["Unpaid classes", data.totals.unpaid_classes], ["Used classes", data.totals.used_classes], ["Available quota", data.totals.available_quota], ["Amount received", wholeAed(data.totals.paid_amount)], ["Outstanding balance", wholeAed(data.totals.outstanding_amount ?? data.totals.remaining_amount)],
         ...(Number(data.totals.classes_not_credited) > 0 ? [["Class quota", data.totals.class_quota], ["Paid, not added to quota", data.totals.classes_not_credited]] : []),
         ...(Number(data.totals.refunded_amount) > 0 ? [["Refunded (classes unchanged)", `AED ${data.totals.refunded_amount}`], ["Net collected", `AED ${data.totals.net_collected}`]] : [])]} />
-      {enrolled ? <p className="text-sm"><strong>{data.sale.student.student_code}</strong> · Enrollment complete.{data.can_collect ? ' The remaining balance of this purchase can still be collected here. Collecting it records the payment; it does not change the class quota.' : ' Payment records remain available here.'} {can(user, PERMISSIONS.viewAllStudents) ? <Link className="text-primary underline" to={`/students/${data.sale.student.id}`}>Open student and assign mentor</Link> : null}</p> : null}
-    </WorkspaceCard> : !studentId ? <StartSale enquiryId={enquiryId} enquiry={enquiry} state={data} onChanged={refresh} /> : null}
-    {data.autopay ? <AutopaySummary agreement={data.autopay} action={!studentId && data.can_cancel_autopay ? <CancelAutopay agreement={data.autopay} onChanged={refresh} /> : null} /> : null}
-    {!studentId && data.sale ? pendingPayment ? <PendingPayment payment={pendingPayment} enquiry={enquiry} onChanged={refresh} /> : !enrolled && data.autopay ? <RestartAutopay agreement={data.autopay} onChanged={refresh} /> : !enrolled && compatibilityIssue ? <WorkspaceCard title="Replacement quote required"><QuoteCompatibilityNotice enquiryId={enquiryId} state={data} issue={compatibilityIssue} tokenSale={data.sale.kind === 'TOKEN'} onChanged={refresh} /></WorkspaceCard> : (enrolled ? data.can_collect && !data.autopay : true) ? <CollectPayment key={`${data.sale.id}:${data.purchase?.id}:${data.quote?.id}:${data.sale.token_paid}:${data.totals.paid_classes}`} enquiryId={enquiryId} state={data} onChanged={refresh} /> : null : null}
+      {enrolled ? <p className="text-sm"><strong>{data.sale.student.student_code}</strong> · Enrollment complete. Payment records remain available here; further payments are collected by the student’s mentor or an administrator from the student’s Finance tab. {can(user, PERMISSIONS.viewAllStudents) ? <Link className="text-primary underline" to={`/students/${data.sale.student.id}`}>Open student and assign mentor</Link> : null}</p> : null}
+    </WorkspaceCard> : <StartSale enquiryId={enquiryId} enquiry={enquiry} state={data} onChanged={refresh} />}
+    {data.autopay ? <AutopaySummary agreement={data.autopay} action={data.can_cancel_autopay ? <CancelAutopay agreement={data.autopay} onChanged={refresh} /> : null} /> : null}
+    {data.sale && !enrolled ? pendingPayment ? <PendingPayment payment={pendingPayment} enquiry={enquiry} onChanged={refresh} /> : data.autopay ? <RestartAutopay agreement={data.autopay} onChanged={refresh} /> : compatibilityIssue ? <WorkspaceCard title="Replacement quote required"><QuoteCompatibilityNotice enquiryId={enquiryId} state={data} issue={compatibilityIssue} tokenSale={data.sale.kind === 'TOKEN'} onChanged={refresh} /></WorkspaceCard> : <CollectPayment key={`${data.sale.id}:${data.purchase?.id}:${data.quote?.id}:${data.sale.token_paid}:${data.totals.paid_classes}`} enquiryId={enquiryId} state={data} onChanged={refresh} /> : null}
     {data.payments.length ? <PaymentHistory rows={data.payments} /> : null}
   </div>;
 }

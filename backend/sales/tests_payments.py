@@ -237,14 +237,21 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
         self.assertEqual((first.status_code, second.status_code), (201, 201))
         self.assertEqual(first.json()['payment']['id'], second.json()['payment']['id'])
         self.assertEqual((Payment.objects.count(), Student.objects.count()), (1, 1))
-        # After enrollment only the remaining balance of the same purchase can be
-        # collected: more than the 4 unpaid classes is refused, never credited.
+        # After enrollment the enquiry collects nothing more; the student's Finance
+        # tab collects the remaining balance of the same purchase.
         over = self.collect()
-        self.assertEqual((over.status_code, over.json()['error']), (400, 'INVALID_ALLOCATION'))
+        self.assertEqual((over.status_code, over.json()['error']), (403, 'ALREADY_ENROLLED'))
         token = self.collect(purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')
         self.assertEqual((token.status_code, token.json()['error']), (403, 'ALREADY_ENROLLED'))
         self.assertEqual(self.collect(request_id=request_id, amount='500').status_code, 409)
-        balance = self.collect(classes='4', amount='200')
+        finance = APIClient()
+        finance.force_authenticate(self.admin)
+        balance_url = f'/api/sales/purchases/{Sale.objects.get().pk}/payments/'
+        def receipt(**extra):
+            return {key: value for key, value in self.payload(**extra).items() if key not in ('purpose', 'collection_mode')}
+        over = finance.post(balance_url, receipt(), format='multipart')
+        self.assertEqual((over.status_code, over.json()['error']), (400, 'INVALID_ALLOCATION'))
+        balance = finance.post(balance_url, receipt(classes='4', amount='200'), format='multipart')
         self.assertEqual(balance.status_code, 201, balance.content)
         self.assertEqual((Payment.objects.count(), Student.objects.count()), (2, 1))
         # Existing class-credit rules only: enrollment credited the first 6 classes;

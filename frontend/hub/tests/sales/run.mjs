@@ -2393,31 +2393,24 @@ test('Start Sale suggests families sharing the parent contact and records only a
   assert.deepEqual(contact, { full_name: 'Riya Nair', email: 'riya@example.com', phone: '+971501234567' });
 });
 
-test('After enrollment the remaining balance is collected on the same sale after reviewing the student and contact', async () => {
+test('After enrollment the enquiry keeps the sale and its history but collects nothing; the student’s Finance tab does', async () => {
   const enrolled = { id: 'enrolled-student', student_code: 'EDP00018' };
-  const state = saleState({ sale: startedSale({ student: enrolled }), stripe_configured: true, can_collect: true,
-    account: saleAccount({ student: enrolled, identity_locked: true }), payments: [initialPayment({ classes: '6' })],
+  // A balance link the student's mentor opened from the Finance tab is listed, never actionable here.
+  const mentorLink = initialPayment({ id: 'balance', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '200', classes: '4',
+    proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/balance', recorded_by: { id: 'mentor-1', name: 'Meera Mentor' } });
+  const state = saleState({ sale: startedSale({ student: enrolled }), stripe_configured: true, can_collect: false,
+    account: saleAccount({ student: enrolled, identity_locked: true }), payments: [initialPayment({ classes: '6' }), mentorLink],
     totals: { purchased_classes: '10', paid_classes: '6', unpaid_classes: '4', used_classes: '1', available_quota: '5', package_amount: '500',
       paid_amount: '300', remaining_amount: '200', outstanding_amount: '200', refunded_amount: '0', net_collected: '300', fully_paid: false } });
-  let posted;
-  studentApi({ [`GET ${SALE_URL}`]: state,
-    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.equal(params.classes, '4'); return ok({ amount: '200', classes: '4', currency: 'AED', remaining_amount: '0' }); },
-    [`POST ${SALE_URL}payments/`]: ({ data }) => {
-      posted = data;
-      const pending = initialPayment({ id: 'balance', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '200', classes: '4',
-        proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/balance' });
-      return ok({ payment: pending, state: { ...state, payments: [...state.payments, pending] } });
-    } });
+  studentApi({ [`GET ${SALE_URL}`]: state });
   await open(paymentPath, PAYMENT_BDE);
-  assert.match(bodyText(), /Outstanding balanceAED 200.*remaining balance of this purchase can still be collected/);
-  assert.match(bodyText(), /Collect remaining balance/);
-  await waitForAmount();
-  await click(button('Generate Stripe payment link'));
-  assert.match(clean(topDialog().textContent), /Arjun · SA-000101.*AED 200 · 4 classes.*Riya Nair · parent@example.com.*AED 0/);
-  await click(button('Generate link', topDialog()));
-  assert.equal(posted.get('classes'), '4');
-  assert.equal(posted.get('method'), 'STRIPE');
-  assert.match(bodyText(), /Awaiting payment/);
+  assert.match(bodyText(), /Outstanding balanceAED 200.*Enrollment complete\. Payment records remain available here; further payments are collected by the student’s mentor or an administrator from the student’s Finance tab/);
+  assert.match(bodyText(), /Payment history/);
+  for (const label of ['Generate Stripe payment link', 'Confirm received payment', 'Copy payment link', 'Expire unpaid link']) {
+    assert.equal(Boolean(button(label)), false, `${label} is not offered after enrollment`);
+  }
+  assert.equal(/Collect (remaining balance|initial tuition)|Awaiting payment/.test(bodyText()), false);
+  assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
 });
 
 test('Only an administrator sees identity correction and Cancel Autopay, and both need a reason', async () => {
@@ -2486,23 +2479,36 @@ test('A balance payment records money only: the quota and the classes not added 
   assert.equal(input('billing-email').required, false);
 });
 
-// ------------------------------------------------------------------ additional purchases
+// ------------------------------------------------------------------ student finance (after enrollment)
 const PURCHASE_STUDENT = 'student-1';
 const PURCHASES = `/api/sales/students/${PURCHASE_STUDENT}/purchases/`;
+const FINANCE = `/api/sales/students/${PURCHASE_STUDENT}/finance/`;
+const STUDENT_PAYMENTS = `/api/sales/students/${PURCHASE_STUDENT}/payments/`;
 const PURCHASE = '/api/sales/purchases/additional-sale/';
+const INITIAL_PURCHASE = '/api/sales/purchases/initial-sale/';
 const BUYING_MENTOR = { id: 'mentor-1', role: 'MENTOR', permissions: ['accounts.view_mentored_students', 'accounts.create_additional_purchases'] };
-const purchasesPath = `/students/${PURCHASE_STUDENT}?tab=purchases`;
+const financePath = `/students/${PURCHASE_STUDENT}?tab=finance`;
 const studentProfile = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, full_name: 'Arjun', student_code: 'EDP00018', status: 'active',
   quota_source: 'PAYMENTS', ...extra }, stats: { sessions: { total: 0 }, homework: { total: 0 }, exams: null },
 highlights: { next_session: null, last_session: null, next_exam: null } });
-const initialRow = (extra = {}) => ({ id: 'initial-sale', kind: 'NEW', created_at: '2026-11-09T06:30:00+00:00', quote_id: QUOTE_ID,
-  quote_reference: 'Q-000007', plan_type: 'CHAPTER_PLAN', classes: '10', package_amount: '500', paid_amount: '500', outstanding_amount: '0',
-  fully_paid: true, autopay_status: null, ...extra });
+const financeRow = (extra = {}) => ({ id: 'initial-sale', kind: 'NEW', created_at: '2026-11-09T06:30:00+00:00', enrolled_at: '2026-11-09T06:30:00+00:00',
+  quote_id: QUOTE_ID, quote_reference: 'Q-000007', syllabus: 'Grade 6 CBSE', plan_type: 'CHAPTER_PLAN', class_mode: 'REVISION', full_course: false,
+  collection_mode: 'PARTIAL', classes: '10', paid_classes: '10', outstanding_classes: '0', package_amount: '500', paid_amount: '500',
+  outstanding_amount: '0', fully_paid: true, payment_status: 'PAID', link_pending: false, autopay_status: null, can_collect: false, ...extra });
+const financeOverview = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
+  account: saleAccount({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018' }, identity_locked: true }),
+  summary: { purchased_classes: '10', paid_classes: '10', pending_classes: '0', total_amount: '500', paid_amount: '500', pending_amount: '0',
+    collectible_amount: '0', autopay_amount: '0', class_quota: '10', classes_not_credited: '0', refunded_amount: '0' },
+  purchases: [financeRow()], autopay: [], blockers: [], can_add: true, can_collect: false, stripe_configured: true, ...extra });
+const paymentsPage = (results, extra = {}) => ({ results, count: results.length, page: 1, page_size: 10, ...extra });
+const historyRow = (extra = {}) => initialPayment({ sale_id: 'initial-sale', purchase_kind: 'NEW', purchase_reference: 'Q-000007', payment_type: 'INITIAL',
+  created_at: '2026-11-09T06:30:00+00:00', verified_at: '2026-11-09T06:30:00+00:00', collection_source: 'INITIAL',
+  proof_url: '/api/sales/purchases/initial-sale/payments/initial-payment/proof/', ...extra });
 const purchasesOverview = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
-  account: { id: 'account-1', reference: 'SA-000101' }, sales: [initialRow()], blockers: [], can_add: true, catalogue: CATALOGUE_ROWS,
+  account: { id: 'account-1', reference: 'SA-000101' }, sales: [financeRow()], blockers: [], can_add: true, catalogue: CATALOGUE_ROWS,
   syllabus: null, ...extra });
 const purchaseState = (extra = {}) => ({
-  sale: { id: 'additional-sale', kind: 'ADDITIONAL', created_at: '2026-11-13T06:30:00+00:00', created_by: { id: 'mentor-1', name: 'Meera Mentor' } },
+  sale: { id: 'additional-sale', kind: 'ADDITIONAL', created_at: '2026-11-13T06:30:00+00:00', enrolled_at: null, created_by: { id: 'mentor-1', name: 'Meera Mentor' } },
   student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
   account: saleAccount({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018' }, identity_locked: true,
     billing_contact: { ...saleAccount().billing_contact, email: '' } }),
@@ -2512,7 +2518,7 @@ const purchaseState = (extra = {}) => ({
   purchase: { id: 'additional-purchase', collection_mode: 'FULL' },
   totals: { purchased_classes: '10', paid_classes: '0', unpaid_classes: '10', package_amount: '333', paid_amount: '0', outstanding_amount: '333',
     fully_paid: false, classes_not_credited: '0' },
-  payments: [], can_collect: true, stripe_configured: true, ...extra });
+  payment_status: 'UNPAID', autopay: null, payments: [], can_collect: true, stripe_configured: true, ...extra });
 const tabNames = () => [...document.querySelectorAll('[role="tab"]')].map((tab) => clean(tab.textContent));
 async function pickOption(id, value) {
   const element = input(id);
@@ -2523,14 +2529,16 @@ async function pickOption(id, value) {
   await settle();
 }
 
-test('A mentor adds a purchase for their own student as a new sale, then collects it through its own Stripe link', async () => {
+test('A mentor adds a purchase from the Finance tab as a new sale, then collects it through its own Stripe link', async () => {
   const figures = { plan_type: 'BRIDGE_COURSE', classes: '10', collection_mode: 'FULL', collection_subtotal: '350', collection_amount: '333',
     collection_discount: '17', currency: 'AED', pricing_version: 3, lines: [] };
-  const link = initialPayment({ id: 'link-1', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '333', classes: '10',
+  const link = historyRow({ id: 'link-1', sale_id: 'additional-sale', method: 'STRIPE', method_label: 'Stripe', status: 'PENDING', amount: '333', classes: '10',
     collection_mode: 'FULL', proof_url: null, payment_url: 'https://checkout.stripe.com/c/pay/link-1', recorded_by: { id: 'mentor-1', name: 'Meera Mentor' } });
   let reviewed, created, linked, expired = false;
   serve({
     [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
+    [`GET ${FINANCE}`]: financeOverview(),
+    [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([historyRow()]),
     [`GET ${PURCHASES}`]: ({ params }) => ok(purchasesOverview(params?.syllabus === BRIDGE_ID ? { syllabus: bridgeOnSale() } : {})),
     [`POST ${PURCHASES}`]: ({ data }) => {
       if (data.preview) { reviewed = data; return ok({ preview: figures }); }
@@ -2540,13 +2548,14 @@ test('A mentor adds a purchase for their own student as a new sale, then collect
     [`GET ${PURCHASE}`]: purchaseState(),
     [`GET ${PURCHASE}amount/`]: ({ params }) => { assert.equal(params.classes, '10'); return ok({ amount: '333', classes: '10', currency: 'AED',
       package_amount: '333', remaining_amount: '0', remaining_classes: '0' }); },
-    [`POST ${PURCHASE}payments/`]: ({ data }) => { linked = data; return ok({ payment: link, state: purchaseState({ payments: [link] }) }); },
+    [`POST ${PURCHASE}payments/`]: ({ data }) => { linked = data; return ok({ payment: link, state: purchaseState({ payments: [link], payment_status: 'LINK_PENDING' }) }); },
     [`POST ${PURCHASE}payments/link-1/expire/`]: () => { expired = true; return ok(purchaseState({ payments: [{ ...link, status: 'EXPIRED' }] })); },
   });
-  await open(purchasesPath, BUYING_MENTOR);
-  assert.match(bodyText(), /Arjun · EDP00018SA-000101.*Initial purchase.*Q-000007/);
-  assert.equal(Boolean(button('Open')), false, 'the initial purchase stays with its sale');
-  await click(button('Add purchase'));
+  await open(financePath, BUYING_MENTOR);
+  assert.deepEqual(tabNames().slice(0, 2), ['Overview', 'Finance']);
+  assert.equal(tabNames().includes('Purchases'), false);
+  assert.match(bodyText(), /Purchases overview.*Initial enrollment.*Q-000007.*Grade 6 CBSE · Chapter Plan · Revision classes.*Completed/);
+  await click(button('New purchase'));
   await pickOption('purchase-syllabus', BRIDGE_ID);
   await click(radio('Full Bridge Course'));
   assert.equal(Boolean(radio('Autopay')), false, 'Autopay for an additional purchase awaits a decision');
@@ -2558,8 +2567,9 @@ test('A mentor adds a purchase for their own student as a new sale, then collect
   const { request_id: requestId, ...rest } = created;
   assert.match(requestId, /^[0-9a-f-]{36}$/);
   assert.deepEqual(rest, { syllabus: BRIDGE_ID, revision: 1, plan_type: 'BRIDGE_COURSE', collection_mode: 'FULL', chapter_ids: [], pricing_version: 3 });
-  assert.match(bodyText(), /Additional purchase.*Outstanding balanceAED 333.*Added by Meera Mentor/);
+  assert.match(bodyText(), /Additional purchaseUnpaid.*Outstanding balanceAED 333.*Added by Meera Mentor/);
   await waitForAmount();
+  assert.equal(input('purchase-classes').readOnly, true, 'Complete Payment collects the whole balance');
   await click(button('Generate Stripe payment link'));
   assert.match(clean(topDialog().textContent), /Arjun · SA-000101.*AED 333 · 10 classes.*Riya Nair · no email: the parent enters it on Stripe.*AED 0/);
   await click(button('Generate link', topDialog()));
@@ -2568,28 +2578,127 @@ test('A mentor adds a purchase for their own student as a new sale, then collect
   assert.match(bodyText(), /Awaiting payment/);
   await click(button('Expire unpaid link'));
   assert.equal(expired, true);
-  assert.equal(calls('POST', `/api/sales/payments/link-1/expire/`).length, 0, 'never the initial sale’s route');
+  assert.equal(calls('POST', `/api/sales/payments/link-1/expire/`).length, 0, 'never the enquiry’s route');
+  await click(button('Back to Finance'));
+  assert.match(bodyText(), /Purchases overview/);
 });
 
-test('Purchases: only with the permission, for a student enrolled through payments; an earlier balance blocks a new one', async () => {
+test('Finance: only with the permission, for a student enrolled through payments; an earlier balance blocks a new purchase', async () => {
   serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile() });
-  await open(purchasesPath, { ...BUYING_MENTOR, permissions: ['accounts.view_mentored_students'] });
-  assert.equal(tabNames().includes('Purchases'), false);
+  await open(financePath, { ...BUYING_MENTOR, permissions: ['accounts.view_mentored_students'] });
+  assert.equal(tabNames().includes('Finance'), false);
   await mounted.pop().unmount();
   serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile({ quota_source: 'SHEET' }) });
-  await open(purchasesPath, BUYING_MENTOR);
-  assert.equal(tabNames().includes('Purchases'), false, 'a sheet-managed student has no account to add to');
+  await open(financePath, BUYING_MENTOR);
+  assert.equal(tabNames().includes('Finance'), false, 'a sheet-managed student has no account');
   await mounted.pop().unmount();
-  assert.equal(calls('GET', PURCHASES).length, 0);
+  assert.equal(calls('GET', FINANCE).length, 0);
 
   const blocker = { code: 'EARLIER_BALANCE_OUTSTANDING', sale_id: 'initial-sale',
     message: 'An earlier sale still has AED 200 outstanding. Whether a new purchase may start meanwhile is not decided yet.' };
-  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
-    [`GET ${PURCHASES}`]: purchasesOverview({ can_add: false, blockers: [blocker], sales: [initialRow({ paid_amount: '300', outstanding_amount: '200', fully_paid: false })] }) });
-  await open(purchasesPath, BUYING_MENTOR);
-  assert.equal(tabNames().includes('Purchases'), true);
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(), [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([]),
+    [`GET ${FINANCE}`]: financeOverview({ can_add: false, blockers: [blocker], can_collect: true,
+      purchases: [financeRow({ paid_amount: '300', outstanding_amount: '200', outstanding_classes: '4', fully_paid: false, payment_status: 'PARTIALLY_PAID', can_collect: true })] }) });
+  await open(financePath, BUYING_MENTOR);
   assert.match(bodyText(), /AED 200 outstanding\. Whether a new purchase may start meanwhile is not decided yet/);
-  assert.equal(button('Add purchase').disabled, true);
+  assert.equal(button('New purchase').disabled, true);
+  assert.equal(button('Collect pending balance').disabled, false);
+});
+
+test('Finance: summary, purchases, outstanding balance and a filtered, paged payment history, all as the API sends them', async () => {
+  const pages = [];
+  const transfer = historyRow({ id: 'transfer', sale_id: 'additional-sale', purchase_kind: 'ADDITIONAL', purchase_reference: 'Q-000020',
+    payment_type: 'ADDITIONAL', amount: '400', classes: '8', created_at: '2026-11-13T09:15:00+00:00', payment_date: '2026-11-12',
+    recorded_by: { id: 'mentor-1', name: 'Meera Mentor' }, transaction_reference: 'UTR-77', proof_name: 'transfer.png',
+    proof_url: '/api/sales/purchases/additional-sale/payments/transfer/proof/' });
+  const stripe = historyRow({ method: 'STRIPE', method_label: 'Stripe', transaction_reference: '', stripe_payment_intent: 'pi_123', proof_url: null, proof_name: '' });
+  serve({
+    [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
+    [`GET ${FINANCE}`]: financeOverview({
+      summary: { purchased_classes: '30', paid_classes: '18', pending_classes: '12', total_amount: '1500', paid_amount: '900', pending_amount: '600',
+        collectible_amount: '600', autopay_amount: '0', class_quota: '10', classes_not_credited: '8', refunded_amount: '0' },
+      purchases: [financeRow(), financeRow({ id: 'additional-sale', kind: 'ADDITIONAL', created_at: '2026-11-13T06:30:00+00:00', enrolled_at: null,
+        quote_reference: 'Q-000020', syllabus: 'Grade 7 CBSE', plan_type: 'BRIDGE_COURSE', full_course: true, classes: '20', paid_classes: '8',
+        outstanding_classes: '12', package_amount: '1000', paid_amount: '400', outstanding_amount: '600', fully_paid: false,
+        payment_status: 'PARTIALLY_PAID', can_collect: true })],
+      can_collect: true }),
+    [`GET ${STUDENT_PAYMENTS}`]: ({ params }) => { pages.push(params); return ok(paymentsPage([transfer, stripe], { count: 12, page: params.page })); },
+  });
+  await open(financePath, BUYING_MENTOR);
+  assert.match(bodyText(), /Total classes purchased30.*Paid classes18Class quota 10 · 8 paid after enrollment, recorded money only.*Pending classes12.*Total amountAED 1,500.*Paid amountAED 900.*Pending amountAED 600/);
+  assert.match(bodyText(), /Additional purchase20 classes · Nov 13, 2026.*Q-000020.*Grade 7 CBSE · Full Bridge Course.*AED 1,000.*AED 400.*AED 600.*Partially paid/);
+  assert.match(bodyText(), /Outstanding balanceAED 600Q-000020 · Additional purchaseAED 600/);
+  assert.match(bodyText(), /No AutoPay agreements/);
+  assert.match(bodyText(), /Nov 12, 2026Recorded by Meera MentorAdditional purchaseQ-000020AED 4008 classesAccount TransferUTR-77Received/);
+  assert.match(bodyText(), /pi_123/);
+  assert.ok(button('Download receipt transfer.png'), 'a received payment’s receipt downloads');
+  assert.deepEqual(pages.at(-1), { page: 1, page_size: 10 });
+  await choose('Status', 'Received');
+  assert.deepEqual(pages.at(-1), { page: 1, page_size: 10, status: 'SUCCEEDED' });
+  await choose('Method', 'Account Transfer');
+  assert.deepEqual(pages.at(-1), { page: 1, page_size: 10, status: 'SUCCEEDED', method: 'TRANSFER' });
+  await choose('Purchase', 'Q-000020 · Additional purchase');
+  assert.deepEqual(pages.at(-1), { page: 1, page_size: 10, status: 'SUCCEEDED', method: 'TRANSFER', sale: 'additional-sale' });
+  await click(button('Next'));
+  assert.equal(pages.at(-1).page, 2);
+  await click(button('Clear'));
+  assert.deepEqual(pages.at(-1), { page: 1, page_size: 10 });
+});
+
+test('Finance: a direct payment is recorded on the chosen purchase with its receipt, reference and confirmation', async () => {
+  let posted;
+  const unpaid = financeRow({ paid_classes: '6', outstanding_classes: '4', paid_amount: '300', outstanding_amount: '200', fully_paid: false,
+    payment_status: 'PARTIALLY_PAID', can_collect: true });
+  const initialState = (extra = {}) => purchaseState({ sale: { id: 'initial-sale', kind: 'NEW', created_at: '2026-11-09T06:30:00+00:00',
+    enrolled_at: '2026-11-09T06:30:00+00:00', created_by: BALA }, purchase: { id: 'initial-purchase', collection_mode: 'PARTIAL' },
+  quote: saleQuote({ id: QUOTE_ID, reference: 'Q-000007' }), payment_status: 'PARTIALLY_PAID', payments: [historyRow({ classes: '6' })],
+  totals: { purchased_classes: '10', paid_classes: '6', unpaid_classes: '4', package_amount: '500', paid_amount: '300', outstanding_amount: '200',
+    fully_paid: false, classes_not_credited: '0' }, ...extra });
+  serve({
+    [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(),
+    [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([historyRow({ classes: '6' })]),
+    [`GET ${FINANCE}`]: financeOverview({ can_collect: true, purchases: [unpaid, financeRow({ id: 'additional-sale', kind: 'ADDITIONAL', quote_reference: 'Q-000020',
+      paid_amount: '0', outstanding_amount: '333', outstanding_classes: '10', paid_classes: '0', fully_paid: false, payment_status: 'UNPAID', can_collect: true })] }),
+    [`GET ${INITIAL_PURCHASE}`]: initialState(),
+    [`GET ${INITIAL_PURCHASE}amount/`]: ({ params }) => { assert.equal(params.classes, '4'); return ok({ amount: '200', classes: '4', currency: 'AED',
+      package_amount: '500', remaining_amount: '0', remaining_classes: '0' }); },
+    [`POST ${INITIAL_PURCHASE}payments/`]: ({ data }) => {
+      posted = data;
+      const received = historyRow({ id: 'balance', amount: '200', classes: '4', payment_type: 'BALANCE', classes_credited: false,
+        transaction_reference: 'UTR-9', recorded_by: { id: 'mentor-1', name: 'Meera Mentor' } });
+      return ok({ payment: received, state: initialState({ payment_status: 'PAID', can_collect: false, payments: [historyRow({ classes: '6' }), received],
+        totals: { purchased_classes: '10', paid_classes: '10', unpaid_classes: '0', package_amount: '500', paid_amount: '500', outstanding_amount: '0',
+          fully_paid: true, classes_not_credited: '4' } }) });
+    },
+  });
+  await open(financePath, BUYING_MENTOR);
+  // Two purchases owe money: the mentor chooses which one the payment is for.
+  await click(button('Add direct payment'));
+  assert.match(clean(topDialog().textContent), /Choose the purchase this payment is for.*Q-000007 · Initial enrollment.*AED 200 outstanding.*Q-000020 · Additional purchase.*AED 333 outstanding/);
+  assert.equal(button('Continue', topDialog()).disabled, true);
+  await click([...topDialog().querySelectorAll('input[type="radio"]')][0]);
+  await click(button('Continue', topDialog()));
+  await waitForAmount();
+  assert.match(bodyText(), /Initial enrollmentPartially paid.*Enrolled on Nov 9, 2026 for Arjun · EDP00018 · SA-000101.*Collect remaining balance/);
+  assert.match(bodyText(), /Amount payable: AED 200 · AED 0 remaining after it/);
+  assert.equal(input('received-amount').value, '200');
+  assert.equal(button('Confirm received payment').disabled, true, 'a receipt and the confirmation first');
+  await typeInto(input('payment-date'), '2026-11-10');
+  await typeInto(input('transaction-reference'), 'UTR-9');
+  const receipt = new File(['test PNG bytes'], 'receipt.png', { type: 'image/png' });
+  Object.defineProperty(input('payment-proof'), 'files', { configurable: true, value: [receipt] });
+  await fire(input('payment-proof'), new window.Event('change', { bubbles: true }));
+  assert.equal(button('Confirm received payment').disabled, true);
+  await click(checkbox('actually been received'));
+  await fire(button('Confirm received payment').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.equal(topDialog(), undefined, 'a received payment is recorded without a Stripe review');
+  assert.deepEqual(Object.fromEntries([...posted.entries()].filter(([key]) => !['request_id', 'proof'].includes(key))), {
+    method: 'TRANSFER', classes: '4', amount: '200', payment_date: '2026-11-10', received_confirmed: 'true', transaction_reference: 'UTR-9' });
+  assert.equal(posted.get('proof').name, 'receipt.png');
+  assert.match(posted.get('request_id'), /^[0-9a-f-]{36}$/);
+  assert.match(bodyText(), /Initial enrollmentCompleted.*Payments collected after enrollment record money only: 4 paid classes of this purchase are not added/);
+  assert.equal(button('Confirm received payment'), undefined);
+  assert.match(bodyText(), /Payment history.*AED 200/);
 });
 
 // ------------------------------------------------------------------ run

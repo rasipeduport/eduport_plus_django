@@ -11,8 +11,7 @@ import { AdditionalExamGradeSheet } from '@/components/exams/additional-exam-gra
 import { collectDocuments } from '@/lib/documents';
 import { ProfileHeader } from '@/components/students/profile/profile-header';
 import { OverviewTab } from '@/components/students/profile/overview-tab';
-import { EnquirySalesPayment } from '@/components/enquiries/workspace/enquiry-sales-payment';
-import { StudentPurchases } from '@/components/sales/additional-purchases';
+import { StudentFinance } from '@/components/sales/student-finance';
 import { WorkspaceCard, Field, Fields } from '@/components/bookings/redemo-workspace/parts';
 import { quotePlanLabel } from '@/lib/sales';
 import { SessionsTab } from '@/components/students/profile/sessions-tab';
@@ -26,7 +25,7 @@ import { TabSkeleton } from '@/components/students/profile/profile-primitives';
 // What each tab needs loaded before it can render. The Overview is served by
 // the profile request itself; Documents is assembled from the other tabs'
 // payloads, so opening it pulls all of them in. Activity and Notes own their
-// own fetching, since both paginate; Purchases owns its own, as a workflow.
+// own fetching, since both paginate; Finance owns its own, as a workflow.
 //
 // A tutor is refused the exam endpoints outright (403), so their Documents
 // tab must not ask for them -- it is built from classes and homework alone.
@@ -36,7 +35,7 @@ const TAB_RESOURCES = {
   exams: ['exams', 'additionalExams'],
   homework: ['homework'],
   documents: ['sessions', 'exams', 'additionalExams', 'homework'],
-  purchases: [],
+  finance: [],
   activity: [],
   notes: [],
 };
@@ -80,8 +79,9 @@ export default function StudentProfilePage({ user }) {
   const [homeworkSheetId, setHomeworkSheetId] = useState(null);
   const [additionalExamId, setAdditionalExamId] = useState(null);
 
-  // Only a student enrolled through Eduport Plus payments has an account to add a purchase to.
-  const canPurchase = can(user, PERMISSIONS.createAdditionalPurchases) && profile?.student?.quota_source === 'PAYMENTS';
+  // A student's purchases and payments after enrollment: their mentor's and the administrators'
+  // (accounts.create_additional_purchases), for a student enrolled through Eduport Plus payments.
+  const canFinance = can(user, PERMISSIONS.createAdditionalPurchases) && profile?.student?.quota_source === 'PAYMENTS';
 
   // Exams are a mentor <-> student affair; the API tells us so by sending no
   // exam stats at all, which keeps the tab list and the API in step.
@@ -89,6 +89,7 @@ export default function StudentProfilePage({ user }) {
     const showExams = canViewExams && profile?.stats?.exams != null;
     return [
       { key: 'overview', label: 'Overview' },
+      ...(canFinance ? [{ key: 'finance', label: 'Finance' }] : []),
       { key: 'sessions', label: 'Sessions', count: profile?.stats?.sessions?.total },
       ...(showExams
         ? [
@@ -101,11 +102,10 @@ export default function StudentProfilePage({ user }) {
         : []),
       { key: 'homework', label: 'Homework', count: profile?.stats?.homework?.total },
       { key: 'documents', label: 'Documents' },
-      ...(canPurchase ? [{ key: 'purchases', label: 'Purchases' }] : []),
       { key: 'activity', label: 'Activity' },
       { key: 'notes', label: 'Notes' },
     ];
-  }, [canViewExams, canPurchase, profile]);
+  }, [canViewExams, canFinance, profile]);
 
   const requested = searchParams.get('tab') || 'overview';
   const tab = tabs.some((entry) => entry.key === requested) ? requested : 'overview';
@@ -240,9 +240,14 @@ export default function StudentProfilePage({ user }) {
               onOpenTab={setTab}
               onSynced={refresh}
             />
-            {student.learning_plan && !can(user, PERMISSIONS.manageInitialSales) ? <div className="mt-6"><WorkspaceCard title="Selected learning plan"><Fields><Field label="Syllabus">{student.learning_plan.syllabus}</Field><Field label="Plan">{quotePlanLabel(student.learning_plan)}</Field><Field label="Purchased classes">{student.learning_plan.purchased_classes}</Field><Field label="Paid class quota">{student.learning_plan.paid_classes}</Field></Fields><ul className="flex flex-col gap-1 text-sm">{student.learning_plan.chapters.map((chapter) => <li key={chapter.position}>{chapter.position}. {chapter.name} · {chapter.classes} classes</li>)}</ul></WorkspaceCard></div> : null}
-            {student.quota_source === 'PAYMENTS' && can(user, PERMISSIONS.manageInitialSales) ? <div className="mt-6"><EnquirySalesPayment studentId={studentId} user={user} /></div> : null}
+            {student.learning_plan ? <div className="mt-6"><WorkspaceCard title="Selected learning plan"><Fields><Field label="Syllabus">{student.learning_plan.syllabus}</Field><Field label="Plan">{quotePlanLabel(student.learning_plan)}</Field><Field label="Purchased classes">{student.learning_plan.purchased_classes}</Field><Field label="Paid class quota">{student.learning_plan.paid_classes}</Field></Fields><ul className="flex flex-col gap-1 text-sm">{student.learning_plan.chapters.map((chapter) => <li key={chapter.position}>{chapter.position}. {chapter.name} · {chapter.classes} classes</li>)}</ul></WorkspaceCard></div> : null}
           </TabsContent>
+
+          {canFinance ? (
+            <TabsContent value="finance">
+              <StudentFinance studentId={studentId} />
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="sessions">
             {waiting('sessions') ? (
@@ -296,11 +301,6 @@ export default function StudentProfilePage({ user }) {
             )}
           </TabsContent>
 
-          {canPurchase ? (
-            <TabsContent value="purchases">
-              <StudentPurchases studentId={studentId} />
-            </TabsContent>
-          ) : null}
 
           <TabsContent value="activity">
             <ActivityTab studentId={studentId} user={user} />

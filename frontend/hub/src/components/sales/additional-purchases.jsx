@@ -1,99 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftIcon, PlusIcon, RefreshCwIcon, ShoppingBagIcon, WalletIcon } from 'lucide-react';
+import { ArrowLeftIcon, RefreshCwIcon, ShoppingBagIcon, WalletIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { chapterPlanError, planTypeLabel, QUOTE_COLLECTION_MODES, quotePreview, salesError } from '@/lib/sales';
-import { purchaseAmountUrl, purchaseExpireUrl, purchasePaymentsUrl, purchaseUrl, studentPurchasesUrl, wholeAed } from '@/lib/payments';
+import { PAYMENT_METHODS, PURCHASE_KINDS, PURCHASE_STATUSES, purchaseAmountUrl, purchaseExpireUrl, purchasePaymentsUrl, purchaseUrl,
+  studentPurchasesUrl, paymentToday, wholeAed } from '@/lib/payments';
 import { formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ErrorState, Notice } from '@/components/page/states';
-import { ResponsiveList } from '@/components/page/responsive-list';
 import { FormDialog } from '@/components/form-dialog';
 import { WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { QuotePlanCard } from '@/components/sales/quote-builder';
-import { PaymentHistory, PendingPayment, QuoteSummary, SaleFields } from '@/components/enquiries/workspace/enquiry-sales-payment';
+import { AutopayBrief } from '@/components/sales/autopay-summary';
+import { DirectPaymentFields, PaymentHistory, PendingPayment, QuoteSummary, SaleFields } from '@/components/enquiries/workspace/enquiry-sales-payment';
 
 // Autopay for an additional purchase awaits a decision; the API refuses it.
 const PURCHASE_COLLECTION_MODES = QUOTE_COLLECTION_MODES.filter((option) => option.value !== 'AUTOPAY');
-const SALE_KINDS = { NEW: 'Initial purchase', TOKEN: 'Initial purchase (token)', ADDITIONAL: 'Additional purchase' };
-
-/**
- * A student's purchases, for their mentor (or an administrator): every sale on
- * the student's account, and Add purchase -- a new sale on the same account,
- * priced from the catalogue on sale as any quote is, and paid through its own
- * Stripe links on the student's one Stripe Customer. Earlier sales never change.
- */
-export function StudentPurchases({ studentId }) {
-  const [overview, setOverview] = useState(null);
-  const [error, setError] = useState(null);
-  const [reload, setReload] = useState(0);
-  const [view, setView] = useState({ name: 'list' });
-
-  useEffect(() => {
-    let active = true;
-    api.get(studentPurchasesUrl(studentId))
-      .then(({ data }) => { if (active) { setOverview(data); setError(null); } })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load this student’s purchases.')); });
-    return () => { active = false; };
-  }, [studentId, reload]);
-
-  const refresh = () => setReload((key) => key + 1);
-  const toList = () => { refresh(); setView({ name: 'list' }); };
-  if (error && !overview) return <ErrorState message={error.message} onRetry={refresh} />;
-  if (!overview) return <Skeleton className="h-48 w-full" aria-busy="true" />;
-  if (view.name === 'add') {
-    return <AddPurchase studentId={studentId} overview={overview} onBack={() => setView({ name: 'list' })}
-      onCreated={(state) => { refresh(); setView({ name: 'purchase', saleId: state.sale.id, state }); }} />;
-  }
-  if (view.name === 'purchase') return <PurchaseDetail saleId={view.saleId} initial={view.state} onBack={toList} />;
-  return <PurchaseList overview={overview} error={error} onRefresh={refresh} onAdd={() => setView({ name: 'add' })}
-    onOpen={(saleId) => setView({ name: 'purchase', saleId })} />;
-}
-
-function PurchaseList({ overview, error, onRefresh, onAdd, onOpen }) {
-  const columns = [
-    { key: 'kind', header: 'Purchase', className: 'whitespace-normal', cell: (row) => <span>{SALE_KINDS[row.kind] ?? row.kind}<span className="text-muted-foreground block text-xs">{row.quote_reference ?? 'No quote'} · {formatDate(row.created_at)}</span></span> },
-    { key: 'plan', header: 'Plan', className: 'whitespace-normal', cell: (row) => row.plan_type ? `${planTypeLabel(row.plan_type)} · ${row.classes} classes` : '—' },
-    { key: 'package', header: 'Package', cell: (row) => wholeAed(row.package_amount) },
-    { key: 'received', header: 'Received', cell: (row) => wholeAed(row.paid_amount) },
-    { key: 'outstanding', header: 'Outstanding', cell: (row) => <Outstanding row={row} /> },
-    { key: 'open', header: { srOnly: 'Open' }, cell: (row) => row.kind === 'ADDITIONAL' ? <Button size="sm" variant="outline" onClick={() => onOpen(row.id)}>Open</Button> : null },
-  ];
-  return <div className="flex min-w-0 flex-col gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-xl font-semibold">Purchases</h2>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={onRefresh}><RefreshCwIcon />Refresh</Button>
-        <Button size="sm" onClick={onAdd} disabled={!overview.can_add}><PlusIcon />Add purchase</Button>
-      </div>
-    </div>
-    {error ? <ErrorState message={error.message} onRetry={onRefresh} /> : null}
-    {overview.blockers.map((blocker) => <Notice key={`${blocker.code}:${blocker.sale_id}`}>{blocker.message}</Notice>)}
-    <WorkspaceCard icon={ShoppingBagIcon} title={`${overview.student.full_name} · ${overview.student.student_code}`} action={<Badge variant="outline">{overview.account.reference}</Badge>}>
-      <p className="text-muted-foreground text-sm">Each purchase is its own sale on this student’s account. Adding one never changes an earlier purchase or its payments.</p>
-      <ResponsiveList label="Purchases" columns={columns} rows={overview.sales} minTableWidth={720}
-        renderCard={(row) => <article className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
-          <div className="flex flex-wrap justify-between gap-2"><strong>{SALE_KINDS[row.kind] ?? row.kind}</strong><Outstanding row={row} /></div>
-          <p>{row.plan_type ? `${planTypeLabel(row.plan_type)} · ${row.classes} classes` : '—'} · {wholeAed(row.package_amount)}</p>
-          <p className="text-muted-foreground">{row.quote_reference ?? 'No quote'} · Received {wholeAed(row.paid_amount)}</p>
-          {row.kind === 'ADDITIONAL' ? <Button size="sm" variant="outline" onClick={() => onOpen(row.id)}>Open</Button> : null}
-        </article>} />
-    </WorkspaceCard>
-  </div>;
-}
-
-function Outstanding({ row }) {
-  if (row.autopay_status && !['COMPLETED', 'CANCELLED'].includes(row.autopay_status)) return <Badge variant="outline">Autopay · {row.autopay_status.toLowerCase().replaceAll('_', ' ')}</Badge>;
-  if (row.fully_paid) return <Badge variant="success">Paid</Badge>;
-  return <span>{wholeAed(row.outstanding_amount)}</span>;
-}
 
 /** Choose a syllabus on sale, then its plan, as a quote is chosen; the API prices it before anything is added. */
-function AddPurchase({ studentId, overview, onBack, onCreated }) {
+export function AddPurchase({ studentId, overview, onBack, onCreated }) {
   const [syllabusId, setSyllabusId] = useState('');
   const [detail, setDetail] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -150,7 +80,7 @@ function AddPurchase({ studentId, overview, onBack, onCreated }) {
   };
 
   return <div className="flex min-w-0 flex-col gap-4">
-    <div><Button variant="outline" onClick={onBack}><ArrowLeftIcon />All purchases</Button></div>
+    <div><Button variant="outline" onClick={onBack}><ArrowLeftIcon />Back to Finance</Button></div>
     <WorkspaceCard icon={ShoppingBagIcon} title="1. Choose a syllabus" action={<Badge variant="outline">{overview.account.reference}</Badge>}>
       <p className="text-muted-foreground text-sm">A new purchase for {overview.student.full_name}, on the same student account and Stripe Customer.</p>
       <div className="flex max-w-md flex-col gap-1.5"><Label htmlFor="purchase-syllabus">Syllabus on sale</Label>
@@ -183,7 +113,13 @@ function AddPurchase({ studentId, overview, onBack, onCreated }) {
   </div>;
 }
 
-function PurchaseDetail({ saleId, initial, onBack }) {
+/**
+ * One of the student's purchases -- the initial sale or an additional one -- for
+ * their mentor (or an administrator): its plan, totals and payments, and
+ * collecting what is unpaid, through a Stripe link or a received payment with
+ * its receipt. Collected after enrollment, it records money only.
+ */
+export function PurchaseDetail({ saleId, initial, initialMethod = 'STRIPE', onBack }) {
   const [state, setState] = useState(initial ?? null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
@@ -204,46 +140,58 @@ function PurchaseDetail({ saleId, initial, onBack }) {
     return () => clearTimeout(timer);
   }, [pendingPayment, reload]);
 
-  if (error && !state) return <div className="flex flex-col gap-3"><div><Button variant="outline" onClick={onBack}><ArrowLeftIcon />All purchases</Button></div><ErrorState message={error.message} onRetry={() => refresh()} /></div>;
+  const back = <Button variant="outline" onClick={onBack}><ArrowLeftIcon />Back to Finance</Button>;
+  if (error && !state) return <div className="flex flex-col gap-3"><div>{back}</div><ErrorState message={error.message} onRetry={() => refresh()} /></div>;
   if (!state) return <Skeleton className="h-48 w-full" aria-busy="true" />;
-  const { totals } = state;
+  const { totals, sale } = state;
+  const status = PURCHASE_STATUSES[state.payment_status];
   return <div className="flex min-w-0 flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <Button variant="outline" onClick={onBack}><ArrowLeftIcon />All purchases</Button>
+      {back}
       <Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button>
     </div>
     {error ? <ErrorState message={error.message} onRetry={() => refresh()} /> : null}
     <QuoteSummary quote={state.quote} />
-    <WorkspaceCard icon={WalletIcon} title="Additional purchase" action={totals.fully_paid ? <Badge variant="success">Paid</Badge> : <Badge variant="outline">{state.account.reference}</Badge>}>
+    <WorkspaceCard icon={WalletIcon} title={PURCHASE_KINDS[sale.kind] ?? sale.kind} action={status ? <Badge variant={status.variant}>{status.label}</Badge> : null}>
       <SaleFields rows={[['Purchased classes', totals.purchased_classes], ['Paid classes', totals.paid_classes], ['Unpaid classes', totals.unpaid_classes],
         ['Agreed package amount', wholeAed(totals.package_amount)], ['Amount received', wholeAed(totals.paid_amount)], ['Outstanding balance', wholeAed(totals.outstanding_amount)]]} />
-      <p className="text-muted-foreground text-sm">Added by {state.sale.created_by.name} on {formatDate(state.sale.created_at)} for {state.student.full_name} · {state.student.student_code}.</p>
-      {Number(totals.classes_not_credited) > 0 ? <Notice>Payments are recorded on this purchase, but its {totals.classes_not_credited} paid classes are not added to the student’s class quota: how an additional purchase credits classes is not decided yet.</Notice> : null}
+      <p className="text-muted-foreground text-sm">{sale.kind === 'ADDITIONAL'
+        ? `Added by ${sale.created_by.name} on ${formatDate(sale.created_at)}`
+        : `Enrolled on ${formatDate(sale.enrolled_at ?? sale.created_at)}`} for {state.student.full_name} · {state.student.student_code} · {state.account.reference}.</p>
+      {Number(totals.classes_not_credited) > 0 ? <Notice>Payments collected after enrollment record money only: {totals.classes_not_credited} paid classes of this purchase are not added to the student’s class quota.</Notice> : null}
     </WorkspaceCard>
+    {state.autopay ? <AutopayBrief agreement={state.autopay} /> : null}
     {pendingPayment ? <PendingPayment payment={pendingPayment} expireUrl={purchaseExpireUrl(saleId, pendingPayment.id)} onChanged={() => refresh()} />
-      : state.can_collect ? <CollectLink key={`${totals.paid_classes}:${state.payments.length}`} state={state} onChanged={refresh} /> : null}
+      : state.can_collect ? <CollectPurchasePayment key={`${totals.paid_classes}:${state.payments.length}`} state={state} initialMethod={initialMethod} onChanged={refresh} /> : null}
     {state.payments.length ? <PaymentHistory rows={state.payments} /> : null}
   </div>;
 }
 
-/** A one-time Stripe link for some or all of what is unpaid; the API works out the amount. */
-function CollectLink({ state, onChanged }) {
+/** Some or all of what is unpaid: a one-time Stripe link, or money already received with its receipt. The API works out the amount. */
+function CollectPurchasePayment({ state, initialMethod, onChanged }) {
   const saleId = state.sale.id;
   const contact = state.account.billing_contact;
   const [classes, setClasses] = useState(state.totals.unpaid_classes);
+  const [method, setMethod] = useState(initialMethod);
   const [preview, setPreview] = useState(null);
   const [calculationError, setCalculationError] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(paymentToday());
+  const [proof, setProof] = useState(null);
+  const [reference, setReference] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const requestId = useRef(crypto.randomUUID());
+  const direct = method !== 'STRIPE';
 
   useEffect(() => {
     if (!(Number(classes) > 0)) return undefined;
     let active = true;
     const timer = setTimeout(() => {
       api.get(purchaseAmountUrl(saleId), { params: { classes } })
-        .then(({ data }) => { if (active) { setPreview(data); setCalculationError(null); } })
+        .then(({ data }) => { if (active) { setPreview(data); setAmount(data.amount); setCalculationError(null); } })
         .catch((err) => { if (active) setCalculationError(salesError(err, 'Could not calculate this payment.')); });
     }, 200);
     return () => { active = false; clearTimeout(timer); };
@@ -252,24 +200,40 @@ function CollectLink({ state, onChanged }) {
   const submit = async () => {
     setPending(true); setError(null);
     try {
-      const { data } = await api.post(purchasePaymentsUrl(saleId), { request_id: requestId.current, classes });
+      let body = { request_id: requestId.current, classes };
+      if (direct) {
+        body = new FormData();
+        for (const [key, value] of Object.entries({ request_id: requestId.current, method, classes, amount, payment_date: date,
+          received_confirmed: confirmed, transaction_reference: reference })) body.append(key, String(value));
+        body.append('proof', proof);
+      }
+      const { data } = await api.post(purchasePaymentsUrl(saleId), body);
       setConfirming(false);
       onChanged(data.state);
     } catch (err) {
       setConfirming(false);
-      setError(salesError(err, 'Could not create the payment link.').message);
+      setError(salesError(err, direct ? 'Could not record this payment.' : 'Could not create the payment link.').message);
     } finally { setPending(false); }
   };
   return <WorkspaceCard icon={WalletIcon} title={Number(state.totals.paid_classes) > 0 ? 'Collect remaining balance' : 'Collect payment'}>
-    <form onSubmit={(event) => { event.preventDefault(); setConfirming(true); }} className="flex flex-col gap-4">
-      <div className="flex max-w-sm flex-col gap-1.5"><Label htmlFor="purchase-classes">Classes covered by this payment</Label>
-        <Input id="purchase-classes" type="number" step="0.5" min="0.5" max={state.totals.unpaid_classes} value={classes} required
-          readOnly={state.purchase.collection_mode === 'FULL'} onChange={(event) => { setClasses(event.target.value); setPreview(null); setCalculationError(null); }} /></div>
+    <form onSubmit={(event) => { event.preventDefault(); if (direct) submit(); else setConfirming(true); }} className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5"><Label htmlFor="purchase-classes">Classes covered by this payment</Label>
+          <Input id="purchase-classes" type="number" step="0.5" min="0.5" max={state.totals.unpaid_classes} value={classes} required
+            readOnly={state.purchase.collection_mode === 'FULL'} onChange={(event) => { setClasses(event.target.value); setPreview(null); setCalculationError(null); }} />
+          {state.purchase.collection_mode === 'FULL' ? <p className="text-muted-foreground text-xs">Complete Payment: the whole balance is collected at once.</p> : null}</div>
+        <div className="flex flex-col gap-1.5"><Label htmlFor="purchase-method">Payment method</Label>
+          <Select value={method} onValueChange={setMethod} disabled={pending}><SelectTrigger id="purchase-method" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>{PAYMENT_METHODS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
+      </div>
       {calculationError ? <p role="alert" className="text-destructive text-sm">{calculationError.message}</p> : null}
-      <p role="status" className="text-sm">Amount payable: <strong>{preview ? wholeAed(preview.amount) : '—'}</strong></p>
-      {!state.stripe_configured ? <p className="text-muted-foreground text-sm">Stripe payments are currently unavailable.</p> : null}
+      <p role="status" className="text-sm">Amount payable: <strong>{preview ? wholeAed(preview.amount) : '—'}</strong>{preview ? ` · ${wholeAed(preview.remaining_amount)} remaining after it` : ''}</p>
+      {direct ? <DirectPaymentFields amount={amount} onAmount={setAmount} date={date} onDate={setDate} onProof={setProof}
+        reference={reference} onReference={setReference} confirmed={confirmed} onConfirmed={setConfirmed} />
+        : !state.stripe_configured ? <p className="text-muted-foreground text-sm">Stripe payments are currently unavailable. Choose a direct payment method.</p> : null}
       {error ? <p role="alert" className="text-destructive text-sm wrap-anywhere">{error}</p> : null}
-      <div><Button disabled={pending || !preview || !state.stripe_configured}>{pending ? 'Submitting…' : 'Generate Stripe payment link'}</Button></div>
+      <div><Button disabled={pending || !preview || (direct ? !confirmed || !proof : !state.stripe_configured)}>
+        {pending ? 'Submitting…' : direct ? 'Confirm received payment' : 'Generate Stripe payment link'}</Button></div>
     </form>
     <FormDialog open={confirming} onOpenChange={setConfirming} size="lg" title="Generate Stripe payment link"
       description="The parent opens the link and enters card details. Student details come from Eduport Plus and cannot be changed on Stripe; Stripe asks for the parent’s email only when Eduport Plus has none."

@@ -866,6 +866,16 @@ SCENARIOS += [
 ]
 
 
+# Student finance after enrollment: the same audience as additional purchases
+# (the student's own mentor, or an administrator), answered the same way.
+SCENARIOS += [
+    Scenario('student_finance.overview', 'get', '/api/sales/students/{stu_a}/finance/'),
+    Scenario('student_finance.foreign', 'get', '/api/sales/students/{stu_b}/finance/'),
+    Scenario('student_finance.payments', 'get', '/api/sales/students/{stu_a}/payments/'),
+    Scenario('student_finance.proof', 'get', '/api/sales/purchases/{stu_a}/payments/{stu_a}/proof/'),
+]
+
+
 # ------------------------------------------------------------------ running
 
 class _Placeholders(dict):

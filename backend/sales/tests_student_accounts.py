@@ -226,19 +226,29 @@ class StudentAccountTests(QuoteTestCase, APITestCase):
         student = Student.objects.get()
         self.assertEqual(student.total_class_quota, D(6))
         state = self.client.get(self.url()).json()
-        self.assertTrue(state['can_collect'])
+        # The BDE's enquiry no longer collects; the student's mentor does, from their Finance tab.
+        self.assertFalse(state['can_collect'])
         self.assertEqual((state['totals']['outstanding_amount'], state['account']['student']['student_code']), ('200', student.student_code))
+        mentor = user_account('balance_mentor', 'MENTOR')
+        Student.objects.update(mentor=mentor)
+        finance = APIClient()
+        finance.force_authenticate(mentor)
+        url = f'/api/sales/purchases/{first.sale_id}/payments/'
+
+        def link(classes):
+            with mock.patch('sales.stripe_gateway.client', return_value=gateway):
+                return finance.post(url, {'request_id': str(uuid.uuid4()), 'classes': classes}, format='json')
+        self.assertTrue(finance.get(f'/api/sales/purchases/{first.sale_id}/').json()['can_collect'])
         # More than the remaining balance is refused before anything reaches Stripe.
-        over = self.client.post(self.url('payments/'), {'request_id': str(uuid.uuid4()), 'method': 'STRIPE', 'purpose': 'TUITION',
-                                                       'collection_mode': 'PARTIAL', 'classes': '6'}, format='json')
+        over = link('6')
         self.assertEqual((over.status_code, over.json()['error']), (400, 'INVALID_ALLOCATION'))
-        second = self.link_for(self.lead, gateway, classes='4')
+        response = link('4')
+        self.assertEqual(response.status_code, 201, response.content)
+        second = Payment.objects.get(pk=response.json()['payment']['id'])
         self.assertEqual((second.amount, second.sale_id, second.stripe_customer_id), (D(200), first.sale_id, first.stripe_customer_id))
         self.assertEqual(calls[-1]['metadata']['edp_student_id'], student.student_code)
         # A second link while one is pending is refused (no double collection).
-        pending = self.client.post(self.url('payments/'), {'request_id': str(uuid.uuid4()), 'method': 'STRIPE', 'purpose': 'TUITION',
-                                                          'collection_mode': 'PARTIAL', 'classes': '4'}, format='json')
-        self.assertEqual(pending.json()['error'], 'PAYMENT_PENDING')
+        self.assertEqual(link('4').json()['error'], 'PAYMENT_PENDING')
         event = self.event(second)
         self.assertEqual(self.paid(second, gateway).status_code, 200)
         with mock.patch('sales.stripe_gateway.client', return_value=gateway):
@@ -251,7 +261,7 @@ class StudentAccountTests(QuoteTestCase, APITestCase):
         self.assertEqual([(row.amount, row.purchase_id) for row in received], [(D(300), first.purchase_id), (D(200), first.purchase_id)])
         self.assertNotEqual(received[0].stripe_payment_intent, received[1].stripe_payment_intent)
         self.assertEqual(len(created), 1)
-        state = self.client.get(self.url()).json()
+        state = finance.get(f'/api/sales/purchases/{first.sale_id}/').json()
         self.assertEqual((state['totals']['package_amount'], state['totals']['outstanding_amount'], state['totals']['fully_paid'],
                           state['can_collect']), ('500', '0', True, False))
         self.assertEqual(state['totals']['classes_not_credited'], '4')
