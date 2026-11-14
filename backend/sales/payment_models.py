@@ -175,7 +175,16 @@ class StripeEvent(models.Model):
     object_id = models.CharField(max_length=255, blank=True)
     outcome = models.CharField(max_length=20, default='RECEIVED')
     error = models.CharField(max_length=255, blank=True)
+    # BACKFILL: the webhook never delivered it; event_backfill found it at Stripe.
+    source = models.CharField(max_length=10, default='WEBHOOK', choices=[('WEBHOOK', 'Webhook'), ('BACKFILL', 'Backfill')])
     created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+
+class StripeEventCursor(models.Model):
+    """Per Stripe mode: every event created before ``processed_through`` is handled."""
+    mode = models.CharField(max_length=4, primary_key=True, choices=[('test', 'Test'), ('live', 'Live')])
+    processed_through = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class StripeCheckoutOperation(models.Model):

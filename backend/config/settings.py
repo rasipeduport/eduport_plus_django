@@ -193,6 +193,9 @@ STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
 STRIPE_LIVE_MODE = env.bool('STRIPE_LIVE_MODE', default=False)
 STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
+# How far the very first webhook backfill run looks back (sales.event_backfill);
+# later runs resume from their checkpoint. Capped at Stripe's 30-day event retention.
+STRIPE_EVENT_BACKFILL_INITIAL_LOOKBACK_HOURS = env.int('STRIPE_EVENT_BACKFILL_INITIAL_LOOKBACK_HOURS', default=1)
 AUTOPAY_TERMS_URL = env('AUTOPAY_TERMS_URL', default='')
 SALES_BILLING_TIMEZONE = env('SALES_BILLING_TIMEZONE', default='Asia/Dubai')
 SALES_EDP_MIN_NUMBER = env.int('SALES_EDP_MIN_NUMBER', default=0)
@@ -479,6 +482,13 @@ CELERY_BEAT_SCHEDULE = {
     'sync-stripe-student-metadata': {
         'task': 'sales.tasks.sync_stripe_student_metadata',
         'schedule': crontab(minute='*/15'),
+    },
+    # Stripe events the webhook never delivered (sales.event_backfill). A tick no
+    # worker takes before the next one expires instead of piling up.
+    'recover-missed-stripe-events': {
+        'task': 'sales.tasks.recover_missed_stripe_events',
+        'schedule': crontab(minute='3-59/10'),
+        'options': {'expires': 540},
     },
     'sync-student-quotas-from-sheet': {
         'task': 'students.tasks.sync_student_quotas',

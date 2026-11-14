@@ -579,7 +579,7 @@ class QuoteChapter(models.Model):
 
 
 # Django discovers this app's admission ledger alongside its catalogue models.
-from .payment_models import Payment, Purchase, Sale, SalesSequence, StripeCustomer, StripeEvent, StripeCheckoutOperation  # noqa: E402,F401
+from .payment_models import Payment, Purchase, Sale, SalesSequence, StripeCustomer, StripeEvent, StripeEventCursor, StripeCheckoutOperation  # noqa: E402,F401
 from .autopay_models import AutopayAgreement, AutopayAttempt, AutopayInstallment  # noqa: E402,F401
 from .account_models import Guardian, StudentAccount, StudentGuardian, StudentIdentityCorrection  # noqa: E402,F401
 from .ledger_models import Dispute, Refund, StripeReviewItem  # noqa: E402,F401
