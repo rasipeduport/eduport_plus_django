@@ -162,11 +162,15 @@ export const PAGE_PERMISSIONS = {
   '/plans': [P.viewSalesCatalogue],
   // Quotes, BDE and Admin alike: a BDE's own (My Quotes), every one for whoever manages them.
   '/quotes': [P.createSalesQuotes, P.manageSalesQuotes],
-  // The Admin Hub's Sales & Finance modules. Syllabus & Plans and Global Pricing
-  // open on their own permissions (backend sales.views); the rest are still to
-  // come -- each a Coming Soon page with nothing behind it yet, for whoever
-  // holds the staff dashboard.
-  '/sales-dashboard': [P.viewStaffDashboard],
+  // The Admin Hub's Sales & Finance modules. The Sales Dashboard reads every
+  // student's sales and payments, so it needs both permissions of the API's
+  // financial oversight (backend sales.account_views ADMIN_ONLY; see
+  // EVERY_PERMISSION_PAGES). Syllabus & Plans and Global Pricing open on their
+  // own permissions (backend sales.views); the rest are still to come -- each a
+  // Coming Soon page with nothing behind it yet, for whoever holds the staff
+  // dashboard. Sales Module and Sales Punching keep their pages but are no
+  // longer in the sidebar (lib/navigation).
+  '/sales-dashboard': [P.manageInitialSales, P.manageSalesQuotes],
   '/sales-module': [P.viewStaffDashboard],
   '/sales-punching': [P.viewStaffDashboard],
   '/sales-syllabus': [P.manageSalesSyllabi],
@@ -178,15 +182,20 @@ export const PAGE_PERMISSIONS = {
 // but owns no links or enquiries, so these pages read the role as well.
 const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
 
-// Pages for administrators only: the Admin Hub's modules still to come. A
-// mentor or tutor holds view_staff_dashboard too, so these read the role as well.
-// (Syllabus & Plans and Global Pricing need permissions only administrators hold.)
+// Pages for administrators only: the Sales Dashboard and the Admin Hub's modules
+// still to come. A mentor or tutor holds view_staff_dashboard too, and a BDE
+// manage_initial_sales, so these read the role as well. (Syllabus & Plans and
+// Global Pricing need permissions only administrators hold.)
 const ADMIN_PAGES = new Set([
   '/sales-dashboard',
   '/sales-module',
   '/sales-punching',
   '/tutor-earnings',
 ]);
+
+// Pages that need every one of their permissions, not just any one: the Sales
+// Dashboard (a BDE holds manage_initial_sales too, for their own enquiries).
+const EVERY_PERMISSION_PAGES = new Set(['/sales-dashboard']);
 
 // Pages for tutors only. A superuser holds accounts.view_assigned_bookings too
 // (D1) but is assigned no booking unless they are a tutor, so a tutor's
@@ -232,7 +241,8 @@ export function canOpenPage(user, path) {
   if (ADMIN_PAGES.has(path) && !isAdmin(user)) return false;
   if (ADMIN_AND_TUTOR_PAGES.has(path) && !isAdmin(user) && !isTutor(user)) return false;
   const permissions = PAGE_PERMISSIONS[path];
-  return Boolean(permissions) && canAny(user, permissions);
+  if (!permissions) return false;
+  return EVERY_PERMISSION_PAGES.has(path) ? permissions.every((permission) => can(user, permission)) : canAny(user, permissions);
 }
 
 /** The first page `user` may open -- where the guards send them -- or null when there is none. */

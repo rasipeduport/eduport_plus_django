@@ -1,6 +1,7 @@
 from django.urls import path
 from .autopay_views import AutopayScheduleView, BeginAutopayView, RestartInitialCheckoutView, ParentAutopayActionView
-from .account_views import BillingContactView, CancelAutopayView, IdentityCorrectionView, ResolveReviewView, StripeReviewView
+from .account_views import (BillingContactView, CancelAutopayView, IdentityCorrectionView, ResolveReviewView, SalesDashboardView,
+                            StripeReviewView)
 from .purchase_views import (PurchaseAmountView, PurchaseExpireView, PurchasePaymentsView, PurchaseProofView, PurchaseView,
                              StudentFinanceView, StudentPaymentsView, StudentPurchasesView)
 
@@ -36,6 +37,8 @@ urlpatterns = [
     path('autopay/<uuid:pk>/cancel/', CancelAutopayView.as_view(), name='cancel_autopay'),
     path('stripe-review/', StripeReviewView.as_view(), name='stripe_review'),
     path('stripe-review/<uuid:pk>/resolve/', ResolveReviewView.as_view(), name='resolve_stripe_review'),
+    # Sales and collections across every student, for administrators.
+    path('dashboard/', SalesDashboardView.as_view(), name='dashboard'),
     # After enrollment, the student's mentor (or an Admin): their finance, their payments, a
     # further (additional) Sale, and collecting any of their purchases.
     path('students/<uuid:pk>/finance/', StudentFinanceView.as_view(), name='student_finance'),

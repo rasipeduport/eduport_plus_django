@@ -454,6 +454,33 @@ class BillingTests(QuoteTestCase, APITestCase):
         self.client.force_authenticate(self.bde)
         self.assertEqual(self.client.get(url).status_code, 403)
 
+    def test_the_sales_dashboard_counts_the_agreement_what_it_collected_what_falls_due_and_what_needs_attention(self):
+        agreement, gateway, _ = self.provisioned()
+        paid, failed, voided = agreement.installments.filter(position__gt=0)
+        self.deliver(agreement, gateway, paid)
+        self.deliver(agreement, gateway, failed, 'invoice.payment_failed', 'open', intent_status='requires_payment_method',
+                     error={'code': 'card_declined', 'decline_code': 'insufficient_funds'})
+        self.deliver(agreement, gateway, voided, 'invoice.voided', 'void')
+        self.client.force_authenticate(self.admin)
+        today = timezone.localdate().isoformat()
+        response = self.client.get('/api/sales/dashboard/', {'from': today, 'to': today})
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()
+        self.assertEqual(data['autopay']['counts'], {'ACTIVE': 1, 'SETTING_UP': 0, 'COMPLETED': 0, 'CANCELLED': 0})
+        self.assertEqual(data['autopay']['collected'], {'count': 1, 'amount': '150'})
+        # The failed installment is still to be collected (Stripe retries it); the voided one never will be.
+        self.assertEqual(data['autopay']['due'], {'days': 30, 'count': 1, 'amount': '150'})
+        # Its attention state is autopay.agreement_data's: the voided invoice put the agreement under review.
+        [attention] = data['autopay']['attention']
+        agreement.refresh_from_db()
+        self.assertEqual((attention['id'], attention['attention_status'], attention['remaining_amount']),
+                         (str(agreement.pk), autopay.agreement_data(agreement)['attention_status'], '250'))
+        self.assertEqual(attention['attention_status'], 'REQUIRES_REVIEW')
+        types = {row['type']: (row['count'], row['amount']) for row in data['collections']['types']}
+        self.assertEqual((types['AUTOPAY_INITIAL'], types['AUTOPAY_INSTALLMENT']), ((1, '100'), (1, '150')))
+        self.assertEqual(data['mix']['plans'][2], {'plan': 'AUTOPAY', 'count': 1, 'value': '500'})
+        self.assertEqual(data['outstanding']['by_status'][3], {'status': 'AUTOPAY', 'count': 1, 'amount': '250'})
+
     def test_frozen_billing_origin_and_allocation_cannot_be_rewritten(self):
         agreement, _, _ = self.provisioned()
         for changes in [{'collection_engine': 'LEGACY_PI'}, {'stripe_schedule_id': 'sub_sched_other'},

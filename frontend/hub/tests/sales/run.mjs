@@ -2807,6 +2807,155 @@ test('Finance: each AutoPay agreement opens on its own, with its figures, EMI sc
   assert.equal(calls('GET', FINANCE).length, 3, 'the schedule comes with the finance overview; opening fetches nothing');
 });
 
+// ------------------------------------------------------------------ sales dashboard
+const SALES_DASHBOARD = '/api/sales/dashboard/';
+const SALES_ADMIN = {
+  id: 'admin', role: 'ADMIN',
+  permissions: ['accounts.view_staff_dashboard', 'accounts.manage_initial_sales', 'accounts.manage_sales_quotes',
+    'accounts.manage_sales_syllabi', 'accounts.manage_sales_pricing'],
+};
+const ARJUN = { id: 'stu-1', full_name: 'Arjun Menon', student_code: 'EDP00047' };
+const MAYA = { id: 'stu-2', full_name: 'Maya Nair', student_code: 'EDP00048' };
+const buckets = (values) => values.map(([from, salesValue, collected]) => ({
+  from, to: from, sales_count: salesValue === '0' ? 0 : 1, sales_value: salesValue, payments: collected === '0' ? 0 : 1, collected,
+}));
+// As backend sales.dashboard answers it.
+function salesDashboard(extra = {}) {
+  return {
+    timezone: 'Asia/Kolkata', currency: 'AED', range: { from: '2026-11-01', to: '2026-11-30' },
+    summary: { sales_count: 5, sales_value: '10362', enrollments: 4, additional_purchases: 1, payments: 6, collected: '5777', refunded: '0',
+      outstanding: '4585', outstanding_purchases: 2, leads: 79, enrolled_leads: 4, unassigned_leads: 52 },
+    trend: { unit: 'day', buckets: buckets([['2026-11-11', '2627', '2627'], ['2026-11-12', '6685', '2450'], ['2026-11-13', '1050', '700']]) },
+    mix: { kinds: [{ kind: 'INITIAL', count: 4, value: '9312' }, { kind: 'ADDITIONAL', count: 1, value: '1050' }],
+      plans: [{ plan: 'FULL', count: 1, value: '2627' }, { plan: 'PARTIAL', count: 1, value: '1435' }, { plan: 'AUTOPAY', count: 3, value: '6300' }] },
+    collections: {
+      types: [{ type: 'INITIAL', count: 2, amount: '2977' }, { type: 'TOKEN', count: 0, amount: '0' }, { type: 'AUTOPAY_INITIAL', count: 3, amount: '2450' },
+        { type: 'BALANCE', count: 0, amount: '0' }, { type: 'AUTOPAY_INSTALLMENT', count: 1, amount: '350' }, { type: 'ADDITIONAL', count: 0, amount: '0' }],
+      methods: [{ method: 'STRIPE', label: 'Stripe', count: 5, amount: '5427' }, { method: 'TRANSFER', label: 'Account Transfer', count: 1, amount: '350' },
+        { method: 'AJAS_UAE', label: 'AJAS – CEO UAE Account', count: 0, amount: '0' }],
+    },
+    funnel: [{ stage: 'LEADS', label: 'Leads', count: 79 }, { stage: 'QUOTED', label: 'Quoted', count: 6 },
+      { stage: 'SALE_STARTED', label: 'Sale started', count: 5 }, { stage: 'ENROLLED', label: 'Enrolled', count: 4 }],
+    bdes: [{ id: 'bde-1', full_name: 'Bala BDE', leads: 25, enrolled_leads: 4, enrollments: 4, sales_value: '9312', collected: '5427' },
+      { id: 'bde-2', full_name: 'Chitra BDE', leads: 2, enrolled_leads: 0, enrollments: 0, sales_value: '0', collected: '0' }],
+    outstanding: {
+      total: '4585', count: 2,
+      by_status: [{ status: 'PARTIALLY_PAID', count: 1, amount: '1085' }, { status: 'UNPAID', count: 0, amount: '0' },
+        { status: 'LINK_PENDING', count: 0, amount: '0' }, { status: 'AUTOPAY', count: 1, amount: '3500' }],
+      rows: [
+        { sale_id: 'sale-1', kind: 'NEW', student: ARJUN, reference: 'Q-000004', syllabus: 'Grade 9 CBSE', plan: 'AUTOPAY', sold_on: '2026-11-12',
+          package_amount: '4200', paid_amount: '700', outstanding_amount: '3500', payment_status: 'AUTOPAY' },
+        { sale_id: 'sale-2', kind: 'ADDITIONAL', student: MAYA, reference: 'Q-000005', syllabus: 'Grade 9 CBSE', plan: 'PARTIAL', sold_on: '2026-11-12',
+          package_amount: '1435', paid_amount: '350', outstanding_amount: '1085', payment_status: 'PARTIALLY_PAID' },
+      ],
+    },
+    autopay: {
+      counts: { ACTIVE: 3, SETTING_UP: 0, COMPLETED: 1, CANCELLED: 0 }, collected: { count: 1, amount: '350' },
+      due: { days: 30, count: 3, amount: '1225' },
+      attention: [{ id: 'agreement-1', sale_id: 'sale-1', student: ARJUN, reference: 'Q-000004', status: 'ACTIVE',
+        attention_status: 'REQUIRES_REVIEW', next_collection_at: '2026-12-12T07:11:00+00:00', remaining_amount: '3500' }],
+    },
+    pending: { links: { count: 1, amount: '350', before_enrollment: 1 }, stripe_review: 0, disputes: 0 },
+    recent_payments: [{ id: 'pay-1', sale_id: 'sale-1', student: ARJUN, student_name: ARJUN.full_name, payment_type: 'AUTOPAY_INSTALLMENT',
+      method: 'STRIPE', method_label: 'Stripe · Autopay', amount: '350', payment_date: '2026-11-14', verified_at: '2026-11-14T09:47:40+00:00' }],
+    ...extra,
+  };
+}
+const indianDay = (offset = 0) => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const pressed = (label) => [...document.querySelectorAll('button[aria-pressed]')].find((element) => clean(element.textContent) === label);
+// jsdom lays nothing out, so the trend chart warns that it has no size: quiet while a dashboard is open.
+const chartTest = (name, fn) => test(name, async () => {
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await fn();
+  } finally {
+    while (mounted.length) await mounted.pop().unmount();
+    console.warn = warn;
+  }
+});
+
+test('Sales & Finance: Sales Dashboard, Syllabus & Plans, Quotes and Tutor Earnings (still Coming Soon); Sales Module and Sales Punching keep their pages but leave the sidebar', () => {
+  const section = harness.workspaceFor(SALES_ADMIN).sections.find((part) => part.label === 'Sales & Finance');
+  assert.deepEqual(section.items.map((item) => [item.title, item.url, item.badge ?? null]), [
+    ['Sales Dashboard', '/sales-dashboard', null],
+    ['Syllabus & Plans', '/sales-syllabus', null],
+    ['Quotes', '/quotes', null],
+    ['Tutor Earnings', '/tutor-earnings', 'Coming Soon'],
+  ]);
+  for (const path of ['/sales-module', '/sales-punching', '/tutor-earnings']) assert.equal(canOpenPage(SALES_ADMIN, path), true, `${path} keeps its page`);
+});
+
+test('Access: the Sales Dashboard opens for an administrator holding both financial-oversight permissions, and for no one else', () => {
+  const without = (permission) => ({ ...SALES_ADMIN, permissions: SALES_ADMIN.permissions.filter((held) => held !== permission) });
+  assert.equal(canOpenPage(SALES_ADMIN, '/sales-dashboard'), true);
+  assert.equal(canOpenPage(without('accounts.manage_initial_sales'), '/sales-dashboard'), false);
+  assert.equal(canOpenPage(without('accounts.manage_sales_quotes'), '/sales-dashboard'), false);
+  // A BDE holds manage_initial_sales for their own enquiries; a mentor neither.
+  assert.equal(canOpenPage({ ...SALES_ADMIN, role: 'BDE' }, '/sales-dashboard'), false);
+  assert.equal(canOpenPage(MENTOR, '/sales-dashboard'), false);
+  const titles = harness.workspaceFor(without('accounts.manage_sales_quotes')).sections.flatMap((part) => part.items.map((item) => item.title));
+  assert.equal(titles.includes('Sales Dashboard'), false);
+});
+
+chartTest('Sales Dashboard: this month by default; every figure as the API sends it, each balance opening its student’s Finance tab', async () => {
+  serve({ [`GET ${SALES_DASHBOARD}`]: salesDashboard() });
+  await open('/sales-dashboard', SALES_ADMIN);
+  const [first] = calls('GET', SALES_DASHBOARD);
+  const today = indianDay();
+  assert.equal(first.params.from, `${today.slice(0, 8)}01`);
+  assert.equal(first.params.to.slice(0, 7), today.slice(0, 7));
+  assert.equal(pressed('This Month').getAttribute('aria-pressed'), 'true');
+  const text = bodyText();
+  for (const expected of [/Sales ValueAED 10,362/, /CollectedAED 5,777/, /New Enrollments4/, /Outstanding BalanceAED 4,585/,
+    /Lead Conversion5%4 of 79 leads enrolled/, /New enrollments4 salesAED 9,31290%/, /AutoPay3 salesAED 6,30061%/,
+    /Enrolled.*Paid and enrolled45%/, /AutoPay installment1 paymentAED 350/, /52 leads from these dates have no BDE yet/,
+    /Payment links awaiting the parentAED 350 · 1 before enrollment1/]) {
+    assert.match(text, expected);
+  }
+  // Zero rows of a breakdown are left out; zero stages of the funnel are not.
+  assert.equal(text.includes('Balance payment'), false);
+  const bdeRow = rows().find((row) => clean(row.textContent).startsWith('Bala BDE'));
+  assert.equal(clean(bdeRow.textContent), 'Bala BDE2516% · 4/254AED 9,312AED 5,427');
+  const balance = rows().find((row) => clean(row.textContent).startsWith('Arjun Menon'));
+  assert.match(clean(balance.textContent), /Q-000004 · Initial enrollment · AutoPay.*AED 700 of AED 4,200AED 3,500On AutoPay/);
+  assert.equal(balance.querySelector('a').getAttribute('href'), '/students/stu-1?tab=finance');
+  assert.equal(link('Assign them').getAttribute('href'), '/leads?owner=unassigned');
+  assert.match(text, /Needs attention.*Arjun Menon.*Q-000004 · AED 3,500 remaining.*Needs review/);
+});
+
+chartTest('Sales Dashboard: another span asks for its own dates; empty dates, a refusal and a failure each say so', async () => {
+  serve({ [`GET ${SALES_DASHBOARD}`]: salesDashboard() });
+  const page = await open('/sales-dashboard', SALES_ADMIN);
+  await click(pressed('7 Days'));
+  const latest = calls('GET', SALES_DASHBOARD).at(-1);
+  assert.deepEqual(latest.params, { from: indianDay(-6), to: indianDay() });
+  assert.equal(page.location().search, '?range=7d');
+  await mounted.pop().unmount();
+
+  const none = salesDashboard({
+    summary: { ...salesDashboard().summary, sales_count: 0, sales_value: '0', payments: 0, collected: '0', leads: 0, enrolled_leads: 0, unassigned_leads: 0 },
+    funnel: [{ stage: 'LEADS', label: 'Leads', count: 0 }],
+    trend: { unit: 'day', buckets: buckets([['2026-11-11', '0', '0']]) },
+  });
+  serve({ [`GET ${SALES_DASHBOARD}`]: none });
+  await open('/sales-dashboard', SALES_ADMIN);
+  for (const expected of ['Nothing sold on these dates', 'No leads came in on these dates', 'Nothing received on these dates', 'Nothing sold or received on these dates']) {
+    assert.ok(bodyText().includes(expected), expected);
+  }
+  assert.match(bodyText(), /Lead Conversion0%0 of 0 leads enrolled/);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${SALES_DASHBOARD}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open('/sales-dashboard', SALES_ADMIN);
+  assert.match(bodyText(), /You don't have access to the sales dashboard\./);
+  await mounted.pop().unmount();
+
+  serve({ [`GET ${SALES_DASHBOARD}`]: () => fail(500, {}) });
+  await open('/sales-dashboard', SALES_ADMIN);
+  assert.match(bodyText(), /Could not load the sales dashboard\./);
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

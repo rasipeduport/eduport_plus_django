@@ -848,6 +848,13 @@ SCENARIOS += [
 ]
 
 
+# The Sales Dashboard: sales and collections across every student, for
+# administrators only (the same financial oversight as the review queue).
+SCENARIOS += [
+    Scenario('sales_dashboard.read', 'get', '/api/sales/dashboard/?from=2026-11-01&to=2026-11-07'),
+]
+
+
 # Additional purchases: the student's own mentor (or an administrator). The
 # matrix world's students have no student account and no additional sale, so
 # whoever gets past the permission and the mentor check is answered

@@ -1,13 +1,15 @@
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from bookings import admissions
 from core.permissions import HasAppPermission
-from . import payments, review, student_accounts
+from . import dashboard, payments, review, student_accounts
 from .account_models import GuardianRelationship
 from .services import SalesError
-from .views import _invalid, _refused
+from .views import _error, _invalid, _refused
 
 ADMIN_ONLY = [IsAuthenticated, HasAppPermission(payments.MANAGE), HasAppPermission(student_accounts.OVERSIGHT)]
 
@@ -107,3 +109,22 @@ class ResolveReviewView(APIView):
             return Response(review.item_data(review.resolve(request.user, pk, serializer.validated_data, request)))
         except SalesError as exc:
             return _refused(exc)
+
+
+class SalesDashboardView(APIView):
+    """
+    GET /api/sales/dashboard/?from=&to=
+    Sales and collections at a glance, for administrators (sales.dashboard):
+    over the Indian dates ``from`` to ``to`` (both or neither: the last seven
+    days, as the Admissions Dashboard reads them), what was sold and received,
+    the leads' conversion and each BDE's share; then the outstanding balances,
+    Autopay and what awaits action. Bad dates answer 400 INVALID_INPUT naming them.
+    """
+    permission_classes = ADMIN_ONLY
+
+    def get(self, request):
+        now = timezone.now()
+        (date_from, date_to), invalid = admissions.span(request.query_params, now)
+        if invalid:
+            return _error('INVALID_INPUT', f'Check the dates: YYYY-MM-DD, at most {admissions.MAX_DAYS} days.', 400, fields=invalid)
+        return Response(dashboard.dashboard(now, date_from, date_to))

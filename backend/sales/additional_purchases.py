@@ -44,6 +44,17 @@ def student_and_account(actor, student_id, request=None):
     return student, account
 
 
+def payment_status(fully_paid, on_autopay, link_pending, paid_amount):
+    """Where a purchase's payment stands: paid, on Autopay, awaiting an open link, partly paid or unpaid."""
+    if fully_paid:
+        return 'PAID'
+    if on_autopay:
+        return 'AUTOPAY'
+    if link_pending:
+        return 'LINK_PENDING'
+    return 'PARTIALLY_PAID' if paid_amount > 0 else 'UNPAID'
+
+
 def sale_summary(sale):
     """One sale of the student's account as the Finance tab lists it: plan, amounts, balance and how it is collected."""
     purchase = Purchase.objects.select_related('quote__revision').filter(sale=sale, is_initial=True).first()
@@ -53,14 +64,7 @@ def sale_summary(sale):
     outstanding = purchase.classes - paid['classes'] if purchase else None
     fully_paid = amount is not None and paid['amount'] >= amount
     link_pending = sale.payments.filter(status=PaymentStatus.PENDING).exists()
-    if fully_paid:
-        status = 'PAID'
-    elif agreement is not None:
-        status = 'AUTOPAY'
-    elif link_pending:
-        status = 'LINK_PENDING'
-    else:
-        status = 'PARTIALLY_PAID' if paid['amount'] > 0 else 'UNPAID'
+    status = payment_status(fully_paid, agreement is not None, link_pending, paid['amount'])
     return {
         'id': str(sale.pk), 'kind': sale.kind, 'created_at': sale.created_at.isoformat(),
         'enrolled_at': sale.enrolled_at.isoformat() if sale.enrolled_at else None,
