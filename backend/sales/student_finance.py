@@ -87,16 +87,37 @@ def history_rows(rows):
     return data
 
 
+def schedule_row(row, installment):
+    """One payment of an agreement's frozen schedule (autopay.agreement_data): the first payment, then each EMI."""
+    payment = installment.payment
+    failed = [attempt for attempt in row['attempts'] if attempt['error_code']]
+    return {
+        'id': row['id'], 'position': row['position'], 'classes': row['classes'], 'amount': row['amount'],
+        'due_at': row['due_at'], 'paid_at': row['paid_at'], 'status': row['status'],
+        'method_label': ('Stripe · Autopay' if row['position'] else payment.get_method_display()) if payment else None,
+        'reference': row['stripe_invoice_number'] or (payment.stripe_payment_intent if payment else None) or None,
+        'failure_code': failed[-1]['error_code'] if failed else None,
+        'failure_message': (payment.failure_message or None) if payment else None,
+        # A paid invoice is the instalment's receipt. An unpaid one is the parent's
+        # payment page, which stays with administrators on the enquiry (payments.sale_data).
+        'invoice_url': (installment.stripe_invoice_url or None) if row['status'] == 'PAID' else None,
+    }
+
+
 def autopay_brief(agreement):
-    """An Autopay agreement at a glance; managing it is the AutoPay tab's."""
+    """An Autopay agreement and its schedule, to read; managing it is not the Finance tab's."""
     data = autopay.agreement_data(agreement)
     rows = data['installments']
-    return {'id': data['id'], 'sale_id': str(agreement.purchase.sale_id), 'reference': agreement.purchase.quote.reference,
+    installments = {str(row.pk): row for row in agreement.installments.select_related('payment')}
+    return {'id': data['id'], 'sale_id': str(agreement.purchase.sale_id), 'purchase_kind': agreement.purchase.sale.kind,
+            'reference': agreement.purchase.quote.reference,
             'status': data['status'], 'attention_status': data['attention_status'], 'billing_timezone': data['billing_timezone'],
             'next_collection_at': data['next_collection_at'], 'package_amount': data['package_amount'],
+            'paid_amount': plain(Decimal(data['package_amount']) - Decimal(data['remaining_amount'])),
             'remaining_amount': data['remaining_amount'], 'installments_total': len(rows),
             'installments_paid': sum(1 for row in rows if row['status'] == 'PAID'),
-            'card_brand': data['card_brand'], 'card_last4': data['card_last4'], 'cancelled_at': data['cancelled_at']}
+            'card_brand': data['card_brand'], 'card_last4': data['card_last4'], 'cancelled_at': data['cancelled_at'],
+            'schedule': [schedule_row(row, installments[row['id']]) for row in rows]}
 
 
 def finance(actor, student_id, request=None):
@@ -112,7 +133,7 @@ def finance(actor, student_id, request=None):
     received = list(Payment.objects.filter(sale__account=account, status=PaymentStatus.SUCCEEDED).select_related('sale'))
     refunded = Refund.objects.filter(payment__sale__account=account, status__in=COUNTED_REFUNDS).aggregate(n=Sum('amount'))['n'] or ZERO
     agreements = AutopayAgreement.objects.filter(purchase__sale__account=account).select_related(
-        'purchase__quote', 'created_by').order_by('created_at')
+        'purchase__quote', 'purchase__sale', 'created_by').order_by('created_at')
     found = blockers(account)
     return {
         'student': {'id': str(student.pk), 'student_code': student.student_code, 'full_name': student.full_name},
@@ -155,7 +176,7 @@ def state(actor, sale_id, request=None):
     paid = payments.received(sale)
     summary = sale_summary(sale)
     rows = list(sale.payments.select_related('recorded_by', 'sale').order_by('created_at', 'pk'))
-    agreement = AutopayAgreement.objects.select_related('purchase__quote', 'created_by').filter(purchase=purchase).first()
+    agreement = AutopayAgreement.objects.select_related('purchase__quote', 'purchase__sale', 'created_by').filter(purchase=purchase).first()
     return {
         'sale': {'id': str(sale.pk), 'kind': sale.kind, 'created_at': sale.created_at.isoformat(),
                  'enrolled_at': sale.enrolled_at.isoformat() if sale.enrolled_at else None,

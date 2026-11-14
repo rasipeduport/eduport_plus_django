@@ -21,7 +21,7 @@ import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { FormDialog } from '@/components/form-dialog';
 import { WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
-import { AutopayBrief } from '@/components/sales/autopay-summary';
+import { AutopayAgreement } from '@/components/sales/autopay-summary';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import { AddPurchase, PurchaseDetail } from '@/components/sales/additional-purchases';
 
@@ -241,10 +241,12 @@ function FinancePaymentHistory({ studentId, purchases, reloadKey }) {
   </WorkspaceCard>;
 }
 
+/** Every AutoPay agreement on the student's account, each opened on its own; a purchase's schedule is never merged with another's. */
 function AutopayAgreements({ agreements }) {
-  return <WorkspaceCard icon={RepeatIcon} title="AutoPay agreements">
+  return <WorkspaceCard icon={RepeatIcon} title="AutoPay agreements"
+    action={<Badge variant="secondary">{agreements.length} {agreements.length === 1 ? 'agreement' : 'agreements'}</Badge>}>
     {agreements.length
-      ? <div className="flex flex-col gap-2">{agreements.map((agreement) => <AutopayBrief key={agreement.id} agreement={agreement} />)}</div>
+      ? <ul aria-label="AutoPay agreements" className="flex flex-col gap-2">{agreements.map((agreement) => <AutopayAgreement key={agreement.id} agreement={agreement} />)}</ul>
       : <div className="bg-success/5 border-success/30 flex items-center gap-3 rounded-lg border p-4 text-sm">
         <CircleCheckIcon className="text-success size-6 shrink-0" aria-hidden="true" />
         <span><strong className="text-success block">No AutoPay agreements</strong>None of this student’s purchases is collected by AutoPay.</span>

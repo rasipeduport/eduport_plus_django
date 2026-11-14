@@ -2701,6 +2701,94 @@ test('Finance: a direct payment is recorded on the chosen purchase with its rece
   assert.match(bodyText(), /Payment history.*AED 200/);
 });
 
+const FINANCE_ADMIN = { id: 'admin', role: 'ADMIN', permissions: ['accounts.view_all_students', 'accounts.manage_initial_sales', 'accounts.create_additional_purchases'] };
+const scheduled = (position, extra = {}) => ({ id: `row-${position}`, position, classes: '2', amount: '100', due_at: null, paid_at: null, status: 'SCHEDULED',
+  method_label: null, reference: null, failure_code: null, failure_message: null, invoice_url: null, ...extra });
+const firstPaid = (extra = {}) => scheduled(0, { status: 'PAID', paid_at: '2026-11-01T06:00:00+00:00', method_label: 'Stripe', reference: 'pi_first', ...extra });
+const emi = (position, due, extra = {}) => scheduled(position, { due_at: due, method_label: extra.status ? 'Stripe · Autopay' : null, ...extra });
+const agreementOf = (id, extra = {}) => ({ id, sale_id: 'initial-sale', purchase_kind: 'NEW', reference: 'Q-000007', status: 'ACTIVE', attention_status: null,
+  billing_timezone: 'Asia/Dubai', next_collection_at: '2026-12-10T05:00:00+00:00', package_amount: '500', paid_amount: '250', remaining_amount: '250',
+  installments_total: 4, installments_paid: 2, card_brand: 'visa', card_last4: '4242', cancelled_at: null, ...extra });
+const autopayAgreements = () => [
+  agreementOf('aaaaaaaa-1111-4111-8111-111111111111', { attention_status: 'FAILED', schedule: [firstPaid(),
+    emi(1, '2026-11-10T05:00:00+00:00', { classes: '3', amount: '150', status: 'PAID', paid_at: '2026-11-10T05:02:00+00:00', reference: 'EDP-1',
+      invoice_url: 'https://invoice.stripe.com/i/paid-1' }),
+    emi(2, '2026-12-10T05:00:00+00:00', { classes: '3', amount: '150', status: 'FAILED', reference: 'EDP-2', failure_code: 'insufficient_funds' }),
+    emi(3, '2027-01-10T05:00:00+00:00')] }),
+  agreementOf('bbbbbbbb-2222-4222-8222-222222222222', { sale_id: 'additional-sale', purchase_kind: 'ADDITIONAL', reference: 'Q-000020', status: 'COMPLETED',
+    next_collection_at: null, package_amount: '300', paid_amount: '300', remaining_amount: '0', installments_total: 2, installments_paid: 2,
+    schedule: [firstPaid({ reference: 'pi_second' }), emi(1, '2026-11-12T05:00:00+00:00', { amount: '200', status: 'PAID', paid_at: '2026-11-12T05:01:00+00:00',
+      reference: 'EDP-7', invoice_url: 'https://invoice.stripe.com/i/paid-2' })] }),
+  agreementOf('cccccccc-3333-4333-8333-333333333333', { reference: 'Q-000031', status: 'CANCELLED', cancelled_at: '2026-11-05T06:00:00+00:00',
+    attention_status: 'REQUIRES_CUSTOMER_ACTION', paid_amount: '100', remaining_amount: '400', installments_paid: 1, schedule: [firstPaid(),
+      emi(1, '2026-11-04T05:00:00+00:00', { status: 'REQUIRES_CUSTOMER_ACTION', reference: 'EDP-3', failure_code: 'authentication_required' }),
+      emi(2, '2026-12-04T05:00:00+00:00', { status: 'VOID', reference: 'EDP-4' }), emi(3, '2027-01-04T05:00:00+00:00', { status: 'CANCELLED', method_label: null })] }),
+  agreementOf('dddddddd-4444-4444-8444-444444444444', { reference: 'Q-000040', paid_amount: '100', remaining_amount: '400', installments_paid: 1,
+    schedule: [firstPaid(), emi(1, '2026-12-10T05:00:00+00:00'), emi(2, '2027-01-10T05:00:00+00:00'), emi(3, '2027-02-10T05:00:00+00:00')] }),
+];
+const agreementToggles = () => [...document.querySelectorAll('ul[aria-label="AutoPay agreements"] button[aria-expanded]')];
+const agreementPanels = () => [...document.querySelectorAll('[role="region"][aria-labelledby]')];
+const panelRows = (panel) => [...panel.querySelectorAll('tbody tr')].map((row) => clean(row.textContent));
+
+test('Finance: each AutoPay agreement opens on its own, with its figures, EMI schedule, failure reasons and paid invoices', async () => {
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(), [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([]),
+    [`GET ${FINANCE}`]: financeOverview() });
+  await open(financePath, BUYING_MENTOR);
+  assert.match(bodyText(), /AutoPay agreements0 agreementsNo AutoPay agreements/);
+  await mounted.pop().unmount();
+
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(), [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([]),
+    [`GET ${FINANCE}`]: financeOverview({ autopay: autopayAgreements() }) });
+  await open(financePath, BUYING_MENTOR);
+  // Collapsed: which agreement, for which purchase, and its state -- nothing more.
+  assert.match(bodyText(), /AutoPay agreements4 agreements.*Agreement aaaaaaaaInitial enrollmentQ-000007Failed.*Agreement bbbbbbbbAdditional purchaseQ-000020Completed.*Agreement ccccccccInitial enrollmentQ-000031Cancelled.*Agreement ddddddddInitial enrollmentQ-000040Active/);
+  assert.deepEqual(agreementToggles().map((toggle) => toggle.getAttribute('aria-expanded')), ['false', 'false', 'false', 'false']);
+  assert.equal(agreementPanels().length, 0);
+  assert.equal(bodyText().includes('EMI schedule'), false);
+
+  await click(agreementToggles()[0]);
+  const [failing] = agreementPanels();
+  assert.equal(agreementToggles()[0].getAttribute('aria-controls'), failing.id);
+  assert.match(clean(failing.textContent), /Total agreement amountAED 500Installment amountAED 100 – AED 150First payment AED 100Total installments4First payment \+ 3 EMIsPaid installments2Remaining installments2Next collectionDec 10, 2026, 9:00 AM GMT\+4Remaining amountAED 250CardVisa ···· 4242/);
+  assert.match(clean(failing.textContent), /Payment progressAED 250 of AED 500 paid · 50%/);
+  assert.equal(failing.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'), '50');
+  assert.deepEqual(panelRows(failing), [
+    '1First payment2 classesAED 100At checkoutPaid Nov 1, 2026PaidStripepi_first—',
+    '2EMI 13 classesAED 150Nov 10, 2026Paid Nov 10, 2026PaidStripe · AutopayEDP-1',
+    '3EMI 23 classesAED 150Dec 10, 2026FailedInsufficient fundsStripe · AutopayEDP-2—',
+    '4EMI 32 classesAED 100Jan 10, 2027Pending——',
+  ]);
+  const invoices = [...failing.querySelectorAll('a')];
+  assert.deepEqual(invoices.map((a) => [a.getAttribute('href'), a.target, a.rel, a.getAttribute('aria-label')]),
+    [['https://invoice.stripe.com/i/paid-1', '_blank', 'noopener noreferrer', 'Open invoice EDP-1 in a new tab']], 'only a paid installment has a receipt');
+  assert.deepEqual(agreementToggles().map((toggle) => toggle.getAttribute('aria-expanded')), ['true', 'false', 'false', 'false']);
+
+  // Opening another leaves the first as it was; closing the first leaves the other open.
+  await click(agreementToggles()[2]);
+  assert.equal(agreementPanels().length, 2);
+  const cancelled = agreementPanels()[1];
+  assert.match(clean(cancelled.textContent), /Remaining installments21 cancelledNext collectionCancelled Nov 5, 2026/);
+  assert.deepEqual(panelRows(cancelled).slice(1), [
+    '2EMI 12 classesAED 100Nov 4, 2026Action requiredAuthentication requiredStripe · AutopayEDP-3—',
+    '3EMI 22 classesAED 100Dec 4, 2026FailedInvoice voided in StripeStripe · AutopayEDP-4—',
+    '4EMI 32 classesAED 100Jan 4, 2027Cancelled——',
+  ]);
+  assert.match(clean(agreementPanels()[0].textContent), /Insufficient funds/);
+  assert.equal(clean(agreementPanels()[0].textContent).includes('Invoice voided'), false);
+  await click(agreementToggles()[0]);
+  assert.deepEqual(agreementPanels().map((panel) => panel.id), [cancelled.id]);
+  assert.deepEqual(agreementToggles().map((toggle) => toggle.getAttribute('aria-expanded')), ['false', 'false', 'true', 'false']);
+  await mounted.pop().unmount();
+
+  // An administrator reads the same agreements; a completed one is fully paid with its invoice.
+  await open(financePath, FINANCE_ADMIN);
+  await click(agreementToggles()[1]);
+  const [completed] = agreementPanels();
+  assert.match(clean(completed.textContent), /Next collectionNone, fully paid.*AED 300 of AED 300 paid · 100%/);
+  assert.equal(completed.querySelector('a').getAttribute('href'), 'https://invoice.stripe.com/i/paid-2');
+  assert.equal(calls('GET', FINANCE).length, 3, 'the schedule comes with the finance overview; opening fetches nothing');
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

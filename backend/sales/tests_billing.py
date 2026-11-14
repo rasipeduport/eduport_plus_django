@@ -22,6 +22,7 @@ from .autopay_models import AutopayAgreement, AutopayAttempt
 from .ledger_models import StripeReviewItem
 from .payment_models import Payment, StripeEvent
 from .services import SalesError
+from .tests_lifecycle import account
 from .tests_quotes import QuoteTestCase
 
 
@@ -244,11 +245,11 @@ class BillingTests(QuoteTestCase, APITestCase):
             'lines': {'has_more': False, 'data': [{'amount': amount, 'quantity': 1,
                 'period': {'start': int(row.due_at.timestamp())}, 'parent': {'subscription_item_details': {'proration': False}}}]}}
 
-    def deliver(self, agreement, gateway, row, kind='invoice.paid', status='paid', amount=None, intent_status='succeeded'):
+    def deliver(self, agreement, gateway, row, kind='invoice.paid', status='paid', amount=None, intent_status='succeeded', error=None):
         invoice = self.invoice(agreement, row, status, amount)
         intent = {'id': f'pi_invoice_{row.position}', 'customer': agreement.stripe_customer_id, 'livemode': False,
             'currency': 'aed', 'amount_received': int(row.amount) * 100, 'status': intent_status,
-            'latest_charge': f'ch_invoice_{row.position}', 'last_payment_error': None}
+            'latest_charge': f'ch_invoice_{row.position}', 'last_payment_error': error}
         if intent_status == 'requires_action':
             intent['last_payment_error'] = {'code': 'authentication_required'}
         gateway.v1.invoices.retrieve.return_value = invoice
@@ -409,6 +410,49 @@ class BillingTests(QuoteTestCase, APITestCase):
         response = self.client.get(f'/api/sales/students/{agreement.purchase.sale.student_id}/initial-sale/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['autopay']['stripe_subscription_id'], 'sub_native')
+
+    def test_finance_lists_the_agreement_with_its_schedule_failures_and_paid_invoices(self):
+        agreement, gateway, _ = self.provisioned()
+        paid, failed, voided = agreement.installments.filter(position__gt=0)
+        self.deliver(agreement, gateway, paid)
+        self.deliver(agreement, gateway, failed, 'invoice.payment_failed', 'open', intent_status='requires_payment_method',
+                     error={'code': 'card_declined', 'decline_code': 'insufficient_funds'})
+        self.deliver(agreement, gateway, voided, 'invoice.voided', 'void')
+        mentor, other = account('autopay_mentor', 'MENTOR'), account('autopay_other_mentor', 'MENTOR')
+        Student.objects.update(mentor=mentor)
+        student = Student.objects.get()
+        url = f'/api/sales/students/{student.pk}/finance/'
+        seen = []
+        for user in (self.admin, mentor):
+            self.client.force_authenticate(user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, response.content)
+            seen.append(response.json()['autopay'])
+        self.assertEqual(seen[0], seen[1], 'the assigned mentor reads what an administrator reads')
+        [brief] = seen[0]
+        self.assertEqual({key: brief[key] for key in ('id', 'purchase_kind', 'status', 'package_amount', 'paid_amount',
+                          'remaining_amount', 'installments_total', 'installments_paid')},
+                         {'id': str(agreement.pk), 'purchase_kind': 'NEW', 'status': 'ACTIVE', 'package_amount': '500',
+                          'paid_amount': '250', 'remaining_amount': '250', 'installments_total': 4, 'installments_paid': 2})
+        initial = agreement.installments.get(position=0).payment
+        self.assertEqual([{key: row[key] for key in ('position', 'amount', 'status', 'method_label', 'reference', 'failure_code', 'invoice_url')}
+                          for row in brief['schedule']], [
+            {'position': 0, 'amount': '100', 'status': 'PAID', 'method_label': 'Stripe', 'reference': initial.stripe_payment_intent,
+             'failure_code': None, 'invoice_url': None},
+            # Only a paid invoice is shown: it is the receipt. An unpaid one is the parent's payment page.
+            {'position': 1, 'amount': '150', 'status': 'PAID', 'method_label': 'Stripe · Autopay', 'reference': 'EDP-1',
+             'failure_code': None, 'invoice_url': 'https://invoice.stripe.com/i/native'},
+            {'position': 2, 'amount': '150', 'status': 'FAILED', 'method_label': 'Stripe · Autopay', 'reference': 'EDP-2',
+             'failure_code': 'insufficient_funds', 'invoice_url': None},
+            {'position': 3, 'amount': '100', 'status': 'VOID', 'method_label': 'Stripe · Autopay', 'reference': 'EDP-3',
+             'failure_code': None, 'invoice_url': None},
+        ])
+        # Reading it changes nothing; another mentor's student stays out of reach.
+        self.assertEqual((Payment.objects.filter(status='SUCCEEDED').count(), student.total_class_quota), (2, 5))
+        self.client.force_authenticate(other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_authenticate(self.bde)
+        self.assertEqual(self.client.get(url).status_code, 403)
 
     def test_frozen_billing_origin_and_allocation_cannot_be_rewritten(self):
         agreement, _, _ = self.provisioned()
