@@ -821,6 +821,22 @@ test('Global Pricing: the single-payment privilege is switched on or off; packag
   });
 });
 
+test('Global Pricing has no sidebar item: it opens from Syllabus & Plans, which stays current there, and Back returns to it', async () => {
+  serve({ [`GET ${SYLLABI}`]: list([ROW]), [`GET ${PRICING_URL}`]: PRICING_ANSWER });
+  const current = () => [...document.querySelectorAll('[data-sidebar="menu"] a[data-active="true"]')].map((a) => a.getAttribute('href'));
+  const page = await open('/sales-syllabus', ADMIN, { layout: true });
+  assert.equal(document.querySelector('[data-sidebar="menu"] a[href="/sales-pricing"]'), null);
+  assert.deepEqual(current(), ['/sales-syllabus']);
+  await click(link('Global pricing'));
+  assert.equal(page.location().pathname, '/sales-pricing');
+  assert.match(bodyText(), /In effect: version 1/);
+  assert.ok(button('Change pricing'));
+  assert.deepEqual(current(), ['/sales-syllabus'], 'Syllabus & Plans stays current on Global Pricing');
+  await click(link('Back to Syllabus & Plans'));
+  assert.equal(page.location().pathname, '/sales-syllabus');
+  assert.deepEqual(current(), ['/sales-syllabus']);
+});
+
 test('With no single-payment price on any package, the syllabus page and the editor say the PDF has no privilege box', async () => {
   const NO_BOX = /The pricing in effect gives these packages no single-payment privilege, so the PDF shows no Single-Payment Privilege box\./;
   serve({ [`GET ${at()}`]: detailOf({ published: revision(1) }) });
@@ -2074,8 +2090,10 @@ test('Access: Quotes open for whoever issues or manages quotes, whatever the rol
   const bde = titles(QUOTER);
   assert.deepEqual(bde.slice(bde.indexOf('Plans & Pricing'), bde.indexOf('Plans & Pricing') + 2), ['Plans & Pricing', 'My Quotes']);
   assert.equal(titles(BDE).includes('My Quotes'), false);
-  const admin = titles({ ...QUOTE_ADMIN, permissions: [...QUOTE_ADMIN.permissions, 'accounts.manage_sales_pricing'] });
-  assert.deepEqual(admin.slice(admin.indexOf('Global Pricing'), admin.indexOf('Global Pricing') + 2), ['Global Pricing', 'Quotes']);
+  // Global Pricing has no item of its own: it opens from Syllabus & Plans.
+  const admin = titles({ ...QUOTE_ADMIN, permissions: [...QUOTE_ADMIN.permissions, 'accounts.manage_sales_pricing', 'accounts.manage_sales_syllabi'] });
+  assert.deepEqual(admin.slice(admin.indexOf('Syllabus & Plans'), admin.indexOf('Syllabus & Plans') + 2), ['Syllabus & Plans', 'Quotes']);
+  assert.equal(admin.includes('Global Pricing'), false);
   assert.equal(titles(ADMIN).includes('Quotes'), false);
 });
 

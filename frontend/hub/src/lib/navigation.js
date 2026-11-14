@@ -31,7 +31,9 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 // under the logo and lists its sections: an optional `label`, and items of
 // `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon") and
 // `nested` (the item stays highlighted on the pages under its address, such as
-// one enquiry under My Enquiries). An item may instead hold `children` (items
+// one enquiry under My Enquiries) and `alsoOn` (other pages it stays
+// highlighted on, such as Global Pricing, opened from Syllabus & Plans and
+// with no item of its own). An item may instead hold `children` (items
 // of `title` and `url`), shown as a submenu that opens and closes under it,
 // such as Bookings' Demo and Diagnostic. A `collapsible` workspace lets each
 // labelled section fold away under its heading. The sidebar shows exactly the
@@ -133,8 +135,7 @@ const ADMIN_WORKSPACE = {
         { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn, badge: COMING_SOON },
         { title: 'Sales Module', url: '/sales-module', icon: Briefcase, badge: COMING_SOON },
         { title: 'Sales Punching', url: '/sales-punching', icon: ClipboardPen, badge: COMING_SOON },
-        { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true },
-        { title: 'Global Pricing', url: '/sales-pricing', icon: BadgePercent },
+        { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true, alsoOn: ['/sales-pricing'] },
         { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
         { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },
       ],
@@ -235,14 +236,16 @@ export function workspaceFor(user) {
 
 /**
  * Whether `item` is the page at `pathname` -- or, for a `nested` item, a page
- * under it; for an item with children, whether one of them is. A page opened
- * from another page (`fromPath`, the way back a link passed: an enquiry opened
- * from Demo Bookings, say, or a tutor's report opened from its booking) keeps
- * the item of that page current.
+ * under it, or one of its `alsoOn` pages; for an item with children, whether
+ * one of them is. A page opened from another page (`fromPath`, the way back a
+ * link passed: an enquiry opened from Demo Bookings, say, or a tutor's report
+ * opened from its booking) keeps the item of that page current.
  */
 export function isCurrentItem(item, pathname, fromPath = null) {
   if (item.children) return item.children.some((child) => isCurrentItem(child, pathname, fromPath));
   const origin = fromPath ? fromPath.split('?')[0] : null;
   const here = origin && origin !== pathname ? origin : pathname;
-  return here === item.url || (Boolean(item.nested) && here.startsWith(`${item.url}/`));
+  return (
+    here === item.url || Boolean(item.alsoOn?.includes(here)) || (Boolean(item.nested) && here.startsWith(`${item.url}/`))
+  );
 }
