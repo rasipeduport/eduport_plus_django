@@ -136,13 +136,14 @@ AUTOPAY_EVENT_PREFIXES = ('checkout.session.', 'payment_intent.')
 
 
 @transaction.atomic
-def process_event(event):
+def process_event(event, source='WEBHOOK'):
     event_id = event.get('id')
     event_type = event.get('type')
     if not event_id or not event_type:
         raise refusal('INVALID_EVENT', 'The Stripe event is incomplete.')
     obj = event.get('data', {}).get('object', {})
-    record, created = StripeEvent.objects.get_or_create(event_id=event_id, defaults={'event_type': event_type, 'object_id': obj.get('id', '')})
+    record, created = StripeEvent.objects.get_or_create(event_id=event_id, defaults={
+        'event_type': event_type, 'object_id': obj.get('id', ''), 'source': source})
     record = StripeEvent.objects.select_for_update().get(pk=record.pk)
     if not created and record.outcome != 'RECEIVED':
         return record
