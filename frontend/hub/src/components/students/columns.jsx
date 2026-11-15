@@ -213,11 +213,6 @@ export function createColumns(user, onChanged) {
       cell: ({ row }) => <span>{formatDate(row.getValue('created_at'))}</span>,
     },
     {
-      accessorKey: 'meet_link',
-      header: 'Meet Link',
-      cell: ({ row }) => row.getValue('meet_link') || '—',
-    },
-    {
       accessorKey: 'total_class_quota',
       header: 'Class Quota',
       cell: ({ row }) => row.getValue('total_class_quota') ?? 0,

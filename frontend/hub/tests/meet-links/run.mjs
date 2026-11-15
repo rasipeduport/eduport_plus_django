@@ -77,7 +77,7 @@ const quiet = console.error;
 console.error = () => {};
 process.on('unhandledRejection', () => {});
 
-const { mount, act } = await import(pathToFileURL(bundle).href);
+const { mount, act, createColumns, tutorColumns } = await import(pathToFileURL(bundle).href);
 const rooms = await import(pathToFileURL(libsBundle).href);
 
 // ------------------------------------------------------------------ helpers
@@ -302,6 +302,33 @@ test("Team: a team manager sets a mentor's Meet link with the same PUT, as mento
   await settle();
   assert.deepEqual(calls('PUT', '/api/team/m-1/meet-link/').map((entry) => entry.data), [{ mentor_meet_link: MENTOR_LINK }]);
   assert.equal(document.getElementById('team-member-meet-link').value, MENTOR_LINK);
+});
+
+test("Students tables: the student's own Meet link is no longer a column, for staff or for tutors", () => {
+  const admin = { id: 'admin', role: 'ADMIN', permissions: ['accounts.view_all_students', 'accounts.view_full_student_record', 'accounts.change_student_details'] };
+  for (const [name, columns] of [['staff', createColumns(admin, () => {})], ['tutor', tutorColumns]]) {
+    const ids = columns.map((column) => column.accessorKey ?? column.id);
+    assert.ok(!ids.includes('meet_link'), `${name}: ${ids.join(', ')}`);
+    assert.ok(!columns.some((column) => column.header === 'Meet Link'), name);
+    assert.ok(ids.includes('actions'), `${name}: the row actions stay`);
+  }
+});
+
+test("Student row actions: no Edit Demo Link (it edited the student's own link); the other actions stay", async () => {
+  const student = { id: 'stu-1', full_name: 'Riya', student_code: 'EDP1', status: 'active', meet_link: STUDENT_LINK };
+  const user = { id: 'admin', role: 'ADMIN', permissions: ['accounts.view_all_students', 'accounts.view_full_student_record',
+    'accounts.change_student_details', 'accounts.view_all_sessions', 'accounts.view_all_exams'] };
+  await open('header', { student, user });
+  const trigger = document.querySelector('button[aria-haspopup="menu"]');
+  assert.ok(trigger, 'the profile header offers the row actions');
+  const before = new Set(document.body.children);
+  await act(async () => trigger.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })));
+  await settle();
+  const items = [...document.body.children].filter((node) => !before.has(node))
+    .flatMap((node) => [...node.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent.trim()));
+  assert.ok(items.includes('Edit Profile') && items.includes('Change Status'), items.join(', '));
+  assert.ok(!items.includes('Edit Demo Link'), items.join(', '));
+  assert.ok(!hrefs().includes(STUDENT_LINK));
 });
 
 // ---------------------------------------------------------------------- run

@@ -55,3 +55,6 @@ export async function mount(kind, props = {}) {
   return async () => { await act(async () => root.unmount()); container.remove(); };
 }
 export { act };
+// The two Students tables' column lists, to show the student's own link is no longer a column.
+export { createColumns } from '@/components/students/columns';
+export { tutorColumns } from '@/components/students/tutor-columns';
