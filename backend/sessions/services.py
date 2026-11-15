@@ -131,6 +131,17 @@ def calculate_credits_used(student):
     return credits_used
 
 
+def transferable_sessions(queryset, now=None):
+    """
+    The classes in ``queryset`` a change of tutor may hand over: scheduled,
+    not started by their tutor and not over yet. A class that has started or
+    whose time has passed stays with the tutor it was scheduled with -- whoever
+    taught it, or was to, keeps it -- as attended and cancelled ones always did.
+    """
+    now = now or timezone.now()
+    return queryset.filter(status=SessionStatusChoices.SCHEDULED, started_at__isnull=True, end_time__gt=now)
+
+
 def find_conflict(student, tutor, start_time, end_time, exclude_id=None):
     """
     Return the first SCHEDULED session that overlaps ``[start_time, end_time)``

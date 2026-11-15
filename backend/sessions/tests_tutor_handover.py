@@ -111,18 +111,20 @@ class StudentReassignTests(HandoverWorld, APITestCase):
         # Binu teaches right up to Rahul's morning class, and has a Demo after it.
         self.existing(self.student_b, self.ist(time(9, 0)))
         self.booking('Riya', at=AFTERNOON, tutor=self.tutor_b)
-        # History stays with Anu and is not checked: an attended class, and an open one already past.
+        # History stays with Anu and is not checked: an attended class, and an
+        # open one already past -- a past class keeps the tutor it was
+        # scheduled with (sessions.services.transferable_sessions).
         attended = self.existing(self.student_a, self.ist(EVENING, days=-5), status_value=ATTENDED)
         stale = self.existing(self.student_a, self.ist(EVENING, days=-4))
         self.existing(self.student_b, self.ist(EVENING, days=-4))  # Binu was busy then
         res = self.reassign(self.student_a, self.tutor_b)
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(res.data['result']['sessions_repointed'], 3)
-        self.assertEqual(self.tutors_of(self.rahul_morning, self.rahul_evening, stale), [self.tutor_b] * 3)
-        self.assertEqual(self.tutors_of(attended), [self.tutor_a])
+        self.assertEqual(res.data['result']['sessions_repointed'], 2)
+        self.assertEqual(self.tutors_of(self.rahul_morning, self.rahul_evening), [self.tutor_b] * 2)
+        self.assertEqual(self.tutors_of(attended, stale), [self.tutor_a] * 2)
         entry = ActivityLog.objects.get(action='student.reassign_tutor', entity_id=str(self.student_a.id))
         self.assertEqual((entry.context['old_tutor_id'], entry.context['new_tutor_id'], entry.context['sessions_repointed']),
-                         (str(self.tutor_a.id), str(self.tutor_b.id), 3))
+                         (str(self.tutor_a.id), str(self.tutor_b.id), 2))
 
     def test_unassigning_the_tutor_checks_nothing(self):
         self.existing(self.student_b, self.ist(time(10, 0)))

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from students.models import Student
+from .lifecycle import start_opens_at
 from .models import Session, SessionContentField, SessionFile
 
 User = get_user_model()
@@ -49,6 +50,15 @@ class SessionSerializer(serializers.ModelSerializer):
     # attended session has homework content): what the Homework badge and
     # the Learn tile read.
     homework = serializers.SerializerMethodField()
+    # Who started the class and when (its tutor, the student's mentor or an
+    # administrator), and the tutor's completion their own notes made
+    # (sessions.lifecycle), read only. A class marked attended by staff has no completion.
+    started_by_profile = ProfileBriefSerializer(source='started_by', read_only=True)
+    completed_by_profile = ProfileBriefSerializer(source='completed_by', read_only=True)
+    # The class as booked, in hours (end_time - start_time): what it counts as, whenever it was completed.
+    duration_hours = serializers.FloatField(read_only=True)
+    # The first moment its tutor may start it (5 minutes before its scheduled start).
+    start_opens_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
@@ -76,8 +86,19 @@ class SessionSerializer(serializers.ModelSerializer):
             'display_status',
             'content_files',
             'homework',
+            'started_at',
+            'started_by_profile',
+            'completed_at',
+            'completed_by_profile',
+            'duration_hours',
+            'start_opens_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'series_id', 'class_number', 'started_at', 'completed_at',
+        ]
+
+    def get_start_opens_at(self, instance):
+        return start_opens_at(instance).isoformat()
 
     def get_homework(self, instance):
         hw = getattr(instance, 'homework', None)

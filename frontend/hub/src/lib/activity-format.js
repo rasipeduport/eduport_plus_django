@@ -26,6 +26,9 @@ export const ACTION_LABELS = {
   'session.update_links': 'Session links updated',
   'session.reschedule': 'Session rescheduled',
   'session.mark_attended': 'Marked attended',
+  // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
+  'session.start': 'Session started',
+  'session.complete': 'Session completed',
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
@@ -266,6 +269,10 @@ export function describeActivity(row) {
       return 'Rescheduled the session';
     case 'session.mark_attended':
       return 'Marked the session attended';
+    case 'session.start':
+      return 'Started the session';
+    case 'session.complete':
+      return 'Completed the session with their notes';
     case 'session.cancel': {
       const reason = reasonOf(row);
       return reason ? `Cancelled the session — ${reason}` : 'Cancelled the session';

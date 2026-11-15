@@ -558,6 +558,10 @@ SCENARIOS = [
     Scenario('sessions.upload.recording.a', 'post', '/api/sessions/{ses_a_att2}/files/recording/', lambda w: {'file': pdf()}, fmt='multipart'),
     Scenario('sessions.file.a', 'get', '/api/sessions/files/{sf_a}/'),
     Scenario('sessions.file.b', 'get', '/api/sessions/files/{sf_b}/'),
+    # Start Session (sessions.lifecycle): ses_a_one is weeks away, so its tutor,
+    # stu_a's mentor and the administrators are told it is too early; everyone
+    # else is refused.
+    Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
 
     # --- exams ----------------------------------------------------------------
     Scenario('exams.list', 'get', '/api/exams/'),

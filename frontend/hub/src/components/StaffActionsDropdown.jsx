@@ -7,7 +7,7 @@ import { MoreVertical } from 'lucide-react';
  * clipped by table overflow or sticky column containers.
  *
  * Props:
- *   items: [{ label, onClick, danger?, disabled? }]
+ *   items: [{ label, onClick, danger?, disabled?, title? }]  (title: hover hint, e.g. why it is disabled)
  *   label?: string  (section header inside the dropdown)
  */
 export default function StaffActionsDropdown({ items, label = 'Actions' }) {
@@ -66,6 +66,7 @@ export default function StaffActionsDropdown({ items, label = 'Actions' }) {
             <button
               key={i}
               disabled={item.disabled}
+              title={item.title}
               onClick={() => { setOpen(false); item.onClick(); }}
               className={`w-full text-left px-3 py-1.5 text-xs cursor-pointer transition-colors
                 ${item.danger

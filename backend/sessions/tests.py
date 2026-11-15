@@ -617,7 +617,10 @@ class SessionWritePermissionAndValidationTests(APITestCase):
         self.assertEqual(self.session.rating, 4)
 
     def test_mentor_mark_attended_flow_unchanged(self):
-        """The hub SPA marks attended via PUT with status + all three links."""
+        """The hub SPA marks attended via PUT with status + all three links (once the class has ended)."""
+        self.session.start_time = timezone.now() - timedelta(hours=2)
+        self.session.end_time = self.session.start_time + timedelta(hours=1)
+        self.session.save(update_fields=['start_time', 'end_time'])
         self.client.force_authenticate(user=self.mentor)
         res = self.client.put(
             self.sessions_url,
@@ -986,14 +989,20 @@ class PostSessionWorkflowTests(APITestCase):
         )
         self.sessions_url = reverse('sessions:sessions-list-create-update')
         self.next_slot = (timezone.now() + timedelta(days=2)).replace(minute=0, second=0, microsecond=0)
+        # Classes already over, for marking attended (never before the scheduled end).
+        self.past_slot = (timezone.now() - timedelta(days=30)).replace(minute=0, second=0, microsecond=0)
 
     # -- helpers ---------------------------------------------------------
 
-    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', **fields):
-        """One session per two-hour slot so nothing in a test overlaps by accident."""
+    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', ended=False, **fields):
+        """One session per two-hour slot so nothing in a test overlaps by accident; ``ended`` = one already over."""
         student = student or self.student
-        start = self.next_slot
-        self.next_slot = start + timedelta(hours=2)
+        if ended:
+            start = self.past_slot
+            self.past_slot = start + timedelta(hours=2)
+        else:
+            start = self.next_slot
+            self.next_slot = start + timedelta(hours=2)
         return Session.objects.create(
             student=student, tutor=student.tutor, title=title,
             start_time=start, end_time=start + timedelta(hours=1), status=status_value, **fields,
@@ -1044,22 +1053,27 @@ class PostSessionWorkflowTests(APITestCase):
     # -- 4-7: tutor may add notes and nothing else -----------------------------
 
     def test_tutor_can_add_notes_to_authorized_session(self):
-        session = self.make_session()
+        # After the class: the tutor's notes then also complete it (sessions.lifecycle).
+        session = self.make_session(ended=True)
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "  https://example.com/notes "})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
         self.assertEqual(session.notes_link, 'https://example.com/notes')
-        self.assertEqual(session.status, SessionStatusChoices.SCHEDULED)
+        self.assertEqual(session.status, SessionStatusChoices.ATTENDED)
+        self.assertEqual(session.completed_by, self.tutor)
         self.assertEqual(res.data['session']['notes_link'], 'https://example.com/notes')
-        # Same activity entry a mentor's link edit produces -- no parallel log.
+        # Same activity entry a mentor's link edit produces, plus the completion.
         log = ActivityLog.objects.filter(action='session.update_links', entity_id=str(session.id)).first()
         self.assertIsNotNone(log)
         self.assertEqual(log.actor_role, 'TUTOR')
         self.assertEqual(log.changes['notes_link'], {"old": None, "new": 'https://example.com/notes'})
-        self.assertEqual(ActivityLog.objects.filter(entity_id=str(session.id)).count(), 1)
+        self.assertEqual(
+            sorted(ActivityLog.objects.filter(entity_id=str(session.id)).values_list('action', flat=True)),
+            ['session.complete', 'session.update_links'],
+        )
 
     def test_tutor_can_update_existing_notes(self):
-        session = self.make_session(notes_link='https://example.com/old')
+        session = self.make_session(ended=True, notes_link='https://example.com/old')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "https://example.com/new"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1134,7 +1148,7 @@ class PostSessionWorkflowTests(APITestCase):
         self.assertEqual(session.homework_link, 'https://example.com/hw')
 
     def test_mentor_can_mark_attended_with_all_content_present(self):
-        session = self.make_session(**self.LINKS)
+        session = self.make_session(ended=True, **self.LINKS)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1147,7 +1161,7 @@ class PostSessionWorkflowTests(APITestCase):
 
     def _mark_attended_missing(self, missing_key):
         links = {k: v for k, v in self.LINKS.items() if k != f"{missing_key}_link"}
-        session = self.make_session(**links)
+        session = self.make_session(ended=True, **links)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1169,7 +1183,7 @@ class PostSessionWorkflowTests(APITestCase):
         self._mark_attended_missing('homework')
 
     def test_mentor_can_mark_attended_with_nothing_present(self):
-        session = self.make_session()
+        session = self.make_session(ended=True)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data['session']['display_status'], 'pending')
@@ -1177,7 +1191,7 @@ class PostSessionWorkflowTests(APITestCase):
 
     def test_mark_attended_can_carry_recording_and_homework(self):
         """The SPA's Mark Attended sends the mentor's two links in the same call."""
-        session = self.make_session()
+        session = self.make_session(ended=True)
         res = self.put(self.mentor, {
             "id": str(session.id), "status": "ATTENDED",
             "recording_link": self.LINKS['recording_link'], "homework_link": self.LINKS['homework_link'],
@@ -1217,15 +1231,16 @@ class PostSessionWorkflowTests(APITestCase):
         self.assertEqual(self.row(res, cancelled)['display_status'], 'cancelled')
 
     def test_adding_final_missing_field_flips_pending_to_attended(self):
-        session = self.make_session(SessionStatusChoices.ATTENDED, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
+        session = self.make_session(SessionStatusChoices.ATTENDED, ended=True, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
         self.assertEqual(self.row(self.list_as(self.mentor), session)['display_status'], 'pending')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": self.LINKS['notes_link']})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data['session']['display_status'], 'attended')
         self.assertTrue(res.data['session']['content_complete'])
-        # Nothing but the link was written: attendance stays as the mentor set it.
+        # Attendance stays as the mentor set it; the tutor's notes add their completion.
         session.refresh_from_db()
         self.assertEqual(session.status, SessionStatusChoices.ATTENDED)
+        self.assertEqual(session.completed_by, self.tutor)
         row = self.row(self.list_as(self.mentor), session)
         self.assertEqual(row['display_status'], 'attended')
         self.assertEqual(row['missing_content'], [])
@@ -1839,15 +1854,15 @@ class TutorAvailabilityTests(APITestCase):
         res = self.book(self.student2, now)                        # any time after
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
 
-    def test_marking_attended_early_frees_the_tutor_immediately(self):
+    def test_marking_attended_before_the_end_is_refused_and_the_class_keeps_blocking(self):
+        # A class is marked attended only once its scheduled end has passed
+        # (sessions.lifecycle), so it cannot be marked early to free its slot.
         first = self.existing(self.student1, self.two, self.three)
-        # Still blocks while scheduled...
         self.assertEqual(self.book(self.student2, self.two + timedelta(minutes=45)).status_code, status.HTTP_409_CONFLICT)
-        # ...mark attended "at 2:40": the 2:45 booking for the same tutor goes through.
         res = self.put({"id": str(first.id), "status": "attended"})
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        res = self.book(self.student2, self.two + timedelta(minutes=45))
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'CLASS_NOT_ENDED')
+        self.assertEqual(self.book(self.student2, self.two + timedelta(minutes=45)).status_code, status.HTTP_409_CONFLICT)
 
     # ------------------------------------------------------- tutor reassignment
 
