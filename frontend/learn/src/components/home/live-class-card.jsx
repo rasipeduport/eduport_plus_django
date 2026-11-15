@@ -3,8 +3,10 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useStudentZone } from '../student/student-context';
+import { classMeetLink, classMeetMissing } from '../../lib/meet-rooms';
 
-export function LiveClassCard({ meetLink, nextSession, loading }) {
+/** The next class, joined in the Meet room of the tutor it is assigned to (never the student's own link). */
+export function LiveClassCard({ nextSession, loading }) {
   const zone = useStudentZone();
   if (loading) {
     return (
@@ -32,6 +34,7 @@ export function LiveClassCard({ meetLink, nextSession, loading }) {
     );
   }
 
+  const meetLink = classMeetLink(nextSession);
   const { dateLabel, timeLabel } = formatSessionDateTime(
     nextSession.start_time,
     nextSession.end_time,
@@ -93,8 +96,8 @@ export function LiveClassCard({ meetLink, nextSession, loading }) {
             <div className="bg-border flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
               <LinkIcon className="text-text-muted h-3.5 w-3.5" />
             </div>
-            <span className="text-text-muted truncate text-sm italic">
-              Link not available yet
+            <span className="text-text-muted text-sm italic">
+              {classMeetMissing(nextSession)}
             </span>
           </div>
         )}

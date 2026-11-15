@@ -4,12 +4,11 @@ import { PlayIcon } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/form-dialog';
+import { classMeetLink } from '@/lib/meet-rooms';
 import { lifecycleError } from '@/lib/session-lifecycle';
 
-const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
-
 /**
- * A blank tab for the student's Google Meet room, opened while the tutor's
+ * A blank tab for the class's Google Meet room, opened while the tutor's
  * click still counts as one (a browser blocks a tab opened only once the API
  * has answered), cut from the Hub (no `opener`) before it loads Meet.
  */
@@ -33,7 +32,8 @@ function showMeet(tab, link) {
  * from 5 minutes before the class until it ends. Confirmed first: the start is
  * recorded, with who gave it, by the server's clock and cannot be undone here.
  * It never completes the class; the tutor's own notes do. Once started, the
- * student's Meet room opens in a new tab and `onStarted` gets the session as
+ * class's room -- its assigned tutor's Meet link, never the student's -- opens
+ * in a new tab and `onStarted` gets the session as
  * the API answers it; a refusal is shown in the dialog, and `onRefresh` reads
  * the list again once it closes.
  */
@@ -43,7 +43,7 @@ export function StartSessionButton({ session, asTutor = false, onStarted, onRefr
   const [pending, setPending] = useState(false);
   const [refused, setRefused] = useState(false);
 
-  const meetLink = isHttpsUrl(session.students?.meet_link) ? session.students.meet_link.trim() : null;
+  const meetLink = classMeetLink(session);
   const studentName = session.students?.full_name || 'the student';
 
   function changeOpen(next) {
@@ -63,8 +63,7 @@ export function StartSessionButton({ session, asTutor = false, onStarted, onRefr
     try {
       const response = await api.post(`/api/sessions/${session.id}/start/`);
       const started = response.data.session;
-      const link = started?.students?.meet_link;
-      showMeet(meetTab, isHttpsUrl(link) ? link.trim() : null);
+      showMeet(meetTab, classMeetLink(started));
       setOpen(false);
       onStarted?.(started);
     } catch (err) {
@@ -102,7 +101,11 @@ export function StartSessionButton({ session, asTutor = false, onStarted, onRefr
           {asTutor
             ? 'After the class, submit your notes to complete it.'
             : "Starting it does not complete it: the tutor's own notes, after the class, do."}{' '}
-          {meetLink ? 'Google Meet opens in a new tab.' : 'This student has no Meet link, so Google Meet will not open.'}
+          {meetLink
+            ? "Google Meet opens in a new tab, in the tutor's room."
+            : asTutor
+              ? 'You have no Meet link yet, so Google Meet will not open. An administrator can add it in Team.'
+              : "This class's tutor has no Meet link yet, so Google Meet will not open. An administrator can add it in Team."}
         </p>
       </FormDialog>
     </>

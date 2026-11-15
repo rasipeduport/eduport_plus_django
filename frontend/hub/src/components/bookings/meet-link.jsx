@@ -7,19 +7,20 @@ import { cn } from '@/lib/utils';
 const NOT_CONFIGURED = 'Meet link not configured';
 
 /**
- * Join Meet: the booking's Google Meet room (`link`, the booking's copy of its
- * tutor's own) as a button that opens it in a new tab, cut off from the Hub
- * (noopener). Only an https address the API returned is opened -- none is
- * ever made up -- so a booking without one shows "No Meet link" plainly
- * instead of a button that leads nowhere. `label` names it for screen
- * readers ("Join the Google Meet for Riya").
+ * Join Meet: a Google Meet room the API returned (`link`: a booking's copy of
+ * its tutor's own, a class's tutor's, an exam's mentor's) as a button that
+ * opens it in a new tab, cut off from the Hub (noopener). Only an https
+ * address is opened -- none is ever made up -- so without one it says why
+ * plainly (`missingLabel`, "No Meet link" by default) instead of a button that
+ * leads nowhere. `label` names it for screen readers ("Join the Google Meet
+ * for Riya").
  */
-export function JoinMeetButton({ link, label, size = 'sm', variant = 'outline', className }) {
+export function JoinMeetButton({ link, label, missingLabel = 'No Meet link', size = 'sm', variant = 'outline', className }) {
   if (!isHttpsUrl(link)) {
     return (
       <span className={cn('text-muted-foreground inline-flex items-center gap-1.5 text-sm whitespace-nowrap', className)}>
         <VideoOffIcon className="size-4 shrink-0" aria-hidden="true" />
-        No Meet link
+        {missingLabel}
       </span>
     );
   }

@@ -178,11 +178,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     # A tutor's permanent Google Meet room, where their Demo and Diagnostic
-    # bookings are taught (accounts.meet_links). Tutors only, and set only
-    # through the Team API by an administrator; NULL = not configured. Each
-    # booking keeps its own copy (bookings.booking_service). Not the room of an
-    # enrolled student's classes, which is students.Student.meet_link.
+    # bookings and the normal sessions assigned to them (sessions.Session.tutor)
+    # are taught (accounts.meet_links). Tutors only, and set only through the
+    # Team API by an administrator; NULL = not configured. Each booking keeps
+    # its own copy (bookings.booking_service); a session reads it as it is now.
     tutor_meet_link = models.CharField(
+        max_length=MEET_LINK_MAX_LENGTH,
+        null=True,
+        blank=True,
+        validators=[validate_meet_link],
+    )
+    # A mentor's permanent Google Meet room, where their students' chapter
+    # exams are held (exams.Exam.mentor). Mentors only, the same Google Meet
+    # rule as a tutor's (accounts.meet_links), set only through the Team API by
+    # an administrator; NULL = not configured.
+    mentor_meet_link = models.CharField(
         max_length=MEET_LINK_MAX_LENGTH,
         null=True,
         blank=True,
@@ -220,6 +230,15 @@ class User(AbstractBaseUser, PermissionsMixin):
             models.CheckConstraint(
                 condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
                 name='profiles_meet_link_google_meet',
+            ),
+            # Only a mentor holds chapter exams, so only a mentor has an exam room.
+            models.CheckConstraint(
+                condition=Q(mentor_meet_link__isnull=True) | Q(role=RoleChoices.MENTOR),
+                name='profiles_mentor_meet_link_mentors_only',
+            ),
+            models.CheckConstraint(
+                condition=Q(mentor_meet_link__isnull=True) | Q(mentor_meet_link__regex=MEET_LINK_DB_PATTERN),
+                name='profiles_mentor_meet_link_google_meet',
             ),
         ]
 

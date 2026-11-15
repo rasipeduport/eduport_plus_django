@@ -13,6 +13,7 @@ import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
 import { StartSessionButton } from '../components/sessions/start-session-button';
 import { bookedLength, hasEnded, isAssignedTutor, notesMode, startOpensAt, startState } from '../lib/session-lifecycle';
+import { classMeetLink, classMeetMissing } from '../lib/meet-rooms';
 import { SchedulingError } from '../components/sessions/scheduling-error';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
@@ -44,8 +45,6 @@ const ALLOWED_DURATIONS = [
 ];
 
 const MEET_PREFIX = 'https://meet.google.com/';
-
-const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
 
 // Hub-style table formats. Times stay browser-local, as this table always was.
 // Staff read every session in IST (MENTOR_TIMEZONE), not the device's zone.
@@ -636,8 +635,9 @@ export default function SessionsPage({ user }) {
       id: 'meeting',
       label: 'Meeting',
       tabs: ['scheduled', 'cancelled'],
-      // The student's own Meet room (students.meet_link), nested by the
-      // Sessions API. Only a real https URL gets a Join button. From 5
+      // The class's room: the Meet link of the tutor it is assigned to
+      // (`tutor_meet_link`), never the student's; without one the cell says
+      // why. Only a real https URL gets a Join button. From 5
       // minutes before a class until it ends, whoever may start it -- its
       // tutor, the student's mentor or an administrator -- gets Start Session
       // instead (backend sessions.lifecycle); once started, Join Meet. The
@@ -660,8 +660,8 @@ export default function SessionsPage({ user }) {
         if (ownClass && start === 'closed') {
           return <span className="text-xs text-zinc-500 italic whitespace-nowrap">Class ended</span>;
         }
-        const meetLink = (s.students?.meet_link || '').trim();
-        return isHttpsUrl(meetLink) ? (
+        const meetLink = classMeetLink(s);
+        return meetLink ? (
           <a
             href={meetLink}
             target="_blank"
@@ -674,7 +674,7 @@ export default function SessionsPage({ user }) {
             <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
           </a>
         ) : (
-          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
+          <span className="text-xs text-zinc-500 italic whitespace-nowrap">{classMeetMissing(s)}</span>
         );
       },
     },

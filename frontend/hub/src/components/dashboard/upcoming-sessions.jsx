@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarDays, CalendarOff, Clock, Video } from 'lucide-react';
+import { ArrowRight, CalendarDays, CalendarOff, Clock, Video, VideoOff } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { isHttpsUrl } from '@/lib/exam-status';
+import { classMeetLink, classMeetMissing } from '@/lib/meet-rooms';
 import { remainingToday } from '@/lib/session-day';
 import { sessionHours } from '@/lib/session-status';
 import { getInitials } from '@/lib/utils';
@@ -16,7 +16,8 @@ function SessionRow({ session, grade }) {
   const student = session.students || {};
   const name = student.full_name || '—';
   const studentId = session.student_id || session.student?.id || null;
-  const meetLink = (student.meet_link || '').trim();
+  // Its assigned tutor's room, never the student's.
+  const meetLink = classMeetLink(session);
   const start = new Date(session.start_time);
   const minutes = Math.round(sessionHours(session) * 60);
   const tutor = session.tutor_profile?.full_name || session.tutor_profile?.email || null;
@@ -51,8 +52,14 @@ function SessionRow({ session, grade }) {
         ) : null}
       </div>
 
-      <div className="ml-auto shrink-0">
-        {isHttpsUrl(meetLink) ? (
+      <div className="ml-auto flex shrink-0 items-center gap-3">
+        {meetLink ? null : (
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs whitespace-nowrap">
+            <VideoOff className="size-3.5 shrink-0" aria-hidden="true" />
+            {classMeetMissing(session)}
+          </span>
+        )}
+        {meetLink ? (
           <Button size="sm" asChild>
             <a href={meetLink} target="_blank" rel="noopener noreferrer">
               <Video className="size-4" />
@@ -76,7 +83,7 @@ function SessionRow({ session, grade }) {
  * Today's classes that are still to come, across the caller's students --
  * only today's: tomorrow's never fill the list, however short it is. Grades
  * come from the students list (the session payload carries only the
- * student's name, avatar and meet room).
+ * student's name and avatar). Each class joins its assigned tutor's Meet room.
  */
 export function UpcomingSessions({ sessions, students }) {
   const now = new Date();

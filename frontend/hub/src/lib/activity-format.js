@@ -331,7 +331,8 @@ export function describeActivity(row) {
       const verb = { added: 'Set', changed: 'Changed', removed: 'Removed' }[row.context?.change] ?? 'Updated';
       const count = row.context?.live_bookings_updated ?? 0;
       const bookings = count ? `; ${count} booking${count === 1 ? '' : 's'} not yet ended now use${count === 1 ? 's' : ''} it` : '';
-      return `${verb} the tutor's Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
+      const whose = row.context?.role === 'MENTOR' ? "mentor's" : "tutor's";
+      return `${verb} the ${whose} Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
     }
     case 'user.update_details':
       return 'Updated the account details';

@@ -499,6 +499,9 @@ SCENARIOS = [
     # A tutor's permanent Google Meet link (BDE-to-PDF Phase 1): team managers only, tutors only.
     Scenario('team.meet_link', 'put', '/api/team/{tutor_a}/meet-link/',
              {'tutor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
+    # A mentor's permanent Google Meet link, where their chapter exams are held: team managers only, mentors only.
+    Scenario('team.mentor_meet_link', 'put', '/api/team/{mentor_c}/meet-link/',
+             {'mentor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
 
     # --- legacy staff endpoints ----------------------------------------------
     Scenario('staff.mentors', 'get', '/api/mentors/'),

@@ -3,10 +3,12 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useStudentZone } from '../student/student-context';
+import { examMeetLink, examMeetMissing } from '../../lib/meet-rooms';
 
-/** "Up next — your exam" hero (Learn LiveExamCard): the exam joins the student's own meet room. */
-export function LiveExamCard({ meetLink, exam }) {
+/** "Up next — your exam" hero (Learn LiveExamCard): the exam joins the Meet room of the mentor it is assigned to. */
+export function LiveExamCard({ exam }) {
   const zone = useStudentZone();
+  const meetLink = examMeetLink(exam);
   const { dateLabel, timeLabel } = formatSessionDateTime(exam.start_time, exam.end_time, zone);
   return (
     <Card className="relative" style={{ backgroundImage: 'radial-gradient(circle at top right, rgb(255 214 91 / 0.16), transparent 55%)' }}>
@@ -50,7 +52,7 @@ export function LiveExamCard({ meetLink, exam }) {
             <div className="bg-border flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
               <LinkIcon className="text-text-muted h-3.5 w-3.5" />
             </div>
-            <span className="text-text-muted truncate text-sm italic">Link not available yet</span>
+            <span className="text-text-muted text-sm italic">{examMeetMissing(exam)}</span>
           </div>
         )}
 
