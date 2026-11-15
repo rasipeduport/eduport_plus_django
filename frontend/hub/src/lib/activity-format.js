@@ -29,6 +29,11 @@ export const ACTION_LABELS = {
   // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
   'session.start': 'Session started',
   'session.complete': 'Session completed',
+  'session.submit_late_notes': 'Late notes submitted',
+  'session.approve_late_notes': 'Late notes approved',
+  'session.record_outcome': 'Outcome recorded',
+  'session.correct_outcome': 'Outcome corrected',
+  'session.revoke_outcome': 'Outcome removed',
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
@@ -210,6 +215,14 @@ function bookingOfType(row) {
   return type ? `a ${type} booking` : 'a booking';
 }
 
+// Why a session was not conducted (backend SessionOutcomeReason), as the feed words it.
+const SESSION_OUTCOME_LABELS = {
+  STUDENT_NO_SHOW: 'a student no-show',
+  TUTOR_ABSENT: 'not conducted (tutor absent)',
+  TECHNICAL_ISSUE: 'not conducted (technical issue)',
+  OTHER: 'not conducted',
+};
+
 function reasonOf(row) {
   const reason = row.context?.reason;
   return typeof reason === 'string' && reason.trim() ? reason.trim() : null;
@@ -272,7 +285,24 @@ export function describeActivity(row) {
     case 'session.start':
       return 'Started the session';
     case 'session.complete':
-      return 'Completed the session with their notes';
+      return row.context?.approved_late_notes
+        ? "Completed the session by approving the tutor's late notes"
+        : 'Completed the session with their notes';
+    case 'session.submit_late_notes':
+      return 'Submitted notes after the 48-hour deadline, for approval';
+    case 'session.approve_late_notes':
+      return "Approved the tutor's late notes";
+    case 'session.record_outcome': {
+      const reason = SESSION_OUTCOME_LABELS[c.outcome_reason?.new] ?? 'not conducted';
+      return c.late_notes_status ? `Recorded the session as ${reason}, rejecting the late notes` : `Recorded the session as ${reason}`;
+    }
+    case 'session.correct_outcome': {
+      const from = SESSION_OUTCOME_LABELS[c.outcome_reason?.old];
+      const to = SESSION_OUTCOME_LABELS[c.outcome_reason?.new];
+      return from && to ? `Corrected the session's outcome from ${from} to ${to}` : "Corrected the session's outcome note";
+    }
+    case 'session.revoke_outcome':
+      return "Removed the session's recorded outcome";
     case 'session.cancel': {
       const reason = reasonOf(row);
       return reason ? `Cancelled the session — ${reason}` : 'Cancelled the session';

@@ -565,6 +565,17 @@ SCENARIOS = [
     # stu_a's mentor and the administrators are told it is too early; everyone
     # else is refused.
     Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
+    # No-show / Not Conducted, late-notes approval (the student's mentor and the
+    # administrators) and an outcome's correction or revocation (administrators
+    # only), sessions.lifecycle. ses_a_att has its homework under way, no late
+    # notes and no recorded outcome, so whoever may act is told why not (409).
+    Scenario('sessions.outcome.a', 'post', '/api/sessions/{ses_a_att}/outcome/',
+             lambda w: {'reason': 'STUDENT_NO_SHOW'}),
+    Scenario('sessions.late_notes_approve.a', 'post', '/api/sessions/{ses_a_att}/late-notes/approve/'),
+    Scenario('sessions.outcome_correct.a', 'post', '/api/sessions/{ses_a_att}/outcome/correct/',
+             lambda w: {'reason': 'TUTOR_ABSENT', 'correction_note': 'Matrix'}),
+    Scenario('sessions.outcome_revoke.a', 'post', '/api/sessions/{ses_a_att}/outcome/revoke/',
+             lambda w: {'correction_note': 'Matrix'}),
 
     # --- exams ----------------------------------------------------------------
     Scenario('exams.list', 'get', '/api/exams/'),

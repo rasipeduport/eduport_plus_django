@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from urllib.parse import urlparse
 
 from django.db import models
@@ -15,6 +16,31 @@ class SessionStatusChoices(models.TextChoices):
     SCHEDULED = 'SCHEDULED', 'Scheduled'
     ATTENDED = 'ATTENDED', 'Attended'
     CANCELLED = 'CANCELLED', 'Cancelled'
+    # No-show / Not Conducted: the outcome an administrator or the student's
+    # mentor recorded after the scheduled end (sessions.lifecycle.record_outcome).
+    NOT_CONDUCTED = 'NOT_CONDUCTED', 'Not conducted'
+
+
+class SessionOutcomeReason(models.TextChoices):
+    """Why a class was not conducted. Only a student's no-show keeps its credit used (sessions.services)."""
+    STUDENT_NO_SHOW = 'STUDENT_NO_SHOW', 'Student no-show'
+    TUTOR_ABSENT = 'TUTOR_ABSENT', 'Tutor absent'
+    TECHNICAL_ISSUE = 'TECHNICAL_ISSUE', 'Technical issue'
+    OTHER = 'OTHER', 'Other'
+
+
+class LateNotesStatus(models.TextChoices):
+    """Where a tutor's notes submitted after NOTES_DEADLINE stand (sessions.lifecycle)."""
+    PENDING = 'PENDING', 'Awaiting approval'
+    APPROVED = 'APPROVED', 'Approved'
+    REJECTED = 'REJECTED', 'Rejected'
+
+
+# The assigned tutor's notes complete a started class only up to this long
+# after its scheduled end; later ones wait for an administrator's or the
+# student's mentor's approval (sessions.lifecycle).
+NOTES_DEADLINE = timedelta(hours=48)
+
 
 class Session(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -71,10 +97,12 @@ class Session(models.Model):
         related_name='started_sessions'
     )
     # The tutor's completion: when its assigned tutor's own notes completed
-    # it, and who that was -- submitted after its originally scheduled end,
-    # whether or not anyone started it (sessions.lifecycle). Written once. An
-    # administrator's or mentor's notes, recording or Mark Attended leave both
-    # empty -- those are operational attendance, not the tutor's completion.
+    # it, and who that was -- notes a started class takes only after its
+    # originally scheduled end, within NOTES_DEADLINE, or later once approved
+    # (then the moment those late notes came in) (sessions.lifecycle). Written
+    # once. An administrator's or mentor's notes, recording or Mark Attended
+    # leave both empty -- those are operational attendance, not the tutor's
+    # completion.
     completed_at = models.DateTimeField(null=True, blank=True)
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -82,6 +110,45 @@ class Session(models.Model):
         null=True,
         blank=True,
         related_name='completed_sessions'
+    )
+
+    # The tutor's notes submitted after NOTES_DEADLINE: awaiting approval,
+    # approved (the class is then completed) or rejected (by the outcome then
+    # recorded), and who reviewed them.
+    late_notes_status = models.CharField(max_length=20, choices=LateNotesStatus.choices, null=True, blank=True)
+    late_notes_submitted_at = models.DateTimeField(null=True, blank=True)
+    late_notes_reviewed_at = models.DateTimeField(null=True, blank=True)
+    late_notes_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_session_late_notes'
+    )
+
+    # No-show / Not Conducted, as recorded (status NOT_CONDUCTED): why, an
+    # optional note (required for OTHER), who recorded it and when, and the
+    # status the class had before -- given back if an administrator revokes
+    # it. An administrator's latest correction of the reason is kept too;
+    # every record, correction and revocation is in the activity log.
+    outcome_reason = models.CharField(max_length=20, choices=SessionOutcomeReason.choices, null=True, blank=True)
+    outcome_note = models.TextField(null=True, blank=True)
+    outcome_recorded_at = models.DateTimeField(null=True, blank=True)
+    outcome_recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorded_session_outcomes'
+    )
+    outcome_prior_status = models.CharField(max_length=20, choices=SessionStatusChoices.choices, null=True, blank=True)
+    outcome_corrected_at = models.DateTimeField(null=True, blank=True)
+    outcome_corrected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='corrected_session_outcomes'
     )
 
     # Post-session content every attended class must end up with, keyed by the
@@ -109,12 +176,82 @@ class Session(models.Model):
                 name='sessions_completed_by_needs_completed_at',
             ),
             # Completed = attended, and no earlier than the scheduled end of
-            # the class. A start is never required.
+            # the class.
             models.CheckConstraint(
                 condition=Q(completed_at__isnull=True) | (
                     Q(status=SessionStatusChoices.ATTENDED) & Q(completed_at__gte=F('end_time'))
                 ),
                 name='sessions_completed_is_attended_after_end',
+            ),
+            # A class is completed only after someone started it, and only
+            # within NOTES_DEADLINE of its scheduled end unless its late notes
+            # were approved. (Every comparison with a nullable column below
+            # says NOT NULL as well: a comparison with NULL lets a check pass.)
+            models.CheckConstraint(
+                condition=Q(completed_at__isnull=True) | Q(started_at__isnull=False),
+                name='sessions_completed_needs_start',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(completed_at__isnull=True)
+                    | Q(completed_at__lte=F('end_time') + NOTES_DEADLINE)
+                    | Q(late_notes_status__isnull=False, late_notes_status=LateNotesStatus.APPROVED)
+                ),
+                name='sessions_completed_on_time_or_approved',
+            ),
+            # Late notes: on a started class, after the deadline, each review
+            # with its moment; approved ones completed the class, rejected
+            # ones went with a recorded outcome, pending ones await either.
+            models.CheckConstraint(
+                condition=(
+                    Q(late_notes_status__isnull=True, late_notes_submitted_at__isnull=True,
+                      late_notes_reviewed_at__isnull=True, late_notes_reviewed_by__isnull=True)
+                    | (
+                        Q(late_notes_status__isnull=False, late_notes_status=LateNotesStatus.PENDING,
+                          late_notes_reviewed_at__isnull=True, late_notes_reviewed_by__isnull=True,
+                          completed_at__isnull=True)
+                        & ~Q(status=SessionStatusChoices.NOT_CONDUCTED)
+                    )
+                    | Q(late_notes_status__isnull=False, late_notes_status=LateNotesStatus.APPROVED,
+                        late_notes_reviewed_at__isnull=False, completed_at__isnull=False)
+                    | Q(late_notes_status__isnull=False, late_notes_status=LateNotesStatus.REJECTED,
+                        late_notes_reviewed_at__isnull=False, status=SessionStatusChoices.NOT_CONDUCTED)
+                ),
+                name='sessions_late_notes_review_consistent',
+            ),
+            models.CheckConstraint(
+                condition=Q(late_notes_submitted_at__isnull=True) | (
+                    Q(late_notes_status__isnull=False)
+                    & Q(started_at__isnull=False)
+                    & Q(late_notes_submitted_at__gt=F('end_time') + NOTES_DEADLINE)
+                ),
+                name='sessions_late_notes_after_deadline',
+            ),
+            # Not conducted <=> an outcome is recorded, after the scheduled
+            # end, from a scheduled or attended class; OTHER carries its note.
+            models.CheckConstraint(
+                condition=(
+                    Q(status=SessionStatusChoices.NOT_CONDUCTED, outcome_reason__isnull=False,
+                      outcome_recorded_at__isnull=False, outcome_recorded_at__gte=F('end_time'),
+                      outcome_prior_status__isnull=False,
+                      outcome_prior_status__in=[SessionStatusChoices.SCHEDULED, SessionStatusChoices.ATTENDED])
+                    | (
+                        ~Q(status=SessionStatusChoices.NOT_CONDUCTED)
+                        & Q(outcome_reason__isnull=True, outcome_note__isnull=True, outcome_recorded_at__isnull=True,
+                            outcome_recorded_by__isnull=True, outcome_prior_status__isnull=True,
+                            outcome_corrected_at__isnull=True, outcome_corrected_by__isnull=True)
+                    )
+                ),
+                name='sessions_not_conducted_has_outcome',
+            ),
+            models.CheckConstraint(
+                condition=Q(outcome_reason__isnull=True) | ~Q(outcome_reason=SessionOutcomeReason.OTHER)
+                | Q(outcome_note__isnull=False),
+                name='sessions_other_outcome_has_note',
+            ),
+            models.CheckConstraint(
+                condition=Q(outcome_corrected_by__isnull=True) | Q(outcome_corrected_at__isnull=False),
+                name='sessions_outcome_corrected_by_needs_at',
             ),
         ]
 
@@ -130,6 +267,11 @@ class Session(models.Model):
         since neither may be rescheduled any more (sessions.views).
         """
         return (self.end_time - self.start_time).total_seconds() / 3600
+
+    @property
+    def notes_due_by(self):
+        """The last moment its tutor's notes complete it without an approval: NOTES_DEADLINE after its scheduled end."""
+        return self.end_time + NOTES_DEADLINE
 
     # Content completion is derived from the link columns every time it is
     # read, never stored: a stored flag would go stale the moment a tutor or

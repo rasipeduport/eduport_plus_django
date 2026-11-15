@@ -1,19 +1,23 @@
 import { useState, useMemo } from 'react';
 import { SessionCard } from './session-card';
 import { cn } from '../../lib/utils';
+import { isUpcoming, sessionState } from '../../lib/session-state';
 
-const tabs = ['Scheduled', 'Attended'];
+// Upcoming: classes still to come or under way. Past: every class that has
+// ended -- attended, awaiting its notes or an update, missed or not held.
+const tabs = ['Upcoming', 'Past'];
 
 export function SessionsList({ sessions }) {
-  const [activeTab, setActiveTab] = useState('Scheduled');
+  const [activeTab, setActiveTab] = useState('Upcoming');
   const [expandedSessionId, setExpandedSessionId] = useState(null);
 
   const filtered = useMemo(() => {
     if (!sessions) return [];
-    if (activeTab === 'Attended') {
-      return sessions.filter((s) => s.status === 'attended');
+    const now = new Date();
+    if (activeTab === 'Past') {
+      return sessions.filter((s) => sessionState(s, now) !== 'cancelled' && !isUpcoming(s, now));
     }
-    return sessions.filter((s) => s.status === 'scheduled');
+    return sessions.filter((s) => isUpcoming(s, now));
   }, [sessions, activeTab]);
 
   return (
@@ -41,13 +45,13 @@ export function SessionsList({ sessions }) {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-text-primary text-sm font-semibold">
-            {activeTab === 'Attended'
-              ? 'No attended sessions yet'
-              : 'No scheduled sessions'}
+            {activeTab === 'Past'
+              ? 'No past sessions yet'
+              : 'No upcoming sessions'}
           </p>
           <p className="text-text-muted mt-1 text-xs">
-            {activeTab === 'Attended'
-              ? 'Sessions you complete will appear here.'
+            {activeTab === 'Past'
+              ? 'Sessions you have had will appear here.'
               : 'Your upcoming sessions will show up here.'}
           </p>
         </div>

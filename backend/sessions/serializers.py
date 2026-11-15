@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from students.models import Student
-from .lifecycle import start_opens_at
-from .models import Session, SessionContentField, SessionFile
+from .lifecycle import class_state, start_opens_at
+from .models import Session, SessionContentField, SessionFile, SessionOutcomeReason
+from .services import consumes_credit
 
 User = get_user_model()
 
@@ -58,6 +60,21 @@ class SessionSerializer(serializers.ModelSerializer):
     duration_hours = serializers.FloatField(read_only=True)
     # The first moment its tutor may start it (5 minutes before its scheduled start).
     start_opens_at = serializers.SerializerMethodField()
+    # Where the class stands now (sessions.lifecycle.class_state), lowercase:
+    # upcoming, in_progress, notes_due, not_started, completed, not_conducted, cancelled.
+    class_state = serializers.SerializerMethodField()
+    # The last moment its tutor's notes complete it without an approval (48 hours after its scheduled end).
+    notes_due_by = serializers.SerializerMethodField()
+    # The tutor's notes that came in after notes_due_by, and their review.
+    late_notes_reviewed_by_profile = ProfileBriefSerializer(source='late_notes_reviewed_by', read_only=True)
+    # No-show / Not Conducted as recorded, and an administrator's latest correction.
+    outcome_recorded_by_profile = ProfileBriefSerializer(source='outcome_recorded_by', read_only=True)
+    outcome_corrected_by_profile = ProfileBriefSerializer(source='outcome_corrected_by', read_only=True)
+    # What a student is told about a class not conducted: no_show for their
+    # own no-show, not_conducted for any other reason, null otherwise.
+    outcome_kind = serializers.SerializerMethodField()
+    # Whether its hours count against the student's quota (sessions.services.CREDIT_RETURNED).
+    consumes_credit = serializers.SerializerMethodField()
     # Where the class is joined: the permanent Google Meet link of the tutor it
     # is assigned to (accounts.meet_links), as it is now, or null when that
     # tutor has none or no tutor is assigned. Never the student's link or
@@ -98,13 +115,43 @@ class SessionSerializer(serializers.ModelSerializer):
             'duration_hours',
             'start_opens_at',
             'tutor_meet_link',
+            'class_state',
+            'notes_due_by',
+            'late_notes_status',
+            'late_notes_submitted_at',
+            'late_notes_reviewed_at',
+            'late_notes_reviewed_by_profile',
+            'outcome_kind',
+            'outcome_reason',
+            'outcome_note',
+            'outcome_recorded_at',
+            'outcome_recorded_by_profile',
+            'outcome_corrected_at',
+            'outcome_corrected_by_profile',
+            'consumes_credit',
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'series_id', 'class_number', 'started_at', 'completed_at',
+            'late_notes_status', 'late_notes_submitted_at', 'late_notes_reviewed_at',
+            'outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_corrected_at',
         ]
 
     def get_start_opens_at(self, instance):
         return start_opens_at(instance).isoformat()
+
+    def get_notes_due_by(self, instance):
+        return instance.notes_due_by.isoformat()
+
+    def get_class_state(self, instance):
+        return class_state(instance, timezone.now()).lower()
+
+    def get_outcome_kind(self, instance):
+        if instance.outcome_reason is None:
+            return None
+        return 'no_show' if instance.outcome_reason == SessionOutcomeReason.STUDENT_NO_SHOW else 'not_conducted'
+
+    def get_consumes_credit(self, instance):
+        return consumes_credit(instance)
 
     def get_homework(self, instance):
         hw = getattr(instance, 'homework', None)
@@ -139,3 +186,18 @@ class SessionSerializer(serializers.ModelSerializer):
             data = data.copy()
             data['status'] = data['status'].upper()
         return super().to_internal_value(data)
+
+
+# What only staff read about a class: the outcome's reason, note and who
+# recorded or corrected it, and the review of the tutor's late notes. A
+# student is told only outcome_kind.
+STAFF_ONLY_FIELDS = (
+    'outcome_reason', 'outcome_note', 'outcome_recorded_by_profile', 'outcome_corrected_at',
+    'outcome_corrected_by_profile', 'late_notes_status', 'late_notes_submitted_at', 'late_notes_reviewed_at',
+    'late_notes_reviewed_by_profile',
+)
+
+
+def for_student(row):
+    """A serialized session as a student may read it: without STAFF_ONLY_FIELDS."""
+    return {key: value for key, value in row.items() if key not in STAFF_ONLY_FIELDS}

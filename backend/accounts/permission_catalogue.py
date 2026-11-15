@@ -180,6 +180,10 @@ CATALOGUE = {
     # further purchase for one of their own enrolled students -- a new Sale on the
     # student's existing account. Never a BDE's.
     'accounts.create_additional_purchases': _entry('Create additional purchases for their students', 'Sales', MENTOR_AND_ADMIN),
+    # Session outcomes (sessions.lifecycle), accounts.0029: correcting or
+    # revoking a No-show / Not Conducted recorded by mistake -- the
+    # administrators' alone, every correction with its reason in the activity log.
+    'accounts.correct_session_outcome': _entry('Correct a recorded session outcome', 'Sessions', ADMIN_ONLY),
 }
 
 

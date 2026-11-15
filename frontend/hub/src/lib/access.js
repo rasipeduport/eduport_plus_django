@@ -31,6 +31,7 @@ export const PERMISSIONS = {
   manageSession: 'accounts.manage_session',
   cancelSession: 'accounts.cancel_session',
   editSessionNotes: 'accounts.edit_session_notes',
+  correctSessionOutcome: 'accounts.correct_session_outcome',
 
   viewAllExams: 'accounts.view_all_exams',
   viewMentoredExams: 'accounts.view_mentored_exams',
