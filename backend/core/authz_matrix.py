@@ -608,8 +608,6 @@ SCENARIOS = [
 
     # --- invitations ----------------------------------------------------------
     Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
-    Scenario('invitations.issue_existing', 'post', '/api/invitations/students/{stu_a}/issue/', {}),
-    Scenario('invitations.lookup', 'post', '/api/invitations/lookup-student/', {'student_code': 'MX-NEW2'}),
     Scenario('invitations.list', 'get', '/api/invitations/'),
     Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
     Scenario('invitations.create.student', 'post', '/api/invitations/', lambda w: {

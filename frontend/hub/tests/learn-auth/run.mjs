@@ -81,7 +81,9 @@ const open = async (kind, props) => { cleanup = await mount(kind, props); await 
 const serve = fn => { globalThis.__salesApi = { calls: [], handler: async entry => ({ data: await fn(entry) }) }; };
 const fail = data => Promise.reject({ response: { data } });
 const pending = { user: { role: 'STUDENT', must_change_password: true }, must_change_password: true };
-const admin = { role: 'ADMIN', permissions: ['accounts.view_invitations', 'accounts.change_invitation', 'accounts.create_invitation'] };
+const admin = { role: 'ADMIN', permissions: ['accounts.view_invitations', 'accounts.change_invitation'] };
+// An account still carrying the retired accounts.create_invitation (as before migration accounts.0028): it opens nothing more.
+const formerInviter = { ...admin, permissions: [...admin.permissions, 'accounts.create_invitation'] };
 const invitation = { id: 'invite', student_id: 'student', student_name: 'Enrolled Student', student_code: 'EDP12345', username: 'edp12345', role: 'STUDENT', status: 'PENDING', credentials_available: true, created_at: '2026-11-10T00:00:00Z' };
 
 test('Learn uses username/password inputs without Google', async () => {
@@ -136,9 +138,25 @@ test('Read-only staff cannot reveal credentials', async () => {
   serve(() => ({})); await open('invitations', { data: [invitation], user: { role: 'ADMIN', permissions: ['accounts.view_invitations'] } });
   assert.ok(!button('Reveal temporary password')); assert.ok(!button('Issue Learn credentials'));
 });
-test('Admin can explicitly transition an enrolled legacy student', async () => {
-  let changed = false; serve(() => ({})); await open('invitations', { data: [{ ...invitation, legacy: true, credentials_available: false, username: null }], user: admin, onChanged: () => { changed = true; } });
-  await click(button('Issue Learn credentials')); assert.equal(globalThis.__salesApi.calls[0].url, '/api/invitations/students/student/issue/'); assert.ok(changed);
+test('A legacy row offers no manual credential issue: Learn accounts come from enrollment', async () => {
+  serve(() => ({})); await open('invitations', { data: [{ ...invitation, legacy: true, credentials_available: false, username: null }], user: formerInviter });
+  assert.ok(text().includes('Not issued')); assert.ok(!button('Issue Learn credentials'));
+  assert.equal(globalThis.__salesApi.calls.length, 0);
+});
+test('New Invitation stays where it was but only says invitations come from enrollment', async () => {
+  serve((entry) => (entry.method === 'GET' && entry.url === '/api/invitations/' ? [invitation] : {}));
+  await open('invitations-page', { user: formerInviter });
+  assert.ok(text().includes('Enrolled Student'), 'the list still loads');
+  await click(button('New Invitation'));
+  assert.ok(text().includes('Student invitations are now created automatically during enrollment.'));
+  for (const gone of ['Student ID', 'Verify', 'Create Invitation']) assert.ok(!text().includes(gone), gone);
+  assert.equal(document.querySelectorAll('[role="dialog"] input').length, 0, 'no form');
+  assert.deepEqual(globalThis.__salesApi.calls.map((e) => `${e.method} ${e.url}`), ['GET /api/invitations/'], 'nothing is looked up or created');
+});
+test('The Students page has no New Student action', async () => {
+  serve(() => ({}));
+  await open('students', { students: [], user: { role: 'ADMIN', permissions: ['accounts.view_all_students', 'accounts.view_full_student_record', 'accounts.change_student_details', 'accounts.create_invitation'] }, onChanged: () => {} });
+  assert.ok(!text().includes('New Student')); assert.ok(![...document.querySelectorAll('a[href]')].some((a) => a.getAttribute('href').includes('/invitations')));
 });
 let failures = 0;
 for (const { name, fn } of tests) {

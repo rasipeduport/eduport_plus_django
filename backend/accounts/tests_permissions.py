@@ -209,7 +209,9 @@ GROUP_PERMISSIONS_AT_0022 = {
     role: held | QUOTE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0021.items()
 }
 GROUP_PERMISSIONS_AT_0023 = {role: held | INITIAL_SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0022.items()}
-EXPECTED_GROUP_PERMISSIONS = {role: held | ADDITIONAL_PURCHASE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0023.items()}
+GROUP_PERMISSIONS_AT_0026 = {role: held | ADDITIONAL_PURCHASE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0023.items()}
+# 0028 retires accounts.create_invitation: student invitations are created at enrollment only.
+EXPECTED_GROUP_PERMISSIONS = {role: held - names('create_invitation') for role, held in GROUP_PERMISSIONS_AT_0026.items()}
 
 
 def permission(name):
@@ -247,7 +249,8 @@ class PermissionTestCase(TestCase):
 
 class CatalogueTests(PermissionTestCase):
     def test_the_catalogue_includes_initial_sales(self):
-        self.assertEqual(len(CATALOGUE), 74)
+        # 74 seeded, less accounts.create_invitation, which 0028 retires.
+        self.assertEqual(len(CATALOGUE), 73)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
             | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
@@ -340,9 +343,10 @@ class CatalogueTests(PermissionTestCase):
         # 0025 changes only the invitation permission's display label. Preserve
         # the historical 0008 seed and compare the final migrated catalogue.
         self.assertEqual(dict(SEED.HUB_PERMISSIONS)['change_invitation'], "Change an invitation's email")
+        # 0028 retires create_invitation: invitations are created at enrollment only.
         self.assertEqual([
             (codename, 'Retrieve initial Learn credentials' if codename == 'change_invitation' else label)
-            for codename, label in seeded_labels
+            for codename, label in seeded_labels if codename != 'create_invitation'
         ], hub_permission_meta())
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES.GRANTS.items()}, SALES_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_CATALOGUE.GRANTS.items()},
@@ -1215,7 +1219,17 @@ class MigrationReversalTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0026_additional_purchase_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0026)
+
+        # 0028 retires accounts.create_invitation, and reverses to give it back to the Admin role.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0028_retire_create_invitation_permission')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='create_invitation').exists())
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0027_mentor_meet_link')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0026)
+        self.assertTrue(Permission.objects.filter(content_type__model='hubpermission', codename='create_invitation').exists())
 
         # 0026 alone reverses: the MENTOR and ADMIN groups are back to 0023's and its row gone.
         executor = MigrationExecutor(connection)
