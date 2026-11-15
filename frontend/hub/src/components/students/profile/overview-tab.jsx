@@ -247,6 +247,8 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
 
   const toReview = homework.submitted ?? 0;
   const missingContent = sessions.pending ?? 0;
+  // Ended classes still waiting: their tutor's notes, or (nobody started them) their outcome.
+  const awaiting = (sessions.notes_due ?? 0) + (sessions.not_started ?? 0);
 
   // Four counters, each a different question. The quota tile is the headline
   // where there is a quota to report; a tutor, who is served none, leads with
@@ -262,7 +264,7 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
       : {
           label: 'Classes booked',
           value: sessions.total ?? 0,
-          hint: `${sessions.cancelled ?? 0} cancelled`,
+          hint: `${sessions.cancelled ?? 0} cancelled · ${sessions.not_conducted ?? 0} not conducted`,
         },
     {
       label: 'Classes attended',
@@ -282,9 +284,9 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
         },
     {
       label: 'Needs attention',
-      value: toReview + missingContent,
-      hint: `${plural(toReview, 'homework', 'homework')} to review · ${plural(missingContent, 'class', 'classes')} missing content`,
-      tone: toReview + missingContent > 0 ? 'warning' : 'default',
+      value: toReview + missingContent + awaiting,
+      hint: `${plural(toReview, 'homework', 'homework')} to review · ${plural(missingContent, 'class', 'classes')} missing content · ${plural(awaiting, 'class', 'classes')} awaiting notes or outcome`,
+      tone: toReview + missingContent + awaiting > 0 ? 'warning' : 'default',
     },
   ];
 

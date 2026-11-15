@@ -165,7 +165,7 @@ export default function TutorMainDashboardPage({ user }) {
         additionalExams: data.additionalExams,
         stats: null,
         canSeeInvitations: false,
-      }).filter((item) => (item.key === 'homework' ? data.homework : item.key === 'content' ? data.sessions : true)),
+      }).filter((item) => (item.key === 'homework' ? data.homework : item.source === 'sessions' ? data.sessions : true)),
     ];
     const attentionTotal = attention.reduce((sum, item) => sum + item.count, 0);
 

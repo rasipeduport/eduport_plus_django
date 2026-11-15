@@ -11,6 +11,7 @@ export const SESSION_STATUS_LABEL = {
   pending: 'Pending',
   attended: 'Attended',
   cancelled: 'Cancelled',
+  not_conducted: 'Not Conducted',
 };
 
 export const SESSION_STATUS_VARIANT = {
@@ -18,9 +19,39 @@ export const SESSION_STATUS_VARIANT = {
   pending: 'warning',
   attended: 'success',
   cancelled: 'destructive',
+  not_conducted: 'destructive',
 };
 
 export const SESSION_CONTENT_LABEL = { notes: 'Notes', recording: 'Recording', homework: 'Homework' };
+
+// Where a class stands (lib/session-lifecycle classState, the backend's
+// class_state): the lifecycle a row is badged with. A class not conducted is
+// "No-show" when it was the student's, "Not Conducted" otherwise.
+export const CLASS_STATE_LABEL = {
+  upcoming: 'Upcoming',
+  in_progress: 'In Progress',
+  notes_due: 'Notes Due',
+  not_started: 'Not Started',
+  completed: 'Completed',
+  not_conducted: 'Not Conducted',
+  cancelled: 'Cancelled',
+};
+
+export const CLASS_STATE_VARIANT = {
+  upcoming: 'secondary',
+  in_progress: 'info',
+  notes_due: 'warning',
+  not_started: 'warning',
+  completed: 'success',
+  not_conducted: 'destructive',
+  cancelled: 'destructive',
+};
+
+/** A class state's label, the not-conducted one by what was recorded (`outcome_kind`). */
+export function classStateLabel(state, session) {
+  if (state === 'not_conducted' && session?.outcome_kind === 'no_show') return 'No-show';
+  return CLASS_STATE_LABEL[state] || 'Upcoming';
+}
 
 /** What a row is labelled: prefers the server's derived status. */
 export function sessionStatusKey(session) {

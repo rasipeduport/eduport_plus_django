@@ -479,7 +479,7 @@
    }
   },
   "/booking-links @ mentor_a": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1).",
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Booking links are not this role's page: the route guard sends the caller to their home page.",
    "result": {
     "at": "/dashboard",
@@ -493,7 +493,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 21 \u2013 Oct 27",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -501,6 +501,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -559,7 +560,7 @@
    }
   },
   "/booking-links @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -587,6 +588,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -884,7 +886,7 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ mentor_a": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1).",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Booking slots are not this role's page: the route guard sends the caller to their home page.",
    "result": {
     "at": "/dashboard",
@@ -898,7 +900,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 22 \u2013 Oct 28",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -906,6 +908,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -1298,7 +1301,7 @@
    }
   },
   "/dashboard @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -1326,6 +1329,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -1518,7 +1522,7 @@
    }
   },
   "/enquiries @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -1532,7 +1536,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1540,6 +1544,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -1598,7 +1603,7 @@
    }
   },
   "/enquiries @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -1626,6 +1631,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -1918,7 +1924,7 @@
    }
   },
   "/enquiries/{enquiry_a} @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -1932,7 +1938,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1940,6 +1946,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -1998,7 +2005,7 @@
    }
   },
   "/enquiries/{enquiry_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -2026,6 +2033,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -3220,7 +3228,7 @@
    }
   },
   "/nowhere @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -3248,6 +3256,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -3438,7 +3447,7 @@
    }
   },
   "/sessions @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the Sessions page's status tabs become Upcoming, Needs Action, Completed, No-show / Not Conducted and Cancelled (lib/session-lifecycle classState); Needs Action's count sits beside its tab. Every other button, link and call is unchanged.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/sessions",
@@ -3457,14 +3466,16 @@
      "/booking-slots"
     ],
     "buttons": [
+     "Cancelled",
      "Columns",
+     "Completed",
      "Date range",
+     "Needs Action",
+     "No-show / Not Conducted",
      "Row actions",
      "Toggle Sidebar",
      "Tutor",
-     "attended",
-     "cancelled",
-     "scheduled"
+     "Upcoming"
     ],
     "links": [],
     "headers": [
@@ -3665,7 +3676,7 @@
    }
   },
   "/sessions?student_id={stu_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the Sessions page's status tabs become Upcoming, Needs Action, Completed, No-show / Not Conducted and Cancelled (lib/session-lifecycle classState); Needs Action's count sits beside its tab. Every other button, link and call is unchanged.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/sessions?student_id={stu_a}",
@@ -3684,16 +3695,18 @@
      "/booking-slots"
     ],
     "buttons": [
+     "Cancelled",
      "Clear Filter",
      "Columns",
+     "Completed",
      "Date range",
+     "Needs Action",
      "New Session",
+     "No-show / Not Conducted",
      "Row actions",
      "Toggle Sidebar",
      "Tutor",
-     "attended",
-     "cancelled",
-     "scheduled"
+     "Upcoming"
     ],
     "links": [
      "/exams?student_id={stu_a}",
@@ -6931,7 +6944,7 @@
    }
   },
   "/bookings @ mentor_a": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
    "result": {
     "at": "/dashboard",
@@ -6953,6 +6966,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -7380,7 +7394,7 @@
    }
   },
   "/bookings?booking={booking_a} @ mentor_a": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
    "result": {
     "at": "/dashboard",
@@ -7402,6 +7416,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -8374,7 +8389,7 @@
    }
   },
   "/my-bookings @ mentor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -8396,6 +8411,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -8454,7 +8470,7 @@
    }
   },
   "/my-bookings @ su_mentor": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -8482,6 +8498,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -8796,7 +8813,7 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ mentor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/).",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
    "result": {
     "at": "/dashboard",
@@ -8818,6 +8835,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -8876,7 +8894,7 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ su_mentor": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -8904,6 +8922,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -10357,7 +10376,7 @@
    }
   },
   "/my-bookings/demo/{my_booking_a}/report @ mentor_a": {
-   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist).",
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -10379,6 +10398,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -10437,7 +10457,7 @@
    }
   },
   "/my-bookings/demo/{my_booking_a}/report @ su_mentor": {
-   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
@@ -10465,6 +10485,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -10746,7 +10767,7 @@
    }
   },
   "/leads @ mentor_a": {
-   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called.",
+   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not this role's page: sent to their home page; no leads endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -10768,6 +10789,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -11151,7 +11173,7 @@
    }
   },
   "/leads/{lead_a} @ mentor_a": {
-   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called.",
+   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not this role's page: sent to their home page; no leads endpoint is called.",
    "result": {
     "at": "/dashboard",
@@ -11173,6 +11195,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -11526,7 +11549,7 @@
    }
   },
   "/demo-bookings @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -11548,6 +11571,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -11606,7 +11630,7 @@
    }
   },
   "/demo-bookings @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -11634,6 +11658,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -11910,7 +11935,7 @@
    }
   },
   "/diagnostic-bookings @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -11932,6 +11957,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -11990,7 +12016,7 @@
    }
   },
   "/diagnostic-bookings @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -12018,6 +12044,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -12310,7 +12337,7 @@
    }
   },
   "/follow-ups @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -12332,6 +12359,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -12390,7 +12418,7 @@
    }
   },
   "/follow-ups @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -12418,6 +12446,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -12710,7 +12739,7 @@
    }
   },
   "/plans @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -12732,6 +12761,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -12790,7 +12820,7 @@
    }
   },
   "/plans @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -12818,6 +12848,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -13084,7 +13115,7 @@
    }
   },
   "/sales @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -13106,6 +13137,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -13164,7 +13196,7 @@
    }
   },
   "/sales @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic.",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
    "result": {
     "at": "/dashboard",
@@ -13192,6 +13224,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -13484,7 +13517,7 @@
    }
   },
   "/admissions?range=custom&from=2026-11-02&to=2026-11-08 @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them.",
+   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -13506,6 +13539,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -13905,7 +13939,7 @@
    }
   },
   "/bookings/demo @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them.",
+   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -13927,6 +13961,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -14334,7 +14369,7 @@
    }
   },
   "/bookings/diagnostic @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them.",
+   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -14356,6 +14391,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -14718,7 +14754,7 @@
    }
   },
   "/sales-dashboard @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -14740,6 +14776,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -14798,7 +14835,7 @@
    }
   },
   "/sales-dashboard @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -14826,6 +14863,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -15088,7 +15126,7 @@
    }
   },
   "/sales-module @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -15110,6 +15148,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -15168,7 +15207,7 @@
    }
   },
   "/sales-module @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -15196,6 +15235,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -15452,7 +15492,7 @@
    }
   },
   "/sales-punching @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -15474,6 +15514,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -15532,7 +15573,7 @@
    }
   },
   "/sales-punching @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -15560,6 +15601,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -15847,7 +15889,7 @@
    }
   },
   "/sales-syllabus @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -15869,6 +15911,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -16257,7 +16300,7 @@
    }
   },
   "/tutor-earnings @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -16279,6 +16322,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -16337,7 +16381,7 @@
    }
   },
   "/tutor-earnings @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not a page for this caller: it lands on its home page (/dashboard).",
    "result": {
     "at": "/dashboard",
@@ -16365,6 +16409,7 @@
      "/homework",
      "/invitations",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_p}",
      "/students/{stu_c}",
@@ -16632,7 +16677,7 @@
    }
   },
   "/sales-pricing @ mentor_a": {
-   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard.",
+   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Global Pricing is not this account's: sent home, as for any page it may not open.",
    "result": {
     "at": "/dashboard",
@@ -16646,7 +16691,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -16654,6 +16699,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -17016,7 +17062,7 @@
    }
   },
   "/quotes @ mentor_a": {
-   "decision": "Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged.",
+   "decision": "Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
    "note": "Not theirs to open: sent where an unknown address sends them, as /nowhere.",
    "result": {
     "at": "/dashboard",
@@ -17030,7 +17076,7 @@
      "/activity"
     ],
     "buttons": [
-     "Oct 20 \u2013 Oct 26",
+     "{week}",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17038,6 +17084,7 @@
      "/exams",
      "/homework",
      "/sessions",
+     "/sessions?tab=needs_action",
      "/students",
      "/students/{stu_c}",
      "/students/{stu_a}"
@@ -17765,6 +17812,401 @@
    },
    "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/admins @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/dashboard @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/invitations @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/nowhere @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/sessions @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the Sessions page's status tabs become Upcoming, Needs Action, Completed, No-show / Not Conducted and Cancelled (lib/session-lifecycle classState); Needs Action's count sits beside its tab. Every other button, link and call is unchanged.",
+   "result": {
+    "at": "/sessions",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Cancelled",
+     "Columns",
+     "Completed",
+     "Date range",
+     "Needs Action",
+     "No-show / Not Conducted",
+     "Row actions",
+     "Toggle Sidebar",
+     "Tutor",
+     "Upcoming"
+    ],
+    "links": [],
+    "headers": [
+     "Date",
+     "Meeting",
+     "Session Title",
+     "Status",
+     "Student",
+     "Student's Mentor",
+     "Time",
+     "Tutor"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/sessions?student_id={stu_a} @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the Sessions page's status tabs become Upcoming, Needs Action, Completed, No-show / Not Conducted and Cancelled (lib/session-lifecycle classState); Needs Action's count sits beside its tab. Every other button, link and call is unchanged.",
+   "result": {
+    "at": "/sessions?student_id={stu_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Cancelled",
+     "Clear Filter",
+     "Columns",
+     "Completed",
+     "Date range",
+     "Needs Action",
+     "New Session",
+     "No-show / Not Conducted",
+     "Row actions",
+     "Toggle Sidebar",
+     "Tutor",
+     "Upcoming"
+    ],
+    "links": [
+     "/exams?student_id={stu_a}",
+     "/sessions?student_id={stu_a}"
+    ],
+    "headers": [
+     "Date",
+     "Meeting",
+     "Session Title",
+     "Status",
+     "Student",
+     "Student's Mentor",
+     "Time",
+     "Tutor"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/team @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/team/{mentor_c} @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/team/{mentor_c}?tab=activity @ mentor_a": {
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
   }
  }
 }
