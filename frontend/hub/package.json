@@ -18,6 +18,7 @@
     "test:learn-auth": "node tests/learn-auth/run.mjs",
     "test:meet-links": "node tests/meet-links/run.mjs",
     "test:sessions": "node tests/sessions/run.mjs",
+    "test:earnings": "node tests/earnings/run.mjs",
     "test:sales:browser": "node tests/sales/browser/collection-intention.mjs"
   },
   "dependencies": {

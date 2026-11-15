@@ -31,7 +31,7 @@ const breadcrumbConfig = {
   '/my-bookings': [{ label: 'My Bookings' }],
   '/my-bookings/demo': [{ label: 'Demo Bookings' }],
   '/my-bookings/diagnostic': [{ label: 'Diagnostic Bookings' }],
-  '/hourly-earnings': [{ label: 'Hourly Earnings' }],
+  '/my-earnings': [{ label: 'My Earnings' }],
   '/team': [{ label: 'Team' }],
   '/sales-dashboard': [{ label: 'Sales Dashboard' }],
   '/sales-module': [{ label: 'Sales Module' }],
@@ -72,6 +72,8 @@ const breadcrumbPatterns = [
   { pattern: /^\/plans\/[^/]+$/, trail: [{ label: 'Plans & Pricing', href: '/plans' }, { label: 'Plan' }] },
   // A quote issued (My Quotes for a BDE, Quotes for an administrator).
   { pattern: /^\/quotes\/[^/]+$/, trail: [{ label: 'Quotes', href: '/quotes' }, { label: 'Quote' }] },
+  // One tutor's earnings, under Tutor Earnings.
+  { pattern: /^\/tutor-earnings\/[^/]+$/, trail: [{ label: 'Tutor Earnings', href: '/tutor-earnings' }, { label: 'Tutor' }] },
   // A Re-Demo request's workspace, under Demo Bookings' Re-Demo requests.
   {
     pattern: /^\/bookings\/demo\/redemos\/[^/]+$/,

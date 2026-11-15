@@ -2875,15 +2875,19 @@ const chartTest = (name, fn) => test(name, async () => {
   }
 });
 
-test('Sales & Finance: Sales Dashboard, Syllabus & Plans, Quotes and Tutor Earnings (still Coming Soon); Sales Module and Sales Punching keep their pages but leave the sidebar', () => {
-  const section = harness.workspaceFor(SALES_ADMIN).sections.find((part) => part.label === 'Sales & Finance');
+test('Sales & Finance: Sales Dashboard, Syllabus & Plans, Quotes and Tutor Earnings (on its own permission); Sales Module and Sales Punching keep their pages but leave the sidebar', () => {
+  // Tutor Earnings is live (accounts.0030): it opens on accounts.view_tutor_earnings, no longer Coming Soon.
+  const admin = { ...SALES_ADMIN, permissions: [...SALES_ADMIN.permissions, 'accounts.view_tutor_earnings'] };
+  const section = harness.workspaceFor(admin).sections.find((part) => part.label === 'Sales & Finance');
   assert.deepEqual(section.items.map((item) => [item.title, item.url, item.badge ?? null]), [
     ['Sales Dashboard', '/sales-dashboard', null],
     ['Syllabus & Plans', '/sales-syllabus', null],
     ['Quotes', '/quotes', null],
-    ['Tutor Earnings', '/tutor-earnings', 'Coming Soon'],
+    ['Tutor Earnings', '/tutor-earnings', null],
   ]);
-  for (const path of ['/sales-module', '/sales-punching', '/tutor-earnings']) assert.equal(canOpenPage(SALES_ADMIN, path), true, `${path} keeps its page`);
+  for (const path of ['/sales-module', '/sales-punching']) assert.equal(canOpenPage(SALES_ADMIN, path), true, `${path} keeps its page`);
+  assert.equal(canOpenPage(admin, '/tutor-earnings'), true);
+  assert.equal(canOpenPage(SALES_ADMIN, '/tutor-earnings'), false, 'not on the staff dashboard permission any more');
 });
 
 test('Access: the Sales Dashboard opens for an administrator holding both financial-oversight permissions, and for no one else', () => {

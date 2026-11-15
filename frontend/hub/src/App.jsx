@@ -44,6 +44,9 @@ import PlansPage from './pages/PlansPage';
 import PlanPage from './pages/PlanPage';
 import QuotesPage from './pages/QuotesPage';
 import QuotePage from './pages/QuotePage';
+import TutorEarningsPage from './pages/TutorEarningsPage';
+import TutorEarningsDetailPage from './pages/TutorEarningsDetailPage';
+import MyEarningsPage from './pages/MyEarningsPage';
 import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
 import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
 
@@ -203,8 +206,10 @@ function HubRoutes({ user, logout }) {
           path="/my-bookings/:bookingType/:bookingId/report"
           element={page('/my-bookings', <TutorReportPage user={user} />)}
         />
-        {/* The Tutor Hub's Hourly Earnings, still to come: nothing behind it yet. */}
-        <Route path="/hourly-earnings" element={page('/hourly-earnings', <ComingSoonPage module="hourlyEarnings" />)} />
+        {/* The Tutor Hub's My Earnings: the signed-in tutor's own earnings and payments (the API
+            answers for the signed-in account only). Its former address, Hourly Earnings, lands on it. */}
+        <Route path="/my-earnings" element={page('/my-earnings', <MyEarningsPage />)} />
+        <Route path="/hourly-earnings" element={page('/my-earnings', <Navigate to="/my-earnings" replace />)} />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}
@@ -253,7 +258,11 @@ function HubRoutes({ user, logout }) {
           element={page('/sales-syllabus', <SalesSyllabusEditorPage key="edit" />)}
         />
         <Route path="/sales-pricing" element={page('/sales-pricing', <SalesPricingPage />)} />
-        <Route path="/tutor-earnings" element={page('/tutor-earnings', <ComingSoonPage module="tutorEarnings" />)} />
+        {/* Tutor Earnings, for administrators: every tutor's earnings and balance, the rates, and
+            each tutor's own page -- earnings, ledger, payments and corrections. The API checks
+            each action's own permission. */}
+        <Route path="/tutor-earnings" element={page('/tutor-earnings', <TutorEarningsPage user={user} />)} />
+        <Route path="/tutor-earnings/:tutorId" element={page('/tutor-earnings', <TutorEarningsDetailPage user={user} />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>

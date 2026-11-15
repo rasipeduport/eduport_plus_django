@@ -101,8 +101,8 @@ const STAFF_WORKSPACE = {
 // The Admin Hub: its common Dashboard (still to come) on top, then the
 // admissions pipeline (its dashboard, every lead, the Demo and Diagnostic
 // bookings and their slots), Sales & Finance (the Sales Dashboard, the
-// syllabuses and plans on offer, every quote, and Tutor Earnings still to
-// come), the academic modules with their dashboard, the staff and
+// syllabuses and plans on offer, every quote, and Tutor Earnings -- every
+// tutor's, each one's on its own page), the academic modules with their dashboard, the staff and
 // invitations, and the activity log. Sales Module and Sales Punching keep
 // their pages (lib/access, App.jsx) but have no item here.
 const ADMIN_WORKSPACE = {
@@ -135,7 +135,7 @@ const ADMIN_WORKSPACE = {
         { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn },
         { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true, alsoOn: ['/sales-pricing'] },
         { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
-        { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },
+        { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, nested: true },
       ],
     },
     {
@@ -164,8 +164,8 @@ const ADMIN_WORKSPACE = {
 
 // The Tutor Hub: its Main Dashboard on top, then the admissions work (its
 // dashboard and the Demo and Diagnostic bookings they are assigned to teach),
-// their regular teaching with its dashboard (Academics & Learning), their
-// earnings still to come, and their own activity.
+// their regular teaching with its dashboard (Academics & Learning), their own
+// earnings (My Earnings), and their own activity.
 const TUTOR_WORKSPACE = {
   name: 'Tutor Hub',
   collapsible: true,
@@ -201,7 +201,7 @@ const TUTOR_WORKSPACE = {
     },
     {
       label: 'Earnings',
-      items: [{ title: 'Hourly Earnings', url: '/hourly-earnings', icon: Wallet, badge: COMING_SOON }],
+      items: [{ title: 'My Earnings', url: '/my-earnings', icon: Wallet }],
     },
     {
       label: 'Monitoring',

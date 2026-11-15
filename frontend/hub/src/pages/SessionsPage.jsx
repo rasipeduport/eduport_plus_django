@@ -12,18 +12,15 @@ import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
 import { StartSessionButton } from '../components/sessions/start-session-button';
-import { CorrectOutcomeDialog, RecordOutcomeDialog, ReviewLateNotesDialog } from '../components/sessions/session-outcome-dialogs';
+import { CorrectOutcomeDialog, RecordOutcomeDialog } from '../components/sessions/session-outcome-dialogs';
 import {
   bookedLength,
   classState,
   hasEnded,
   isAssignedTutor,
-  lateNotesPending,
   mayCancel,
   mayRecordOutcome,
-  notesDueBy,
   notesMode,
-  notesOverdue,
   outcomeReasonLabel,
   startOpensAt,
   startState,
@@ -73,7 +70,7 @@ const personName = (profile) => profile?.full_name || profile?.email || 'the tut
 
 // The status tabs: each lists the classes in those states (lib/session-lifecycle
 // classState, the backend's class_state). Needs Action holds what an ended class
-// still waits for -- its tutor's notes (or their approval), or its outcome.
+// still waits for -- its tutor's notes, or its outcome.
 const TABS = [
   { id: 'upcoming', label: 'Upcoming', states: ['upcoming', 'in_progress'] },
   { id: 'needs_action', label: 'Needs Action', states: ['notes_due', 'not_started'] },
@@ -146,9 +143,9 @@ function StatusBadge({ session, now }) {
 }
 
 // Under the badge: who started the class (its tutor, the student's mentor or an
-// administrator), when its tutor's notes are due or whether they are overdue
-// or awaiting approval, that nobody started it, who recorded its outcome, or
-// the completion the tutor's own notes made (backend sessions.lifecycle).
+// administrator), that its tutor's notes are due (whenever they come in, they
+// complete it), that nobody started it, who recorded its outcome, or the
+// completion the tutor's own notes made (backend sessions.lifecycle).
 // Staff attendance is noted too -- it records attendance, never the tutor's
 // completion.
 function ClassProgress({ session, now }) {
@@ -162,9 +159,7 @@ function ClassProgress({ session, now }) {
   } else if (state === 'in_progress') {
     parts.push(`Started ${started}`);
   } else if (state === 'notes_due') {
-    if (lateNotesPending(session)) parts.push('Late notes awaiting approval');
-    else if (notesOverdue(session, now)) parts.push(`Notes overdue since ${stamp(notesDueBy(session))}`);
-    else parts.push(`Notes due by ${stamp(notesDueBy(session))}`);
+    parts.push("Awaiting the tutor's notes");
     if (staffAttended) parts.push('Marked attended by staff');
     hint = `Started ${started}`;
   } else if (state === 'not_started') {
@@ -172,13 +167,10 @@ function ClassProgress({ session, now }) {
     if (staffAttended) parts.push('Marked attended by staff');
     hint = "Its tutor's notes cannot complete it; its outcome can be recorded.";
   } else if (state === 'completed') {
-    const late = (session.late_notes_status || '').toUpperCase() === 'APPROVED';
     parts.push(`Completed by tutor · ${stamp(session.completed_at)}`);
-    if (late) parts.push('late notes approved');
     hint = [
       started ? `Started ${started}` : 'Not started in the Hub',
       `completed by ${personName(session.completed_by_profile)}'s notes`,
-      late ? `approved by ${personName(session.late_notes_reviewed_by_profile)}` : null,
       `${bookedLength(session)} as booked`,
     ].filter(Boolean).join(' · ');
   } else if (state === 'not_conducted') {
@@ -274,7 +266,7 @@ export default function SessionsPage({ user }) {
   const isAdmin = can(user, PERMISSIONS.viewAllSessions);
 
   // Modals active state
-  // 'attend' | 'notes' | 'reschedule' | 'links' | 'cancel' | 'outcome' | 'review' | 'correct'
+  // 'attend' | 'notes' | 'reschedule' | 'links' | 'cancel' | 'outcome' | 'correct'
   const [modalType, setModalType] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
 
@@ -394,11 +386,9 @@ export default function SessionsPage({ user }) {
     }
   };
 
-  // What the notes dialog open now does (lib/session-lifecycle notesMode): complete the class,
-  // send late notes for approval, or save an edit.
+  // What the notes dialog open now does (lib/session-lifecycle notesMode): complete the class, or save an edit.
   const dialogNotesMode = modalType === 'notes' && activeSession ? notesMode(activeSession, now) : null;
   const completingNotes = dialogNotesMode === 'complete';
-  const lateNotes = dialogNotesMode === 'late' || dialogNotesMode === 'late_pending';
 
   const closeModal = () => {
     setModalType(null);
@@ -520,9 +510,9 @@ export default function SessionsPage({ user }) {
 
   // Tutor's post-session responsibility: the notes link, and only that. The
   // API refuses anything else from a tutor. For a class someone started that
-  // has ended, submitting the notes completes it within 48 hours, or sends
-  // them for approval after that -- a new upload does so itself; notes kept
-  // as they were are sent again so the submission still counts.
+  // has ended, submitting the notes completes it, however long after the class
+  // -- a new upload does so itself; notes kept as they were are sent again so
+  // the submission still counts.
   const handleSaveNotes = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -533,7 +523,7 @@ export default function SessionsPage({ user }) {
       const body = await submitContent(['notes'], { required: ['notes'] });
       if ('notes_link' in body) {
         await api.put('/api/sessions/', { id: activeSession.id, notes_link: body.notes_link });
-      } else if (kept && ['complete', 'late'].includes(notesMode(activeSession, new Date()))) {
+      } else if (kept && notesMode(activeSession, new Date()) === 'complete') {
         await api.put('/api/sessions/', { id: activeSession.id, notes_link: activeSession.notes_link });
       }
       fetchSessions();
@@ -546,15 +536,13 @@ export default function SessionsPage({ user }) {
   };
 
   // The tutor's one row action. Their notes complete the class, so they wait
-  // for someone's Start and its scheduled end; after 48 hours they wait for an
-  // approval; once completed, they are edits. None on a class cancelled or
+  // for someone's Start and its scheduled end -- then they complete it whenever
+  // they come in; once completed, they are edits. None on a class cancelled or
   // recorded as not conducted.
   const tutorNotesItem = (session) => {
     const mode = notesMode(session, now);
     const open = () => openModal('notes', session);
     if (mode === 'complete') return { label: 'Submit Notes', onClick: open };
-    if (mode === 'late') return { label: 'Submit Late Notes', onClick: open };
-    if (mode === 'late_pending') return { label: 'Update Late Notes', onClick: open };
     if (mode === 'save') return { label: 'Update Notes', onClick: open };
     if (mode === 'wait') {
       return {
@@ -580,13 +568,11 @@ export default function SessionsPage({ user }) {
   // What an administrator or the student's mentor may do with a row. Mark
   // Attended (operational only) once the class has ended; Reschedule while
   // nobody started it; Record Outcome once it ended without its tutor's
-  // completion; Review Late Notes while late notes await approval; Correct
-  // Outcome (administrators) once one is recorded; Cancel until the scheduled
-  // end. The API checks every one again.
+  // completion; Correct Outcome (administrators) once one is recorded; Cancel
+  // until the scheduled end. The API checks every one again.
   const staffItems = (session) => {
     const status = (session.status || '').toLowerCase();
     const state = classState(session, now);
-    const pendingLate = lateNotesPending(session) && (state === 'notes_due' || state === 'not_started');
     return [
       ...(status === 'scheduled' ? [
         {
@@ -597,8 +583,7 @@ export default function SessionsPage({ user }) {
         },
         ...(session.started_at ? [] : [{ label: 'Reschedule', onClick: () => openModal('reschedule', session) }]),
       ] : []),
-      ...(pendingLate ? [{ label: 'Review Late Notes', onClick: () => openModal('review', session) }] : []),
-      ...(mayRecordOutcome(session, now) && !pendingLate
+      ...(mayRecordOutcome(session, now)
         ? [{ label: 'Record Outcome', onClick: () => openModal('outcome', session) }]
         : []),
       ...(state === 'not_conducted' && canCorrectOutcome
@@ -1092,7 +1077,7 @@ export default function SessionsPage({ user }) {
 
                 <p className="text-[11px] text-zinc-500 m-0">
                   {activeSession?.started_at
-                    ? `Started ${stamp(activeSession.started_at)} by ${personName(activeSession.started_by_profile)}. Marking it attended records attendance only; the tutor's own notes, within 48 hours of the class, complete it.`
+                    ? `Started ${stamp(activeSession.started_at)} by ${personName(activeSession.started_by_profile)}. Marking it attended records attendance only; the tutor's own notes complete it, whenever they come in.`
                     : "Nobody started this class, so its tutor's notes cannot complete it. Marking it attended records attendance only and never counts toward Tutor Earnings."}
                 </p>
 
@@ -1160,7 +1145,7 @@ export default function SessionsPage({ user }) {
           {modalType === 'notes' && (
             <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
               <h3 className="text-base font-semibold text-white m-0">
-                {completingNotes ? 'Submit Notes' : lateNotes ? 'Submit Late Notes' : 'Update Notes'}
+                {completingNotes ? 'Submit Notes' : 'Update Notes'}
               </h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
@@ -1170,9 +1155,7 @@ export default function SessionsPage({ user }) {
                 <p className="text-[11px] text-zinc-500 m-0">
                   {completingNotes
                     ? `Paste a link to your notes or upload the file (PDF, image, or video). Submitting them completes this class: ${bookedLength(activeSession)} as booked.`
-                    : lateNotes
-                      ? "Paste a link to your notes or upload the file (PDF, image, or video). It is more than 48 hours since the class ended, so an administrator or the student's mentor must approve them before the class is completed."
-                      : 'Paste a link to your notes or upload the file (PDF, image, or video). This updates the notes of a completed class.'}
+                    : 'Paste a link to your notes or upload the file (PDF, image, or video). This updates the notes of a completed class.'}
                 </p>
 
                 <ContentInput
@@ -1198,7 +1181,7 @@ export default function SessionsPage({ user }) {
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                    {completingNotes ? 'Submit & Complete' : lateNotes ? 'Submit for Approval' : 'Save Notes'}
+                    {completingNotes ? 'Submit & Complete' : 'Save Notes'}
                   </button>
                 </div>
               </form>
@@ -1361,20 +1344,12 @@ export default function SessionsPage({ user }) {
         </div>
       )}
 
-      {/* No-show / Not Conducted, late notes and an administrator's correction. */}
+      {/* No-show / Not Conducted and an administrator's correction. */}
       <RecordOutcomeDialog
         session={modalType === 'outcome' ? activeSession : null}
         open={modalType === 'outcome'}
         onOpenChange={(v) => !v && closeModal()}
         onSaved={() => fetchSessions()}
-        rejectingLateNotes={lateNotesPending(activeSession)}
-      />
-      <ReviewLateNotesDialog
-        session={modalType === 'review' ? activeSession : null}
-        open={modalType === 'review'}
-        onOpenChange={(v) => !v && closeModal()}
-        onSaved={() => fetchSessions()}
-        onReject={(session) => openModal('outcome', session)}
       />
       <CorrectOutcomeDialog
         session={modalType === 'correct' ? activeSession : null}
