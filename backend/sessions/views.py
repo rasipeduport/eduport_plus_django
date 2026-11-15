@@ -824,12 +824,11 @@ class SessionsView(APIView):
         may carry nothing but `id` and `notes_link`; never on a cancelled
         class or one recorded as not conducted. Only once someone has started
         the class (SESSION_NOT_STARTED) and its scheduled end has passed
-        (CLASS_NOT_ENDED): within the notes deadline the first notes complete
-        it -- status ATTENDED, completed_at and completed_by -- after it they
-        are kept as late notes awaiting approval; once completed, notes are
-        edits that never complete it again. Logged as `session.update_links`
-        (the same entry a mentor's link edit produces) and, for the
-        completion, `session.complete` -- or `session.submit_late_notes`.
+        (CLASS_NOT_ENDED): then the first notes complete it, however long after
+        its end they come in -- status ATTENDED, completed_at and completed_by;
+        once completed, notes are edits that never complete it again. Logged
+        as `session.update_links` (the same entry a mentor's link edit
+        produces) and, for the completion, `session.complete`.
         """
         # Whose class it is comes first (checked again under the row's lock below).
         if session.tutor_id is None or session.tutor_id != request.user.id:
@@ -882,13 +881,9 @@ class SessionsView(APIView):
             # Attended now: its homework row follows, as for a mentor's Mark Attended.
             sync_homework_for_session(session, request.user, request, source='tutor_completion')
             lifecycle.log_completion(session, before_status, request)
-        elif mode == lifecycle.NOTES_LATE:
-            lifecycle.log_late_notes(session, request)
 
         return Response(
-            {"success": True, "completed": completing,
-             "late_notes": mode in (lifecycle.NOTES_LATE, lifecycle.NOTES_LATE_UPDATE),
-             "session": SessionSerializer(session).data},
+            {"success": True, "completed": completing, "session": SessionSerializer(session).data},
             status=status.HTTP_200_OK
         )
 
@@ -959,33 +954,8 @@ class SessionOutcomeView(APIView):
         ))
         if refusal:
             return refusal
-        session, rejected = result
-        lifecycle.log_outcome(session, rejected, request)
-        return Response({"success": True, "session": SessionSerializer(session).data}, status=status.HTTP_200_OK)
-
-
-class SessionLateNotesApproveView(APIView):
-    """
-    POST /api/sessions/<session_id>/late-notes/approve/
-
-    An administrator or the student's mentor approves the tutor's notes that
-    came in after the notes deadline: the class is completed as of the moment
-    they came in (sessions.lifecycle.approve_late_notes). Rejecting them is
-    recording the class's outcome (SessionOutcomeView).
-    """
-    permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_session')]
-
-    def post(self, request, session_id, *args, **kwargs):
-        result, refusal = _session_action(session_id, lambda session: lifecycle.approve_late_notes(
-            session, request.user, request=request,
-        ))
-        if refusal:
-            return refusal
-        session, before_status = result
-        lifecycle.log_late_notes_approval(session, request)
-        sync_homework_for_session(session, request.user, request, source='late_notes_approved')
-        lifecycle.log_completion(session, before_status, request, approved_late_notes=True)
-        return Response({"success": True, "session": SessionSerializer(session).data}, status=status.HTTP_200_OK)
+        lifecycle.log_outcome(result, request)
+        return Response({"success": True, "session": SessionSerializer(result).data}, status=status.HTTP_200_OK)
 
 
 class SessionOutcomeCorrectionView(APIView):
@@ -1022,8 +992,8 @@ class SessionOutcomeRevokeView(APIView):
 
     An administrator removes a recorded outcome made by mistake, saying why
     (accounts.correct_session_outcome; sessions.lifecycle.revoke_outcome): the
-    class gets back the status it had, and late notes the outcome rejected
-    await approval again. The revocation is in the activity log.
+    class gets back the status it had -- a started one takes its tutor's notes
+    again. The revocation is in the activity log.
     """
     permission_classes = [IsAuthenticated, HasAppPermission(lifecycle.CORRECT_OUTCOME)]
 
@@ -1049,9 +1019,9 @@ class SessionFileUploadView(APIView):
     Who may upload to a field mirrors who may set its link through PUT:
     manage_session -> any field on sessions within the caller's session scope,
     edit_session_notes alone -> notes on the sessions assigned to them, which
-    complete the class -- or wait as late notes -- exactly as notes through
-    PUT do (sessions.lifecycle). Never on a cancelled class or one recorded as
-    not conducted. Replaces a previous upload for the same field.
+    complete the class exactly as notes through PUT do (sessions.lifecycle).
+    Never on a cancelled class or one recorded as not conducted. Replaces a
+    previous upload for the same field.
     """
     permission_classes = [IsAuthenticated, HasAnyAppPermission('accounts.manage_session', 'accounts.edit_session_notes')]
     parser_classes = [MultiPartParser, FormParser]
@@ -1163,15 +1133,11 @@ class SessionFileUploadView(APIView):
         if completing:
             sync_homework_for_session(session, request.user, request, source='tutor_completion')
             lifecycle.log_completion(session, before_status, request)
-        elif mode == lifecycle.NOTES_LATE:
-            lifecycle.log_late_notes(session, request)
 
         file_data = SessionFileSerializer(session_file).data
         file_data['url'] = new_link
         return Response(
-            {"success": True, "completed": completing,
-             "late_notes": mode in (lifecycle.NOTES_LATE, lifecycle.NOTES_LATE_UPDATE),
-             "session": SessionSerializer(session).data, "file": file_data},
+            {"success": True, "completed": completing, "session": SessionSerializer(session).data, "file": file_data},
             status=status.HTTP_200_OK
         )
 

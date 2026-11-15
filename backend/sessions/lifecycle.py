@@ -13,23 +13,20 @@ started it never matters.
 
 A start is what opens the tutor's notes: no start, no notes. Once a class has
 been started -- by anyone -- its assigned tutor's own notes (the notes link
-through PUT /api/sessions/, or an uploaded notes file) complete it, but only
-after its scheduled end (CLASS_NOT_ENDED before), and only within
-NOTES_DEADLINE of that end (tutor_notes_target): the same write sets the
-status to ATTENDED and records ``completed_at`` and ``completed_by``, the
-tutor's completion, exactly once -- later notes change the notes, never the
-completion. Notes that come in after the deadline are kept as late notes
-(LateNotesStatus.PENDING) and complete nothing until an administrator or the
-student's mentor approves them (approve_late_notes): the class is then
-completed as of the moment those notes came in. Notes or recordings from an
-administrator or a mentor never complete a class, and nor does their Mark
-Attended -- that records operational attendance only.
+through PUT /api/sessions/, or an uploaded notes file) complete it, at any
+time after its scheduled end (CLASS_NOT_ENDED before; tutor_notes_target):
+there is no deadline and nothing to approve. The same write sets the status
+to ATTENDED and records ``completed_at`` and ``completed_by``, the tutor's
+completion, exactly once -- later notes change the notes, never the
+completion. Notes or recordings from an administrator or a mentor never
+complete a class, and nor does their Mark Attended -- that records
+operational attendance only.
 
 What actually happened to a class that was not conducted is recorded by hand,
 never by the clock: No-show / Not Conducted (record_outcome), by an
-administrator or the student's mentor, once its scheduled end has passed, for
-a reason in SessionOutcomeReason. It rejects late notes still awaiting
-approval, and it is final: only an administrator holding
+administrator or the student's mentor, once its scheduled end has passed and
+while its tutor's notes have not completed it, for a reason in
+SessionOutcomeReason. It is final: only an administrator holding
 accounts.correct_session_outcome may correct its reason or revoke it, with a
 note saying why (correct_outcome, revoke_outcome); every record, correction
 and revocation goes to the activity log.
@@ -63,7 +60,7 @@ from accounts.authz import has_app_permission
 from activity.utils import log_activity
 from core.querysets import reaches
 
-from .models import NOTES_DEADLINE, LateNotesStatus, Session, SessionOutcomeReason, SessionStatusChoices
+from .models import Session, SessionOutcomeReason, SessionStatusChoices
 
 # Start opens this long before the scheduled start and stays open until the scheduled end.
 START_EARLY = timedelta(minutes=5)
@@ -84,9 +81,6 @@ SESSION_NOT_STARTED = 'SESSION_NOT_STARTED'
 SESSION_COMPLETED = 'SESSION_COMPLETED'
 OUTCOME_RECORDED = 'OUTCOME_RECORDED'
 NO_OUTCOME = 'NO_OUTCOME'
-NO_LATE_NOTES = 'NO_LATE_NOTES'
-LATE_NOTES_PENDING = 'LATE_NOTES_PENDING'
-LATE_NOTES_MISSING = 'LATE_NOTES_MISSING'
 HOMEWORK_EXISTS = 'HOMEWORK_EXISTS'
 INVALID_OUTCOME = 'INVALID_OUTCOME'
 # Staff edits a started, past or attended class may no longer take (sessions.views).
@@ -95,9 +89,7 @@ SESSION_ENDED = 'SESSION_ENDED'
 SESSION_CHANGED = 'SESSION_CHANGED'
 
 # What the tutor's notes do (notes_mode).
-NOTES_COMPLETE = 'complete'  # started, ended, within the deadline: they complete it
-NOTES_LATE = 'late'          # started, past the deadline: kept as late notes, awaiting approval
-NOTES_LATE_UPDATE = 'late_update'  # late notes already awaiting approval: a new link for them
+NOTES_COMPLETE = 'complete'  # started and ended, whenever they come in: they complete it
 NOTES_EDIT = 'edit'          # already completed: an edit
 
 
@@ -234,8 +226,8 @@ def notes_mode(session, tutor, now, cancelled_message):
     cancelled class (400, ``cancelled_message``) or one whose outcome is
     recorded (OUTCOME_RECORDED); once completed, they are edits. Until then
     only once someone has started it (SESSION_NOT_STARTED) and its scheduled
-    end has passed (CLASS_NOT_ENDED): within NOTES_DEADLINE they complete it,
-    after that they wait for an approval.
+    end has passed (CLASS_NOT_ENDED); then they complete it, however long
+    after its end they come in.
     """
     if session.tutor_id is None or session.tutor_id != tutor.pk:
         raise SessionStateError(NOT_ASSIGNED, 'You can only add notes to the sessions assigned to you.', status=403)
@@ -257,11 +249,7 @@ def notes_mode(session, tutor, now, cancelled_message):
             'This class has not ended yet. Submit your notes once it ends to complete it.',
             ends_at=session.end_time.isoformat(),
         )
-    if session.late_notes_status == LateNotesStatus.PENDING:
-        return NOTES_LATE_UPDATE
-    if now <= session.notes_due_by:
-        return NOTES_COMPLETE
-    return NOTES_LATE
+    return NOTES_COMPLETE
 
 
 def tutor_notes_target(session, tutor, now, cancelled_message):
@@ -277,10 +265,6 @@ def apply_notes(session, mode, tutor, at):
     """What ``mode`` writes besides the notes themselves; returns the fields to save."""
     if mode == NOTES_COMPLETE:
         return mark_completed(session, tutor, at)
-    if mode == NOTES_LATE:
-        session.late_notes_status = LateNotesStatus.PENDING
-        session.late_notes_submitted_at = at
-        return ['late_notes_status', 'late_notes_submitted_at']
     return []
 
 
@@ -313,74 +297,13 @@ def log_completion(session, before_status, request, **context):
     )
 
 
-def log_late_notes(session, request):
-    log_activity(
-        action='session.submit_late_notes',
-        entity_type='session',
-        entity_id=str(session.id),
-        entity_label=session.title,
-        student=session.student,
-        context={
-            'submitted_at': session.late_notes_submitted_at.isoformat(),
-            'notes_due_by': session.notes_due_by.isoformat(),
-        },
-        request=request,
-    )
-
-
-# ----------------------------------------------------- late notes, outcomes
+# ------------------------------------------------------------------ outcomes
 
 def _require_manager(session, user, request):
     if not manages(session, user, request):
         raise SessionStateError(
             NOT_ALLOWED, "Only an administrator or the student's mentor can do this.", status=403,
         )
-
-
-def approve_late_notes(session, user, now=None, request=None):
-    """
-    Approve its tutor's late notes: ``session`` is completed as of the moment
-    they came in (status ATTENDED, ``completed_at``, ``completed_by`` its
-    tutor). Call inside ``transaction.atomic()``. Only an administrator or the
-    student's mentor (NOT_ALLOWED), only on late notes awaiting approval
-    (NO_LATE_NOTES) whose link is still there (LATE_NOTES_MISSING).
-    Returns (session, before_status).
-    """
-    session = locked(session)
-    at = now or timezone.now()
-    _require_manager(session, user, request)
-    if session.late_notes_status != LateNotesStatus.PENDING:
-        raise SessionStateError(NO_LATE_NOTES, 'This class has no late notes awaiting approval.')
-    if not (session.notes_link or '').strip():
-        raise SessionStateError(LATE_NOTES_MISSING, "The tutor's late notes are no longer on this class.")
-    if session.tutor_id is None:
-        raise SessionStateError(NOT_ASSIGNED, 'This class has no tutor whose notes could complete it.')
-    before_status = session.status
-    mark_completed(session, session.tutor, session.late_notes_submitted_at)
-    session.late_notes_status = LateNotesStatus.APPROVED
-    session.late_notes_reviewed_at = at
-    session.late_notes_reviewed_by = user
-    session.save(update_fields=[
-        'status', 'completed_at', 'completed_by',
-        'late_notes_status', 'late_notes_reviewed_at', 'late_notes_reviewed_by', 'updated_at',
-    ])
-    return session, before_status
-
-
-def log_late_notes_approval(session, request):
-    log_activity(
-        action='session.approve_late_notes',
-        entity_type='session',
-        entity_id=str(session.id),
-        entity_label=session.title,
-        student=session.student,
-        changes={'late_notes_status': {'old': LateNotesStatus.PENDING, 'new': LateNotesStatus.APPROVED}},
-        context={
-            'submitted_at': session.late_notes_submitted_at.isoformat(),
-            'notes_due_by': session.notes_due_by.isoformat(),
-        },
-        request=request,
-    )
 
 
 def clean_outcome(reason, note):
@@ -413,8 +336,7 @@ def record_outcome(session, user, reason, note=None, now=None, request=None):
     (NOT_ALLOWED), only once its scheduled end has passed (CLASS_NOT_ENDED),
     never on a cancelled (SESSION_CANCELLED), completed (SESSION_COMPLETED)
     or already recorded class (OUTCOME_RECORDED), nor on one whose homework
-    is under way (HOMEWORK_EXISTS). Late notes awaiting approval are rejected
-    by it. Returns (session, rejected_late_notes).
+    is under way (HOMEWORK_EXISTS). Returns the session.
     """
     session = locked(session)
     at = now or timezone.now()
@@ -435,31 +357,22 @@ def record_outcome(session, user, reason, note=None, now=None, request=None):
         raise SessionStateError(
             HOMEWORK_EXISTS, 'This class has homework set through it, so it cannot be recorded as not conducted.',
         )
-    rejecting = session.late_notes_status == LateNotesStatus.PENDING
     session.outcome_prior_status = session.status
     session.status = SessionStatusChoices.NOT_CONDUCTED
     session.outcome_reason = reason
     session.outcome_note = note
     session.outcome_recorded_at = at
     session.outcome_recorded_by = user
-    fields = ['status', 'outcome_prior_status', 'outcome_reason', 'outcome_note',
-              'outcome_recorded_at', 'outcome_recorded_by', 'updated_at']
-    if rejecting:
-        session.late_notes_status = LateNotesStatus.REJECTED
-        session.late_notes_reviewed_at = at
-        session.late_notes_reviewed_by = user
-        fields += ['late_notes_status', 'late_notes_reviewed_at', 'late_notes_reviewed_by']
-    session.save(update_fields=fields)
-    return session, rejecting
+    session.save(update_fields=['status', 'outcome_prior_status', 'outcome_reason', 'outcome_note',
+                                'outcome_recorded_at', 'outcome_recorded_by', 'updated_at'])
+    return session
 
 
-def log_outcome(session, rejected_late_notes, request):
+def log_outcome(session, request):
     changes = {
         'status': {'old': session.outcome_prior_status, 'new': session.status},
         'outcome_reason': {'old': None, 'new': session.outcome_reason},
     }
-    if rejected_late_notes:
-        changes['late_notes_status'] = {'old': LateNotesStatus.PENDING, 'new': LateNotesStatus.REJECTED}
     log_activity(
         action='session.record_outcome',
         entity_type='session',
@@ -539,9 +452,9 @@ def revoke_outcome(session, user, correction_note, request=None):
     An administrator's revocation of a recorded outcome made by mistake
     (accounts.correct_session_outcome, else NOT_ALLOWED), with
     ``correction_note`` saying why: the class gets back the status it had
-    before, and late notes the outcome rejected await approval again. Call
-    inside ``transaction.atomic()``. Returns (session, before): the outcome
-    it removed.
+    before -- a started one takes its tutor's notes again. Call inside
+    ``transaction.atomic()``. Returns (session, before): the outcome it
+    removed.
     """
     session = locked(session)
     _require_corrector(session, user, request)
@@ -554,20 +467,13 @@ def revoke_outcome(session, user, correction_note, request=None):
         'recorded_at': session.outcome_recorded_at.isoformat(),
         'recorded_by_id': str(session.outcome_recorded_by_id) if session.outcome_recorded_by_id else None,
         'correction_note': correction_note,
-        'restored_late_notes': session.late_notes_status == LateNotesStatus.REJECTED,
     }
     session.status = session.outcome_prior_status
     for field in ('outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_recorded_by',
                   'outcome_prior_status', 'outcome_corrected_at', 'outcome_corrected_by'):
         setattr(session, field, None)
-    fields = ['status', 'outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_recorded_by',
-              'outcome_prior_status', 'outcome_corrected_at', 'outcome_corrected_by', 'updated_at']
-    if before['restored_late_notes']:
-        session.late_notes_status = LateNotesStatus.PENDING
-        session.late_notes_reviewed_at = None
-        session.late_notes_reviewed_by = None
-        fields += ['late_notes_status', 'late_notes_reviewed_at', 'late_notes_reviewed_by']
-    session.save(update_fields=fields)
+    session.save(update_fields=['status', 'outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_recorded_by',
+                                'outcome_prior_status', 'outcome_corrected_at', 'outcome_corrected_by', 'updated_at'])
     return session, before
 
 
@@ -576,8 +482,6 @@ def log_outcome_revocation(session, before, request):
         'status': {'old': before['status'], 'new': session.status},
         'outcome_reason': {'old': before['reason'], 'new': None},
     }
-    if before['restored_late_notes']:
-        changes['late_notes_status'] = {'old': LateNotesStatus.REJECTED, 'new': LateNotesStatus.PENDING}
     log_activity(
         action='session.revoke_outcome',
         entity_type='session',

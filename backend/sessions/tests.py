@@ -1426,7 +1426,7 @@ class SessionContentUploadTests(APITestCase):
             profile=self.other_student_user, student_code='EDPUP2', full_name='Up Stu Two',
             mentor=self.other_mentor, tutor=self.other_tutor, total_class_quota=20, status=StatusChoices.ACTIVE,
         )
-        # Started by its tutor and over within the notes deadline: the tutor's notes may still complete it.
+        # Started by its tutor and over: the tutor's notes complete it (there is no deadline).
         start = timezone.now() - timedelta(days=1)
         self.session = Session.objects.create(
             student=self.student, tutor=self.tutor, title='Upload Class',

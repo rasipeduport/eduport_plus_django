@@ -1,13 +1,13 @@
 """
 Tutor Earnings activation and eligibility (earnings.eligibility).
 
-A class counts only when someone started it and its assigned tutor's own
-notes completed it after its scheduled end -- within the notes deadline, or
-later once an administrator or the student's mentor approved those late
-notes -- and only when it was scheduled to end at or after the activation
-that migration 0001 records. Nothing from before the activation is
-backfilled; a start alone, staff attendance and a recorded No-show / Not
-Conducted never count.
+A normal session counts only when someone started it and its assigned
+tutor's own notes completed it after its scheduled end -- however long after:
+there is no deadline and no approval -- and only when it was scheduled to end
+at or after the activation that migration 0001 records. Nothing from before
+the activation is backfilled; a start alone, staff attendance and a recorded
+No-show / Not Conducted never count. (Diagnostic and Demo bookings:
+tests_bookings.)
 """
 import importlib
 from datetime import timedelta
@@ -36,10 +36,6 @@ class EarningsWorld(SessionLifecycleWorld):
         session.refresh_from_db()
         self.assertEqual(session.pk in self.eligible(), expected)
         self.assertEqual(eligibility.is_eligible(session), expected)
-
-    def approve(self, user, session):
-        self.client.force_authenticate(user=user)
-        return self.client.post(reverse('sessions:session-late-notes-approve', args=[session.id]), format='json')
 
     def record_outcome(self, user, session, reason, note=None):
         self.client.force_authenticate(user=user)
@@ -74,7 +70,7 @@ class ActivationTests(EarningsWorld):
 class EligibilityTests(EarningsWorld):
     def test_classes_that_ended_before_the_activation_are_never_backfilled(self):
         # Rows that exist when earnings is activated: completed by the tutor,
-        # attended by staff, never closed, past the notes deadline.
+        # attended by staff, never closed, days old.
         completed = self.make(
             -timedelta(days=5), status_value=ATTENDED, started=True,
             completed_at=self.now - timedelta(days=4), completed_by=self.tutor,
@@ -83,12 +79,9 @@ class EligibilityTests(EarningsWorld):
         open_past = self.make(-timedelta(hours=26), started=True)
         late = self.make(-timedelta(days=4), started=True)
         self.activate(self.now - timedelta(hours=1))
-        # The tutor's notes still complete the older classes after the activation,
-        # and late notes once approved...
-        for session in (staff_attended, open_past):
+        # The tutor's notes still complete the older classes after the activation, however late...
+        for session in (staff_attended, open_past, late):
             self.assertTrue(self.notes(self.tutor, session).data['completed'])
-        self.assertTrue(self.notes(self.tutor, late).data['late_notes'])
-        self.assertEqual(self.approve(self.mentor, late).status_code, status.HTTP_200_OK)
         # ...but none of them ever counts.
         for session in (completed, staff_attended, open_past, late):
             with self.subTest(start_time=session.start_time):
@@ -131,37 +124,34 @@ class EligibilityTests(EarningsWorld):
             with self.subTest(start_time=session.start_time):
                 self.assert_counts(session, session.pk in counted)
 
-    def test_a_counted_class_counts_as_booked_however_late_within_the_deadline(self):
-        self.activate(self.now - timedelta(days=7))
-        session = self.make(-timedelta(hours=46), hours=1.5, started=True)
+    def test_a_counted_class_counts_as_booked_however_late_its_notes(self):
+        self.activate(self.now - timedelta(days=30))
+        session = self.make(-timedelta(days=12), hours=1.5, started=True)
         self.assertTrue(self.notes(self.tutor, session).data['completed'])
         self.assert_counts(session, True)
         self.assertEqual(session.duration_hours, 1.5)
 
-    def test_late_notes_count_only_once_approved_and_never_once_rejected(self):
+    def test_notes_days_after_the_class_count_with_no_approval_and_a_recorded_no_show_never(self):
         self.activate(self.now - timedelta(days=7))
-        approved = self.make(-timedelta(days=4), started=True)
-        rejected = self.make(-timedelta(days=3), started=True)
-        for session in (approved, rejected):
-            res = self.notes(self.tutor, session)
-            self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-            self.assertEqual((res.data['completed'], res.data['late_notes']), (False, True))
-            self.assert_counts(session, False)
-        self.assertEqual(self.approve(self.admin, approved).status_code, status.HTTP_200_OK)
-        self.assertEqual(self.record_outcome(self.mentor, rejected, 'TUTOR_ABSENT').status_code, status.HTTP_200_OK)
-        self.assert_counts(approved, True)
-        self.assertEqual(approved.duration_hours, 1.0)
-        self.assert_counts(rejected, False)
+        noted = self.make(-timedelta(days=4), started=True)
+        recorded = self.make(-timedelta(days=3), started=True)
+        res = self.notes(self.tutor, noted)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertTrue(res.data['completed'])
+        self.assert_counts(noted, True)
+        self.assertEqual(self.record_outcome(self.mentor, recorded, 'TUTOR_ABSENT').status_code, status.HTTP_200_OK)
+        # Its tutor's notes are refused once its outcome is recorded: it never counts.
+        self.assertEqual(self.notes(self.tutor, recorded).status_code, status.HTTP_409_CONFLICT)
+        self.assert_counts(recorded, False)
 
-    def test_an_approved_completion_is_dated_by_the_late_notes_not_the_approval(self):
+    def test_a_completion_is_dated_by_the_tutors_notes(self):
         self.activate(self.now - timedelta(days=7))
         session = self.make(-timedelta(days=4), started=True)
+        before = timezone.now()
         self.notes(self.tutor, session)
         session.refresh_from_db()
-        submitted = session.late_notes_submitted_at
-        self.approve(self.mentor, session)
-        session.refresh_from_db()
-        self.assertEqual((session.completed_at, session.completed_by), (submitted, self.tutor))
+        self.assertGreaterEqual(session.completed_at, before)
+        self.assertEqual(session.completed_by, self.tutor)
 
     def test_a_completion_no_longer_matching_the_assigned_tutor_never_counts(self):
         # A tutor swapped on a completed row outside the API (the Django admin) takes it out.
@@ -185,9 +175,8 @@ class EligibilityTests(EarningsWorld):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.activate(self.now - timedelta(days=5))
         self.assertTrue(self.notes(self.tutor, recent).data['completed'])
-        # Past the deadline, the old class's notes wait for an approval; approved, it still ended before the activation.
-        self.assertTrue(self.notes(self.tutor, old).data['late_notes'])
-        self.assertEqual(self.approve(self.mentor, old).status_code, status.HTTP_200_OK)
+        # The old class's notes complete it too, days later -- but it ended before the activation.
+        self.assertTrue(self.notes(self.tutor, old).data['completed'])
         self.assertEqual(self.eligible(), {recent.pk})
         self.assert_counts(old, False)
         self.assert_counts(recent, True)

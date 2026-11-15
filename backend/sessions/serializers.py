@@ -63,10 +63,6 @@ class SessionSerializer(serializers.ModelSerializer):
     # Where the class stands now (sessions.lifecycle.class_state), lowercase:
     # upcoming, in_progress, notes_due, not_started, completed, not_conducted, cancelled.
     class_state = serializers.SerializerMethodField()
-    # The last moment its tutor's notes complete it without an approval (48 hours after its scheduled end).
-    notes_due_by = serializers.SerializerMethodField()
-    # The tutor's notes that came in after notes_due_by, and their review.
-    late_notes_reviewed_by_profile = ProfileBriefSerializer(source='late_notes_reviewed_by', read_only=True)
     # No-show / Not Conducted as recorded, and an administrator's latest correction.
     outcome_recorded_by_profile = ProfileBriefSerializer(source='outcome_recorded_by', read_only=True)
     outcome_corrected_by_profile = ProfileBriefSerializer(source='outcome_corrected_by', read_only=True)
@@ -116,11 +112,6 @@ class SessionSerializer(serializers.ModelSerializer):
             'start_opens_at',
             'tutor_meet_link',
             'class_state',
-            'notes_due_by',
-            'late_notes_status',
-            'late_notes_submitted_at',
-            'late_notes_reviewed_at',
-            'late_notes_reviewed_by_profile',
             'outcome_kind',
             'outcome_reason',
             'outcome_note',
@@ -132,15 +123,11 @@ class SessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'series_id', 'class_number', 'started_at', 'completed_at',
-            'late_notes_status', 'late_notes_submitted_at', 'late_notes_reviewed_at',
             'outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_corrected_at',
         ]
 
     def get_start_opens_at(self, instance):
         return start_opens_at(instance).isoformat()
-
-    def get_notes_due_by(self, instance):
-        return instance.notes_due_by.isoformat()
 
     def get_class_state(self, instance):
         return class_state(instance, timezone.now()).lower()
@@ -189,12 +176,10 @@ class SessionSerializer(serializers.ModelSerializer):
 
 
 # What only staff read about a class: the outcome's reason, note and who
-# recorded or corrected it, and the review of the tutor's late notes. A
-# student is told only outcome_kind.
+# recorded or corrected it. A student is told only outcome_kind.
 STAFF_ONLY_FIELDS = (
     'outcome_reason', 'outcome_note', 'outcome_recorded_by_profile', 'outcome_corrected_at',
-    'outcome_corrected_by_profile', 'late_notes_status', 'late_notes_submitted_at', 'late_notes_reviewed_at',
-    'late_notes_reviewed_by_profile',
+    'outcome_corrected_by_profile',
 )
 
 
