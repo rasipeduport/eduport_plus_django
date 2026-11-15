@@ -1893,9 +1893,10 @@ test("Team: a team manager sets a tutor's permanent Meet link with its own PUT, 
 });
 
 test('Team: no Meet link field for another role, or for a directory reader', async () => {
-  serve({ [`GET ${MEMBER_URL}`]: member({ role: 'MENTOR' }), 'GET /api/team/permissions/': [] });
+  // A mentor has one of their own now (mentor_meet_link, tests/meet-links); a BDE has none.
+  serve({ [`GET ${MEMBER_URL}`]: member({ role: 'BDE' }), 'GET /api/team/permissions/': [] });
   const page = await open('/team/t-a', MANAGER);
-  assert.ok(!meetInput(), 'a mentor has none');
+  assert.ok(!meetInput(), 'a BDE has none');
   await page.unmount();
   // A directory reader (accounts.view_team) is sent no Meet link at all, so is offered none.
   const { tutor_meet_link: _hidden, permissions: _p, ...readable } = member({ tutor_meet_link: MEET });

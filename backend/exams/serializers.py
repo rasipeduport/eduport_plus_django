@@ -29,6 +29,12 @@ class ExamSerializer(serializers.ModelSerializer):
     student_id = serializers.PrimaryKeyRelatedField(source='student', read_only=True)
     students = StudentBriefSerializer(source='student', read_only=True)
     mentor_profile = ProfileBriefSerializer(source='mentor', read_only=True)
+    # Where the chapter exam is held: the permanent Google Meet link of the
+    # mentor it is assigned to (accounts.meet_links), as it is now, or null when
+    # that mentor has none or no mentor is assigned. Never the student's link or
+    # a tutor's. A change of mentor hands over the exams still scheduled
+    # (exams.services.handover_open_exams), and with them this link.
+    mentor_meet_link = serializers.CharField(source='mentor.mentor_meet_link', read_only=True, default=None)
     files = ExamFileSerializer(many=True, read_only=True)
     file_count = serializers.SerializerMethodField()
 
@@ -37,7 +43,7 @@ class ExamSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'student_id', 'students', 'mentor', 'mentor_profile', 'type', 'chapter_name',
             'start_time', 'end_time', 'status', 'score', 'max_score', 'recording_link',
-            'cancellation_reason', 'created_at', 'updated_at', 'files', 'file_count',
+            'cancellation_reason', 'created_at', 'updated_at', 'files', 'file_count', 'mentor_meet_link',
         ]
         read_only_fields = fields
 

@@ -2,6 +2,7 @@ import uuid
 from urllib.parse import urlparse
 
 from django.db import models
+from django.db.models import F, Q
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.conf import settings
@@ -54,6 +55,35 @@ class Session(models.Model):
     series_id = models.UUIDField(blank=True, null=True, db_index=True)
     class_number = models.IntegerField(blank=True, null=True)
 
+    # When the class was started and by whom: Start Session by its assigned
+    # tutor, the student's mentor or an administrator, by the server's clock
+    # (sessions.lifecycle.start_session). Operational only -- it opens the
+    # class and never completes it, and who started it never matters to the
+    # completion. Its scheduled time alone never starts a class. NULL = not
+    # started, including every class from before Start existed: a start is
+    # never made up.
+    started_at = models.DateTimeField(null=True, blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='started_sessions'
+    )
+    # The tutor's completion: when its assigned tutor's own notes completed
+    # it, and who that was -- submitted after its originally scheduled end,
+    # whether or not anyone started it (sessions.lifecycle). Written once. An
+    # administrator's or mentor's notes, recording or Mark Attended leave both
+    # empty -- those are operational attendance, not the tutor's completion.
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_sessions'
+    )
+
     # Post-session content every attended class must end up with, keyed by the
     # short name the API and the SPAs use. Order is the display order.
     REQUIRED_CONTENT = (
@@ -67,9 +97,39 @@ class Session(models.Model):
         verbose_name = 'Session'
         verbose_name_plural = 'Sessions'
         ordering = ['-start_time']
+        constraints = [
+            # A start comes with its moment, and so does a completion; who did
+            # either may since be gone (SET_NULL), but never without the moment.
+            models.CheckConstraint(
+                condition=Q(started_by__isnull=True) | Q(started_at__isnull=False),
+                name='sessions_started_by_needs_started_at',
+            ),
+            models.CheckConstraint(
+                condition=Q(completed_by__isnull=True) | Q(completed_at__isnull=False),
+                name='sessions_completed_by_needs_completed_at',
+            ),
+            # Completed = attended, and no earlier than the scheduled end of
+            # the class. A start is never required.
+            models.CheckConstraint(
+                condition=Q(completed_at__isnull=True) | (
+                    Q(status=SessionStatusChoices.ATTENDED) & Q(completed_at__gte=F('end_time'))
+                ),
+                name='sessions_completed_is_attended_after_end',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.title} - {self.student.full_name} ({self.start_time.strftime('%Y-%m-%d %H:%M')})"
+
+    @property
+    def duration_hours(self):
+        """
+        The class as booked, in hours (one hour = one class credit): its
+        scheduled end minus its scheduled start. Never the time its start or
+        its notes came in -- and frozen once it has started or been attended,
+        since neither may be rescheduled any more (sessions.views).
+        """
+        return (self.end_time - self.start_time).total_seconds() / 3600
 
     # Content completion is derived from the link columns every time it is
     # read, never stored: a stored flag would go stale the moment a tutor or

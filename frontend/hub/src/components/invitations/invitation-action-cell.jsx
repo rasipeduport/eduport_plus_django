@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { PERMISSIONS, can } from '@/lib/access';
 import api from '@/lib/api';
 
-export function InvitationActionCell({ invitation, user, onChanged }) {
+export function InvitationActionCell({ invitation, user }) {
   const [credentials, setCredentials] = useState(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -18,16 +18,9 @@ export function InvitationActionCell({ invitation, user, onChanged }) {
     } catch (err) { setError(err.response?.data?.message || err.response?.data?.detail || 'Could not retrieve credentials.'); }
     finally { setPending(false); }
   };
-  const issue = async () => {
-    setPending(true); setError('');
-    try { await api.post(`/api/invitations/students/${invitation.student_id}/issue/`); onChanged?.(); }
-    catch (err) { setError(err.response?.data?.detail || 'Could not issue credentials.'); }
-    finally { setPending(false); }
-  };
   const canReveal = can(user, PERMISSIONS.changeInvitation) && can(user, PERMISSIONS.viewInvitations);
   return <div className="space-y-2">
     {invitation.credentials_available && canReveal ? <Button type="button" size="sm" variant="outline" className="max-w-full whitespace-normal text-left" disabled={pending} onClick={reveal}>Reveal temporary password</Button> : null}
-    {invitation.legacy && invitation.student_id && can(user, PERMISSIONS.createInvitation) ? <Button type="button" size="sm" variant="outline" className="max-w-full whitespace-normal text-left" disabled={pending} onClick={issue}>Issue Learn credentials</Button> : null}
     {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
     <Dialog open={Boolean(credentials)} onOpenChange={(open) => { if (!open) { setCredentials(null); setCopied(false); } }}>
       <DialogContent><DialogHeader><DialogTitle>Initial Learn credentials</DialogTitle><DialogDescription>Share privately with the student or parent. The temporary password is erased after the first password change.</DialogDescription></DialogHeader>

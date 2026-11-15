@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from students.models import Student
+from .lifecycle import start_opens_at
 from .models import Session, SessionContentField, SessionFile
 
 User = get_user_model()
@@ -16,11 +17,10 @@ class StudentBriefSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Student
-        # meet_link is the student's Google Meet room (students.meet_link, the
-        # same column the Students API and "Edit Demo Link" use). Nesting it
-        # here lets the sessions table offer "Join Meet" without a second
-        # endpoint; it reaches exactly the callers who can already see the row.
-        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url', 'meet_link']
+        # Never the student's own meet_link: a class is joined in its tutor's
+        # room (SessionSerializer.tutor_meet_link) and a chapter exam in its
+        # mentor's (exams.serializers.ExamSerializer.mentor_meet_link).
+        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url']
 
 class SessionFileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -49,6 +49,21 @@ class SessionSerializer(serializers.ModelSerializer):
     # attended session has homework content): what the Homework badge and
     # the Learn tile read.
     homework = serializers.SerializerMethodField()
+    # Who started the class and when (its tutor, the student's mentor or an
+    # administrator), and the tutor's completion their own notes made
+    # (sessions.lifecycle), read only. A class marked attended by staff has no completion.
+    started_by_profile = ProfileBriefSerializer(source='started_by', read_only=True)
+    completed_by_profile = ProfileBriefSerializer(source='completed_by', read_only=True)
+    # The class as booked, in hours (end_time - start_time): what it counts as, whenever it was completed.
+    duration_hours = serializers.FloatField(read_only=True)
+    # The first moment its tutor may start it (5 minutes before its scheduled start).
+    start_opens_at = serializers.SerializerMethodField()
+    # Where the class is joined: the permanent Google Meet link of the tutor it
+    # is assigned to (accounts.meet_links), as it is now, or null when that
+    # tutor has none or no tutor is assigned. Never the student's link or
+    # anyone else's. A change of tutor hands over the classes still to come,
+    # and with them this link; started and past classes keep their tutor.
+    tutor_meet_link = serializers.CharField(source='tutor.tutor_meet_link', read_only=True, default=None)
 
     class Meta:
         model = Session
@@ -76,8 +91,20 @@ class SessionSerializer(serializers.ModelSerializer):
             'display_status',
             'content_files',
             'homework',
+            'started_at',
+            'started_by_profile',
+            'completed_at',
+            'completed_by_profile',
+            'duration_hours',
+            'start_opens_at',
+            'tutor_meet_link',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'series_id', 'class_number', 'started_at', 'completed_at',
+        ]
+
+    def get_start_opens_at(self, instance):
+        return start_opens_at(instance).isoformat()
 
     def get_homework(self, instance):
         hw = getattr(instance, 'homework', None)

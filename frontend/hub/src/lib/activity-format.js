@@ -26,6 +26,9 @@ export const ACTION_LABELS = {
   'session.update_links': 'Session links updated',
   'session.reschedule': 'Session rescheduled',
   'session.mark_attended': 'Marked attended',
+  // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
+  'session.start': 'Session started',
+  'session.complete': 'Session completed',
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
@@ -266,6 +269,10 @@ export function describeActivity(row) {
       return 'Rescheduled the session';
     case 'session.mark_attended':
       return 'Marked the session attended';
+    case 'session.start':
+      return 'Started the session';
+    case 'session.complete':
+      return 'Completed the session with their notes';
     case 'session.cancel': {
       const reason = reasonOf(row);
       return reason ? `Cancelled the session — ${reason}` : 'Cancelled the session';
@@ -324,7 +331,8 @@ export function describeActivity(row) {
       const verb = { added: 'Set', changed: 'Changed', removed: 'Removed' }[row.context?.change] ?? 'Updated';
       const count = row.context?.live_bookings_updated ?? 0;
       const bookings = count ? `; ${count} booking${count === 1 ? '' : 's'} not yet ended now use${count === 1 ? 's' : ''} it` : '';
-      return `${verb} the tutor's Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
+      const whose = row.context?.role === 'MENTOR' ? "mentor's" : "tutor's";
+      return `${verb} the ${whose} Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
     }
     case 'user.update_details':
       return 'Updated the account details';

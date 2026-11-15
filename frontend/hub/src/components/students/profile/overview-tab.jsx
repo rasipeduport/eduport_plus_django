@@ -7,6 +7,8 @@ import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone';
+import { classMeetLink, classMeetMissing, examMeetLink, examMeetMissing } from '@/lib/meet-rooms';
+import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { EMPTY, FieldCard, StatTile } from './profile-primitives';
 
 const DATE_TIME = "d MMM yyyy, h:mm a";
@@ -133,7 +135,11 @@ function QuotaBar({ quota, studentId, canSync, onSynced, paymentManaged = false 
   );
 }
 
-/** The next class, the last one held and the next exam, when there are any. */
+/**
+ * The next class, the last one held and the next exam, when there are any.
+ * The next class joins its assigned tutor's Meet room, the next exam its
+ * assigned mentor's; without one, the row says so.
+ */
 function NextUp({ highlights, onOpenTab }) {
   const rows = [
     highlights.next_session && {
@@ -143,6 +149,11 @@ function NextUp({ highlights, onOpenTab }) {
       title: highlights.next_session.title,
       when: formatMoment(highlights.next_session.start_time),
       tab: 'sessions',
+      join: {
+        link: classMeetLink(highlights.next_session),
+        missing: classMeetMissing(highlights.next_session),
+        label: `Join the class ${highlights.next_session.title}`,
+      },
     },
     highlights.last_session && {
       key: 'last_session',
@@ -159,6 +170,11 @@ function NextUp({ highlights, onOpenTab }) {
       title: highlights.next_exam.chapter_name,
       when: formatMoment(highlights.next_exam.start_time),
       tab: 'exams',
+      join: {
+        link: examMeetLink(highlights.next_exam),
+        missing: examMeetMissing(highlights.next_exam),
+        label: `Join the exam ${highlights.next_exam.chapter_name}`,
+      },
     },
   ].filter(Boolean);
 
@@ -182,6 +198,14 @@ function NextUp({ highlights, onOpenTab }) {
               </p>
             </div>
             <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:inline">{row.when}</span>
+            {row.join ? (
+              <JoinMeetButton
+                link={row.join.link}
+                missingLabel={row.join.missing}
+                label={row.join.label}
+                className="shrink-0 text-xs"
+              />
+            ) : null}
             <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onOpenTab(row.tab)}>
               Open
             </Button>

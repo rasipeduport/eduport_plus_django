@@ -476,15 +476,16 @@ class StaffReassignView(APIView):
     """
     POST /api/users/<id>/reassign/ — bulk hand over every ACTIVE student
     assigned to a departing staff member to a replacement, before deactivating
-    them (accounts.manage_team: Team's handover step). Re-points that student's open (SCHEDULED) sessions for a tutor
-    handover; completed/cancelled history keeps the old staff pointer for
+    them (accounts.manage_team: Team's handover step). Re-points that student's classes still to come that nobody
+    started (sessions.services.transferable_sessions) for a tutor handover; started, past, completed and cancelled
+    classes keep the old staff pointer for
     attribution, and inactive/expired students are left untouched — mirrors
     the Hub's reassign_all_for_staff RPC.
     """
     permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_team')]
 
     def post(self, request, pk, *args, **kwargs):
-        from sessions.models import Session, SessionStatusChoices
+        from sessions.models import Session
 
         old_staff = User.objects.filter(pk=pk).first()
         if not old_staff:
@@ -522,6 +523,7 @@ class StaffReassignView(APIView):
 
         from sessions.services import (
             find_handover_conflict, handover_conflict_response_data, lock_scheduling, lock_tutor_schedule,
+            transferable_sessions,
         )
 
         # The students whose classes would move to the new tutor, read before
@@ -580,7 +582,7 @@ class StaffReassignView(APIView):
                         },
                         status=status.HTTP_409_CONFLICT
                     )
-            open_sessions = Session.objects.filter(student__in=tutor_students, status=SessionStatusChoices.SCHEDULED)
+            open_sessions = transferable_sessions(Session.objects.filter(student__in=tutor_students))
             if need_tutor:
                 # Every open class the new tutor takes over must fit their
                 # schedule: one student at a time, classes and Demo/Diagnostic

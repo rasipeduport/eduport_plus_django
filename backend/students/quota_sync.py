@@ -18,14 +18,13 @@ student, still consumed in HOURS by ``sessions.services.calculate_credits_used``
 (a 1.5-hour class still costs 1.5), and still read from Postgres on every
 request -- no API path talks to Google.
 
-Three callers, one calculation:
+Two callers, one calculation:
 
     sync_student_quotas_from_sheet   hourly (Celery beat) -- every student,
                                      the reconciliation of record
     sync_one_student_quota           on demand -- one student, from the
-                                     profile's "Sync from sheet" button
-    quota_for_code                   enrolment -- the figure a new student
-                                     starts with (invitations.views)
+                                     profile's "Sync from sheet" button,
+                                     through quota_for_code
 
 Written to fail safe, in this order:
 
@@ -145,8 +144,8 @@ def _reduce_values(code, values):
 
     THE one place the business rule lives. Both callers go through it:
     ``sync_student_quotas_from_sheet`` (periodically) and ``quota_for_code``
-    (at enrolment), so the duplicate-row sum, the rounding and the clamp can
-    never diverge between the two.
+    (one student, on demand), so the duplicate-row sum, the rounding and the
+    clamp can never diverge between the two.
 
     ``None`` means "the sheet does not say", which the two callers are right to
     read differently: the sync leaves a stored quota untouched, while enrolment
@@ -162,11 +161,8 @@ def quota_for_code(rows, student_code):
     The quota one student code is owed by these sheet rows, or ``None`` when no
     row states a number for it.
 
-    Used by the enrolment flow to initialise ``Student.total_class_quota`` the
-    moment a student is invited, so a new student is not stuck at 0 until the
-    next scheduled sync. ``rows`` is passed in rather than fetched so the
-    caller's single ``fetch_enrollment_rows()`` serves both the profile lookup
-    and this.
+    The figure ``sync_one_student_quota`` stores. ``rows`` is passed in rather
+    than fetched, so the caller decides when the sheet is read.
     """
     key = (student_code or '').strip().upper()
     if not key:
@@ -209,7 +205,7 @@ def group_paid_classes_by_code(rows, report=None):
     cases are both skips, but only the first is a data-entry problem.
 
     ``report`` is optional: the periodic sync passes its own to collect the
-    diagnostics, while the enrolment lookup wants only the numbers. Either way
+    diagnostics, while quota_for_code wants only the numbers. Either way
     a non-numeric cell is logged as it is read, so "Token" is never silently
     swallowed by either caller.
     """
@@ -405,8 +401,8 @@ TARGETED_PAYMENT_MANAGED = 'payment_managed'
 def sync_one_student_quota(student_code):
     """
     Re-read ONE student's quota from the sheet and store it -- the profile's
-    manual "Sync from sheet" button. Same ``quota_for_code`` the enrolment
-    flow uses, same ``_reduce_values`` the hourly sync uses, same
+    manual "Sync from sheet" button. Through ``quota_for_code`` and the
+    same ``_reduce_values`` the hourly sync uses, same
     ``_write_quotas``: there is still exactly one quota calculation and one
     write path.
 

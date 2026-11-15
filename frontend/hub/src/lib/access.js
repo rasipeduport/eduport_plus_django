@@ -49,7 +49,6 @@ export const PERMISSIONS = {
   viewActivityActors: 'accounts.view_activity_actors',
 
   viewInvitations: 'accounts.view_invitations',
-  createInvitation: 'accounts.create_invitation',
   changeInvitation: 'accounts.change_invitation',
   withdrawInvitation: 'accounts.withdraw_invitation',
 

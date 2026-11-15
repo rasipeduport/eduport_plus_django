@@ -14,7 +14,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EXAM_VIEW, PERMISSIONS, SESSION_VIEW, can, canAny } from '@/lib/access';
 import { EditStudentProfileSheet } from './edit-student-profile-sheet';
-import { EditMeetLinkModal } from './edit-meet-link-modal';
 import { ChangeStatusDialog } from './change-status-dialog';
 import { ReassignStaffDialog } from './reassign-staff-dialog';
 import { StudentHistorySheet } from './student-history-sheet';
@@ -32,11 +31,13 @@ import { PurgeStudentDialog } from './purge-student-dialog';
  *
  * There is deliberately no "Top-up Class Quota" item: the quota is synced
  * from the enrolment sheet's "No of classes paid for" column, and
- * PUT /api/students/ now refuses `total_class_quota` outright.
+ * PUT /api/students/ now refuses `total_class_quota` outright. Nor is there an
+ * "Edit Demo Link" item any more: it edited the student's own Meet link
+ * (students.meet_link), which no class or exam joins -- a class joins its
+ * tutor's link and a chapter exam its mentor's, both set in Team.
  */
 export function ActionCell({ student, user, onChanged, showProfileLink = true }) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [meetLinkOpen, setMeetLinkOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -87,12 +88,7 @@ export function ActionCell({ student, user, onChanged, showProfileLink = true })
               <Link to={`/exams?student_id=${student.id}`}>Manage Exams</Link>
             </DropdownMenuItem>
           ) : null}
-          {canChange ? (
-            <>
-              <DropdownMenuItem onSelect={() => setMeetLinkOpen(true)}>Edit Demo Link</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem>
-            </>
-          ) : null}
+          {canChange ? <DropdownMenuItem onSelect={() => setStatusOpen(true)}>Change Status</DropdownMenuItem> : null}
           {canReassign || canSeeHistory ? (
             <>
               <DropdownMenuSeparator />
@@ -116,7 +112,6 @@ export function ActionCell({ student, user, onChanged, showProfileLink = true })
       {canChange ? (
         <>
           <EditStudentProfileSheet student={student} open={profileOpen} onOpenChange={setProfileOpen} onSaved={onChanged} />
-          <EditMeetLinkModal student={student} open={meetLinkOpen} onOpenChange={setMeetLinkOpen} onSaved={onChanged} />
           <ChangeStatusDialog student={student} open={statusOpen} onOpenChange={setStatusOpen} onSaved={onChanged} />
         </>
       ) : null}

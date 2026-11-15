@@ -28,7 +28,7 @@ from students.quota_sync import (
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
 from sessions.serializers import SessionSerializer
-from sessions.services import find_handover_conflict, handover_conflict_response_data, lock_scheduling
+from sessions.services import find_handover_conflict, handover_conflict_response_data, lock_scheduling, transferable_sessions
 from activity.utils import log_activity
 from accounts.authz import has_app_permission
 from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser
@@ -457,8 +457,10 @@ class StudentReassignView(APIView):
     Needs accounts.reassign_student_staff (admins), mirroring the Hub's
     reassign_student_staff RPC: the client
     always sends both desired final values (null = unassign). Completed and
-    cancelled sessions keep their tutor snapshot for attribution; only open
-    (SCHEDULED) sessions are handed over to the new tutor. Replacements must
+    cancelled sessions keep their tutor snapshot for attribution, and so do
+    classes already started or whose time has passed; only classes still to
+    come that nobody started (sessions.services.transferable_sessions) are
+    handed over to the new tutor. Replacements must
     be assignable (right role, not deactivated) — the same rule the slim
     /api/mentors and /api/tutors dropdown lists apply. The bulk staff-exit
     handover is a different flow: accounts.StaffReassignView.
@@ -534,7 +536,7 @@ class StudentReassignView(APIView):
             # The open classes the new tutor takes over must fit their
             # schedule: one student at a time, classes and Demo/Diagnostic
             # bookings alike. Checked before anything moves.
-            open_sessions = Session.objects.filter(student=student, status=SessionStatusChoices.SCHEDULED)
+            open_sessions = transferable_sessions(Session.objects.filter(student=student))
             if new_tutor is not None:
                 clash = find_handover_conflict(open_sessions, new_tutor)
                 if clash is not None:

@@ -94,7 +94,6 @@ CATALOGUE = {
 
     # Invitations
     'accounts.view_invitations': _entry('View invitations', 'Invitations'),
-    'accounts.create_invitation': _entry('Invite students', 'Invitations'),
     'accounts.change_invitation': _entry('Retrieve initial Learn credentials', 'Invitations'),
     'accounts.withdraw_invitation': _entry('Withdraw invitations', 'Invitations'),
 

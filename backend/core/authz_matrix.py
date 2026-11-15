@@ -499,6 +499,9 @@ SCENARIOS = [
     # A tutor's permanent Google Meet link (BDE-to-PDF Phase 1): team managers only, tutors only.
     Scenario('team.meet_link', 'put', '/api/team/{tutor_a}/meet-link/',
              {'tutor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
+    # A mentor's permanent Google Meet link, where their chapter exams are held: team managers only, mentors only.
+    Scenario('team.mentor_meet_link', 'put', '/api/team/{mentor_c}/meet-link/',
+             {'mentor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
 
     # --- legacy staff endpoints ----------------------------------------------
     Scenario('staff.mentors', 'get', '/api/mentors/'),
@@ -558,6 +561,10 @@ SCENARIOS = [
     Scenario('sessions.upload.recording.a', 'post', '/api/sessions/{ses_a_att2}/files/recording/', lambda w: {'file': pdf()}, fmt='multipart'),
     Scenario('sessions.file.a', 'get', '/api/sessions/files/{sf_a}/'),
     Scenario('sessions.file.b', 'get', '/api/sessions/files/{sf_b}/'),
+    # Start Session (sessions.lifecycle): ses_a_one is weeks away, so its tutor,
+    # stu_a's mentor and the administrators are told it is too early; everyone
+    # else is refused.
+    Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
 
     # --- exams ----------------------------------------------------------------
     Scenario('exams.list', 'get', '/api/exams/'),
@@ -601,8 +608,6 @@ SCENARIOS = [
 
     # --- invitations ----------------------------------------------------------
     Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
-    Scenario('invitations.issue_existing', 'post', '/api/invitations/students/{stu_a}/issue/', {}),
-    Scenario('invitations.lookup', 'post', '/api/invitations/lookup-student/', {'student_code': 'MX-NEW2'}),
     Scenario('invitations.list', 'get', '/api/invitations/'),
     Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
     Scenario('invitations.create.student', 'post', '/api/invitations/', lambda w: {

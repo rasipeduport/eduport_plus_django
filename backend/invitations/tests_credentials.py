@@ -183,7 +183,6 @@ class EnrollmentCredentialTests(QuoteTestCase, APITestCase):
             self.client.force_authenticate(user)
             self.assertEqual(self.client.get('/api/invitations/').status_code, 403)
             self.assertEqual(self.client.post(f'/api/invitations/{inv.pk}/credentials/').status_code, 403)
-            self.assertEqual(self.client.post(f'/api/invitations/students/{student.pk}/issue/').status_code, 403)
 
     def test_reveal_requires_session_csrf(self):
         student, inv, password = self.enroll()

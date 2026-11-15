@@ -4157,7 +4157,7 @@
    }
   },
   "/students/{stu_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}",
@@ -4205,7 +4205,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/auth/me/",
@@ -4393,7 +4393,7 @@
    }
   },
   "/students/{stu_a}?tab=activity @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=activity",
@@ -4439,7 +4439,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/activity/?student_id={stu_a}",
@@ -4645,7 +4645,7 @@
    }
   },
   "/students/{stu_a}?tab=documents @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=documents",
@@ -4706,7 +4706,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/additional-exams/?student_id={stu_a}",
@@ -4927,7 +4927,7 @@
    }
   },
   "/students/{stu_a}?tab=exams @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=exams",
@@ -4984,7 +4984,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/additional-exams/?student_id={stu_a}",
@@ -5192,7 +5192,7 @@
    }
   },
   "/students/{stu_a}?tab=homework @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=homework",
@@ -5245,7 +5245,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/auth/me/",
@@ -5440,7 +5440,7 @@
    }
   },
   "/students/{stu_a}?tab=notes @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=notes",
@@ -5486,7 +5486,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/auth/me/",
@@ -5689,7 +5689,7 @@
    }
   },
   "/students/{stu_a}?tab=sessions @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_a}?tab=sessions",
@@ -5750,7 +5750,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/auth/me/",
@@ -5954,7 +5954,7 @@
    }
   },
   "/students/{stu_b} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
    "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
    "result": {
     "at": "/students/{stu_b}",
@@ -6002,7 +6002,7 @@
     ],
     "filters": [],
     "menus": [
-     "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+     "Change Status | Delete permanently | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
     ],
     "calls": [
      "GET /api/auth/me/",
@@ -17308,6 +17308,463 @@
      "GET /api/auth/me/"
     ]
    }
+  },
+  "/students @ mentor_a": {
+   "result": {
+    "at": "/students",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Columns",
+     "Expired Students (1)",
+     "Open menu",
+     "Student ID",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/students/{stu_a}"
+    ],
+    "headers": [
+     "Admission Date",
+     "Class Quota",
+     "Country",
+     "Grade",
+     "Joined At",
+     "Mobile",
+     "Name",
+     "Remarks for Mentor",
+     "School",
+     "Status",
+     "Student ID",
+     "Syllabus",
+     "Tutor"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/students/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the Students tables no longer show the student's own Meet link (students.meet_link): a class joins its assigned tutor's room and a chapter exam its assigned mentor's. The 'Meet Link' column is removed for every role; Edit Demo Link stays in the row actions. Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the 'Meet Link' column header is gone."
+  },
+  "/students/{stu_a} @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Open",
+     "Open menu",
+     "Overview",
+     "Sessions6",
+     "Sync from sheet",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/students",
+     "tel:+910000000002"
+    ],
+    "headers": [],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=activity @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=activity",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Mentor AMatrix fixtureMatrix fixture{time}",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Sessions6",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/students"
+    ],
+    "headers": [],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/activity/?student_id={stu_a}",
+     "GET /api/auth/me/",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=documents @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=documents",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Additional exams2",
+     "All5",
+     "Class content1",
+     "Documents",
+     "Exams1",
+     "Exams4",
+     "Homework1",
+     "Homework3",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Sessions6",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/students",
+     "http://testserver/api/additional-exams/files/{aqf_a}/",
+     "http://testserver/api/additional-exams/files/{aaf_a}/",
+     "http://testserver/api/exams/files/{ef_a}/",
+     "http://testserver/api/homework/files/{hwf_a_scored}/",
+     "https://n.matrix.test/1"
+    ],
+    "headers": [
+     "Added",
+     "Attached to",
+     "File",
+     "Size",
+     "Type"
+    ],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/additional-exams/?student_id={stu_a}",
+     "GET /api/auth/me/",
+     "GET /api/exams/?student_id={stu_a}",
+     "GET /api/homework/?student_id={stu_a}",
+     "GET /api/sessions/?student_id={stu_a}",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=exams @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=exams",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Score",
+     "Sessions6",
+     "Toggle Sidebar",
+     "View"
+    ],
+    "links": [
+     "/exams?student_id={stu_a}",
+     "/students",
+     "http://testserver/api/exams/files/{ef_a}/"
+    ],
+    "headers": [
+     "Chapter",
+     "Question paper",
+     "Recording",
+     "Result",
+     "Status",
+     "Submitted",
+     "Title",
+     "When"
+    ],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/additional-exams/?student_id={stu_a}",
+     "GET /api/auth/me/",
+     "GET /api/exams/?student_id={stu_a}",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=homework @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=homework",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Sessions6",
+     "Toggle Sidebar",
+     "View"
+    ],
+    "links": [
+     "/students"
+    ],
+    "headers": [
+     "Assigned",
+     "Class",
+     "Score",
+     "Scored by",
+     "Status",
+     "Submitted"
+    ],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/homework/?student_id={stu_a}",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=notes @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=notes",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Add note",
+     "Delete",
+     "Documents",
+     "Edit",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Sessions6",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/students"
+    ],
+    "headers": [],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/students/{stu_a}/notes/",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
+  },
+  "/students/{stu_a}?tab=sessions @ mentor_a": {
+   "result": {
+    "at": "/students/{stu_a}?tab=sessions",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "Activity",
+     "Assigned",
+     "Awaiting review",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Open menu",
+     "Overview",
+     "Scored 8/10",
+     "Sessions6",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/sessions?student_id={stu_a}",
+     "/students",
+     "https://hw.matrix.test/1",
+     "https://hw.matrix.test/2",
+     "https://hw.matrix.test/3",
+     "https://n.matrix.test/1",
+     "https://r.matrix.test/1"
+    ],
+    "headers": [
+     "Class",
+     "Content",
+     "Homework",
+     "Rating",
+     "Status",
+     "Tutor",
+     "When"
+    ],
+    "tabs": [
+     "Activity",
+     "Documents",
+     "Exams4",
+     "Homework3",
+     "Notes",
+     "Overview",
+     "Sessions6"
+    ],
+    "filters": [],
+    "menus": [
+     "Change Status | Edit Profile | Manage Exams | Manage Sessions"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/sessions/?student_id={stu_a}",
+     "GET /api/students/{stu_a}/profile/"
+    ]
+   },
+   "decision": "Meet link ownership (2026-11-15): the student row actions no longer offer \"Edit Demo Link\". It edited the student's own Meet link (students.meet_link), which no class or exam joins any more -- a class joins its assigned tutor's link and a chapter exam its assigned mentor's, both set in Team. The stored student links are kept.",
+   "note": "Only the \"Edit Demo Link\" menu item is gone."
   }
  }
 }

@@ -6,10 +6,12 @@ import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useStudentZone } from '../student/student-context';
 import { examStatusBadge } from '../../lib/exam-status';
+import { examMeetLink, examMeetMissing } from '../../lib/meet-rooms';
 
-/** One chapter exam in the Exams list (Learn ExamCard). */
-export function ExamCard({ exam, meetLink }) {
+/** One chapter exam in the Exams list (Learn ExamCard): a scheduled one joins its assigned mentor's Meet room. */
+export function ExamCard({ exam }) {
   const zone = useStudentZone();
+  const meetLink = examMeetLink(exam);
   const status = (exam.status || '').toLowerCase();
   const attended = status === 'attended';
   const scheduled = status === 'scheduled';
@@ -65,6 +67,7 @@ export function ExamCard({ exam, meetLink }) {
       {body}
       {scheduled && (
         <div className="mt-4">
+          {!meetLink && <p className="text-text-muted mb-2 text-xs italic">{examMeetMissing(exam)}</p>}
           <Button
             variant="primary"
             size="md"
@@ -73,7 +76,7 @@ export function ExamCard({ exam, meetLink }) {
             disabled={!meetLink}
             onClick={() => meetLink && window.open(meetLink, '_blank')}
           >
-            {meetLink ? 'Join Exam' : 'Link not available yet'}
+            {meetLink ? 'Join Exam' : 'Meet link not available'}
           </Button>
         </div>
       )}

@@ -1,171 +1,34 @@
-import logging
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from accounts.authz import has_app_permission
 from core.permissions import ByMethod, HasAppPermission
 from activity.utils import log_activity
-from .models import Invitation, InvitationStatusChoices, InvitationRoleChoices
-from .sheets import GoogleSheetsService
+from .models import Invitation
 from students.models import Student
-from students.quota_sync import quota_for_code
 
 User = get_user_model()
 
-logger = logging.getLogger(__name__)
-
-# Staff accounts are managed in Team. Student credentials are issued at
-# enrollment or authorized Sheets import. Legacy email invitations remain
-# historical records and cannot provision accounts through Google.
-STAFF_INVITATIONS_RETIRED = {
-    "error": "STAFF_INVITATIONS_RETIRED",
-    "message": "Staff are no longer invited. Create their account in Team with a username and a temporary password.",
+# Student Learn accounts and their invitations are created only by enrollment
+# (sales.enrollment, through invitations.credentials). Staff accounts are made
+# in Team. The manual flow -- a student code looked up on the enrolment sheet,
+# then an invitation created by hand, or credentials issued to a legacy row --
+# is retired; the command-line issue_learn_credentials keeps the bulk
+# transition of legacy students. Legacy email invitations remain historical
+# records.
+MANUAL_INVITATIONS_RETIRED = {
+    "error": "MANUAL_INVITATIONS_RETIRED",
+    "message": "Student invitations are now created automatically during enrollment.",
 }
-
-
-def _sheet_quota_for(student_code):
-    """
-    The class quota the enrolment sheet states for ``student_code``, as the
-    integer ``Student.total_class_quota`` is initialised with.
-
-    Read SERVER-SIDE, from the sheet, on purpose: the quota must not be
-    accepted from the request body, or the retired manual top-up would be back
-    in a new shape (and would be overwritten by the next sync anyway).
-
-    Returns 0 -- never None -- for a code the sheet has no number for, since
-    the column is NOT NULL and "nothing paid for" is the safe starting point.
-    A Sheets failure also yields 0 rather than blocking the invitation: the
-    hourly sync corrects it, and refusing to enrol a student because Google is
-    briefly unavailable would be the worse trade.
-    """
-    try:
-        rows = GoogleSheetsService.fetch_enrollment_rows()
-    except Exception as exc:
-        logger.warning(
-            "Could not read the enrolment sheet while inviting %s; starting the "
-            "student at 0 classes. The scheduled quota sync will correct it. (%s)",
-            student_code, exc,
-        )
-        return 0
-
-    quota = quota_for_code(rows, student_code)
-    if quota is None:
-        logger.info(
-            "Enrolment sheet states no numeric \"classes paid for\" value for %s; "
-            "starting the student at 0 classes.", student_code,
-        )
-        return 0
-    return quota
-
-
-def _find_student_invitation(email, student_code, status_filter=None):
-    """
-    Find the invitation for one specific child (a parent email may own several).
-    Optionally restrict to a given status (e.g. PENDING).
-    """
-    qs = Invitation.objects.filter(
-        email=email,
-        role=InvitationRoleChoices.STUDENT,
-        extra_data__student_code=student_code,
-    )
-    if status_filter is not None:
-        qs = qs.filter(status=status_filter)
-    return qs.first()
-
-class LookupStudentView(APIView):
-    """
-    Step 1: whoever may invite students (accounts.create_invitation) enters a student code.
-    Backend fetches the data from the Google Sheet (range A3:AB of 'enrollment data' tab) on demand.
-    Returns the mapped data directly without writing to the database yet.
-    """
-    permission_classes = [IsAuthenticated, HasAppPermission('accounts.create_invitation')]
-
-    def post(self, request, *args, **kwargs):
-        student_code = request.data.get("student_code")
-        if not student_code:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "student_code is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Query Google Sheets using the production mapping. One fetch, then
-        # both reads off the same snapshot: the profile fields and the class
-        # quota the student will be created with.
-        try:
-            rows = GoogleSheetsService.fetch_enrollment_rows()
-            student_data = GoogleSheetsService.lookup_student_by_code(student_code, rows=rows)
-        except Exception as e:
-            return Response(
-                {"error": "SHEETS_API_ERROR", "message": f"Google Sheets lookup failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        if student_data:
-            # Informational for the enrolment form. The value the Student is
-            # actually created with is re-read server-side at invitation time
-            # (_sheet_quota_for), never taken back from the client.
-            quota = quota_for_code(rows, student_data.get("student_code") or student_code)
-            student_data["classes_paid_for"] = 0 if quota is None else quota
-
-        if not student_data:
-            return Response(
-                {"error": "STUDENT_NOT_FOUND", "message": f"Student with code '{student_code}' not found in the Google Sheet."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        email = student_data.get("email") or ''
-        student_code = student_data.get("student_code")
-        if student_code and Student.objects.filter(student_code=student_code).exists():
-            return Response({"error": "STUDENT_ALREADY_ONBOARDED", "message": "Student already enrolled. Issue Learn credentials from their invitation row."}, status=400)
-        # A pending invitation for THIS child can be edited rather than recreated.
-        invitation = _find_student_invitation(email, student_code)
-        if invitation:
-            if invitation.status == InvitationStatusChoices.ACCEPTED:
-                return Response(
-                    {
-                        "error": "INVITATION_ALREADY_ACCEPTED",
-                        "message": f"An invitation for '{email}' (code {student_code}) has already been accepted.",
-                        "student_data": student_data
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            return Response(
-                {
-                    "status": "exists",
-                    "message": "A pending invitation already exists for this student. You can update it by submitting details.",
-                    "student_data": student_data,
-                    "invitation": {
-                        "id": invitation.id,
-                        "email": invitation.email,
-                        "role": invitation.role,
-                        "status": invitation.status,
-                        "extra_data": invitation.extra_data
-                    }
-                },
-                status=status.HTTP_200_OK
-            )
-
-        # No invitation exists for this child, return the sheet data to proceed.
-        return Response(
-            {
-                "status": "found",
-                "message": "Student record found in Google Sheets.",
-                "student_data": student_data
-            },
-            status=status.HTTP_200_OK
-        )
-
 
 
 def invitation_data(inv):
     student = inv.student
-    # Historical rows can be explicitly transitioned by Admin without
-    # re-enrolling or duplicating academic/payment records.
+    # A historical row names its student by code until the command-line
+    # transition (issue_learn_credentials) links it, without re-enrolling or
+    # duplicating academic/payment records.
     if not student and inv.role == 'STUDENT':
         student = Student.objects.filter(student_code=(inv.extra_data or {}).get('student_code')).first()
     return {
@@ -185,7 +48,7 @@ def invitation_data(inv):
 class CreateInvitationView(APIView):
     permission_classes = [IsAuthenticated, ByMethod(
         GET=HasAppPermission('accounts.view_invitations'),
-        POST=HasAppPermission('accounts.create_invitation'),
+        POST=HasAppPermission('accounts.view_invitations'),
         PATCH=HasAppPermission('accounts.change_invitation'),
         DELETE=HasAppPermission('accounts.withdraw_invitation'),
     )]
@@ -194,47 +57,8 @@ class CreateInvitationView(APIView):
         return Response([invitation_data(inv) for inv in Invitation.objects.select_related(
             'student', 'account', 'invited_by').all()])
 
-    @transaction.atomic
     def post(self, request):
-        """Keep the authorized Sheets enrollment import, now issuing credentials
-        immediately rather than provisioning academics at a Google login.
-        Phase 1 tuition enrollment calls the same credential service directly.
-        """
-        if str(request.data.get('role', 'STUDENT')).upper() != 'STUDENT':
-            return Response(STAFF_INVITATIONS_RETIRED, status=400)
-        from .credentials import new_account, create_invitation, issue_existing_student
-        from accounts.services import parse_admission_date
-        code = str(request.data.get('student_code', '')).strip()
-        if not code:
-            return Response({'error': 'INVALID_INPUT', 'message': 'student_code is required.'}, status=400)
-        # Serialize absent-row creation; class quota is always read server-side.
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))', ['learn-sheet-student', code])
-        student = Student.objects.filter(student_code=code).first()
-        if student:
-            inv = issue_existing_student(student.pk, request.user, request)
-            return Response({'invitation': invitation_data(inv)})
-        data = request.data
-        if not data.get('full_name'):
-            return Response({'error': 'INVALID_INPUT', 'message': 'full_name is required.'}, status=400)
-        assignments = {}
-        for field, role in [('mentor', 'MENTOR'), ('tutor', 'TUTOR')]:
-            pk = request.data.get(f'{field}_id')
-            if pk and not User.objects.filter(pk=pk, role=role, is_active=True, deactivated_at__isnull=True).exists():
-                return Response({'error': f'INVALID_{role}', 'message': f'Select an active {field}.'}, status=400)
-            assignments[f'{field}_id'] = pk or None
-        account, password = new_account(code, data.get('full_name') or code, request.user)
-        student = Student.objects.create(
-            profile=account, student_code=code, full_name=data.get('full_name') or code,
-            **{key: data.get(key) or None for key in ['mobile_number', 'country', 'state', 'school_name', 'grade', 'syllabus']},
-            admission_date=parse_admission_date(data.get('admission_date')),
-            total_class_quota=_sheet_quota_for(code), **assignments,
-            meet_link=request.data.get('meet_link') or None)
-        legacy = Invitation.objects.filter(role='STUDENT', student__isnull=True, extra_data__student_code=code).first()
-        inv = create_invitation(student, account, password, request.user, invitation=legacy,
-                                extra_data={'source': 'SHEETS_ENROLLMENT', 'total_class_quota': str(student.total_class_quota)})
-        return Response({'status': 'created', 'message': 'Learn invitation created. Retrieve initial credentials in Invitations.', 'invitation': invitation_data(inv)}, status=201)
+        return Response(MANUAL_INVITATIONS_RETIRED, status=status.HTTP_410_GONE)
 
     def patch(self, request):
         return Response({'error': 'EMAIL_INVITATIONS_RETIRED', 'message': 'Learn invitations use student usernames. Email changes do not issue or resend credentials.'}, status=410)
@@ -274,14 +98,3 @@ class InvitationCredentialsView(APIView):
         response['Pragma'] = 'no-cache'
         return response
 
-
-class IssueStudentCredentialsView(APIView):
-    permission_classes = [IsAuthenticated, HasAppPermission('accounts.create_invitation')]
-
-    def post(self, request, pk):
-        from .credentials import issue_existing_student
-        try:
-            inv = issue_existing_student(pk, request.user, request)
-        except Student.DoesNotExist:
-            return Response({'error': 'NOT_FOUND'}, status=404)
-        return Response(invitation_data(inv))

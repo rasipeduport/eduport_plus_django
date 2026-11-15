@@ -11,6 +11,9 @@ import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
+import { StartSessionButton } from '../components/sessions/start-session-button';
+import { bookedLength, hasEnded, isAssignedTutor, notesMode, startOpensAt, startState } from '../lib/session-lifecycle';
+import { classMeetLink, classMeetMissing } from '../lib/meet-rooms';
 import { SchedulingError } from '../components/sessions/scheduling-error';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
@@ -43,12 +46,14 @@ const ALLOWED_DURATIONS = [
 
 const MEET_PREFIX = 'https://meet.google.com/';
 
-const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
-
 // Hub-style table formats. Times stay browser-local, as this table always was.
 // Staff read every session in IST (MENTOR_TIMEZONE), not the device's zone.
 const DATE_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', year: 'numeric' });
 const TIME_FORMAT = mentorZoneFormatter({ hour: 'numeric', minute: '2-digit', hour12: true });
+// When a tutor started or completed a class (it may be days after the class).
+const STAMP_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+const stamp = (iso) => STAMP_FORMAT.format(new Date(iso));
+const personName = (profile) => profile?.full_name || profile?.email || 'the tutor';
 
 // `display_status` from the API: the attendance status, except that an
 // attended class whose notes/recording/homework are not all in reads as
@@ -99,6 +104,41 @@ function StatusBadge({ session }) {
         <p className="max-w-xs">{hint}</p>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+// Under the status badge: who started the class (its tutor, the student's
+// mentor or an administrator; meeting access only) and the completion the
+// tutor's own notes made after the class (backend sessions.lifecycle), or that
+// staff marked it attended -- which records attendance, never the tutor's
+// completion.
+function ClassProgress({ session, now }) {
+  const status = (session.status || '').toLowerCase();
+  const started = session.started_at ? `${stamp(session.started_at)} by ${personName(session.started_by_profile)}` : null;
+  let text = null;
+  let hint = null;
+  if (status === 'attended') {
+    if (session.completed_at) {
+      text = `Completed by tutor · ${stamp(session.completed_at)}`;
+      hint = [
+        started ? `Started ${started}` : 'Not started in the Hub',
+        `completed by ${personName(session.completed_by_profile)}'s notes`,
+        `${bookedLength(session)} as booked`,
+      ].join(' · ');
+    } else {
+      text = 'Marked attended by staff';
+      hint = `${started ? `Started ${started}` : 'Not started in the Hub'}; awaiting the tutor's notes.`;
+    }
+  } else if (status === 'scheduled') {
+    const ended = hasEnded(session, now);
+    if (started) text = ended ? `Started ${started} · awaiting notes` : `Started ${started}`;
+    else if (ended) text = 'Awaiting tutor notes';
+  }
+  if (!text) return null;
+  return (
+    <span className="text-[11px] text-zinc-500 whitespace-nowrap" title={hint || undefined}>
+      {text}
+    </span>
   );
 }
 
@@ -196,6 +236,15 @@ export default function SessionsPage({ user }) {
   const [makeupTime, setMakeupTime] = useState('');
   const [makeupDuration, setMakeupDuration] = useState(1.0);
 
+  // The clock the tutor's actions follow, so they open on their own: Start
+  // Session 5 minutes before a class, completing notes once it ends. The
+  // server checks both again by its own clock.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     fetchStudents();
     fetchSessions();
@@ -283,6 +332,9 @@ export default function SessionsPage({ user }) {
       setMakeupDuration(1.0);
     }
   };
+
+  // Whether the notes dialog open now completes the class (its tutor started it and it has ended).
+  const completingNotes = modalType === 'notes' && Boolean(activeSession) && notesMode(activeSession, now) === 'complete';
 
   const closeModal = () => {
     setModalType(null);
@@ -403,16 +455,21 @@ export default function SessionsPage({ user }) {
   };
 
   // Tutor's post-session responsibility: the notes link, and only that. The
-  // API refuses anything else from a tutor.
+  // API refuses anything else from a tutor. For a class they started that has
+  // ended, submitting the notes completes it -- a new upload does so itself;
+  // notes kept as they were are sent again so the submission still counts.
   const handleSaveNotes = async (e) => {
     e.preventDefault();
     setSaving(true);
     setModalError('');
 
     try {
+      const kept = contentPayload(content.notes).kind === 'keep';
       const body = await submitContent(['notes'], { required: ['notes'] });
       if ('notes_link' in body) {
         await api.put('/api/sessions/', { id: activeSession.id, notes_link: body.notes_link });
+      } else if (kept && notesMode(activeSession, new Date()) === 'complete') {
+        await api.put('/api/sessions/', { id: activeSession.id, notes_link: activeSession.notes_link });
       }
       fetchSessions();
       closeModal();
@@ -421,6 +478,22 @@ export default function SessionsPage({ user }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // The tutor's one row action. Their notes complete the class, so they wait
+  // for its scheduled end (started or not); once completed, they are edits.
+  const tutorNotesItem = (session) => {
+    const mode = notesMode(session, now);
+    if (mode === 'complete') return { label: 'Submit Notes', onClick: () => openModal('notes', session) };
+    if (mode === 'wait') {
+      return {
+        label: 'Submit Notes',
+        disabled: true,
+        title: `Opens when the class ends at ${TIME_FORMAT.format(new Date(session.end_time))}`,
+        onClick: () => {},
+      };
+    }
+    return { label: session.notes_link ? 'Update Notes' : 'Add Notes', onClick: () => openModal('notes', session) };
   };
 
   const clearStudentFilter = () => {
@@ -527,7 +600,16 @@ export default function SessionsPage({ user }) {
       cellClass: 'text-sm text-zinc-300 whitespace-nowrap',
       cell: (s) => `${TIME_FORMAT.format(new Date(s.start_time))} - ${TIME_FORMAT.format(new Date(s.end_time))}`,
     },
-    { id: 'status', label: 'Status', cell: (s) => <StatusBadge session={s} /> },
+    {
+      id: 'status',
+      label: 'Status',
+      cell: (s) => (
+        <div className="flex flex-col items-start gap-1">
+          <StatusBadge session={s} />
+          <ClassProgress session={s} now={now} />
+        </div>
+      ),
+    },
     {
       id: 'student',
       label: 'Student',
@@ -553,11 +635,33 @@ export default function SessionsPage({ user }) {
       id: 'meeting',
       label: 'Meeting',
       tabs: ['scheduled', 'cancelled'],
-      // The student's own Meet room (students.meet_link), nested by the
-      // Sessions API. Only a real https URL gets a Join button.
+      // The class's room: the Meet link of the tutor it is assigned to
+      // (`tutor_meet_link`), never the student's; without one the cell says
+      // why. Only a real https URL gets a Join button. From 5
+      // minutes before a class until it ends, whoever may start it -- its
+      // tutor, the student's mentor or an administrator -- gets Start Session
+      // instead (backend sessions.lifecycle); once started, Join Meet. The
+      // tutor also sees when Start opens; staff keep Join Meet otherwise.
       cell: (s) => {
-        const meetLink = (s.students?.meet_link || '').trim();
-        return isHttpsUrl(meetLink) ? (
+        const ownClass = isAssignedTutor(s, user);
+        const start = ownClass || canManage ? startState(s, now) : null;
+        if (start === 'ready') {
+          return (
+            <StartSessionButton session={s} asTutor={ownClass} onStarted={() => fetchSessions()} onRefresh={() => fetchSessions()} />
+          );
+        }
+        if (ownClass && start === 'upcoming') {
+          return (
+            <span className="text-xs text-zinc-500 whitespace-nowrap">
+              Start opens {TIME_FORMAT.format(startOpensAt(s))}
+            </span>
+          );
+        }
+        if (ownClass && start === 'closed') {
+          return <span className="text-xs text-zinc-500 italic whitespace-nowrap">Class ended</span>;
+        }
+        const meetLink = classMeetLink(s);
+        return meetLink ? (
           <a
             href={meetLink}
             target="_blank"
@@ -570,7 +674,7 @@ export default function SessionsPage({ user }) {
             <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
           </a>
         ) : (
-          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
+          <span className="text-xs text-zinc-500 italic whitespace-nowrap">{classMeetMissing(s)}</span>
         );
       },
     },
@@ -816,21 +920,24 @@ export default function SessionsPage({ user }) {
                     <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
                       {!canManage ? (
                         // With only edit_session_notes (tutors), the notes
-                        // link is all there is; a cancelled class has no
-                        // notes to add.
-                        canEditNotes && activeTab !== 'cancelled' && (
-                          <StaffActionsDropdown
-                            items={[
-                              { label: session.notes_link ? 'Update Notes' : 'Add Notes', onClick: () => openModal('notes', session) },
-                            ]}
-                          />
+                        // link of their own classes is all there is; a
+                        // cancelled class has no notes to add.
+                        canEditNotes && activeTab !== 'cancelled' && isAssignedTutor(session, user) && (
+                          <StaffActionsDropdown items={[tutorNotesItem(session)]} />
                         )
                       ) : (
                         <StaffActionsDropdown
                           items={[
+                            // Attended only once the class has ended; a class
+                            // its tutor started keeps its time.
                             ...(activeTab === 'scheduled' ? [
-                              { label: 'Mark Attended', onClick: () => openModal('attend', session) },
-                              { label: 'Reschedule', onClick: () => openModal('reschedule', session) },
+                              {
+                                label: 'Mark Attended',
+                                onClick: () => openModal('attend', session),
+                                disabled: !hasEnded(session, now),
+                                title: hasEnded(session, now) ? undefined : 'Available once the class has ended',
+                              },
+                              ...(session.started_at ? [] : [{ label: 'Reschedule', onClick: () => openModal('reschedule', session) }]),
                             ] : []),
                             { label: 'Edit Resource Links', onClick: () => openModal('links', session) },
                             ...(activeTab === 'scheduled' && canCancel ? [
@@ -866,6 +973,13 @@ export default function SessionsPage({ user }) {
                     ? 'Recording, notes and homework can each be added now or later. '
                     : 'Recording and homework can be added now or later; the tutor adds the notes. '}
                   The class shows as <span className="text-amber-400">Pending</span> until all three are available.
+                </p>
+
+                <p className="text-[11px] text-zinc-500 m-0">
+                  {activeSession?.started_at
+                    ? `Started ${stamp(activeSession.started_at)} by ${personName(activeSession.started_by_profile)}. `
+                    : 'This class was not started in the Hub. '}
+                  Marking it attended records attendance only; the tutor&apos;s own notes, after the class, complete it.
                 </p>
 
                 <ContentInput
@@ -931,14 +1045,18 @@ export default function SessionsPage({ user }) {
           {/* Tutor: Add / Update Notes Link */}
           {modalType === 'notes' && (
             <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
-              <h3 className="text-base font-semibold text-white m-0">{activeSession?.notes_link ? 'Update Notes Link' : 'Add Notes Link'}</h3>
+              <h3 className="text-base font-semibold text-white m-0">
+                {completingNotes ? 'Submit Notes' : activeSession?.notes_link ? 'Update Notes Link' : 'Add Notes Link'}
+              </h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleSaveNotes} className="space-y-4">
                 <SchedulingError error={modalError} legacy />
 
                 <p className="text-[11px] text-zinc-500 m-0">
-                  Paste a link to your notes or upload the file (PDF, image, or video). Once the recording and homework are in as well, the class shows as Attended.
+                  {completingNotes
+                    ? `Paste a link to your notes or upload the file (PDF, image, or video). Submitting them completes this class: ${bookedLength(activeSession)} as booked.`
+                    : 'Paste a link to your notes or upload the file (PDF, image, or video). Once the recording and homework are in as well, the class shows as Attended.'}
                 </p>
 
                 <ContentInput
@@ -964,7 +1082,7 @@ export default function SessionsPage({ user }) {
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                    Save Notes
+                    {completingNotes ? 'Submit & Complete' : 'Save Notes'}
                   </button>
                 </div>
               </form>

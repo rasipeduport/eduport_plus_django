@@ -63,11 +63,6 @@ export const tutorColumns = [
     accessorFn: (row) => row.mentor_profile?.full_name || row.mentor_profile?.email || 'Not Assigned',
   },
   {
-    accessorKey: 'meet_link',
-    header: 'Meet Link',
-    cell: ({ row }) => row.getValue('meet_link') || '—',
-  },
-  {
     id: 'actions',
     header: '',
     cell: ({ row }) => <TutorActionCell student={row.original} />,
