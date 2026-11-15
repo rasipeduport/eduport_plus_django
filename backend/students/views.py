@@ -27,8 +27,11 @@ from students.quota_sync import (
 )
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
-from sessions.serializers import SessionSerializer
-from sessions.services import find_handover_conflict, handover_conflict_response_data, lock_scheduling, transferable_sessions
+from sessions.serializers import SessionSerializer, for_student
+from sessions.lifecycle import ClassState
+from sessions.services import (
+    find_handover_conflict, handover_conflict_response_data, lock_scheduling, state_q, transferable_sessions,
+)
 from activity.utils import log_activity
 from accounts.authz import has_app_permission
 from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser
@@ -172,8 +175,12 @@ class StudentDashboardView(APIView):
 
         now = timezone.now()
 
-        # Count of scheduled and attended sessions
-        scheduled_count = Session.objects.filter(student=student, status=SessionStatusChoices.SCHEDULED).count()
+        # Count of scheduled and attended sessions. Scheduled = still to come
+        # or under way (sessions.lifecycle): a class over with nothing
+        # recorded yet is no longer "scheduled" for the student.
+        scheduled_count = Session.objects.filter(
+            state_q(ClassState.UPCOMING, now) | state_q(ClassState.IN_PROGRESS, now), student=student,
+        ).count()
         attended_count = Session.objects.filter(student=student, status=SessionStatusChoices.ATTENDED).count()
 
         # Next upcoming class (scheduled, start time in the future)
@@ -210,8 +217,8 @@ class StudentDashboardView(APIView):
             "meet_link": student.meet_link or "",
             "scheduled_count": scheduled_count,
             "attended_count": attended_count,
-            "next_session": SessionSerializer(next_sess).data if next_sess else None,
-            "last_session": SessionSerializer(last_sess).data if last_sess else None,
+            "next_session": for_student(SessionSerializer(next_sess).data) if next_sess else None,
+            "last_session": for_student(SessionSerializer(last_sess).data) if last_sess else None,
             "next_exam": ExamSerializer(next_exam, context={'request': request}).data if next_exam else None,
             "last_exam": ExamSerializer(last_exam, context={'request': request}).data if last_exam else None,
         }, status=status.HTTP_200_OK)

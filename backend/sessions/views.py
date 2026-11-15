@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from students.models import Student
 from activity.utils import log_activity
 from accounts.authz import has_app_permission
-from core.permissions import HasAnyAppPermission, IsStudentUserFor
+from core.permissions import HasAnyAppPermission, HasAppPermission, IsStudentUserFor
 from core.querysets import SESSION_VIEW_PERMISSIONS, reaches, scope_sessions
 from core.students import get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
@@ -27,9 +27,10 @@ from bookings.booking_service import find_booking_conflict, is_assignable_tutor
 from homework.services import HomeworkStateError, assert_assignment_editable, sync_homework_for_session
 from . import lifecycle
 from .models import Session, SessionStatusChoices, SessionContentField, SessionFile
-from .serializers import SessionSerializer, SessionFileSerializer
+from .serializers import SessionSerializer, SessionFileSerializer, for_student
 from .services import (
     ALLOWED_DURATIONS,
+    apply_state_filter,
     MAX_SERIES_ITEMS,
     normalize_title,
     normalize_link,
@@ -136,14 +137,26 @@ class SessionsView(APIView):
             except ValueError as exc:
                 return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Where the classes stand (sessions.lifecycle.class_state), as of now:
+        # ?state=notes_due,not_started. Absent/blank means no filter.
+        state = request.query_params.get('state')
+        if state:
+            try:
+                queryset = apply_state_filter(queryset, state, timezone.now())
+            except ValueError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         # Opt-in pagination: full list by default, sliced when ?page= is given.
         page_items, meta = paginate_queryset(request, queryset)
         source = queryset if page_items is None else page_items
 
         serializer = SessionSerializer(source, many=True)
+        rows = serializer.data
+        if request.user.role == 'STUDENT':
+            rows = [for_student(row) for row in rows]
         if meta is not None:
-            return Response({"sessions": serializer.data, **meta}, status=status.HTTP_200_OK)
-        return Response({"sessions": serializer.data}, status=status.HTTP_200_OK)
+            return Response({"sessions": rows, **meta}, status=status.HTTP_200_OK)
+        return Response({"sessions": rows}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         data = request.data
@@ -380,6 +393,11 @@ class SessionsView(APIView):
                     {"error": "Forbidden", "message": "You can only rate your own sessions."},
                     status=status.HTTP_403_FORBIDDEN
                 )
+            if session.status == SessionStatusChoices.NOT_CONDUCTED:
+                return Response(
+                    {"error": "This class was not conducted, so it cannot be rated.", "code": lifecycle.OUTCOME_RECORDED},
+                    status=status.HTTP_409_CONFLICT
+                )
 
             try:
                 rating = int(data.get("rating"))
@@ -410,7 +428,7 @@ class SessionsView(APIView):
                 )
 
             return Response(
-                {"success": True, "session": SessionSerializer(session).data},
+                {"success": True, "session": for_student(SessionSerializer(session).data)},
                 status=status.HTTP_200_OK
             )
 
@@ -431,12 +449,27 @@ class SessionsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # A recorded outcome is final (sessions.lifecycle): only an
+        # administrator's correction or revocation changes such a class.
+        if session.status == SessionStatusChoices.NOT_CONDUCTED:
+            return Response(
+                {"error": "This class's outcome is recorded as not conducted, so it can no longer be edited.",
+                 "code": lifecycle.OUTCOME_RECORDED},
+                status=status.HTTP_409_CONFLICT
+            )
+
         # Validate status: CharField choices are not enforced on save(), so an
-        # unchecked value would be persisted as-is.
+        # unchecked value would be persisted as-is. No-show / Not Conducted is
+        # recorded through its own endpoint, never set here.
         new_status = None
         if 'status' in data:
             raw_status = data.get("status")
             new_status = raw_status.upper() if isinstance(raw_status, str) else None
+            if new_status == SessionStatusChoices.NOT_CONDUCTED:
+                return Response(
+                    {"error": "Record the outcome of a class that was not conducted with Record Outcome."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             if new_status not in SessionStatusChoices.values:
                 return Response(
                     {"error": "status must be one of SCHEDULED, ATTENDED, or CANCELLED"},
@@ -470,9 +503,17 @@ class SessionsView(APIView):
                 if session.status == SessionStatusChoices.CANCELLED and session.started_at is not None:
                     return Response(
                         {
-                            "error": "This session was started by its tutor before it was cancelled, so it cannot be put back on the schedule.",
+                            "error": "This session was started before it was cancelled, so it cannot be put back on the schedule.",
                             "code": lifecycle.SESSION_STARTED,
                         },
+                        status=status.HTTP_409_CONFLICT
+                    )
+                # A class is cancelled only until its scheduled end; after
+                # that, what happened to it is recorded as its outcome.
+                if new_status == 'CANCELLED' and timezone.now() >= session.end_time:
+                    return Response(
+                        {"error": "This class's scheduled time has ended, so it can no longer be cancelled. Record its outcome instead.",
+                         "code": lifecycle.SESSION_ENDED, "ends_at": session.end_time.isoformat()},
                         status=status.HTTP_409_CONFLICT
                     )
 
@@ -549,7 +590,7 @@ class SessionsView(APIView):
                 )
             if session.started_at is not None:
                 return Response(
-                    {"error": "This session has been started by its tutor, so it can no longer be rescheduled.",
+                    {"error": "This session has been started, so it can no longer be rescheduled.",
                      "code": lifecycle.SESSION_STARTED},
                     status=status.HTTP_409_CONFLICT
                 )
@@ -602,7 +643,7 @@ class SessionsView(APIView):
             tutor_changed = (new_tutor.id if new_tutor else None) != session.tutor_id
             if tutor_changed and session.started_at is not None:
                 return Response(
-                    {"error": "This session has been started by its tutor, so its tutor can no longer change.",
+                    {"error": "This session has been started, so its tutor can no longer change.",
                      "code": lifecycle.SESSION_STARTED},
                     status=status.HTTP_409_CONFLICT
                 )
@@ -781,12 +822,14 @@ class SessionsView(APIView):
         The tutor's post-session responsibility: the notes link of a session
         assigned to them, which completes it (sessions.lifecycle). The request
         may carry nothing but `id` and `notes_link`; never on a cancelled
-        class. The first notes after the class's scheduled end complete it --
-        status ATTENDED, completed_at and completed_by -- whether or not anyone
-        started it; before the end they are refused (CLASS_NOT_ENDED), and
-        later notes are edits that never complete it again. Logged as
-        `session.update_links` (the same entry a mentor's link edit produces)
-        and, for the completion, `session.complete`.
+        class or one recorded as not conducted. Only once someone has started
+        the class (SESSION_NOT_STARTED) and its scheduled end has passed
+        (CLASS_NOT_ENDED): within the notes deadline the first notes complete
+        it -- status ATTENDED, completed_at and completed_by -- after it they
+        are kept as late notes awaiting approval; once completed, notes are
+        edits that never complete it again. Logged as `session.update_links`
+        (the same entry a mentor's link edit produces) and, for the
+        completion, `session.complete` -- or `session.submit_late_notes`.
         """
         # Whose class it is comes first (checked again under the row's lock below).
         if session.tutor_id is None or session.tutor_id != request.user.id:
@@ -812,15 +855,13 @@ class SessionsView(APIView):
         now = timezone.now()
         try:
             with transaction.atomic():
-                session, completing = lifecycle.tutor_notes_target(
+                session, mode = lifecycle.tutor_notes_target(
                     session, request.user, now, "Notes cannot be added to a cancelled session."
                 )
                 before_notes = session.notes_link
                 before_status = session.status
                 session.notes_link = notes_link
-                fields = ['notes_link', 'updated_at']
-                if completing:
-                    fields += lifecycle.mark_completed(session, request.user, now)
+                fields = ['notes_link', 'updated_at'] + lifecycle.apply_notes(session, mode, request.user, now)
                 session.save(update_fields=fields)
                 drop_stale_files(session, ['notes_link'])
         except lifecycle.SessionStateError as exc:
@@ -836,13 +877,18 @@ class SessionsView(APIView):
                 changes={"notes_link": {"old": before_notes, "new": notes_link}},
                 request=request,
             )
+        completing = mode == lifecycle.NOTES_COMPLETE
         if completing:
             # Attended now: its homework row follows, as for a mentor's Mark Attended.
             sync_homework_for_session(session, request.user, request, source='tutor_completion')
             lifecycle.log_completion(session, before_status, request)
+        elif mode == lifecycle.NOTES_LATE:
+            lifecycle.log_late_notes(session, request)
 
         return Response(
-            {"success": True, "completed": completing, "session": SessionSerializer(session).data},
+            {"success": True, "completed": completing,
+             "late_notes": mode in (lifecycle.NOTES_LATE, lifecycle.NOTES_LATE_UPDATE),
+             "session": SessionSerializer(session).data},
             status=status.HTTP_200_OK
         )
 
@@ -856,8 +902,9 @@ class SessionStartView(APIView):
     before its scheduled start until its scheduled end, by the server's clock
     (sessions.lifecycle.start_session). Repeating it, by anyone, changes
     nothing (``changed`` false) and logs nothing more. A start is for meeting
-    access and activity tracking only: it never completes the class and is
-    never needed for that -- only its tutor's own notes are. Reached with
+    access and activity tracking, and it opens the tutor's notes: it never
+    completes the class on its own -- only its tutor's own notes do, and only
+    on a class someone started (sessions.lifecycle). Reached with
     accounts.edit_session_notes (tutors: then only their assigned sessions) or
     accounts.manage_session (administrators and mentors: then only the
     students within their session scope).
@@ -880,6 +927,117 @@ class SessionStartView(APIView):
         )
 
 
+def _session_action(session_id, action):
+    """
+    Run action(session) -- a sessions.lifecycle write -- inside a
+    transaction for the session session_id; answers 404 for one that does
+    not exist and a refusal as it is, else (result, None).
+    """
+    try:
+        with transaction.atomic():
+            return action(Session(pk=session_id)), None
+    except Session.DoesNotExist:
+        return None, Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+    except lifecycle.SessionStateError as exc:
+        return None, Response(exc.response_data(), status=exc.status)
+
+
+class SessionOutcomeView(APIView):
+    """
+    POST /api/sessions/<session_id>/outcome/  {"reason": <SessionOutcomeReason>, "note": "..."}
+
+    No-show / Not Conducted: an administrator or the student's mentor records
+    what happened to a class that was not conducted, once its scheduled end
+    has passed (sessions.lifecycle.record_outcome). The note is required for
+    OTHER. Final: only an administrator corrects or revokes it.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_session')]
+
+    def post(self, request, session_id, *args, **kwargs):
+        result, refusal = _session_action(session_id, lambda session: lifecycle.record_outcome(
+            session, request.user, request.data.get('reason'), request.data.get('note'), request=request,
+        ))
+        if refusal:
+            return refusal
+        session, rejected = result
+        lifecycle.log_outcome(session, rejected, request)
+        return Response({"success": True, "session": SessionSerializer(session).data}, status=status.HTTP_200_OK)
+
+
+class SessionLateNotesApproveView(APIView):
+    """
+    POST /api/sessions/<session_id>/late-notes/approve/
+
+    An administrator or the student's mentor approves the tutor's notes that
+    came in after the notes deadline: the class is completed as of the moment
+    they came in (sessions.lifecycle.approve_late_notes). Rejecting them is
+    recording the class's outcome (SessionOutcomeView).
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_session')]
+
+    def post(self, request, session_id, *args, **kwargs):
+        result, refusal = _session_action(session_id, lambda session: lifecycle.approve_late_notes(
+            session, request.user, request=request,
+        ))
+        if refusal:
+            return refusal
+        session, before_status = result
+        lifecycle.log_late_notes_approval(session, request)
+        sync_homework_for_session(session, request.user, request, source='late_notes_approved')
+        lifecycle.log_completion(session, before_status, request, approved_late_notes=True)
+        return Response({"success": True, "session": SessionSerializer(session).data}, status=status.HTTP_200_OK)
+
+
+class SessionOutcomeCorrectionView(APIView):
+    """
+    POST /api/sessions/<session_id>/outcome/correct/
+         {"reason": ..., "note": "...", "correction_note": "why"}
+
+    An administrator corrects the reason (and note) of a recorded outcome made
+    by mistake, saying why (accounts.correct_session_outcome;
+    sessions.lifecycle.correct_outcome). changed is false when nothing
+    differs; the correction is in the activity log.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(lifecycle.CORRECT_OUTCOME)]
+
+    def post(self, request, session_id, *args, **kwargs):
+        result, refusal = _session_action(session_id, lambda session: lifecycle.correct_outcome(
+            session, request.user, request.data.get('reason'), request.data.get('note'),
+            request.data.get('correction_note'), request=request,
+        ))
+        if refusal:
+            return refusal
+        session, before = result
+        if before is not None:
+            lifecycle.log_outcome_correction(session, before, request)
+        return Response(
+            {"success": True, "changed": before is not None, "session": SessionSerializer(session).data},
+            status=status.HTTP_200_OK
+        )
+
+
+class SessionOutcomeRevokeView(APIView):
+    """
+    POST /api/sessions/<session_id>/outcome/revoke/  {"correction_note": "why"}
+
+    An administrator removes a recorded outcome made by mistake, saying why
+    (accounts.correct_session_outcome; sessions.lifecycle.revoke_outcome): the
+    class gets back the status it had, and late notes the outcome rejected
+    await approval again. The revocation is in the activity log.
+    """
+    permission_classes = [IsAuthenticated, HasAppPermission(lifecycle.CORRECT_OUTCOME)]
+
+    def post(self, request, session_id, *args, **kwargs):
+        result, refusal = _session_action(session_id, lambda session: lifecycle.revoke_outcome(
+            session, request.user, request.data.get('correction_note'), request=request,
+        ))
+        if refusal:
+            return refusal
+        session, before = result
+        lifecycle.log_outcome_revocation(session, before, request)
+        return Response({"success": True, "session": SessionSerializer(session).data}, status=status.HTTP_200_OK)
+
+
 class SessionFileUploadView(APIView):
     """
     POST /api/sessions/<session_id>/files/<field>/  (multipart, one `file`)
@@ -891,8 +1049,9 @@ class SessionFileUploadView(APIView):
     Who may upload to a field mirrors who may set its link through PUT:
     manage_session -> any field on sessions within the caller's session scope,
     edit_session_notes alone -> notes on the sessions assigned to them, which
-    complete the class exactly as notes through PUT do (sessions.lifecycle).
-    Replaces a previous upload for the same field.
+    complete the class -- or wait as late notes -- exactly as notes through
+    PUT do (sessions.lifecycle). Never on a cancelled class or one recorded as
+    not conducted. Replaces a previous upload for the same field.
     """
     permission_classes = [IsAuthenticated, HasAnyAppPermission('accounts.manage_session', 'accounts.edit_session_notes')]
     parser_classes = [MultiPartParser, FormParser]
@@ -928,19 +1087,24 @@ class SessionFileUploadView(APIView):
                 {"error": "Content cannot be attached to a cancelled session."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if session.status == SessionStatusChoices.NOT_CONDUCTED:
+            return Response(
+                {"error": "This class's outcome is recorded as not conducted, so it takes no content.",
+                 "code": lifecycle.OUTCOME_RECORDED},
+                status=status.HTTP_409_CONFLICT
+            )
         if field == SessionContentField.HOMEWORK:
             try:
                 assert_assignment_editable(session)
             except HomeworkStateError as exc:
                 return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
-        # A tutor's notes complete the class, so until it is completed they
-        # wait for its scheduled end -- refused before any byte is stored.
-        if tutor_notes and lifecycle.completes_on_notes(session) and timezone.now() < session.end_time:
-            return Response(
-                {"error": "This class has not ended yet. Submit your notes once it ends to complete it.",
-                 "code": lifecycle.CLASS_NOT_ENDED, "ends_at": session.end_time.isoformat()},
-                status=status.HTTP_409_CONFLICT
-            )
+        # A tutor's notes wait for a start and the scheduled end -- refused
+        # before any byte is stored (and checked again under the row's lock).
+        if tutor_notes:
+            try:
+                lifecycle.notes_mode(session, request.user, timezone.now(), "Content cannot be attached to a cancelled session.")
+            except lifecycle.SessionStateError as exc:
+                return Response(exc.response_data(), status=exc.status)
 
         upload = request.FILES.get('file')
         if upload is None:
@@ -952,29 +1116,32 @@ class SessionFileUploadView(APIView):
 
         link_field = f"{field}_link"
         now = timezone.now()
-        completing = False
+        mode = None
 
         try:
             with transaction.atomic():
-                # The row again, under its lock: a tutor's checks are made once
-                # more against what it is now (sessions.lifecycle).
+                # The row again, under its lock: the checks are made once more
+                # against what it is now (sessions.lifecycle).
                 if tutor_notes:
-                    session, completing = lifecycle.tutor_notes_target(
+                    session, mode = lifecycle.tutor_notes_target(
                         session, request.user, now, "Content cannot be attached to a cancelled session."
                     )
                 else:
                     session = lifecycle.locked(session)
+                    if session.status in (SessionStatusChoices.CANCELLED, SessionStatusChoices.NOT_CONDUCTED):
+                        raise lifecycle.SessionStateError(
+                            lifecycle.SESSION_CHANGED, "This session changed while you were editing it. Reload and try again.",
+                        )
                 before_link = getattr(session, link_field)
                 before_status = session.status
                 session_file = self._store(request, session, field, upload, content_type, extension)
                 new_link = request.build_absolute_uri(session_file.link_path())
                 setattr(session, link_field, new_link)
-                fields = [link_field, 'updated_at']
-                if completing:
-                    fields += lifecycle.mark_completed(session, request.user, now)
+                fields = [link_field, 'updated_at'] + lifecycle.apply_notes(session, mode, request.user, now)
                 session.save(update_fields=fields)
         except lifecycle.SessionStateError as exc:
             return Response(exc.response_data(), status=exc.status)
+        completing = mode == lifecycle.NOTES_COMPLETE
 
         if field == SessionContentField.HOMEWORK:
             sync_homework_for_session(session, request.user, request, source='upload')
@@ -996,11 +1163,15 @@ class SessionFileUploadView(APIView):
         if completing:
             sync_homework_for_session(session, request.user, request, source='tutor_completion')
             lifecycle.log_completion(session, before_status, request)
+        elif mode == lifecycle.NOTES_LATE:
+            lifecycle.log_late_notes(session, request)
 
         file_data = SessionFileSerializer(session_file).data
         file_data['url'] = new_link
         return Response(
-            {"success": True, "completed": completing, "session": SessionSerializer(session).data, "file": file_data},
+            {"success": True, "completed": completing,
+             "late_notes": mode in (lifecycle.NOTES_LATE, lifecycle.NOTES_LATE_UPDATE),
+             "session": SessionSerializer(session).data, "file": file_data},
             status=status.HTTP_200_OK
         )
 
@@ -1157,6 +1328,13 @@ class CancelSeriesView(APIView):
 
         if target_session.status != SessionStatusChoices.SCHEDULED:
             return Response({"error": "Only scheduled sessions can be cancelled"}, status=status.HTTP_400_BAD_REQUEST)
+        # Cancelled only until its scheduled end; after that its outcome is recorded instead.
+        if timezone.now() >= target_session.end_time:
+            return Response(
+                {"error": "This class's scheduled time has ended, so it can no longer be cancelled. Record its outcome instead.",
+                 "code": lifecycle.SESSION_ENDED, "ends_at": target_session.end_time.isoformat()},
+                status=status.HTTP_409_CONFLICT
+            )
 
         student = target_session.student
 

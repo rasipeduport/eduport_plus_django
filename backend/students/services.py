@@ -19,7 +19,8 @@ from django.utils import timezone
 
 from core.querysets import EXAM_VIEW_PERMISSIONS, scope_exams
 from sessions.models import Session, SessionStatusChoices
-from sessions.services import apply_content_filter, calculate_credits_used
+from sessions.lifecycle import ClassState
+from sessions.services import apply_content_filter, calculate_credits_used, state_q
 
 
 # Without accounts.view_full_student_record (tutors) a student row carries no
@@ -175,6 +176,14 @@ def _session_stats(student):
     counts['pending'] = apply_content_filter(
         Session.objects.filter(student=student), 'missing_content'
     ).count()
+    # Where the classes stand (sessions.lifecycle.class_state): recorded as
+    # not conducted, and ended with their notes due or never started.
+    now = timezone.now()
+    counts.update(Session.objects.filter(student=student).aggregate(
+        not_conducted=Count('id', filter=state_q(ClassState.NOT_CONDUCTED, now)),
+        notes_due=Count('id', filter=state_q(ClassState.NOTES_DUE, now)),
+        not_started=Count('id', filter=state_q(ClassState.NOT_STARTED, now)),
+    ))
     return counts
 
 

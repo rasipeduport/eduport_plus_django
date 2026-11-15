@@ -992,13 +992,18 @@ class PostSessionWorkflowTests(APITestCase):
         )
         self.sessions_url = reverse('sessions:sessions-list-create-update')
         self.next_slot = (timezone.now() + timedelta(days=2)).replace(minute=0, second=0, microsecond=0)
-        # Classes already over, for marking attended (never before the scheduled end).
-        self.past_slot = (timezone.now() - timedelta(days=30)).replace(minute=0, second=0, microsecond=0)
+        # Classes already over, for marking attended (never before the scheduled
+        # end) -- and recently enough for the tutor's notes to complete a started one.
+        self.past_slot = (timezone.now() - timedelta(hours=40)).replace(minute=0, second=0, microsecond=0)
 
     # -- helpers ---------------------------------------------------------
 
-    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', ended=False, **fields):
-        """One session per two-hour slot so nothing in a test overlaps by accident; ``ended`` = one already over."""
+    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', ended=False,
+                     started=False, **fields):
+        """
+        One session per two-hour slot so nothing in a test overlaps by accident;
+        ``ended`` = one already over, ``started`` = one its tutor started on time.
+        """
         student = student or self.student
         if ended:
             start = self.past_slot
@@ -1006,6 +1011,8 @@ class PostSessionWorkflowTests(APITestCase):
         else:
             start = self.next_slot
             self.next_slot = start + timedelta(hours=2)
+        if started:
+            fields.update(started_at=start, started_by=student.tutor)
         return Session.objects.create(
             student=student, tutor=student.tutor, title=title,
             start_time=start, end_time=start + timedelta(hours=1), status=status_value, **fields,
@@ -1056,8 +1063,8 @@ class PostSessionWorkflowTests(APITestCase):
     # -- 4-7: tutor may add notes and nothing else -----------------------------
 
     def test_tutor_can_add_notes_to_authorized_session(self):
-        # After the class: the tutor's notes then also complete it (sessions.lifecycle).
-        session = self.make_session(ended=True)
+        # After a started class: the tutor's notes then also complete it (sessions.lifecycle).
+        session = self.make_session(ended=True, started=True)
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "  https://example.com/notes "})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1076,7 +1083,7 @@ class PostSessionWorkflowTests(APITestCase):
         )
 
     def test_tutor_can_update_existing_notes(self):
-        session = self.make_session(ended=True, notes_link='https://example.com/old')
+        session = self.make_session(ended=True, started=True, notes_link='https://example.com/old')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "https://example.com/new"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1234,7 +1241,7 @@ class PostSessionWorkflowTests(APITestCase):
         self.assertEqual(self.row(res, cancelled)['display_status'], 'cancelled')
 
     def test_adding_final_missing_field_flips_pending_to_attended(self):
-        session = self.make_session(SessionStatusChoices.ATTENDED, ended=True, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
+        session = self.make_session(SessionStatusChoices.ATTENDED, ended=True, started=True, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
         self.assertEqual(self.row(self.list_as(self.mentor), session)['display_status'], 'pending')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": self.LINKS['notes_link']})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
@@ -1419,10 +1426,12 @@ class SessionContentUploadTests(APITestCase):
             profile=self.other_student_user, student_code='EDPUP2', full_name='Up Stu Two',
             mentor=self.other_mentor, tutor=self.other_tutor, total_class_quota=20, status=StatusChoices.ACTIVE,
         )
+        # Started by its tutor and over within the notes deadline: the tutor's notes may still complete it.
         start = timezone.now() - timedelta(days=1)
         self.session = Session.objects.create(
             student=self.student, tutor=self.tutor, title='Upload Class',
             start_time=start, end_time=start + timedelta(hours=1), status=SessionStatusChoices.ATTENDED,
+            started_at=start, started_by=self.tutor,
         )
         self.sessions_url = reverse('sessions:sessions-list-create-update')
 

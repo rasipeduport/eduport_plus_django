@@ -13,7 +13,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.timezones import DEFAULT_TIMEZONE, TimezoneConversionError, is_valid_timezone, zoned_wall_time_to_utc
-from .models import Session, SessionStatusChoices
+from .lifecycle import ClassState
+from .models import Session, SessionOutcomeReason, SessionStatusChoices
 
 ALLOWED_DURATIONS = [0.5, 1, 1.5, 2]
 MAX_SERIES_ITEMS = 20
@@ -120,11 +121,68 @@ def apply_content_filter(queryset, value):
     return queryset.filter(_link_missing(fields[value.removeprefix('missing_')]))
 
 
-def calculate_credits_used(student):
-    """Total hours consumed by the student's non-cancelled sessions."""
-    existing_sessions = Session.objects.filter(student=student).exclude(
-        status=SessionStatusChoices.CANCELLED
+def state_q(state, now):
+    """The sessions in ``state`` (a ClassState value) as of ``now``: lifecycle.class_state as a query."""
+    if state == ClassState.CANCELLED:
+        return Q(status=SessionStatusChoices.CANCELLED)
+    if state == ClassState.NOT_CONDUCTED:
+        return Q(status=SessionStatusChoices.NOT_CONDUCTED)
+    if state == ClassState.COMPLETED:
+        return Q(completed_at__isnull=False)
+    open_class = (
+        ~Q(status__in=[SessionStatusChoices.CANCELLED, SessionStatusChoices.NOT_CONDUCTED])
+        & Q(completed_at__isnull=True)
     )
+    started = Q(started_at__isnull=False)
+    ended = Q(end_time__lte=now)
+    return open_class & {
+        ClassState.UPCOMING: ~ended & ~started,
+        ClassState.IN_PROGRESS: ~ended & started,
+        ClassState.NOTES_DUE: ended & started,
+        ClassState.NOT_STARTED: ended & ~started,
+    }[state]
+
+
+def apply_state_filter(queryset, value, now):
+    """
+    Restrict a Session queryset to the classes in any of the comma-separated
+    ClassState values in ``value`` (either case). Raises ValueError for an
+    unknown one so the view can answer 400.
+    """
+    states = [part.strip().upper() for part in value.split(',') if part.strip()]
+    unknown = [state for state in states if state not in ClassState.values]
+    if not states or unknown:
+        raise ValueError(f"state must be one or more of {', '.join(v.lower() for v in ClassState.values)}")
+    combined = Q()
+    for state in states:
+        combined |= state_q(state, now)
+    return queryset.filter(combined)
+
+
+# A recorded outcome other than the student's own no-show gives the class's
+# credit back, as a cancellation does.
+CREDIT_RETURNED = Q(status=SessionStatusChoices.CANCELLED) | (
+    Q(status=SessionStatusChoices.NOT_CONDUCTED) & ~Q(outcome_reason=SessionOutcomeReason.STUDENT_NO_SHOW)
+)
+
+
+def consumes_credit(session):
+    """Whether ``session`` uses its hours of the student's quota: CREDIT_RETURNED for one row."""
+    if session.status == SessionStatusChoices.CANCELLED:
+        return False
+    if session.status == SessionStatusChoices.NOT_CONDUCTED:
+        return session.outcome_reason == SessionOutcomeReason.STUDENT_NO_SHOW
+    return True
+
+
+def calculate_credits_used(student):
+    """
+    Total hours consumed by the student's sessions: every class but a
+    cancelled one, or one recorded as not conducted for a reason other than
+    the student's no-show (CREDIT_RETURNED). A class nobody has recorded an
+    outcome for keeps its hours used: the clock alone never changes a quota.
+    """
+    existing_sessions = Session.objects.filter(student=student).exclude(CREDIT_RETURNED)
     credits_used = 0.0
     for s in existing_sessions:
         credits_used += (s.end_time - s.start_time).total_seconds() / 3600.0

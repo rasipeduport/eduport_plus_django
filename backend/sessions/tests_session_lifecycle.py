@@ -5,9 +5,10 @@ class (sessions.views, the reassignment views).
 
 A class is started by its assigned tutor, the student's mentor or an
 administrator, from 5 minutes before its scheduled start until its scheduled
-end, by the server's clock, for meeting access and activity tracking only; it
-is completed only by its assigned tutor's own notes submitted after its
-originally scheduled end -- whether or not anyone started it; staff
+end, by the server's clock; a start opens the tutor's notes and never
+completes it on its own. It is completed only by its assigned tutor's own
+notes submitted after its originally scheduled end on a class someone
+started (the deadline and late notes: tests_session_outcomes); staff
 attendance, notes and recordings never complete it; and it always counts as
 the class that was booked. A tutor whose student moved on keeps their own
 classes to complete.
@@ -261,14 +262,13 @@ class StartSessionTests(SessionLifecycleWorld):
 
 
 class TutorNotesCompletionTests(SessionLifecycleWorld):
-    def test_the_tutors_notes_complete_the_class_whoever_started_it_or_if_nobody_did(self):
-        for starter in (self.tutor, self.mentor, self.admin, None):
-            with self.subTest(started_by=starter.role if starter else 'nobody'):
+    def test_the_tutors_notes_complete_the_class_whoever_started_it(self):
+        for starter in (self.tutor, self.mentor, self.admin):
+            with self.subTest(started_by=starter.role):
                 session = self.make(-timedelta(hours=2))
-                if starter:
-                    # Started at its time by the tutor, the mentor or an administrator, through the real Start.
-                    with transaction.atomic():
-                        lifecycle.start_session(session, starter, now=session.start_time)
+                # Started at its time by the tutor, the mentor or an administrator, through the real Start.
+                with transaction.atomic():
+                    lifecycle.start_session(session, starter, now=session.start_time)
                 res = self.notes(self.tutor, session)
                 self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
                 self.assertTrue(res.data['completed'])
@@ -294,9 +294,9 @@ class TutorNotesCompletionTests(SessionLifecycleWorld):
                 self.assertFalse(self.logs(session, 'session.complete').exists())
 
     def test_staff_notes_and_recordings_never_qualify_whoever_started_it(self):
-        for starter in (self.mentor, self.admin, None):
-            with self.subTest(started_by=starter.role if starter else 'nobody'):
-                session = self.make(-timedelta(hours=2), started=starter is not None, starter=starter)
+        for starter in (self.mentor, self.admin):
+            with self.subTest(started_by=starter.role):
+                session = self.make(-timedelta(hours=2), started=True, starter=starter)
                 for user in (self.mentor, self.admin):
                     res = self.put(user, {'id': str(session.id), 'notes_link': 'https://example.com/staff-notes',
                                           'recording_link': 'https://rec.example/1'})
@@ -330,27 +330,37 @@ class TutorNotesCompletionTests(SessionLifecycleWorld):
         self.assertEqual(log.actor_role, 'TUTOR')
         self.assertTrue(self.logs(session, 'session.update_links').exists())
 
-    def test_notes_with_no_start_at_all_complete_the_class_after_its_end(self):
-        session = self.make(-timedelta(hours=3))
-        res = self.notes(self.tutor, session)
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertTrue(res.data['completed'])
-        session.refresh_from_db()
-        self.assertIsNone(session.started_at)
-        self.assertEqual((session.status, session.completed_by), (ATTENDED, self.tutor))
-        self.assertIsNone(self.logs(session, 'session.complete').get().context['started_at'])
-
-    def test_the_tutors_notes_before_the_scheduled_end_are_refused_started_or_not(self):
+    def test_notes_on_a_class_nobody_started_are_refused_and_nothing_is_stored(self):
         cases = {
-            'started, under way': self.make(-timedelta(minutes=20), started=True),
-            'not started, under way': self.make(-timedelta(minutes=20)),
-            'not started, tomorrow': self.make(timedelta(days=1)),
+            'scheduled': self.make(-timedelta(hours=3)),
+            'staff marked attended': self.make(-timedelta(hours=5), status_value=ATTENDED),
+            'staff notes already on it': self.make(-timedelta(hours=7), notes_link='https://example.com/staff'),
         }
         for label, session in cases.items():
             with self.subTest(label):
+                before = (session.status, session.notes_link)
+                for send in (self.notes, lambda user, s: self.upload_notes(user, s)):
+                    res = send(self.tutor, session)
+                    self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+                    self.assertEqual(res.data['code'], lifecycle.SESSION_NOT_STARTED)
+                session.refresh_from_db()
+                self.assertEqual((session.status, session.notes_link), before)
+                self.assertIsNone(session.completed_at)
+                self.assertEqual(session.files.count(), 0)
+                self.assertFalse(self.logs(session, 'session.complete').exists())
+                self.assertFalse(self.logs(session, 'session.update_links').exists())
+
+    def test_the_tutors_notes_before_the_scheduled_end_are_refused_started_or_not(self):
+        cases = {
+            'started, under way': (self.make(-timedelta(minutes=20), started=True), lifecycle.CLASS_NOT_ENDED),
+            'not started, under way': (self.make(-timedelta(minutes=20), hours=2), lifecycle.SESSION_NOT_STARTED),
+            'not started, tomorrow': (self.make(timedelta(days=1)), lifecycle.SESSION_NOT_STARTED),
+        }
+        for label, (session, code) in cases.items():
+            with self.subTest(label):
                 res = self.notes(self.tutor, session)
                 self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
-                self.assertEqual(res.data['code'], lifecycle.CLASS_NOT_ENDED)
+                self.assertEqual(res.data['code'], code)
                 session.refresh_from_db()
                 self.assertIsNone(session.notes_link)
                 self.assertIsNone(session.completed_at)
@@ -387,7 +397,7 @@ class TutorNotesCompletionTests(SessionLifecycleWorld):
 
     def test_resubmitting_notes_already_on_the_class_completes_it(self):
         # Notes put there before this rule (or by staff): the tutor's own submission still completes it.
-        session = self.make(-timedelta(hours=2), notes_link='https://example.com/notes')
+        session = self.make(-timedelta(hours=2), started=True, notes_link='https://example.com/notes')
         res = self.notes(self.tutor, session)
         self.assertTrue(res.data['completed'])
         self.assertFalse(self.logs(session, 'session.update_links').exists())
@@ -612,19 +622,21 @@ class SessionIntegrityTests(SessionLifecycleWorld):
         self.assertEqual(Session.objects.get(pk=past.pk).tutor, self.tutor)
         self.assertEqual(Session.objects.get(pk=started.pk).tutor, self.tutor)
 
-    def test_past_classes_never_complete_on_their_own_only_by_the_tutors_notes(self):
+    def test_past_classes_never_complete_or_change_on_their_own(self):
         session = self.make(-timedelta(days=5))
-        # Its time passed, it was read and offered for Start: still not completed.
+        # Its time passed, it was read and offered for Start: still not completed,
+        # never marked anything by the clock -- Not Started until someone records its outcome.
         self.client.force_authenticate(user=self.mentor)
-        self.client.get(self.sessions_url)
+        row = next(r for r in self.client.get(self.sessions_url).data['sessions'] if r['id'] == str(session.id))
+        self.assertEqual((row['status'], row['class_state']), ('scheduled', 'not_started'))
         self.assertEqual(self.start(self.tutor, session).data['code'], lifecycle.START_WINDOW_CLOSED)
+        self.assertEqual(self.notes(self.tutor, session).data['code'], lifecycle.SESSION_NOT_STARTED)
         session.refresh_from_db()
         self.assertEqual(session.status, SCHEDULED)
         self.assertIsNone(session.completed_at)
-        self.assertTrue(self.notes(self.tutor, session).data['completed'])
 
-    def test_a_past_class_nobody_started_stays_with_its_tutor_who_still_completes_it(self):
-        session = self.make(-timedelta(days=1))
+    def test_a_past_started_class_stays_with_its_tutor_who_still_completes_it(self):
+        session = self.make(-timedelta(days=1), started=True)
         self.client.force_authenticate(user=self.admin)
         res = self.client.post('/api/students/reassign/', {
             'id': str(self.student.id), 'mentor': str(self.mentor.id), 'tutor': str(self.other_tutor.id),
@@ -665,17 +677,27 @@ class SessionIntegrityTests(SessionLifecycleWorld):
         early.completed_at = self.now
         with self.assertRaises(IntegrityError), transaction.atomic():
             early.save(update_fields=['completed_at'])
-        # No start is needed.
+        # Never without a start.
         unstarted = self.make(-timedelta(hours=2), status_value=ATTENDED)
         unstarted.completed_at = self.now
-        unstarted.save(update_fields=['completed_at'])
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            unstarted.save(update_fields=['completed_at'])
+        # Never after the notes deadline without an approval.
+        late = self.make(-timedelta(days=3), status_value=ATTENDED, started=True)
+        late.completed_at = self.now
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            late.save(update_fields=['completed_at'])
+        # Started, attended, within the deadline: held.
+        on_time = self.make(-timedelta(hours=2), status_value=ATTENDED, started=True)
+        on_time.completed_at = self.now
+        on_time.save(update_fields=['completed_at'])
 
 
 class FormerTutorTests(SessionLifecycleWorld):
     """
     A tutor whose student moved to another tutor keeps their own classes, so
-    they can still submit notes that complete them, even after staff marked
-    them attended.
+    they can still submit notes that complete the started ones, even after
+    staff marked them attended.
     """
 
     def reassign(self):
@@ -696,8 +718,8 @@ class FormerTutorTests(SessionLifecycleWorld):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
 
     def test_a_class_staff_marked_attended_stays_the_former_tutors_to_complete(self):
-        before = self.make(-timedelta(days=2))
-        after = self.make(-timedelta(days=1))
+        before = self.make(-timedelta(hours=36), started=True)
+        after = self.make(-timedelta(days=1), started=True)
         self.mark_attended(before)
         self.reassign()
         self.mark_attended(after)
@@ -723,7 +745,7 @@ class FormerTutorTests(SessionLifecycleWorld):
                 self.assertEqual((completion.actor, completion.changes), (self.tutor, {}))
 
     def test_a_former_tutor_uploads_notes_to_a_staff_attended_class_and_can_open_them(self):
-        session = self.make(-timedelta(days=1))
+        session = self.make(-timedelta(days=1), started=True)
         self.mark_attended(session)
         self.reassign()
         self.assertEqual(self.upload_notes(self.other_tutor, session).status_code, status.HTTP_403_FORBIDDEN)
@@ -740,7 +762,7 @@ class FormerTutorTests(SessionLifecycleWorld):
         past = self.make(-timedelta(days=3))
         attended = self.make(-timedelta(days=2))
         self.mark_attended(attended)
-        completed = self.make(-timedelta(days=1))
+        completed = self.make(-timedelta(days=1), started=True)
         self.notes(self.tutor, completed)
         cancelled = self.make(-timedelta(days=4), status_value=CANCELLED)
         upcoming = self.make(timedelta(days=2))
