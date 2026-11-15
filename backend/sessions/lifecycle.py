@@ -32,6 +32,10 @@ the moment it was started nor the moment its notes came in enters it, and the
 schedule of a class cannot change once it has been started or attended
 (sessions.views).
 
+Whether a completed class counts towards Tutor Earnings is decided by
+earnings.eligibility: this completion, for a class scheduled to end at or
+after the moment Tutor Earnings was activated.
+
 Every write here locks the session's row (FOR UPDATE, that row alone) and
 re-reads it first, so a Start, a completion and a staff edit of the same class
 queue behind each other, and a repeated or racing request sees what the first
