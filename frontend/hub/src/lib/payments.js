@@ -87,3 +87,23 @@ export function collectionCompatibility(state, kind = state.sale?.kind) {
   }
   return null;
 }
+
+/** A Token Sale with no tuition package yet: no purchase and no issued quote, so no tuition to show or collect. */
+export const tokenWithoutPlan = (state) => state.sale?.kind === 'TOKEN' && !state.purchase && state.quote?.status !== 'ISSUED';
+
+// A token reservation's state (sales.payments token_state) in words.
+const TOKEN_STATUSES = {
+  AWAITING_PAYMENT: 'Awaiting token payment',
+  UPCOMING: 'Token received',
+  DUE: 'Token received · tuition due soon',
+  OVERDUE: 'Token received · tuition overdue',
+  ENROLLED: 'Enrolled',
+};
+export function tokenStatusLabel(sale, payments = []) {
+  const pending = payments.filter((row) => row.purpose === 'TOKEN' && row.status === 'PENDING');
+  if (sale.token_status === 'AWAITING_PAYMENT' && pending.length) {
+    // A pending Stripe payment has its link once Stripe answered; until then (or while it awaits review) it has none.
+    return pending.some((row) => row.payment_url) ? 'Awaiting token payment · Stripe link sent' : 'Awaiting token payment · Stripe link pending';
+  }
+  return TOKEN_STATUSES[sale.token_status] ?? sale.token_status;
+}
