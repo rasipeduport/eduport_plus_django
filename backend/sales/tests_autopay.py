@@ -36,6 +36,8 @@ class AutopayTests(QuoteTestCase, APITestCase):
         return payment_test_helpers.InitialPaymentTests.new_lead(self, owner, collection_mode=collection_mode)
     url = payment_test_helpers.InitialPaymentTests.url
     start = payment_test_helpers.InitialPaymentTests.start
+    token_sale = payment_test_helpers.InitialPaymentTests.token_sale
+    reserve_token = payment_test_helpers.InitialPaymentTests.reserve_token
     payload = payment_test_helpers.InitialPaymentTests.payload
     collect = payment_test_helpers.InitialPaymentTests.collect
     webhook = payment_test_helpers.InitialPaymentTests.webhook
@@ -311,7 +313,7 @@ class AutopayTests(QuoteTestCase, APITestCase):
         quotes.create_quote(self.bde, {'collection_mode': 'FULL', 'syllabus': self.bridge.pk, 'revision': 1, 'lead': self.lead.pk, 'plan_type': 'BRIDGE_COURSE', 'replaces': old.pk})
         self.start(); response = self.preview()
         self.assertEqual((response.status_code, response.json()['error']), (409, 'REPLACEMENT_REQUIRED'))
-        self.lead = self.new_lead(collection_mode='PARTIAL'); self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+        self.lead = self.new_lead(collection_mode='PARTIAL'); self.reserve_token(expected_start_date=timezone.localdate().isoformat())
         self.assertEqual(self.preview().status_code, 400)
 
     def test_all_successful_installments_settle_package_once_without_repricing(self):

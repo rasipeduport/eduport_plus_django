@@ -37,6 +37,8 @@ class StudentAccountTests(QuoteTestCase, APITestCase):
     new_lead = payment_helpers.InitialPaymentTests.new_lead
     url = payment_helpers.InitialPaymentTests.url
     start = payment_helpers.InitialPaymentTests.start
+    token_sale = payment_helpers.InitialPaymentTests.token_sale
+    reserve_token = payment_helpers.InitialPaymentTests.reserve_token
     payload = payment_helpers.InitialPaymentTests.payload
     collect = payment_helpers.InitialPaymentTests.collect
     stripe_transport = payment_helpers.InitialPaymentTests.stripe_transport
@@ -120,7 +122,7 @@ class StudentAccountTests(QuoteTestCase, APITestCase):
 
     def test_every_payment_of_a_child_reuses_its_one_customer_and_creation_is_idempotent(self):
         self.lead = self.new_lead(collection_mode='FULL')
-        self.start('TOKEN', expected_start_date='2099-01-01')
+        self.reserve_token(expected_start_date='2099-01-01')
         gateway, calls, created = self.transport()
         with mock.patch('sales.stripe_gateway.client', return_value=gateway):
             self.collect(method='STRIPE', purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')

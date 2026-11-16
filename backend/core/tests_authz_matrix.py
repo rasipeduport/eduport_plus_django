@@ -230,6 +230,43 @@ BDE_WORKSPACE.update(BDE_TRANSPORTS)
 BDE_WORKSPACE['student_accounts.billing_contact'] = {'status': 400, 'error': 'SALE_REQUIRED', 'message': 'Start the sale first.',
                                                      'records': [], 'fields': ['error', 'message']}
 
+# Token Sale chosen with its plan (2026-11-16): on its own enquiry the BDE issues the Token Sale quote and
+# its reservation together (rolled back with the scenario), answered as the quote and the sale as it stands.
+TOKEN_SALE_QUOTE_FIELDS = [
+    'cancel_reason', 'cancelled_at', 'cancelled_by', 'chapters', 'chapters[].classes', 'chapters[].id',
+    'chapters[].name', 'chapters[].position', 'chapters[].regular_classes', 'class_mode', 'classes',
+    'collection_amount', 'collection_discount', 'collection_intention_confirmed', 'collection_mode',
+    'collection_subtotal', 'created_at', 'created_by', 'created_by.id', 'created_by.name', 'currency', 'full_course',
+    'id', 'is_current', 'lead', 'lead.id', 'lead.parent_name', 'lead.student_name', 'lines', 'lines[].classes',
+    'lines[].fee_per_class', 'lines[].plan_type', 'lines[].single_payment', 'lines[].title', 'lines[].total',
+    'offer_fee', 'payable_amount', 'plan_type', 'pricing_version', 'reference', 'revision', 'selection_status',
+    'single_payment_percent', 'single_payment_saving', 'standard_fee', 'status', 'supersedes', 'syllabus',
+    'syllabus.board', 'syllabus.grade', 'syllabus.id', 'syllabus.structure', 'syllabus.syllabus_version',
+    'syllabus.title', 'total_fee',
+]
+TOKEN_SALE_STATE_FIELDS = [
+    'account', 'account.billing_contact', 'account.billing_contact.email', 'account.billing_contact.full_name',
+    'account.billing_contact.guardian_id', 'account.billing_contact.phone', 'account.billing_contact.relationship',
+    'account.can_correct_identity', 'account.corrections', 'account.guardians', 'account.guardians[].basis',
+    'account.guardians[].full_name', 'account.guardians[].guardian_id', 'account.guardians[].is_billing_contact',
+    'account.guardians[].relationship', 'account.id', 'account.identity_locked', 'account.reference',
+    'account.stripe_customers', 'account.student', 'account.student_name', 'autopay', 'autopay_configured',
+    'billing_timezone', 'can_cancel_autopay', 'can_collect', 'enquiry_id', 'family_candidates', 'parent_email',
+    'payments', 'purchase', 'sale', 'sale.balance_due_date', 'sale.deadline_status', 'sale.expected_start_date',
+    'sale.id', 'sale.kind', 'sale.original_bde', 'sale.original_bde.id', 'sale.original_bde.name',
+    'sale.original_quote_id', 'sale.parent_email', 'sale.reservation_reference', 'sale.student', 'sale.token_paid',
+    'sale.token_status', 'stripe_configured', 'totals', 'totals.available_quota', 'totals.class_quota',
+    'totals.classes_not_credited', 'totals.fully_paid', 'totals.net_collected', 'totals.outstanding_amount',
+    'totals.package_amount', 'totals.paid_amount', 'totals.paid_classes', 'totals.purchased_classes',
+    'totals.refunded_amount', 'totals.remaining_amount', 'totals.unpaid_classes', 'totals.used_classes',
+]
+BDE_WORKSPACE['initial_sales.token_sale'] = {
+    'status': 201, 'records': ['<caller>', 'lead_a', 'new', 'syllabus_a'],
+    'fields': sorted(['quote', 'state', 'state.quote', *(f'quote.{field}' for field in TOKEN_SALE_QUOTE_FIELDS),
+                      *(f'state.quote.{field}' for field in TOKEN_SALE_QUOTE_FIELDS),
+                      *(f'state.{field}' for field in TOKEN_SALE_STATE_FIELDS)]),
+}
+
 BDE_WORKSPACE['sales.catalogue']['fields'] = sorted([*BDE_WORKSPACE['sales.catalogue']['fields'], 'results[].subtitle'])
 BDE_WORKSPACE['sales.quote_create']['fields'] = sorted([
     *BDE_WORKSPACE['sales.quote_create']['fields'], 'chapters[].regular_classes',

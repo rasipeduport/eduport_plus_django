@@ -22,6 +22,8 @@ class CollectionIntentionTests(QuoteTestCase, APITestCase):
     start = InitialPaymentTests.start
     payload = InitialPaymentTests.payload
     collect = InitialPaymentTests.collect
+    token_sale = InitialPaymentTests.token_sale
+    reserve_token = InitialPaymentTests.reserve_token
 
     def data(self, mode=None, **extra):
         return {'syllabus': str(self.bridge.pk), 'revision': 1, 'plan_type': 'BRIDGE_COURSE',
@@ -168,16 +170,36 @@ class CollectionIntentionTests(QuoteTestCase, APITestCase):
             self.assertEqual(quote.collection_amount, quote.total_fee)
             self.assertTrue(all(line.single_payment_price is None for line in quote.lines.all()))
 
-    def test_intention_replacement_preserves_token_positive_tuition_balance_guard(self):
-        from django.utils import timezone
-        # Three selected classes at AED 35 = 105. A 10% complete-payment
-        # discount would leave 95, less than the reservation's AED 100 credit.
+    def test_a_token_sale_replaces_its_quote_only_as_a_token_sale_quote(self):
+        # Three selected classes at AED 35 = 105. A 10% complete-payment discount would leave
+        # 95, less than the reservation's AED 100 credit: a Token Sale quote never has it.
         services.create_pricing_version(self.admin, {'currency': 'AED', 'standard_fee': D(45), 'offer_fee': D(35),
             'single_payment_percent': D(10), 'single_payment_plan_types': ['BRIDGE_COURSE'], 'note': ''})
-        quote = quotes.create_quote(self.bde, self.data('PARTIAL', chapter_ids=[self.days[0], self.days[3]]))
-        self.assertEqual(quote.collection_amount, D(105))
-        self.assertEqual(self.start('TOKEN', expected_start_date=timezone.localdate().isoformat()).status_code, 201)
-        for method in [self.client.get, self.client.post]:
-            response = method(self.replacement_url(), {'quote_id': str(quote.pk), 'collection_mode': 'FULL'})
-            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_EXCEEDS_PACKAGE'))
+        reserved = self.reserve_token(chapter_ids=[str(self.days[0]), str(self.days[3])])
+        self.assertEqual(reserved.status_code, 201, reserved.content)
+        quote = Quote.objects.get(pk=reserved.json()['quote']['id'])
+        self.assertEqual((quote.collection_mode, quote.collection_amount, quote.single_payment_saving), ('TOKEN', D(105), D(0)))
+        for mode in ['FULL', 'PARTIAL', 'AUTOPAY']:
+            for method in [self.client.get, self.client.post]:
+                response = method(self.replacement_url(), {'quote_id': str(quote.pk), 'collection_mode': mode})
+                self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_QUOTE_REQUIRED'))
         self.assertEqual(quotes.latest_quote(self.lead).pk, quote.pk)
+        body = {'quote_id': str(quote.pk), 'collection_mode': 'TOKEN'}
+        preview = self.client.get(self.replacement_url(), body).json()
+        self.assertEqual((preview['collection_amount'], preview['collection_discount']), ('105', '0'))
+        replaced = self.client.post(self.replacement_url(), body, format='json')
+        self.assertEqual(replaced.status_code, 201, replaced.content)
+        self.assertEqual((replaced.json()['collection_mode'], replaced.json()['supersedes']), ('TOKEN', str(quote.pk)))
+
+    def test_new_sale_never_takes_a_token_sale_quote(self):
+        old = quotes.latest_quote(self.lead)
+        refused = self.client.post('/api/sales/quotes/', self.data('TOKEN'), format='json')
+        self.assertEqual(refused.status_code, 400)
+        for method in [self.client.get, self.client.post]:
+            response = method(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': 'TOKEN'})
+            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_REQUIRED'))
+        self.assertEqual(self.start().status_code, 201)
+        for method in [self.client.get, self.client.post]:
+            response = method(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': 'TOKEN'})
+            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_REQUIRED'))
+        self.assertEqual(quotes.latest_quote(self.lead).pk, old.pk)

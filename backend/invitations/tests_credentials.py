@@ -26,6 +26,8 @@ class EnrollmentCredentialTests(QuoteTestCase, APITestCase):
     new_lead = fixtures.InitialPaymentTests.new_lead
     url = fixtures.InitialPaymentTests.url
     start = fixtures.InitialPaymentTests.start
+    token_sale = fixtures.InitialPaymentTests.token_sale
+    reserve_token = fixtures.InitialPaymentTests.reserve_token
     payload = fixtures.InitialPaymentTests.payload
     collect = fixtures.InitialPaymentTests.collect
     stripe_transport = fixtures.InitialPaymentTests.stripe_transport
@@ -236,7 +238,7 @@ class EnrollmentCredentialTests(QuoteTestCase, APITestCase):
         self.assertEqual(issue_existing_student(first.pk, self.admin).pk, inv.pk)
 
     def test_unpaid_and_token_do_not_create_credentials(self):
-        self.start('TOKEN', expected_start_date='2099-01-01')
+        self.reserve_token(expected_start_date='2099-01-01')
         self.collect(purpose='TOKEN', classes='0', amount='100', collection_mode='FULL')
         self.assertEqual((Student.objects.count(), Invitation.objects.count()), (0, 0))
 

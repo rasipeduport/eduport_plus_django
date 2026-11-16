@@ -70,6 +70,22 @@ def received(sale):
     }
 
 
+def reservation_deadline(sale):
+    """When a Token Sale's remaining tuition is due: its balance deadline, or -- reserved before there was one -- its expected start."""
+    return sale.balance_due_date or sale.expected_start_date
+
+
+def deadline_state(sale, today=None):
+    """An unenrolled Token Sale against its deadline, paid token or not: UPCOMING, DUE (three days before) or OVERDUE."""
+    if sale.kind != SaleKind.TOKEN or sale.student_id:
+        return None
+    today = today or timezone.localdate()
+    deadline = reservation_deadline(sale)
+    if deadline < today:
+        return 'OVERDUE'
+    return 'DUE' if deadline <= today + timedelta(days=3) else 'UPCOMING'
+
+
 def token_state(sale, paid, today=None):
     if sale.kind != SaleKind.TOKEN:
         return None
@@ -77,10 +93,7 @@ def token_state(sale, paid, today=None):
         return 'ENROLLED'
     if not paid['token']:
         return 'AWAITING_PAYMENT'
-    today = today or timezone.localdate()
-    if sale.expected_start_date < today:
-        return 'OVERDUE'
-    return 'DUE' if sale.expected_start_date <= today + timedelta(days=3) else 'UPCOMING'
+    return deadline_state(sale, today)
 
 
 def has_collection_history(lead):
@@ -131,15 +144,19 @@ def store_proof(payment, upload):
 def require_token_quote(quote):
     if quote and quote.collection_mode == 'AUTOPAY':
         raise refusal('TOKEN_AUTOPAY_NOT_ALLOWED',
-            'Token Sale requires a FULL or PARTIAL quote. Issue an explicit replacement quote before continuing.', 409)
+            'A Token Sale cannot be collected against an Autopay quote. Issue a Token Sale replacement quote before continuing.', 409)
 
 
 def require_compatible_quote(lead, quote, kind):
     if quote and not quote.collection_intention_confirmed and not has_collection_history(lead):
         raise refusal('COLLECTION_INTENTION_REQUIRED',
+            'This historical quote has no recorded collection intention. Issue a Token Sale replacement quote before collecting the token reservation.'
+            if kind == SaleKind.TOKEN else
             'This historical quote has no recorded collection intention. Issue an explicit replacement quote with FULL, PARTIAL or AUTOPAY before starting or collecting the sale.', 409)
     if kind == SaleKind.TOKEN:
         require_token_quote(quote)
+    elif quote and quote.collection_mode == 'TOKEN':
+        raise refusal('TOKEN_SALE_REQUIRED', 'A Token Sale quote is collected only on its own Token Sale.', 409)
 
 
 @transaction.atomic
@@ -152,6 +169,9 @@ def start_sale(actor, enquiry_id, data, request=None):
         if has_collection_history(lead):
             # Idempotent reads of existing frozen sales must not reprice them.
             return existing
+    elif data['kind'] == SaleKind.TOKEN:
+        # A Token Sale starts with its tuition plan and payment deadline, in Plan Choosing (sales.token_sales).
+        raise refusal('TOKEN_SALE_FROM_PLAN', 'Start a Token Sale from Plan Choosing, with its tuition plan and payment deadline.', 409)
     if not lead.owner_bde_id:
         raise refusal('BDE_REQUIRED', 'Assign the responsible BDE before starting a sale.')
     kind = data['kind']
@@ -159,6 +179,11 @@ def start_sale(actor, enquiry_id, data, request=None):
     require_compatible_quote(lead, quote, kind)
     if existing:
         return existing
+    return open_sale(actor, lead, kind, quote, data, request)
+
+
+def open_sale(actor, lead, kind, quote, data, request=None, balance_due_date=None):
+    """The enquiry's initial sale, under its lock: its student account, and a Token Sale's reference and dates."""
     from .student_accounts import open_account
     account = open_account(actor, lead, data, request)
     expected = data.get('expected_start_date')
@@ -174,15 +199,17 @@ def start_sale(actor, enquiry_id, data, request=None):
     guardian = billing_guardian(account)
     sale = Sale.objects.create(
         account=account, enquiry=lead, original_bde=lead.owner_bde, created_by=actor, original_quote=quote,
-        kind=kind, expected_start_date=expected if kind == SaleKind.TOKEN else None,
+        kind=kind, expected_start_date=expected if kind == SaleKind.TOKEN else None, balance_due_date=balance_due_date,
         reservation_reference=reference, parent_email=guardian.email if guardian else '',
     )
-    audit('sale.create', sale, actor, request, kind=kind, quote=str(quote.pk) if quote else None)
+    audit('sale.create', sale, actor, request, kind=kind, quote=str(quote.pk) if quote else None,
+          **({'balance_due_date': balance_due_date.isoformat()} if balance_due_date else {}))
     return sale
 
 
 def _replacement_snapshot(actor, lead, expected_quote_id, collection_mode, request=None):
-    if collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY'):
+    # TOKEN: the same plan as a Token Sale quote, for a Token Sale only (quotes.validate_sale_snapshot).
+    if collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY', 'TOKEN'):
         raise refusal('INVALID_COLLECTION_MODE', 'Choose the replacement quote collection intention.')
     old = current_quote(actor, lead, request)
     if str(old.pk) != str(expected_quote_id):
@@ -232,7 +259,8 @@ def installment_replacement(actor, enquiry_id, expected_quote_id, collection_mod
 def require_quote_intention(quote, intention):
     if intention not in ('FULL', 'PARTIAL', 'AUTOPAY'):
         raise refusal('INVALID_COLLECTION_MODE', 'Choose a valid collection intention.')
-    if quote.collection_mode != intention:
+    # A Token Sale quote's remaining tuition is one full payment.
+    if (quote.collection_mode if quote.collection_mode != 'TOKEN' else 'FULL') != intention:
         raise refusal('COLLECTION_MODE_LOCKED', 'The issued quote fixes the collection intention. Issue an explicit replacement quote before changing it.', 409)
 
 
@@ -246,6 +274,14 @@ def purchase_terms(quote, collection_mode, *, intention=None):
     if amount <= 0:
         raise refusal('INVALID_PACKAGE', 'The rounded package amount must be positive.')
     return amount, quote.classes
+
+
+def class_count(value):
+    """``value`` as a class count, or None when it is not a number."""
+    try:
+        return Decimal(str(value))
+    except (ArithmeticError, ValueError, TypeError):
+        return None
 
 
 def allocation(amount, total_classes, paid, classes, collection_mode):
@@ -292,6 +328,9 @@ def preview_collection(actor, enquiry_id, data, request=None):
     if purchase and purchase.collection_mode != mode:
         raise refusal('COLLECTION_MODE_LOCKED', 'Use the collection mode already pinned to this purchase.', 409)
     amount, classes = (purchase.amount, purchase.classes) if purchase else purchase_terms(quote, mode, intention='AUTOPAY' if data.get('_autopay_snapshot') else mode)
+    if sale.kind == SaleKind.TOKEN and class_count(data['classes']) != classes - paid['classes']:
+        # The token never enrolls; the one tuition payment that does settles everything (sales.0021 holds it so).
+        raise refusal('TOKEN_FULL_BALANCE_REQUIRED', 'A Token Sale’s remaining tuition is one payment covering every unpaid class.', 409)
     due, selected = allocation(amount, classes, paid, data['classes'], mode)
     return {'amount': plain(due), 'classes': plain(selected), 'currency': 'AED', 'package_amount': plain(amount),
             'remaining_amount': plain(amount - paid['amount'] - due), 'remaining_classes': plain(classes - paid['classes'] - selected)}
@@ -383,6 +422,9 @@ def sale_data(actor, enquiry_id, request=None):
         'sale': {
             'id': str(sale.pk), 'kind': sale.kind, 'reservation_reference': sale.reservation_reference,
             'expected_start_date': sale.expected_start_date.isoformat() if sale.expected_start_date else None,
+            # A Token Sale's remaining-tuition deadline (none on reservations made before it) and where it stands.
+            'balance_due_date': sale.balance_due_date.isoformat() if sale.balance_due_date else None,
+            'deadline_status': deadline_state(sale),
             'token_status': token_state(sale, paid), 'token_paid': plain(paid['token']),
             'parent_email': sale.parent_email,
             'original_bde': {'id': str(sale.original_bde_id), 'name': sale.original_bde.full_name or sale.original_bde.username},

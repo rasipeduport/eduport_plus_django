@@ -7,7 +7,7 @@ from .purchase_views import (PurchaseAmountView, PurchaseExpireView, PurchasePay
 
 from .quote_views import EnquiryPlanView, QuoteCancelView, QuoteDetailView, QuotePdfView, QuotesView
 from .payment_views import (InitialSalesView, CollectionAmountView, CollectPaymentView, InstallmentQuoteView,
-                            PaymentProofView, ExpirePaymentView, InitialStudentSaleView, StripeWebhookView)
+                            PaymentProofView, ExpirePaymentView, InitialStudentSaleView, StripeWebhookView, TokenSaleView)
 
 from .views import (
     CatalogueDetailView, CataloguePdfView, CatalogueSelectionPdfView, CatalogueSelectionView, CatalogueView, PricingView, SyllabiView, SyllabusDetailView, SyllabusDraftView, SyllabusDuplicateView, SyllabusLifecycleView,
@@ -26,6 +26,8 @@ urlpatterns = [
     path('enquiries/<uuid:pk>/sale/amount/', CollectionAmountView.as_view(), name='collection_amount'),
     path('enquiries/<uuid:pk>/sale/payments/', CollectPaymentView.as_view(), name='collect_payment'),
     path('enquiries/<uuid:pk>/installment-quote/', InstallmentQuoteView.as_view(), name='installment_quote'),
+    # Token Sale, chosen with its tuition plan in Plan Choosing (sales.token_sales).
+    path('enquiries/<uuid:pk>/token-sale/', TokenSaleView.as_view(), name='token_sale'),
     path('payments/<uuid:pk>/proof/', PaymentProofView.as_view(), name='payment_proof'),
     path('payments/<uuid:pk>/expire/', ExpirePaymentView.as_view(), name='expire_payment'),
     path('students/<uuid:pk>/initial-sale/', InitialStudentSaleView.as_view(), name='student_initial_sale'),
