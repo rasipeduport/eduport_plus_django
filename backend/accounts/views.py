@@ -5,6 +5,8 @@ from django.contrib.auth import authenticate, login, logout, get_user_model, upd
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import DateTimeField, Value
+from django.db.models.functions import Coalesce
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -254,8 +256,11 @@ class ChangePasswordView(APIView):
         user.password_changed_at = timezone.now()
         user.save(update_fields=['password', 'must_change_password', 'password_changed_at', 'updated_at'])
         from invitations.models import Invitation
+        # The first activation is kept for good: a later change -- the
+        # student's own, or after an administrator's reset -- never moves it.
         Invitation.objects.filter(account=user, student__profile=user).update(
-            status='ACCEPTED', activated_at=timezone.now(), credential_ciphertext='', updated_at=timezone.now())
+            status='ACCEPTED', activated_at=Coalesce('activated_at', Value(timezone.now(), output_field=DateTimeField())),
+            credential_ciphertext='', updated_at=timezone.now())
         # Re-key this session to the new hash so it survives; all others die.
         update_session_auth_hash(request._request, user)
 

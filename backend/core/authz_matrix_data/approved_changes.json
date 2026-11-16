@@ -22436,6 +22436,270 @@
     "status": 403
    }
   },
+  "invitations.credentials.regenerate @ admin": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.regenerate @ anon": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ mentor_a": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ mentor_b": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ parent_a": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ su_mentor": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.regenerate @ su_tutor": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.regenerate @ superuser": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.regenerate @ tutor_a": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ tutor_b": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.regenerate @ unknown": {
+   "decision": "Regenerate Temporary Password (2026-11-17): new POST route replacing a PENDING Learn account's temporary password, for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to regenerate (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ admin": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.reset @ anon": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ mentor_a": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ mentor_b": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ parent_a": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ su_mentor": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.reset @ su_tutor": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.reset @ superuser": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "error": "CREDENTIALS_UNAVAILABLE",
+    "fields": [
+     "error"
+    ],
+    "records": [],
+    "status": 404
+   }
+  },
+  "invitations.credentials.reset @ tutor_a": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ tutor_b": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "invitations.credentials.reset @ unknown": {
+   "decision": "Reset Password for activated accounts (2026-11-17): new POST route giving an ACCEPTED Learn account a temporary password (Admin recovery without email; the account stays activated and must change it at its next sign-in), for the audience of reveal: accounts.view_invitations and accounts.change_invitation, held by the ADMIN role group only (neither is individually grantable). No permission was added or changed.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators and superusers reach the view: the matrix inv_pending has no Learn account yet, so there is nothing to reset (404 CREDENTIALS_UNAVAILABLE).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "invitations.edit_email @ admin": {
    "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
@@ -22572,13 +22836,14 @@
    "result": null
   },
   "invitations.list @ admin": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22589,7 +22854,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22630,13 +22897,14 @@
    }
   },
   "invitations.list @ su_mentor": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22647,7 +22915,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22664,13 +22934,14 @@
    }
   },
   "invitations.list @ su_tutor": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22681,7 +22952,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22698,13 +22971,14 @@
    }
   },
   "invitations.list @ superuser": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22715,7 +22989,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22732,13 +23008,14 @@
    }
   },
   "invitations.list.alias @ admin": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22749,7 +23026,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22790,13 +23069,14 @@
    }
   },
   "invitations.list.alias @ su_mentor": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22807,7 +23087,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22824,13 +23106,14 @@
    }
   },
   "invitations.list.alias @ su_tutor": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22841,7 +23124,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",
@@ -22858,13 +23143,14 @@
    }
   },
   "invitations.list.alias @ superuser": {
-   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning.",
+   "decision": "Learn enrollment credentials: user requested student-linked username/password invitations and retirement of Google/email provisioning. Regenerate Temporary Password (2026-11-17): each listed invitation also says whether its temporary password may be regenerated (credentials_regenerable), whether its activated account's password may be reset (password_resettable) and when an administrator last gave it a temporary password (last_password_reset_at). Same callers, statuses and records.",
    "note": "Covers only this feature: enrollment/import issues credentials, authorized invitation display/retrieval/legacy transition, retired email edit and replaced Learn login. Existing permission ceilings remain enforced.",
    "result": {
     "fields": [
      "[].activated_at",
      "[].created_at",
      "[].credentials_available",
+     "[].credentials_regenerable",
      "[].email",
      "[].extra_data",
      "[].extra_data.full_name",
@@ -22875,7 +23161,9 @@
      "[].invited_by_profile.email",
      "[].invited_by_profile.full_name",
      "[].invited_by_profile.id",
+     "[].last_password_reset_at",
      "[].legacy",
+     "[].password_resettable",
      "[].role",
      "[].status",
      "[].student_code",

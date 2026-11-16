@@ -20,3 +20,4 @@ export async function mount(kind, props = {}) {
   return async () => { await act(async () => root.unmount()); container.remove(); };
 }
 export { act };
+export { actionLabel, describeActivity } from '@/lib/activity-format';

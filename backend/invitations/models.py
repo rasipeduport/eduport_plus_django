@@ -23,6 +23,10 @@ class Invitation(models.Model):
     account = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                   null=True, blank=True, related_name='learn_invitation')
     credential_ciphertext = models.TextField(blank=True, editable=False)
+    # When an administrator last gave the account a temporary password
+    # (credentials.regenerate_credentials): regenerated while pending, or
+    # reset once activated. NULL: never.
+    password_reset_at = models.DateTimeField(null=True, blank=True, editable=False)
     activated_at = models.DateTimeField(null=True, blank=True)
     role = models.CharField(
         max_length=20,
