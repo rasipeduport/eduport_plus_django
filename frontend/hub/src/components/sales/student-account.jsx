@@ -23,18 +23,11 @@ function ContactFields({ value, onChange, idPrefix }) {
   </div>;
 }
 
-/**
- * Who the child's billing contact is when a sale starts. Families sharing this
- * parent's phone or email are only suggested; the BDE decides, and confirms the
- * child is not one already enquired about.
- */
-export function FamilyAndContact({ candidates = [], value, onChange }) {
+/** The families already sharing this parent's phone or email (suggestions only): a sibling joins one, once confirmed a different child. */
+export function FamilyCandidates({ candidates, value, onChange }) {
   const family = value.family?.mode === 'EXISTING_FAMILY' ? value.family.guardian_id : 'NEW';
   const choose = (guardianId) => onChange({ ...value, family: guardianId === 'NEW' ? { mode: 'NEW_FAMILY' } : { mode: 'EXISTING_FAMILY', guardian_id: guardianId } });
-  return <fieldset className="flex flex-col gap-3">
-    <legend className="mb-1 text-sm font-medium">Student account and billing contact</legend>
-    <p className="text-muted-foreground text-xs">Each child gets their own student account and Stripe Customer. Eduport Plus supplies the student’s details to Stripe, and the parent cannot change them there. Without a parent email, Stripe asks the parent for one, and it is saved here once the payment is verified.</p>
-    {candidates.length ? <div role="group" aria-label="Existing families" className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
+  return <div role="group" aria-label="Existing families" className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
       <p className="font-medium">This parent’s {candidates.flatMap((row) => row.matched_on).filter((v, i, a) => a.indexOf(v) === i).join(' and ')} already belongs to a family:</p>
       {candidates.map((row) => <label key={row.guardian_id} className="flex cursor-pointer items-start gap-2">
         <input type="radio" name="family-choice" className="accent-primary mt-1" checked={family === row.guardian_id} onChange={() => choose(row.guardian_id)} />
@@ -43,7 +36,20 @@ export function FamilyAndContact({ candidates = [], value, onChange }) {
       <label className="flex cursor-pointer items-start gap-2"><input type="radio" name="family-choice" className="accent-primary mt-1" checked={family === 'NEW'} onChange={() => choose('NEW')} /><span>A different family (new billing contact)</span></label>
       <label className="flex items-start gap-2 border-t pt-2"><input type="checkbox" className="accent-primary mt-1" checked={Boolean(value.confirm_distinct_child)} onChange={(event) => onChange({ ...value, confirm_distinct_child: event.target.checked })} />
         <span>I confirmed this is a different child, not one of the children listed above enquiring again.</span></label>
-    </div> : null}
+    </div>;
+}
+
+/**
+ * Who the child's billing contact is when a sale starts. Families sharing this
+ * parent's phone or email are only suggested; the BDE decides, and confirms the
+ * child is not one already enquired about.
+ */
+export function FamilyAndContact({ candidates = [], value, onChange }) {
+  const family = value.family?.mode === 'EXISTING_FAMILY' ? value.family.guardian_id : 'NEW';
+  return <fieldset className="flex flex-col gap-3">
+    <legend className="mb-1 text-sm font-medium">Student account and billing contact</legend>
+    <p className="text-muted-foreground text-xs">Each child gets their own student account and Stripe Customer. Eduport Plus supplies the student’s details to Stripe, and the parent cannot change them there. Without a parent email, Stripe asks the parent for one, and it is saved here once the payment is verified.</p>
+    {candidates.length ? <FamilyCandidates candidates={candidates} value={value} onChange={onChange} /> : null}
     {family === 'NEW' ? <ContactFields idPrefix="billing" value={value.billing_contact ?? {}} onChange={(contact) => onChange({ ...value, billing_contact: contact })} /> : null}
     <div className="flex max-w-xs flex-col gap-1.5"><Label htmlFor="billing-relationship">Relationship to the student</Label>
       <select id="billing-relationship" className="border-input bg-background h-9 rounded-md border px-3 text-sm" value={value.relationship ?? 'PARENT'} onChange={(event) => onChange({ ...value, relationship: event.target.value })}>

@@ -408,7 +408,10 @@ export const QUOTE_COLLECTION_MODES = [
   { value: 'AUTOPAY', label: 'Autopay', hint: 'No single-payment discount. Set the schedule in Sales & Payment.' },
 ];
 
-export const quoteCollectionLabel = (mode) => QUOTE_COLLECTION_MODES.find((option) => option.value === mode)?.label || 'Not selected';
+// A Token Sale's quote: never an intention to choose, it is issued with its token reservation (backend sales.token_sales).
+const TOKEN_SALE_LABEL = 'Token Sale';
+export const quoteCollectionLabel = (mode) =>
+  mode === 'TOKEN' ? TOKEN_SALE_LABEL : QUOTE_COLLECTION_MODES.find((option) => option.value === mode)?.label || 'Not selected';
 
 export function quotePreview(planType, chapters, selectedIds, pricing, classMode = 'REGULAR', collectionMode = null) {
   if (toCents(pricing?.offer_fee) === null) return null;

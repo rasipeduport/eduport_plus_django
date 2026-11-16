@@ -16,6 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// A Token Sale's plan is replaced only as a Token Sale quote: same plan, no single-payment discount (backend quotes.validate_sale_snapshot).
+const TOKEN_SALE_REPLACEMENT = [{ value: "TOKEN", label: quoteCollectionLabel("TOKEN") }];
+
 export function CollectionReplacementDialog({
   open,
   onOpenChange,
@@ -106,7 +109,7 @@ export function CollectionReplacementDialog({
               <SelectValue placeholder="Choose collection intention" />
             </SelectTrigger>
             <SelectContent>
-              {QUOTE_COLLECTION_MODES.filter((mode) => !tokenSale || mode.value !== 'AUTOPAY').map((mode) => (
+              {(tokenSale ? TOKEN_SALE_REPLACEMENT : QUOTE_COLLECTION_MODES).map((mode) => (
                 <SelectItem key={mode.value} value={mode.value}>
                   {mode.label}
                 </SelectItem>

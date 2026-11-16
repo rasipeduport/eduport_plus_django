@@ -23,6 +23,11 @@ const QUOTED_AS = {
  * offered once it sells some classes and not while `locked` (a revision
  * replaced meanwhile: reload first). `collectionModes` narrows the collection
  * intentions offered; `createLabel` names the final action.
+ *
+ * With `saleTypes` (an enquiry's Plan Choosing), the plan is followed by how
+ * the sale starts (`saleType`, `onSaleType`): New Sale goes on to the
+ * collection intention and Create quote as before; Token Sale shows
+ * `tokenPanel` instead. Without it, the card is as it always was.
  */
 export function QuotePlanCard({
   detail,
@@ -42,6 +47,10 @@ export function QuotePlanCard({
   onCollectionMode,
   collectionModes = QUOTE_COLLECTION_MODES,
   createLabel = 'Create quote…',
+  saleTypes = null,
+  saleType = null,
+  onSaleType,
+  tokenPanel = null,
 }) {
   const bridge = detail.structure === 'BRIDGE_COURSE';
   const chapterPlan = planType === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
@@ -115,21 +124,35 @@ export function QuotePlanCard({
       ) : null}
       {hint ? <p className="text-muted-foreground text-sm wrap-anywhere">{hint}</p> : null}
       {preview?.fullCourse && chapterPlan && !nothing ? <p className="text-muted-foreground text-sm">All chapters selected · Full course</p> : null}
-      {preview && !nothing ? <fieldset className="grid gap-2 md:grid-cols-3" disabled={locked}>
-        <legend className="mb-2 text-sm font-medium">Collection intention <span className="text-muted-foreground">(required)</span></legend>
-        {collectionModes.map((option) => <label key={option.value} className={cn('flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm', collectionMode === option.value && 'border-primary bg-muted/40')}>
-          <input type="radio" name="quote-collection-intention" aria-label={option.label} value={option.value} checked={collectionMode === option.value} onChange={() => onCollectionMode(option.value)} className="mt-0.5 accent-primary" required />
-          <span><span className="block font-medium">{option.label}</span><span className="text-muted-foreground block text-xs">{option.hint}</span></span>
+      {saleTypes && preview && !nothing ? <fieldset className="grid gap-2 md:grid-cols-2" disabled={locked}>
+        <legend className="mb-2 text-sm font-medium">How would you like to start this sale? <span className="text-muted-foreground">(required)</span></legend>
+        {saleTypes.map((option) => <label key={option.value} className={cn('flex items-start gap-3 rounded-md border p-3 text-sm', option.disabled ? 'opacity-60' : 'cursor-pointer', saleType === option.value && 'border-primary bg-muted/40')}>
+          <input type="radio" name="quote-sale-type" value={option.value} checked={saleType === option.value} onChange={() => onSaleType(option.value)} disabled={option.disabled} className="mt-0.5 accent-primary" required />
+          <span className="min-w-0">
+            <span className="block font-medium">{option.label}</span>
+            <span className="text-muted-foreground block text-xs">{option.hint}</span>
+            <span className="text-muted-foreground block text-xs">{option.detail}</span>
+            {option.note ? <span className="mt-1 block text-xs">{option.note}</span> : null}
+          </span>
         </label>)}
       </fieldset> : null}
-      {preview && !collectionMode ? <p className="text-muted-foreground text-sm">Choose how the parent intends to pay before creating the quote.</p> : null}
-      {preview && !nothing ? <QuoteFigures figures={preview} currency={detail.pricing.currency} /> : null}
-      <div>
-        <Button onClick={onCreate} disabled={!ready}>
-          <ReceiptTextIcon />
-          {createLabel}
-        </Button>
-      </div>
+      {saleTypes && saleType !== 'NEW' ? (saleType === 'TOKEN' && preview && !nothing ? tokenPanel : null) : <>
+        {preview && !nothing ? <fieldset className="grid gap-2 md:grid-cols-3" disabled={locked}>
+          <legend className="mb-2 text-sm font-medium">Collection intention <span className="text-muted-foreground">(required)</span></legend>
+          {collectionModes.map((option) => <label key={option.value} className={cn('flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm', collectionMode === option.value && 'border-primary bg-muted/40')}>
+            <input type="radio" name="quote-collection-intention" aria-label={option.label} value={option.value} checked={collectionMode === option.value} onChange={() => onCollectionMode(option.value)} className="mt-0.5 accent-primary" required />
+            <span><span className="block font-medium">{option.label}</span><span className="text-muted-foreground block text-xs">{option.hint}</span></span>
+          </label>)}
+        </fieldset> : null}
+        {preview && !collectionMode ? <p className="text-muted-foreground text-sm">Choose how the parent intends to pay before creating the quote.</p> : null}
+        {preview && !nothing ? <QuoteFigures figures={preview} currency={detail.pricing.currency} /> : null}
+        <div>
+          <Button onClick={onCreate} disabled={!ready}>
+            <ReceiptTextIcon />
+            {createLabel}
+          </Button>
+        </div>
+      </>}
     </WorkspaceCard>
   );
 }

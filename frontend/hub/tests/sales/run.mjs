@@ -1293,14 +1293,18 @@ test('A refused foreign enquiry never loads its sale or offers collection contro
   assert.equal(button('Generate Stripe payment link'), undefined);
 });
 
-test('Sales & Payment loads the immutable quote automatically and offers New or Token Sale without a catalogue request', async () => {
+test('Sales & Payment loads the immutable quote automatically and starts a New Sale only, pointing Token Sale to Plan Choosing', async () => {
   studentApi({ [`GET ${SALE_URL}`]: saleState() });
-  await open(paymentPath, PAYMENT_BDE);
+  const page = await open(paymentPath, PAYMENT_BDE);
   assert.match(bodyText(), /Selected quote.*Chapter Plan · Revision classes.*Purchased classes10.*AED 500/);
-  assert.ok(radio('New Sale'));
-  assert.ok(radio('Token Sale'));
+  assert.ok(button('Start New Sale'));
+  assert.equal(radio('Token Sale'), undefined, 'a Token Sale is chosen with its plan in Plan Choosing');
+  assert.equal(input('token-start-date'), null);
+  assert.match(bodyText(), /To reserve with an AED 100 token instead, choose Token Sale with the tuition plan in Plan Choosing\./);
   assert.equal(calls('GET', CATALOGUE).length, 0);
   assert.equal(button('Generate Stripe payment link'), undefined);
+  await click(link('Plan Choosing'));
+  assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
 });
 
 test('Initial direct tuition form calculates on the server, uploads a receipt and becomes read-only after enrollment', async () => {
@@ -1341,25 +1345,46 @@ test('Initial direct tuition form calculates on the server, uploads a receipt an
   assert.match(bodyText(), /Payment history.*AED 500/);
 });
 
-test('Token reservation requires an expected start date and requests exactly AED 100 with zero classes', async () => {
-  let posted;
-  studentApi({ [`GET ${SALE_URL}`]: saleState(), [`POST ${SALE_URL}`]: ({ data }) => {
-    posted = data;
-    return ok(saleState({ sale: startedSale({ kind: 'TOKEN', reservation_reference: 'TOK000001', expected_start_date: data.expected_start_date }) }));
-  }, [`GET ${SALE_URL}amount/`]: ({ params }) => {
-    assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' });
-    return ok({ amount: '100', classes: '0', currency: 'AED' });
-  } });
-  await open(paymentPath, PAYMENT_BDE);
+test('Token Sale is chosen with its plan: AED 100 first, a payment deadline, no Single / Partial / AutoPay and no parent details', async () => {
+  let state = saleState({ quote: null, totals: NO_PLAN_TOTALS });
+  studentApi({
+    [`GET ${SALE_URL}`]: () => ok(state),
+    [`POST ${TOKEN_URL}`]: () => {
+      state = saleState({ quote: tokenQuote(), sale: tokenSale({ expected_start_date: FUTURE_START, balance_due_date: FUTURE_DEADLINE,
+        deadline_status: 'UPCOMING', original_quote_id: 'token-quote' }), totals: { ...CREDITED, paid_amount: '0', net_collected: '0', remaining_amount: '350', outstanding_amount: '350' } });
+      return ok({ quote: tokenQuote(), state });
+    },
+    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
+  });
+  const page = await open(enquiryPath, PAYMENT_BDE);
+  await selectSyllabus('Grade 7 CBSE');
+  await click(radio('Full Bridge Course'));
+  assert.deepEqual(saleTypes().map((choice) => choice.value), ['NEW', 'TOKEN']);
+  assert.equal(intentions().length, 0, 'the sale type comes first');
+  assert.equal(button('Create quote…'), undefined);
   await click(radio('Token Sale'));
-  await chooseCompletePayment();
+  assert.equal(intentions().length, 0, 'a Token Sale has no Single / Partial / AutoPay choice');
+  assert.match(bodyText(), /Token Sale – Payment details.*First payment – fixedAED 100.*Tuition packageAED 350.*no single-payment discount.*Remaining balanceAED 250/);
+  assert.equal(input('token-balance-due-date').required, true);
   assert.equal(input('token-start-date').required, true);
-  await typeInto(input('token-start-date'), '2027-01-10');
-  await click(button('Start token reservation'));
-  await waitForAmount();
-  assert.equal(posted.expected_start_date, '2027-01-10');
-  assert.match(bodyText(), /TOK000001.*2027-01-10/);
-  assert.match(bodyText(), /Collect token · AED 100.*No classes allocated/);
+  assert.equal(button('Create token reservation…').disabled, true);
+  await typeInto(input('token-balance-due-date'), FUTURE_DEADLINE);
+  assert.equal(button('Create token reservation…').disabled, true, 'the expected class start date is still required');
+  await typeInto(input('token-start-date'), FUTURE_START);
+  await click(button('Create token reservation…'));
+  assert.match(clean(topDialog().textContent), new RegExp(`Tuition package \\(Token Sale\\)AED 350.*Token, paid firstAED 100.*Remaining balance, one paymentAED 250.*Payment deadline${FUTURE_DEADLINE}.*Expected class start${FUTURE_START}`));
+  assert.equal(topDialog().querySelectorAll('input:not([type="hidden"])').length, 0, 'nothing about the parent is asked');
+  await click(button('Create token reservation', topDialog()));
+  assert.deepEqual(tokenPosts().map((entry) => entry.data), [{ syllabus: BRIDGE_ID, revision: 1, plan_type: 'BRIDGE_COURSE', chapter_ids: [],
+    replaces: null, pricing_version: 3, expected_start_date: FUTURE_START, balance_due_date: FUTURE_DEADLINE }]);
+  assert.equal(quotePosts().length, 0, 'never a New Sale quote');
+  assert.match(bodyText(), /Token reservation TOK000009 is created with quote Q-000011\. Collect the AED 100 token in Sales & Payment\./);
+  assert.match(bodyText(), new RegExp(`Token reservation.*ReservationTOK000009.*Payment deadline${FUTURE_DEADLINE}.*Current selected plan`));
+
+  await page.go(paymentPath); await waitForAmount();
+  assert.match(bodyText(), /Selected quote.*Token Sale/);
+  assert.match(cardText('Token reservation – TOK000009'), new RegExp(`Token paymentAwaiting token payment.*Payment deadline${FUTURE_DEADLINE}.*Selected tuition packageFull Bridge Course – Grade 7 CBSEAED 350.*Token already paidNot yet.*Remaining amountAED 350`));
+  assert.match(bodyText(), /Collect token · AED 100.*Amount payable: AED 100 · No classes allocated/);
   assert.equal(input('paid-classes'), null);
   assert.doesNotMatch(bodyText(), /Enrollment complete/);
 });
@@ -2217,7 +2242,8 @@ test('Collection intention is mandatory; complete, partial and Autopay quotes pr
           single_payment_saving: mode === 'FULL' ? '138' : '0' });
         return ok(issued);
       },
-      [`GET ${SALE_URL}`]: () => ok(saleState({ quote: issued, sale: startedSale(), autopay_configured: false })),
+      // No sale before the quote (a New Sale starts on an issued quote); started once it is issued.
+      [`GET ${SALE_URL}`]: () => ok(issued ? saleState({ quote: issued, sale: startedSale(), autopay_configured: false }) : saleState({ quote: null, totals: NO_PLAN_TOTALS })),
       [`GET ${SALE_URL}amount/`]: ({ params }) => {
         assert.equal(params.collection_mode, mode);
         return ok({ amount: payable, classes: '10', currency: 'AED' });
@@ -2226,6 +2252,9 @@ test('Collection intention is mandatory; complete, partial and Autopay quotes pr
     const page = await open(enquiryPath, PAYMENT_BDE);
     await selectSyllabus('Grade 7 CBSE');
     await click(radio('Full Bridge Course'));
+    assert.equal(intentions().length, 0, 'the sale type comes first');
+    assert.equal(button('Create quote…'), undefined);
+    await click(radio('New Sale'));
     const choices = [...document.querySelectorAll('input[name="quote-collection-intention"]')];
     assert.equal(choices.length, 3);
     assert.equal(choices.some((choice) => choice.checked), false, 'no collection intention is inferred from the course plan');
@@ -2264,7 +2293,7 @@ test('Switching quote intention preserves chosen chapters and Revision class mod
   }
 });
 
-test('Historical quotes without any purchase or collection block both sale types and never imply complete payment', async () => {
+test('Historical quotes without any purchase or collection block New Sale and never imply complete payment', async () => {
   studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: saleQuote({ collection_intention_confirmed: false, collection_mode: 'FULL' }), can_collect: false }) });
   await open(paymentPath, PAYMENT_BDE);
   assert.match(bodyText(), /Not recorded \(historical quote\)/);
@@ -2272,10 +2301,8 @@ test('Historical quotes without any purchase or collection block both sale types
   assert.equal(button('Start New Sale').disabled, true);
   await fire(button('Start New Sale').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
   assert.equal(calls('POST', SALE_URL).length, 0);
-  await click(radio('Token Sale'));
-  assert.equal(button('Start token reservation').disabled, true);
+  assert.equal(radio('Token Sale'), undefined, 'a Token Sale is chosen with its plan in Plan Choosing');
   assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
-  await click(radio('New Sale'));
   await click(button('Create replacement quote'));
   assert.match(clean(topDialog().textContent), /Current: Not recorded \(historical quote\)/);
   assert.equal(button('Issue replacement quote', topDialog()).disabled, true);
@@ -2330,51 +2357,53 @@ test('Historical purchases retain frozen collection controls without a forced re
   assert.ok(input('paid-classes'));
 });
 
-test('Historical paid token reservation keeps payment history and can collect tuition without forced replacement', async () => {
+test('Historical paid token reservation keeps payment history and collects its whole balance without forced replacement', async () => {
   studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: saleQuote({ collection_intention_confirmed: false }),
       sale: startedSale({ kind: 'TOKEN', token_paid: '100', expected_start_date: '2027-01-10', reservation_reference: 'TOK-HISTORY' }),
       payments: [initialPayment({ purpose: 'TOKEN', amount: '100', classes: '0' })] }),
     [`GET ${SALE_URL}amount/`]: { amount: '400', classes: '10', currency: 'AED' } });
   await open(paymentPath, PAYMENT_BDE); await waitForAmount();
-  assert.match(bodyText(), /TOK-HISTORY.*Token paid: AED 100/);
+  assert.match(cardText('Token reservation – TOK-HISTORY'), /Token paymentAED 100 received.*Payment deadlinenot set \(expected class start 2027-01-10\)/);
   assert.equal(button('Create replacement quote'), undefined);
-  assert.ok(input('paid-classes'));
+  assert.match(bodyText(), /Collect remaining balance.*covering all 10 classes.*Amount payable: AED 400/);
+  assert.equal(input('paid-classes'), null, 'the balance is never split');
+  assert.deepEqual(calls('GET', `${SALE_URL}amount/`).at(-1).params, { purpose: 'TUITION', collection_mode: 'PARTIAL', classes: '10' });
   assert.match(bodyText(), /Payment history/);
 });
 
-test('Token Sale with an AUTOPAY quote stays blocked until an explicit FULL or PARTIAL replacement', async () => {
-  for (const [mode, label] of [['FULL', 'Single / Complete Payment'], ['PARTIAL', 'Partial Payment']]) {
-    let state = saleState({ quote: saleQuote({ collection_mode: 'AUTOPAY' }) });
-    const replacement = `/api/sales/enquiries/${RIYA.id}/installment-quote/`;
-    studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
-      [`GET ${replacement}`]: ({ params }) => { assert.equal(params.collection_mode, mode); return ok({ quote_id: QUOTE_ID, collection_mode: mode, collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 }); },
-      [`POST ${replacement}`]: ({ data }) => { assert.equal(data.collection_mode, mode); state = saleState({ quote: saleQuote({ id: 'token-' + mode, collection_mode: mode, supersedes: QUOTE_ID }) }); return ok(state.quote); },
-      [`POST ${SALE_URL}`]: ({ data }) => { assertSaleStart(data, { kind: 'TOKEN', expected_start_date: '2027-01-10' }); state = { ...state, sale: startedSale({ kind: 'TOKEN', expected_start_date: data.expected_start_date, reservation_reference: 'TOK-NEW' }) }; return ok(state); },
-      [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
-    });
-    await open(paymentPath, PAYMENT_BDE);
-    assert.equal(button('Start New Sale').disabled, false, 'New Sale Autopay stays available');
-    await click(radio('Token Sale'));
-    assert.equal(button('Start token reservation').disabled, true);
-    assert.match(bodyText(), /Token Sale requires a FULL or PARTIAL quote/);
-    await click(button('Create replacement quote'));
-    await click(document.getElementById('replacement-collection-mode'));
-    assert.equal([...document.querySelectorAll('[role="option"]')].some((option) => clean(option.textContent) === 'Autopay'), false);
-    await click([...document.querySelectorAll('[role="option"]')].find((option) => clean(option.textContent) === label));
-    await click(button('Issue replacement quote', topDialog()));
-    await typeInto(input('token-start-date'), '2027-01-10');
-    assert.equal(button('Start token reservation').disabled, false);
-    await click(button('Start token reservation')); await waitForAmount();
-    assert.match(bodyText(), /Collect token · AED 100/);
-    assert.equal(input('autopay-initial-classes'), null);
-    await mounted.pop().unmount();
-  }
+test('An existing Token Sale on an AUTOPAY quote stays blocked until its Token Sale replacement', async () => {
+  let state = saleState({ quote: saleQuote({ collection_mode: 'AUTOPAY' }), sale: tokenSale({ original_quote_id: QUOTE_ID }), can_collect: false });
+  const replacement = `/api/sales/enquiries/${RIYA.id}/installment-quote/`;
+  studentApi({ [`GET ${SALE_URL}`]: () => ok(state),
+    [`GET ${replacement}`]: ({ params }) => {
+      assert.deepEqual(params, { quote_id: QUOTE_ID, collection_mode: 'TOKEN' });
+      return ok({ quote_id: QUOTE_ID, collection_mode: 'TOKEN', collection_subtotal: '500', collection_discount: '0', collection_amount: '500', pricing_version: 3 });
+    },
+    [`POST ${replacement}`]: ({ data }) => {
+      assert.deepEqual(data, { quote_id: QUOTE_ID, collection_mode: 'TOKEN' });
+      state = saleState({ quote: saleQuote({ id: 'token-replacement', collection_mode: 'TOKEN', supersedes: QUOTE_ID }), sale: tokenSale({ original_quote_id: QUOTE_ID }) });
+      return ok(state.quote);
+    },
+    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
+  });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.match(bodyText(), /A Token Sale cannot be collected against an Autopay quote/);
+  assert.equal(button('Generate Stripe payment link'), undefined);
+  await click(button('Create replacement quote'));
+  await click(document.getElementById('replacement-collection-mode'));
+  assert.deepEqual([...document.querySelectorAll('[role="option"]')].map((option) => clean(option.textContent)), ['Token Sale']);
+  await click([...document.querySelectorAll('[role="option"]')][0]);
+  assert.match(clean(topDialog().textContent), /Replacement package: AED 500/);
+  await click(button('Issue replacement quote', topDialog()));
+  await waitForAmount();
+  assert.match(bodyText(), /Collect token · AED 100/);
+  assert.equal(input('autopay-initial-classes'), null);
 });
 
 test('Existing invalid Token/AUTOPAY drafts cannot display collection or Autopay schedule controls', async () => {
   studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale({ kind: 'TOKEN' }), quote: saleQuote({ collection_mode: 'AUTOPAY' }), can_collect: false }) });
   await open(paymentPath, PAYMENT_BDE);
-  assert.match(bodyText(), /Token Sale requires a FULL or PARTIAL quote/);
+  assert.match(bodyText(), /A Token Sale cannot be collected against an Autopay quote/);
   assert.equal(input('autopay-initial-classes'), null);
   assert.equal(button('Generate Stripe payment link'), undefined);
   assert.equal(calls('GET', `${SALE_URL}amount/`).length, 0);
@@ -2396,34 +2425,52 @@ const TUITION_ROWS = ['Purchased classes', 'Unpaid classes', 'Available quota', 
 const cardText = (title) => clean([...document.querySelectorAll('[data-slot="card"]')].find((card) => clean(card.querySelector('h2')?.textContent) === title)?.textContent);
 // A start date the form accepts whenever the suite runs (its minimum is today, in IST).
 const FUTURE_START = new Date(Date.now() + 60 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+// A payment deadline the form accepts whenever the suite runs, before that start.
+const FUTURE_DEADLINE = new Date(Date.now() + 45 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+// A Token Sale chosen with its plan (backend sales.token_sales), and the sale types Plan Choosing offers.
+const TOKEN_URL = `/api/sales/enquiries/${RIYA.id}/token-sale/`;
+const tokenPosts = () => calls('POST', TOKEN_URL);
+const saleTypes = () => [...document.querySelectorAll('input[name="quote-sale-type"]')];
+// The full Bridge Course quoted as a Token Sale: 350, never the single-payment 333.
+const tokenQuote = (extra = {}) => quoteOf({ id: 'token-quote', reference: 'Q-000011', collection_mode: 'TOKEN', plan_type: 'BRIDGE_COURSE',
+  full_course: true, syllabus: BRIDGE_QUOTE.syllabus, classes: '10', total_fee: '350', payable_amount: '350', collection_amount: '350',
+  single_payment_saving: '0', ...extra });
+// Its totals once the AED 100 token is received (backend sales.payments sale_data): the token credited once, 250 to pay.
+const CREDITED = { purchased_classes: '10', paid_classes: '0', unpaid_classes: '10', used_classes: '0', available_quota: '0', class_quota: null,
+  classes_not_credited: '0', package_amount: '350', paid_amount: '100', remaining_amount: '250', refunded_amount: '0', net_collected: '100',
+  outstanding_amount: '250', fully_paid: false };
 
-test('Unquoted Token Sale starts without a plan, shows its reservation without tuition totals and collects exactly AED 100', async () => {
-  let state = unquotedToken();
-  studentApi({
-    [`GET ${SALE_URL}`]: () => ok(state),
-    [`POST ${SALE_URL}`]: ({ data }) => {
-      assertSaleStart(data, { kind: 'TOKEN', expected_start_date: FUTURE_START });
-      state = unquotedToken({ sale: tokenSale({ expected_start_date: data.expected_start_date }) });
-      return ok(state);
-    },
-    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); },
-  });
+test('A token reservation’s follow-up reads as it stands: unpaid, paid with its balance and deadline, a legacy start date, and admin review', () => {
+  const task = (reservation) => harness.followUpTask({ type: 'TOKEN_TUITION', reservation });
+  const base = { reference: 'TOK000009', expected_start_date: '2027-01-10', balance_due_date: '2027-01-05', token_status: 'AWAITING_PAYMENT',
+    token_paid: false, payment_status: null, remaining_amount: '350', admin_review: false };
+  // Before the token, the API's remaining amount is the whole package: the balance is what follows the AED 100.
+  assert.equal(task(base), 'TOK000009 · Token not paid yet: collect AED 100 first, then the AED 250 balance by 2027-01-05.');
+  assert.equal(task({ ...base, token_paid: true, payment_status: 'SUCCEEDED', remaining_amount: '250' }), 'TOK000009 · Token paid. AED 250 balance due by 2027-01-05.');
+  assert.equal(task({ ...base, token_paid: true, balance_due_date: null, remaining_amount: null }), 'TOK000009 · Token paid. Choose the tuition plan in Plan Choosing.');
+  assert.equal(task({ ...base, remaining_amount: null }), 'TOK000009 · Token not paid yet: collect AED 100 first, then choose the tuition plan in Plan Choosing.');
+  assert.equal(task({ ...base, balance_due_date: null }), 'TOK000009 · Token not paid yet: collect AED 100 first, then the AED 250 balance before the expected start 2027-01-10.');
+  assert.equal(task({ ...base, admin_review: true, admin_review_reason: 'REASSIGNED' }),
+    'Admin review needed: this enquiry was reassigned. TOK000009 · Token not paid yet: collect AED 100 first, then the AED 250 balance by 2027-01-05.');
+  assert.equal(task({ ...base, token_paid: true, remaining_amount: '250', admin_review: true, admin_review_reason: 'PLAN_OWNER' }),
+    'Admin review needed: its tuition plan was issued by someone else. TOK000009 · Token paid. AED 250 balance due by 2027-01-05.');
+  assert.equal(harness.followUpTask({ type: 'TOKEN_TUITION' }), 'Collect the remaining tuition balance by the payment deadline.');
+});
+
+test('An existing reservation without a plan shows it without tuition totals and collects exactly AED 100', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: unquotedToken({ sale: tokenSale() }),
+    [`GET ${SALE_URL}amount/`]: ({ params }) => { assert.deepEqual(params, { purpose: 'TOKEN', collection_mode: 'FULL', classes: '0' }); return ok({ amount: '100', classes: '0', currency: 'AED' }); } });
   await open(paymentPath, PAYMENT_BDE);
-  assert.match(bodyText(), /Choose a plan and issue a quote before collecting tuition\. A token reservation can be started before a package is chosen\./);
-  await click(radio('Token Sale'));
-  await typeInto(input('token-start-date'), FUTURE_START);
-  assert.equal(button('Start token reservation').disabled, false);
-  await click(button('Start token reservation'));
   await waitForAmount();
-  assert.equal(calls('POST', SALE_URL).length, 1);
-  assert.match(bodyText(), /No tuition plan yet\. The token reservation needs none: the AED 100 token is credited against the tuition plan chosen later in Plan Choosing\./);
-  assert.match(bodyText(), new RegExp(`Token reservation.*TOK000009 · Expected start: ${FUTURE_START} · Awaiting token payment · Token paid: AED 0`));
-  for (const row of TUITION_ROWS) assert.equal(bodyText().includes(row), false, `no tuition total "${row}" before a plan`);
+  assert.match(bodyText(), /No tuition plan yet\. Choose it in Plan Choosing: it is quoted as a Token Sale, and the AED 100 token is credited against it\./);
+  assert.match(cardText('Token reservation – TOK000009'), /Token paymentAwaiting token payment.*Payment deadlinenot set \(expected class start 2027-01-10\).*Expected class start2027-01-10/);
+  for (const row of ['Selected tuition package', 'Remaining amount', ...TUITION_ROWS]) assert.equal(bodyText().includes(row), false, `no tuition figure "${row}" before a plan`);
   assert.match(bodyText(), /Collect token · AED 100.*Amount payable: AED 100 · No classes allocated/);
   assert.equal(button('Change collection intention'), undefined, 'no quote, so no intention to replace');
   assert.equal(input('paid-classes'), null);
   assert.equal(input('autopay-initial-classes'), null);
   assert.equal(link('Choose tuition plan'), undefined);
+  assert.equal(button('Start New Sale'), undefined);
   assert.doesNotMatch(bodyText(), /Enrollment complete/);
 });
 
@@ -2435,7 +2482,7 @@ test('Unquoted token with a pending Stripe link waits for payment and offers no 
       payment_url: url, transaction_reference: '', proof_name: null, proof_url: null })] }) });
     await open(paymentPath, PAYMENT_BDE);
     await waitForAmount();
-    assert.match(bodyText(), new RegExp(`TOK000009 · Expected start: 2027-01-10 · Awaiting token payment · ${status} · Token paid: AED 0`));
+    assert.match(cardText('Token reservation – TOK000009'), new RegExp(`Token paymentAwaiting token payment · ${status}`));
     assert.match(bodyText(), /Awaiting payment.*AED 100 · Token reservation/);
     assert.ok(button('Copy payment link'));
     for (const row of TUITION_ROWS) assert.equal(bodyText().includes(row), false, `no tuition total "${row}" before a plan`);
@@ -2446,56 +2493,55 @@ test('Unquoted token with a pending Stripe link waits for payment and offers no 
   }
 });
 
-test('A paid unquoted token asks for the tuition plan; Plan Choosing shows the reservation without AutoPay; tuition is then collected with the token credited', async () => {
+test('A paid unquoted token asks for the tuition plan; Plan Choosing fixes the Token Sale and keeps its dates; the balance is then one payment, the token credited', async () => {
   let issued = null;
-  const credited = { purchased_classes: '10', paid_classes: '0', unpaid_classes: '10', used_classes: '0', available_quota: '0', class_quota: null,
-    classes_not_credited: '0', package_amount: '333', paid_amount: '100', remaining_amount: '233', refunded_amount: '0', net_collected: '100',
-    outstanding_amount: '233', fully_paid: false };
   studentApi({
-    [`GET ${SALE_URL}`]: () => ok(issued ? saleState({ quote: issued, sale: paidToken(), payments: [tokenPayment()], totals: credited })
+    [`GET ${SALE_URL}`]: () => ok(issued ? saleState({ quote: issued, sale: paidToken(), payments: [tokenPayment()], totals: CREDITED })
       : unquotedToken({ sale: paidToken(), payments: [tokenPayment()], totals: { ...NO_PLAN_TOTALS, paid_amount: '100', net_collected: '100' } })),
-    [`POST ${QUOTES}`]: ({ data }) => {
-      assert.equal(data.collection_mode, 'FULL');
-      assert.equal(data.plan_type, 'BRIDGE_COURSE');
-      issued = quoteOf({ collection_mode: 'FULL', plan_type: 'BRIDGE_COURSE', full_course: true, syllabus: BRIDGE_QUOTE.syllabus, classes: '10',
-        total_fee: '350', payable_amount: '333', collection_amount: '333', single_payment_saving: '17' });
-      return ok(issued);
+    [`POST ${TOKEN_URL}`]: () => {
+      issued = tokenQuote();
+      return ok({ quote: issued, state: saleState({ quote: issued, sale: paidToken(), payments: [tokenPayment()], totals: CREDITED }) });
     },
     [`GET ${SALE_URL}amount/`]: ({ params }) => {
       assert.deepEqual(params, { purpose: 'TUITION', collection_mode: 'FULL', classes: '10' });
-      return ok({ amount: '233', classes: '10', currency: 'AED', package_amount: '333', remaining_amount: '0', remaining_classes: '0' });
+      return ok({ amount: '250', classes: '10', currency: 'AED', package_amount: '350', remaining_amount: '0', remaining_classes: '0' });
     },
   });
   const page = await open(paymentPath, PAYMENT_BDE);
-  assert.match(bodyText(), /TOK000009 · Expected start: 2027-01-10 · Token received · Token paid: AED 100/);
-  assert.match(bodyText(), /Choose the tuition plan.*The AED 100 token is received\. Choose the tuition plan next: the AED 100 is credited against its package and reduces the first tuition payment, which is collected here\..*does not enroll the student or add class quota/);
+  assert.match(cardText('Token reservation – TOK000009'), /Token paymentAED 100 received/);
+  assert.match(bodyText(), /Choose the tuition plan.*The AED 100 token is received\. Choose the tuition plan next: it is quoted as a Token Sale, the AED 100 is credited against its package, and the remaining balance is collected here in one payment\..*does not enroll the student or add class quota/);
   for (const row of TUITION_ROWS) assert.equal(bodyText().includes(row), false, `no tuition total "${row}" before a plan`);
   assert.equal(document.getElementById('initial-payment-form'), null, 'nothing to collect before a plan');
-  assert.doesNotMatch(bodyText(), /Collect initial tuition|Collect token/);
-  assert.equal(button('Generate Stripe payment link'), undefined);
+  assert.doesNotMatch(bodyText(), /Collect initial tuition|Collect token|Collect remaining balance/);
   assert.match(bodyText(), /Payment history.*AED 100/);
 
   await click(link('Choose tuition plan'));
   assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
-  assert.match(bodyText(), /Token reservation.*ReservationTOK000009.*Expected start2027-01-10.*Token \(AED 100\)Token received.*it must be worth more than AED 100, and the AED 100 token is credited against it/);
+  assert.match(bodyText(), /Token reservation.*ReservationTOK000009.*Expected start2027-01-10.*Payment deadlinenot set \(expected class start 2027-01-10\).*Token \(AED 100\)Token received.*quoted as a Token Sale/);
   await selectSyllabus('Grade 7 CBSE');
   await click(radio('Full Bridge Course'));
-  assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL'], 'a Token Sale is never quoted as AutoPay');
-  await click(document.querySelector('input[name="quote-collection-intention"][value="FULL"]'));
-  await click(button('Create quote…'));
-  await click(button('Issue quote', topDialog()));
-  assert.equal(quotePosts().length, 1);
+  assert.equal(radio('Token Sale').checked, true);
+  assert.equal(radio('New Sale').disabled, true);
+  assert.equal(intentions().length, 0, 'a Token Sale is never quoted with an intention, AutoPay included');
+  assert.equal(input('token-balance-due-date'), null, 'the reservation keeps its dates');
+  await click(button('Choose this plan for the reservation…'));
+  await click(button('Issue Token Sale quote', topDialog()));
+  assert.deepEqual(tokenPosts().map((entry) => entry.data), [{ syllabus: BRIDGE_ID, revision: 1, plan_type: 'BRIDGE_COURSE', chapter_ids: [],
+    replaces: null, pricing_version: 3 }]);
+  assert.equal(quotePosts().length, 0);
+  assert.match(bodyText(), /Quote Q-000011 is now the token reservation’s tuition plan\./);
 
   await page.go(paymentPath); await waitForAmount();
-  assert.match(bodyText(), /Selected quote.*Single \/ Complete Payment/);
-  assert.match(bodyText(), /Purchased classes10.*Amount receivedAED 100.*Outstanding balanceAED 233/);
-  assert.match(bodyText(), /Collect initial tuition.*Amount payable: AED 233/);
-  assert.equal(input('paid-classes').readOnly, true);
+  assert.match(bodyText(), /Selected quote.*Token Sale/);
+  assert.match(cardText('Token reservation – TOK000009'), /Selected tuition packageFull Bridge Course – Grade 7 CBSEAED 350.*Token already paid− AED 100.*Remaining amountAED 250/);
+  assert.match(bodyText(), /Collect remaining balance.*covering all 10 classes.*Amount payable: AED 250/);
+  assert.equal(input('paid-classes'), null);
+  assert.equal(button('Change collection intention'), undefined);
   assert.equal(link('Choose tuition plan'), undefined);
   assert.doesNotMatch(bodyText(), /Enrollment complete/);
 });
 
-test('Token Sale with an eligible quote keeps its tuition totals, collects the token, then the tuition less the token', async () => {
+test('An existing Token Sale with an eligible quote shows its package, collects the token, then the whole balance less the token', async () => {
   const quoted = (extra = {}) => saleState({ sale: tokenSale({ original_quote_id: QUOTE_ID }), ...extra });
   let state = quoted();
   studentApi({
@@ -2506,117 +2552,241 @@ test('Token Sale with an eligible quote keeps its tuition totals, collects the t
   await open(paymentPath, PAYMENT_BDE);
   await waitForAmount();
   assert.match(bodyText(), /Selected quote.*Partial Payment/);
-  assert.match(bodyText(), /TOK000009 · Expected start: 2027-01-10 · Awaiting token payment · Token paid: AED 0/);
-  assert.match(bodyText(), /Purchased classes10.*Outstanding balanceAED 500/);
+  assert.match(cardText('Token reservation – TOK000009'), /Token paymentAwaiting token payment.*Selected tuition packageChapter Plan · Revision classes – Grade 6 CBSEAED 500.*Token already paidNot yet.*Remaining amountAED 500/);
   assert.match(bodyText(), /Collect token · AED 100.*Amount payable: AED 100/);
   assert.doesNotMatch(bodyText(), /No tuition plan yet/);
 
   state = quoted({ sale: paidToken({ original_quote_id: QUOTE_ID }), payments: [tokenPayment()],
     totals: { ...saleState().totals, paid_amount: '100', remaining_amount: '400', outstanding_amount: '400' } });
   await click(button('Refresh')); await waitForAmount();
-  assert.match(bodyText(), /Token received · Token paid: AED 100/);
-  assert.match(bodyText(), /Amount receivedAED 100.*Outstanding balanceAED 400/);
-  assert.match(bodyText(), /Collect initial tuition.*Partial Payment.*Amount payable: AED 400/);
-  assert.ok(button('Change collection intention'));
+  assert.match(cardText('Token reservation – TOK000009'), /Token paymentAED 100 received.*Token already paid− AED 100.*Remaining amountAED 400/);
+  assert.match(bodyText(), /Collect remaining balance.*covering all 10 classes.*Amount payable: AED 400/);
+  assert.equal(button('Change collection intention'), undefined);
+  assert.equal(input('paid-classes'), null);
   assert.equal(link('Choose tuition plan'), undefined);
   assert.deepEqual(calls('GET', `${SALE_URL}amount/`).at(-1).params, { purpose: 'TUITION', collection_mode: 'PARTIAL', classes: '10' });
 });
 
-test('Plan Choosing for a Token Sale with a current quote never restores AutoPay and replaces it as Single / Complete or Partial', async () => {
-  for (const [mode, restored] of [['AUTOPAY', null], ['FULL', 'FULL']]) {
+test('Plan Choosing for an existing Token Sale fixes the sale type and re-issues its plan as a Token Sale quote, dates unchanged', async () => {
+  for (const mode of ['AUTOPAY', 'FULL', 'TOKEN']) {
     const old = quoteOf({ collection_mode: mode, is_current: true });
+    globalThis.__salesApi.calls = [];
     studentApi({ [`GET ${PLAN_STATE}`]: { ...emptyPlan, latest_quote: old.id, current: old, history: [rowOf(old)] },
-      [`GET ${SALE_URL}`]: saleState({ quote: old, sale: tokenSale({ original_quote_id: old.id }) }),
-      [`POST ${QUOTES}`]: quoteOf({ id: 'replacement-id', reference: 'Q-000009', collection_mode: 'PARTIAL', supersedes: old.id }) });
+      [`GET ${SALE_URL}`]: saleState({ quote: old, sale: tokenSale({ original_quote_id: old.id, balance_due_date: '2027-01-05' }) }),
+      [`POST ${TOKEN_URL}`]: () => {
+        const quote = quoteOf({ id: 'replacement-id', reference: 'Q-000009', collection_mode: 'TOKEN', supersedes: old.id });
+        return ok({ quote, state: saleState({ quote, sale: tokenSale({ original_quote_id: old.id, balance_due_date: '2027-01-05' }) }) });
+      } });
     await open(enquiryPath, PAYMENT_BDE);
-    assert.match(bodyText(), /Token reservation.*TOK000009.*Current selected plan/);
+    assert.match(bodyText(), /Token reservation.*TOK000009.*Payment deadline2027-01-05.*Current selected plan/);
     await click(button('Edit / change plan'));
     assert.equal(radio('Regular + Revision').checked, true);
-    assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL']);
-    assert.equal(intentions().find((choice) => choice.checked)?.value ?? null, restored);
-    assert.equal(button('Create quote…').disabled, restored === null);
-    await click(document.querySelector('input[name="quote-collection-intention"][value="PARTIAL"]'));
-    await click(button('Create quote…'));
-    await click(button('Issue quote', topDialog()));
-    assert.equal(quotePosts().at(-1).data.collection_mode, 'PARTIAL');
-    assert.equal(quotePosts().at(-1).data.replaces, old.id);
+    assert.equal(radio('Token Sale').checked, true);
+    assert.equal(radio('New Sale').disabled, true);
+    assert.match(bodyText(), /This enquiry’s token reservation exists: the sale type is fixed\./);
+    assert.equal(intentions().length, 0, `a ${mode} quote restores no intention`);
+    assert.equal(input('token-balance-due-date'), null, 'the reservation keeps its dates');
+    assert.match(bodyText(), /Reservation TOK000009 · Expected class start 2027-01-10 · Payment deadline 2027-01-05/);
+    await click(button('Choose this plan for the reservation…'));
+    await click(button('Issue Token Sale quote', topDialog()));
+    const posted = tokenPosts().at(-1).data;
+    assert.deepEqual([posted.plan_type, posted.replaces, 'expected_start_date' in posted, 'balance_due_date' in posted, 'family' in posted],
+      ['REGULAR_REVISION', old.id, false, false, false]);
+    assert.equal(quotePosts().length, 0);
     await mounted.pop().unmount();
   }
 });
 
-test('Plan Choosing keeps every intention, AutoPay included, without a Token Sale or without initial-sales access', async () => {
+test('Plan Choosing reopens a saved New Sale quote as a New Sale with its intention, for a BDE who also starts sales', async () => {
+  const saved = quoteOf({ collection_mode: 'FULL', is_current: true });
+  studentApi({ [`GET ${PLAN_STATE}`]: { ...emptyPlan, latest_quote: saved.id, current: saved, history: [rowOf(saved)] },
+    [`GET ${SALE_URL}`]: saleState({ quote: saved }) });
+  await open(enquiryPath, PAYMENT_BDE);
+  await click(button('Edit / change plan'));
+  assert.equal(radio('Regular + Revision').checked, true);
+  assert.equal(radio('New Sale').checked, true);
+  assert.equal(radio('Token Sale').disabled, false, 'no sale yet: Token Sale can still be chosen');
+  assert.equal(intentions().find((choice) => choice.checked)?.value, 'FULL');
+  assert.equal(button('Create quote…').disabled, false);
+  await click(radio('Token Sale'));
+  assert.equal(intentions().length, 0);
+  assert.match(bodyText(), /Token Sale – Payment details/);
+});
+
+// Families sharing this parent's phone (backend student_accounts.family_candidates), as the sale read or a refusal lists them.
+const SIBLING_FAMILY = [{ guardian_id: 'guardian-9', full_name: 'Riya Nair', matched_on: ['phone'],
+  children: [{ account_id: 'account-9', reference: 'SA-000099', student_name: 'Meera', student_code: 'EDP00099' }] }];
+async function reserveFullBridge() {
+  await open(enquiryPath, PAYMENT_BDE);
+  await selectSyllabus('Grade 7 CBSE');
+  await click(radio('Full Bridge Course'));
+  await click(radio('Token Sale'));
+  await typeInto(input('token-balance-due-date'), FUTURE_DEADLINE);
+  await typeInto(input('token-start-date'), FUTURE_START);
+  await click(button('Create token reservation…'));
+}
+
+test('Token Sale asks about the family only when the parent’s contact already belongs to one, and sends the choice', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: null, totals: NO_PLAN_TOTALS, family_candidates: SIBLING_FAMILY }),
+    [`POST ${TOKEN_URL}`]: () => ok({ quote: tokenQuote(), state: saleState({ quote: tokenQuote(), sale: tokenSale({ balance_due_date: FUTURE_DEADLINE }) }) }) });
+  await reserveFullBridge();
+  assert.match(clean(topDialog().textContent), /This parent’s phone already belongs to a family:.*Sibling in Riya Nair’s family.*Meera \(SA-000099 · EDP00099\).*A different family/);
+  assert.equal(topDialog().querySelectorAll('input[type="text"], input[type="email"], select').length, 0, 'the family only: no parent details');
+  assert.equal(button('Create token reservation', topDialog()).disabled, true, 'a different child is confirmed first');
+  await click(topDialog().querySelector('input[name="family-choice"]'));
+  await click(checkbox('I confirmed this is a different child'));
+  assert.equal(button('Create token reservation', topDialog()).disabled, false);
+  await click(button('Create token reservation', topDialog()));
+  const posted = tokenPosts().at(-1).data;
+  assert.deepEqual([posted.family, posted.confirm_distinct_child], [{ mode: 'EXISTING_FAMILY', guardian_id: 'guardian-9' }, true]);
+});
+
+test('A family found only when reserving is confirmed in the dialog itself, and the reservation retried', async () => {
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ quote: null, totals: NO_PLAN_TOTALS }),
+    [`POST ${TOKEN_URL}`]: ({ data }) => (data.confirm_distinct_child
+      ? ok({ quote: tokenQuote(), state: saleState({ quote: tokenQuote(), sale: tokenSale({ balance_due_date: FUTURE_DEADLINE }) }) })
+      : fail(409, { error: 'FAMILY_CONFIRMATION_REQUIRED', message: 'This parent phone or email already belongs to a family. Confirm this is a different child and choose the family before starting the sale.', candidates: SIBLING_FAMILY })) });
+  await reserveFullBridge();
+  assert.equal(topDialog().querySelector('input[name="family-choice"]'), null, 'no family known when the sale was read');
+  await click(button('Create token reservation', topDialog()));
+  assert.equal(tokenPosts().length, 1);
+  assert.equal('family' in tokenPosts()[0].data, false);
+  assert.match(clean(topDialog().textContent), /already belongs to a family.*Sibling in Riya Nair’s family/);
+  assert.equal(button('Create token reservation', topDialog()).disabled, true);
+  await click(checkbox('I confirmed this is a different child'));
+  await click(button('Create token reservation', topDialog()));
+  assert.deepEqual([tokenPosts().length, tokenPosts()[1].data.family, tokenPosts()[1].data.confirm_distinct_child], [2, { mode: 'NEW_FAMILY' }, true]);
+  assert.match(bodyText(), /Token reservation TOK000009 is created/);
+});
+
+test('Plan Choosing offers New Sale or Token Sale with initial-sales access; New Sale keeps every intention, AutoPay included', async () => {
   const offered = async () => {
     await selectSyllabus('Grade 7 CBSE');
     await click(radio('Full Bridge Course'));
     return intentions().map((choice) => choice.value);
   };
-  // Quote access alone never reads the sale.
+  // Quote access alone never reads the sale and quotes as before: no sale type to choose.
   studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: tokenSale() }) });
   await open(enquiryPath, QUOTER);
   assert.deepEqual(await offered(), ['FULL', 'PARTIAL', 'AUTOPAY']);
+  assert.equal(saleTypes().length, 0);
   assert.equal(calls('GET', SALE_URL).length, 0);
+  assert.equal(bodyText().includes('could not be read'), false);
   await mounted.pop().unmount();
-  // A New Sale, no sale yet, and a sale that cannot be read: nothing changes.
-  for (const answer of [saleState({ sale: startedSale() }), saleState(), () => fail(500, { error: 'SERVER_ERROR', message: 'Boom.' })]) {
-    globalThis.__salesApi.calls = [];
-    studentApi({ [`GET ${SALE_URL}`]: answer });
-    await open(enquiryPath, PAYMENT_BDE);
-    assert.deepEqual(await offered(), ['FULL', 'PARTIAL', 'AUTOPAY']);
-    assert.equal(calls('GET', SALE_URL).length, 1);
-    assert.equal(bodyText().includes('Token reservation'), false);
-    assert.equal(bodyText().includes('Boom.'), false);
-    await mounted.pop().unmount();
-  }
+  // A sale that cannot be read: New Sale as before; no Token Sale is offered.
+  globalThis.__salesApi.calls = [];
+  studentApi({ [`GET ${SALE_URL}`]: () => fail(500, { error: 'SERVER_ERROR', message: 'Boom.' }) });
+  await open(enquiryPath, PAYMENT_BDE);
+  assert.deepEqual(await offered(), ['FULL', 'PARTIAL', 'AUTOPAY']);
+  assert.equal(saleTypes().length, 0);
+  assert.match(bodyText(), /This enquiry’s sale could not be read, so Token Sale is not offered here\. If it has a token reservation, an administrator chooses its plan; otherwise a New Sale quote can still be chosen\./);
+  assert.equal(bodyText().includes('Boom.'), false);
+  await mounted.pop().unmount();
+  // No sale yet: the sale type first, then New Sale's every intention.
+  globalThis.__salesApi.calls = [];
+  studentApi({ [`GET ${SALE_URL}`]: saleState() });
+  await open(enquiryPath, PAYMENT_BDE);
+  assert.deepEqual(await offered(), [], 'no intention before the sale type');
+  assert.equal(button('Create quote…'), undefined);
+  assert.deepEqual(saleTypes().map((choice) => [choice.value, choice.disabled]), [['NEW', false], ['TOKEN', false]]);
+  await click(radio('New Sale'));
+  assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL', 'AUTOPAY']);
+  assert.equal(calls('GET', SALE_URL).length, 1);
+  await mounted.pop().unmount();
+  // A New Sale started: its type is fixed and every intention offered at once.
+  globalThis.__salesApi.calls = [];
+  studentApi({ [`GET ${SALE_URL}`]: saleState({ sale: startedSale() }) });
+  await open(enquiryPath, PAYMENT_BDE);
+  assert.deepEqual(await offered(), ['FULL', 'PARTIAL', 'AUTOPAY']);
+  assert.equal(radio('New Sale').checked, true);
+  assert.equal(radio('Token Sale').disabled, true);
+  assert.match(bodyText(), /This enquiry’s New Sale has started: the sale type is fixed\./);
+  assert.equal(bodyText().includes('Token reservation'), false);
+  await mounted.pop().unmount();
 });
 
-test('Token status reads as the reservation stands: due, overdue, a failed or expired link, and enrolled', async () => {
-  const paidNoPlan = (status) => unquotedToken({ sale: paidToken({ token_status: status }), payments: [tokenPayment()] });
+test('Token status reads as the reservation stands: due, overdue (balance still collectable), a failed or expired link, and enrolled', async () => {
+  const paidNoPlan = (status) => unquotedToken({ sale: paidToken({ token_status: status, deadline_status: status }), payments: [tokenPayment()] });
   const unpaidAfter = (status) => unquotedToken({ sale: tokenSale(), payments: [tokenPayment({ status, method: 'STRIPE', method_label: 'Stripe',
     transaction_reference: '', proof_name: null, proof_url: null, failure_message: status === 'FAILED' ? 'Your card was declined.' : null })] });
+  const overduePlanned = saleState({ quote: tokenQuote(), sale: paidToken({ token_status: 'OVERDUE', deadline_status: 'OVERDUE', balance_due_date: '2026-01-05' }),
+    payments: [tokenPayment()], totals: CREDITED });
   const enrolled = saleState({ sale: paidToken({ token_status: 'ENROLLED', original_quote_id: QUOTE_ID, student: { id: 'enrolled-student', student_code: 'EDP00031' } }),
     purchase: { id: 'token-purchase', collection_mode: 'PARTIAL' }, payments: [tokenPayment(), initialPayment()], can_collect: false });
-  for (const [state, line, next] of [
-    [paidNoPlan('DUE'), 'Token received · tuition due soon · Token paid: AED 100', /Choose the tuition plan/],
-    [paidNoPlan('OVERDUE'), 'Token received · tuition overdue · Token paid: AED 100', /Choose the tuition plan/],
-    [unpaidAfter('FAILED'), 'Awaiting token payment · Token paid: AED 0', /Collect token · AED 100.*Last attempt declined: Your card was declined\./],
-    [unpaidAfter('EXPIRED'), 'Awaiting token payment · Token paid: AED 0', /Collect token · AED 100/],
-    [enrolled, 'Enrolled · Token paid: AED 100', /EDP00031 · Enrollment complete/],
+  for (const [state, expected, next] of [
+    [paidNoPlan('DUE'), /Token reservation – TOK000009 ?Payment due soon.*Token paymentAED 100 received/, /Choose the tuition plan/],
+    [paidNoPlan('OVERDUE'), /Token reservation – TOK000009 ?Payment overdue.*Token paymentAED 100 received.*The payment deadline has passed\. The reservation stays open and its follow-up stays pending/, /Choose the tuition plan/],
+    [overduePlanned, /Payment overdue.*Payment deadline2026-01-05.*Remaining amountAED 250.*it can still be collected below/, /Collect remaining balance.*Amount payable: AED 250/],
+    [unpaidAfter('FAILED'), /Token paymentAwaiting token payment/, /Collect token · AED 100.*Last attempt declined: Your card was declined\./],
+    [unpaidAfter('EXPIRED'), /Token paymentAwaiting token payment/, /Collect token · AED 100/],
+    [enrolled, /TOK000009 · Expected start: 2027-01-10 · Enrolled · Token paid: AED 100/, /EDP00031 · Enrollment complete/],
   ]) {
-    studentApi({ [`GET ${SALE_URL}`]: state, [`GET ${SALE_URL}amount/`]: { amount: '100', classes: '0', currency: 'AED' } });
+    studentApi({ [`GET ${SALE_URL}`]: state, [`GET ${SALE_URL}amount/`]: ({ params }) => ok(params.purpose === 'TOKEN'
+      ? { amount: '100', classes: '0', currency: 'AED' } : { amount: '250', classes: '10', currency: 'AED', package_amount: '350', remaining_amount: '0', remaining_classes: '0' }) });
     await open(paymentPath, PAYMENT_BDE);
     await waitForAmount();
-    assert.ok(bodyText().includes(`TOK000009 · Expected start: 2027-01-10 · ${line}`), line);
+    assert.match(bodyText(), expected);
     assert.match(bodyText(), next);
     await mounted.pop().unmount();
   }
+  // Past the deadline the balance is still collected as before: a reviewed Stripe link, or a recorded receipt.
+  const overdue = { ...overduePlanned, stripe_configured: true };
+  // The stub only answers: what was sent is checked below, where a mismatch fails the test.
+  studentApi({ [`GET ${SALE_URL}`]: overdue, [`GET ${SALE_URL}amount/`]: { amount: '250', classes: '10', currency: 'AED' },
+    [`POST ${SALE_URL}payments/`]: ({ data }) => ok({ payment: initialPayment({ method: data.get('method'), amount: '250', classes: '10' }), state: overdue }) });
+  const sent = () => calls('POST', `${SALE_URL}payments/`).map(({ data }) => ['purpose', 'collection_mode', 'classes', 'method'].map((key) => data.get(key)));
+  await open(paymentPath, PAYMENT_BDE);
+  await waitForAmount();
+  assert.equal(button('Generate Stripe payment link').disabled, false);
+  await click(button('Generate Stripe payment link'));
+  assert.match(clean(topDialog().textContent), /AED 250 · 10 classes/);
+  await click(button('Generate link', topDialog()));
+  assert.deepEqual(sent(), [['TUITION', 'FULL', '10', 'STRIPE']]);
+  assert.equal(document.querySelector('[role="alert"]'), null);
+  await mounted.pop().unmount();
+  await open(paymentPath, PAYMENT_BDE);
+  await waitForAmount();
+  await choose('payment-method', 'Account Transfer');
+  const receipt = new File(['test PNG bytes'], 'receipt.png', { type: 'image/png' });
+  Object.defineProperty(input('payment-proof'), 'files', { configurable: true, value: [receipt] });
+  await fire(input('payment-proof'), new window.Event('change', { bubbles: true }));
+  await click(checkbox('actually been received'));
+  assert.equal(button('Confirm received payment').disabled, false);
+  await fire(button('Confirm received payment').closest('form'), new window.Event('submit', { bubbles: true, cancelable: true }));
+  assert.deepEqual(sent(), [['TUITION', 'FULL', '10', 'STRIPE'], ['TUITION', 'FULL', '10', 'TRANSFER']]);
+  assert.equal(calls('POST', `${SALE_URL}payments/`).at(-1).data.get('amount'), '250');
+  assert.equal(document.querySelector('[role="alert"]'), null);
 });
 
-test('A paid token whose latest quote was cancelled asks for a new tuition plan, which replaces it as Single / Complete or Partial', async () => {
+test('A paid token whose latest quote was cancelled asks for a new tuition plan, which replaces it as a Token Sale quote', async () => {
   const cancelled = saleQuote({ status: 'CANCELLED', is_current: false });
   studentApi({
     [`GET ${SALE_URL}`]: saleState({ quote: cancelled, sale: paidToken({ original_quote_id: cancelled.id }), payments: [tokenPayment()],
       totals: { ...NO_PLAN_TOTALS, paid_amount: '100', net_collected: '100' } }),
     [`GET ${PLAN_STATE}`]: { ...emptyPlan, latest_quote: cancelled.id, history: [rowOf(cancelled)] },
-    [`POST ${QUOTES}`]: quoteOf({ id: 'replacement-id', reference: 'Q-000010', collection_mode: 'PARTIAL', supersedes: cancelled.id }),
+    [`POST ${TOKEN_URL}`]: () => {
+      const quote = tokenQuote({ id: 'replacement-id', reference: 'Q-000010', supersedes: cancelled.id });
+      return ok({ quote, state: saleState({ quote, sale: paidToken({ original_quote_id: cancelled.id }), payments: [tokenPayment()], totals: CREDITED }) });
+    },
   });
   const page = await open(paymentPath, PAYMENT_BDE);
   assert.match(bodyText(), /Selected quote.*Cancelled/);
   assert.match(bodyText(), /Choose the tuition plan.*credited against its package/);
   // The cancelled quote's own summary still names its classes; the reservation totals none of it.
-  assert.match(cardText('Token reservation'), /^Token reservation ?TOK000009 · Expected start: 2027-01-10 · Token received · Token paid: AED 100$/);
-  for (const row of TUITION_ROWS) assert.equal(cardText('Token reservation').includes(row), false, `no tuition total "${row}" without an issued plan`);
+  assert.match(cardText('Token reservation – TOK000009'), /Token paymentAED 100 received/);
+  for (const row of ['Selected tuition package', 'Remaining amount', ...TUITION_ROWS]) assert.equal(cardText('Token reservation – TOK000009').includes(row), false, `no tuition figure "${row}" without an issued plan`);
   assert.equal(document.getElementById('initial-payment-form'), null);
   await click(link('Choose tuition plan'));
   assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
   assert.match(bodyText(), /Token reservation.*TOK000009/);
   await selectSyllabus('Grade 7 CBSE');
   await click(radio('Full Bridge Course'));
-  assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL']);
-  await click(document.querySelector('input[name="quote-collection-intention"][value="PARTIAL"]'));
-  await click(button('Create quote…'));
-  await click(button('Issue quote', topDialog()));
-  assert.equal(quotePosts().at(-1).data.collection_mode, 'PARTIAL');
-  assert.equal(quotePosts().at(-1).data.replaces, cancelled.id);
+  assert.equal(radio('Token Sale').checked, true);
+  assert.equal(intentions().length, 0);
+  await click(button('Choose this plan for the reservation…'));
+  await click(button('Issue Token Sale quote', topDialog()));
+  assert.equal(tokenPosts().at(-1).data.replaces, cancelled.id);
+  assert.equal(quotePosts().length, 0);
 });
 
 test('Plan Choosing shows no reservation once the token sale is enrolled; without quote access the paid-token card offers no Plan Choosing link', async () => {
@@ -2645,18 +2815,19 @@ const leadOf = (id, student, parent) => ({ id, parent_name: parent, phone: '+971
   created_at: '2026-11-06T04:00:00+00:00', phone_dial_code: '+971', phone_number: '501234567', parent_email: '', school_name: 'Kendriya Vidyalaya',
   syllabus: 'CBSE', country: 'UAE', timezone: 'Asia/Dubai', bookings: [], added_by: null, source_details: {} });
 
-test('Admin lead page: a paid unquoted token links to Plan Choosing, which shows the reservation and offers no AutoPay', async () => {
+test('Admin lead page: a paid unquoted token links to Plan Choosing, which shows the reservation as a fixed Token Sale', async () => {
   studentApi({ [`GET /api/leads/${RIYA.id}/`]: leadOf(RIYA.id, 'Arjun', 'Riya Nair'),
     [`GET ${SALE_URL}`]: unquotedToken({ sale: paidToken(), payments: [tokenPayment()], totals: { ...NO_PLAN_TOTALS, paid_amount: '100', net_collected: '100' } }) });
   const page = await open(`/leads/${RIYA.id}?tab=sales`, LEAD_ADMIN);
-  assert.match(bodyText(), /Arjun · Parent: Riya Nair.*TOK000009 · Expected start: 2027-01-10 · Token received.*Choose the tuition plan/);
+  assert.match(bodyText(), /Arjun · Parent: Riya Nair.*Token reservation – TOK000009.*Token paymentAED 100 received.*Choose the tuition plan/);
   await click(link('Choose tuition plan'));
   assert.equal(page.location().pathname, `/leads/${RIYA.id}`);
   assert.equal(new URLSearchParams(page.location().search).get('tab'), 'plan-choosing');
   assert.match(bodyText(), /Token reservation.*ReservationTOK000009/);
   await selectSyllabus('Grade 7 CBSE');
   await click(radio('Full Bridge Course'));
-  assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL']);
+  assert.equal(radio('Token Sale').checked, true);
+  assert.equal(intentions().length, 0, 'no intention, AutoPay included');
 });
 
 test('Admin lead page: moving to another lead never keeps the previous lead\'s token reservation or hides its AutoPay', async () => {
@@ -2678,6 +2849,10 @@ test('Admin lead page: moving to another lead never keeps the previous lead\'s t
     assert.equal(bodyText().includes('TOK000009'), false, 'the previous lead\'s reservation is gone');
     await selectSyllabus('Grade 7 CBSE');
     await click(radio('Full Bridge Course'));
+    // Never the previous lead's fixed Token Sale: its own choice, New Sale's every intention included.
+    assert.notEqual(radio('Token Sale')?.checked, true);
+    assert.notEqual(radio('New Sale')?.disabled, true);
+    if (radio('New Sale')) await click(radio('New Sale'));
     assert.deepEqual(intentions().map((choice) => choice.value), ['FULL', 'PARTIAL', 'AUTOPAY']);
     await mounted.pop().unmount();
   }

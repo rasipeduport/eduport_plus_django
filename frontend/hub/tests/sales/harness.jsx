@@ -83,6 +83,7 @@ export { canOpenPage } from '@/lib/access';
 export { workspaceFor } from '@/lib/navigation';
 // (the labels re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
 export { ACTION_LABELS as actionLabels, describeActivity } from '@/lib/activity-format';
+export { followUpTask } from '@/lib/follow-ups';
 export {
   // (re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
   SELECTED_DAYS_TITLE as selectedDaysTitle,

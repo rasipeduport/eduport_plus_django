@@ -4,7 +4,7 @@
 // every rule; this only labels what it returns.
 import { callReminder } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
-import { wholeAed } from '@/lib/payments';
+import { TOKEN_AMOUNT, wholeAed } from '@/lib/payments';
 
 export const BDE_FOLLOW_UPS_URL = '/api/bde/follow-ups/';
 export const BDE_ACTIVITY_URL = '/api/bde/activity/';
@@ -49,18 +49,36 @@ const TASKS = {
   NEW_ENQUIRY_CALL: 'Call the parent and guide them to book a Demo or Diagnostic.',
   TUTOR_REPORT: 'Review the report and share it with the parent.',
   REDEMO_CONFIRMATION: 'Tell the parent the Re-Demo’s date and time, then record their answer.',
-  TOKEN_TUITION: 'Collect tuition before the reserved class start date.',
+  TOKEN_TUITION: 'Collect the remaining tuition balance by the payment deadline.',
 };
+
+/**
+ * A token reservation's reminder (backend followups._token_reservations): listed from the reservation until the
+ * full balance is verified, the token paid or not, and flagged for an administrator once the enquiry was reassigned.
+ */
+// Why an administrator reviews a reservation: only one collects against another's quote (backend followups).
+const REVIEW_REASONS = {
+  REASSIGNED: 'Admin review needed: this enquiry was reassigned. ',
+  PLAN_OWNER: 'Admin review needed: its tuition plan was issued by someone else. ',
+};
+function tokenTask(reservation) {
+  const deadline = reservation.balance_due_date ? `by ${reservation.balance_due_date}` : `before the expected start ${reservation.expected_start_date}`;
+  const unpaid = reservation.token_paid === false;
+  // The amount still due, the token included until it is paid; the balance is what follows the token.
+  const due = reservation.remaining_amount == null ? null : Number(reservation.remaining_amount);
+  let task;
+  if (due == null) task = unpaid ? 'Token not paid yet: collect AED 100 first, then choose the tuition plan in Plan Choosing.' : 'Token paid. Choose the tuition plan in Plan Choosing.';
+  else if (unpaid) task = `Token not paid yet: collect AED 100 first, then the ${wholeAed(Math.max(due - TOKEN_AMOUNT, 0))} balance ${deadline}.`;
+  else task = `Token paid. ${wholeAed(due)} balance due ${deadline}.`;
+  const review = REVIEW_REASONS[reservation.admin_review_reason] ?? (reservation.admin_review ? 'Admin review needed. ' : '');
+  return `${review}${reservation.reference} · ${task}`;
+}
 
 /** What a reminder asks of the BDE now, in a sentence. */
 export function followUpTask(followUp, now = Date.now()) {
   switch (followUp.type) {
-    case 'TOKEN_TUITION': {
-      const reservation = followUp.reservation;
-      return reservation
-        ? `${reservation.reference} · Token paid · Expected start ${reservation.expected_start_date}. ${reservation.remaining_amount == null ? 'Choose a package before tuition collection.' : `${wholeAed(reservation.remaining_amount)} tuition balance.`}`
-        : TASKS.TOKEN_TUITION;
-    }
+    case 'TOKEN_TUITION':
+      return followUp.reservation ? tokenTask(followUp.reservation) : TASKS.TOKEN_TUITION;
     case 'PARENT_CONFIRMATION':
       return followUp.request
         ? `Confirmation request ${REQUEST_STATES[followUp.request.status] ?? followUp.request.status_label.toLowerCase()}. Record the parent’s answer.`

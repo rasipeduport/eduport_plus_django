@@ -2,6 +2,10 @@ export const saleUrl = (id) => `/api/sales/enquiries/${id}/sale/`;
 export const saleAmountUrl = (id) => `${saleUrl(id)}amount/`;
 export const collectPaymentUrl = (id) => `${saleUrl(id)}payments/`;
 export const installmentQuoteUrl = (id) => `/api/sales/enquiries/${id}/installment-quote/`;
+// A Token Sale chosen with its tuition plan in Plan Choosing: the quote and, the first time, the reservation (backend sales.token_sales).
+export const tokenSaleUrl = (id) => `/api/sales/enquiries/${id}/token-sale/`;
+// A Token Sale's first payment, always (backend sales.payments TOKEN_AMOUNT).
+export const TOKEN_AMOUNT = 100;
 export const expirePaymentUrl = (id) => `/api/sales/payments/${id}/expire/`;
 export const billingContactUrl = (id) => `${saleUrl(id)}billing-contact/`;
 export const identityCorrectionUrl = (accountId) => `/api/sales/accounts/${accountId}/identity-correction/`;
@@ -80,13 +84,23 @@ export function collectionCompatibility(state, kind = state.sale?.kind) {
   const quote = state.quote;
   if (quote?.status !== 'ISSUED') return null;
   if (quote?.collection_intention_confirmed === false && !state.purchase && !state.payments?.length) {
-    return { code: 'COLLECTION_INTENTION_REQUIRED', message: 'This historical quote has no recorded collection intention. Issue an explicit replacement quote before starting or collecting the sale.' };
+    return { code: 'COLLECTION_INTENTION_REQUIRED', message: kind === 'TOKEN'
+      ? 'This historical quote has no recorded collection intention. Issue a Token Sale replacement quote before collecting the token reservation.'
+      : 'This historical quote has no recorded collection intention. Issue an explicit replacement quote before starting or collecting the sale.' };
   }
   if (kind === 'TOKEN' && quote?.collection_mode === 'AUTOPAY' && !state.purchase) {
-    return { code: 'TOKEN_AUTOPAY_NOT_ALLOWED', message: 'Token Sale requires a FULL or PARTIAL quote. Issue an explicit replacement quote before continuing.' };
+    return { code: 'TOKEN_AUTOPAY_NOT_ALLOWED', message: 'A Token Sale cannot be collected against an Autopay quote. Issue a Token Sale replacement quote before continuing.' };
   }
   return null;
 }
+
+// Where an unenrolled Token Sale stands against its payment deadline (backend sales.payments deadline_state).
+export const DEADLINE_STATUSES = {
+  DUE: { label: 'Payment due soon', variant: 'warning' },
+  OVERDUE: { label: 'Payment overdue', variant: 'destructive' },
+};
+/** A Token Sale's payment deadline in words: reservations made before deadlines existed fall back to their expected start. */
+export const tokenDeadline = (sale) => sale.balance_due_date ?? `not set (expected class start ${sale.expected_start_date})`;
 
 /** A Token Sale with no tuition package yet: no purchase and no issued quote, so no tuition to show or collect. */
 export const tokenWithoutPlan = (state) => state.sale?.kind === 'TOKEN' && !state.purchase && state.quote?.status !== 'ISSUED';
