@@ -62,6 +62,12 @@ export const ACTION_LABELS = {
   'invitation.create': 'Invitation sent',
   'invitation.update_email': 'Invitation email changed',
   'invitation.withdraw': 'Invitation withdrawn',
+  // A Learn account's initial credentials (backend invitations.credentials): never the password itself.
+  'invitation.credentials_created': 'Learn credentials issued',
+  'invitation.credentials_revealed': 'Temporary password revealed',
+  'invitation.credentials_regenerated': 'Temporary password regenerated',
+  'invitation.credentials_copied': 'Login details copied',
+  'invitation.password_reset': 'Learn password reset',
   'user.deactivate': 'User deactivated',
   'user.reactivate': 'User reactivated',
   'staff.reassign_all': 'Workload reassigned',
@@ -384,6 +390,14 @@ export function describeActivity(row) {
         : 'Set a temporary password';
     case 'user.password_change':
       return 'Changed their password';
+    case 'invitation.credentials_regenerated':
+      return row.context?.unlocked
+        ? 'Regenerated the temporary Learn password and cleared a sign-in lockout'
+        : 'Regenerated the temporary Learn password';
+    case 'invitation.password_reset':
+      return row.context?.unlocked
+        ? 'Reset the Learn password to a temporary one and cleared a sign-in lockout'
+        : 'Reset the Learn password to a temporary one';
     case 'user.permissions_update': {
       const added = row.context?.added ?? [];
       const removed = row.context?.removed ?? [];

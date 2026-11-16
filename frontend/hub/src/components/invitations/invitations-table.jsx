@@ -51,15 +51,33 @@ const invitedBy = (invitation) => {
   const inviter = invitation.invited_by_profile;
   return inviter ? inviter.full_name || inviter.email : null;
 };
+// When an administrator last gave the account a temporary password (regenerated
+// while pending, or reset once activated); null when never.
+const lastReset = (invitation) =>
+  invitation.last_password_reset_at ? dateTimeFormatter.format(new Date(invitation.last_password_reset_at)) : null;
+const Muted = ({ children }) => <span className="text-muted-foreground">{children}</span>;
+
+// An activated account whose password an administrator reset stays Activated;
+// until the student replaces the temporary password, the row says so.
+function Status({ invitation }) {
+  return (
+    <div>
+      <StatusBadge status={accountStatus(invitation)} />
+      {invitation.status === 'ACCEPTED' && invitation.credentials_available ? (
+        <p className="text-muted-foreground mt-1 text-xs">Must change password</p>
+      ) : null}
+    </div>
+  );
+}
 
 /**
- * The invitations, as the API lists them all: searched by email and filtered
- * by status (both kept in the URL, applied here), each with its role, where it
- * stands, when and by whom it was sent and, unless accepted, its actions
- * (InvitationActionCell: change the email, withdraw). An accepted invitation's
- * row survives with status ACCEPTED and the API refuses to edit or withdraw
- * it, so it offers none. `onChanged` reads the list again after a change.
- * A table where it fits, a card per invitation on a phone.
+ * The invitations, as the API lists them all: searched by name, EDP ID or
+ * username and filtered by status (both kept in the URL, applied here), each
+ * with where its Learn account stands, when and by whom it was sent, when an
+ * administrator last gave it a temporary password, and its actions
+ * (InvitationActionCell: reveal, regenerate or copy a pending account's
+ * credentials; reset an activated account's password). `onChanged` reads the
+ * list again after a change. A table where it fits, a card per invitation on a phone.
  */
 export function InvitationsTable({ data, user, onChanged }) {
   const { searchParams, update, clear } = useListParams();
@@ -74,16 +92,23 @@ export function InvitationsTable({ data, user, onChanged }) {
     <InvitationActionCell invitation={invitation} user={user} onChanged={onChanged} />;
 
   const columns = [
-    { key: 'student', header: 'Student', className: 'font-medium', cell: (invitation) => <div>{invitation.student_name || invitation.email}<p className="text-muted-foreground text-xs">{invitation.student_code || 'Legacy invitation'}</p></div> },
+    { key: 'student', header: 'Student', className: 'font-medium', cell: (invitation) => invitation.student_name || invitation.email },
+    { key: 'code', header: 'EDP ID', cell: (invitation) => invitation.student_code || <Muted>Legacy invitation</Muted> },
     { key: 'username', header: 'Username', cell: (invitation) => invitation.username || 'Not issued' },
-    { key: 'password', header: 'Temporary password', cell: (invitation) => <InvitationActionCell invitation={invitation} user={user} onChanged={onChanged} /> },
-    { key: 'status', header: 'Status', cell: (invitation) => <StatusBadge status={accountStatus(invitation)} /> },
-    { key: 'invited', header: 'Invited At', className: 'whitespace-nowrap', cell: invitedAt },
+    { key: 'status', header: 'Status', cell: (invitation) => <Status invitation={invitation} /> },
     {
-      key: 'by',
-      header: 'Invited by',
-      cell: (invitation) => invitedBy(invitation) ?? <span className="text-muted-foreground">—</span>,
+      key: 'invited',
+      header: 'Invited At',
+      className: 'whitespace-nowrap',
+      cell: (invitation) => (
+        <div>
+          {invitedAt(invitation)}
+          {invitedBy(invitation) ? <p className="text-muted-foreground text-xs">by {invitedBy(invitation)}</p> : null}
+        </div>
+      ),
     },
+    { key: 'reset', header: 'Last Credential Update', className: 'whitespace-nowrap', cell: (invitation) => lastReset(invitation) ?? <Muted>—</Muted> },
+    { key: 'actions', header: 'Actions', cell: actions },
   ];
 
   const renderCard = (invitation) => (
@@ -95,8 +120,8 @@ export function InvitationsTable({ data, user, onChanged }) {
             <Role role={invitation.role} />
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <StatusBadge status={accountStatus(invitation)} />
+        <div className="flex items-center gap-1 text-right">
+          <Status invitation={invitation} />
         </div>
       </div>
       {actions(invitation)}
@@ -104,13 +129,14 @@ export function InvitationsTable({ data, user, onChanged }) {
         {[`Invited ${invitedAt(invitation)}`, invitedBy(invitation) ? `by ${invitedBy(invitation)}` : null]
           .filter(Boolean)
           .join(' ')}
+        {lastReset(invitation) ? ` · Credentials updated ${lastReset(invitation)}` : null}
       </p>
     </article>
   );
 
   let body;
   if (rows.length) {
-    body = <ResponsiveList label="Invitations" columns={columns} rows={rows} minTableWidth={760} renderCard={renderCard} />;
+    body = <ResponsiveList label="Invitations" columns={columns} rows={rows} minTableWidth={920} renderCard={renderCard} />;
   } else if (filtered) {
     body = (
       <EmptyState

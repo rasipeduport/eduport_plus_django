@@ -619,6 +619,12 @@ SCENARIOS = [
 
     # --- invitations ----------------------------------------------------------
     Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
+    # Regenerate Temporary Password: for whoever may reveal (inv_pending has no Learn account yet).
+    Scenario('invitations.credentials.regenerate', 'post', '/api/invitations/{inv_pending}/credentials/regenerate/',
+             {'last_password_reset_at': None}),
+    # Reset Password (an activated account): the same audience.
+    Scenario('invitations.credentials.reset', 'post', '/api/invitations/{inv_pending}/credentials/reset/',
+             {'last_password_reset_at': None}),
     Scenario('invitations.list', 'get', '/api/invitations/'),
     Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
     Scenario('invitations.create.student', 'post', '/api/invitations/', lambda w: {

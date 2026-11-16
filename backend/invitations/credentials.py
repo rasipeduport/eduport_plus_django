@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction, IntegrityError
+from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 from rest_framework.exceptions import APIException
 
@@ -52,6 +53,15 @@ def new_account(student_code, full_name, actor=None):
 
 
 @sensitive_variables()
+def seal_credentials(invitation, password):
+    # Bind ciphertext to its row/account/student; copying a DB blob cannot
+    # reveal another account's credentials through an authorized row.
+    payload = json.dumps({'invitation': str(invitation.pk), 'student': str(invitation.student_id),
+                          'account': str(invitation.account_id), 'password': password})
+    return credential_cipher().encrypt(payload.encode()).decode()
+
+
+@sensitive_variables()
 def create_invitation(student, account, password, actor=None, extra_data=None, invitation=None):
     invitation = invitation or Invitation(student=student, role='STUDENT', invited_by=actor)
     invitation.student = student
@@ -59,11 +69,7 @@ def create_invitation(student, account, password, actor=None, extra_data=None, i
     invitation.status = 'PENDING'
     invitation.extra_data = {**(invitation.extra_data or {}), **(extra_data or {}),
                              'student_code': student.student_code, 'full_name': student.full_name}
-    # Bind ciphertext to its row/account/student; copying a DB blob cannot
-    # reveal another account's credentials through an authorized row.
-    payload = json.dumps({'invitation': str(invitation.pk), 'student': str(student.pk),
-                          'account': str(account.pk), 'password': password})
-    invitation.credential_ciphertext = credential_cipher().encrypt(payload.encode()).decode()
+    invitation.credential_ciphertext = seal_credentials(invitation, password)
     invitation.save()
     log_activity('invitation.credentials_created', 'invitation', invitation.pk,
                  student=student, actor=actor, entity_label=student.student_code)
@@ -72,7 +78,9 @@ def create_invitation(student, account, password, actor=None, extra_data=None, i
 
 @sensitive_variables()
 def reveal_credentials(invitation):
-    if (invitation.status != 'PENDING' or not invitation.account_id or not invitation.student_id
+    # An activated account has a temporary password only between an
+    # administrator's reset and the student's own change, which erases it.
+    if (invitation.status not in ('PENDING', 'ACCEPTED') or not invitation.account_id or not invitation.student_id
             or invitation.student.profile_id != invitation.account_id
             or not invitation.credential_ciphertext or not invitation.account.must_change_password):
         return None
@@ -84,6 +92,57 @@ def reveal_credentials(invitation):
         return payload['password']
     except (InvalidToken, ValueError, KeyError):
         raise CredentialUnavailable() from None
+
+
+def regenerable(invitation):
+    """Whether an administrator may replace this account's temporary password.
+
+    Reveal's rule without the stored ciphertext: a pending account still on
+    its first password. Replacing it is also how credentials sealed with a key
+    since removed from LEARN_INVITATION_KEYS become readable again.
+    """
+    return bool(invitation.status == 'PENDING' and invitation.account_id and invitation.student_id
+                and invitation.student.profile_id == invitation.account_id
+                and invitation.account.must_change_password)
+
+
+def resettable(invitation):
+    """Whether an administrator may reset this activated account's password.
+
+    The account stays activated; it gets a temporary password it must replace
+    at its next sign-in. Its current password is never read, only replaced.
+    """
+    return bool(invitation.status == 'ACCEPTED' and invitation.account_id and invitation.student_id
+                and invitation.student.profile_id == invitation.account_id)
+
+
+@sensitive_variables()
+def regenerate_credentials(invitation):
+    """Give the account a new temporary password; its previous password stops working at once.
+
+    Used for a pending account (regenerable()) and an activated one
+    (resettable()); its status is not touched. The caller has checked which
+    under the account then invitation row locks (the order password change and
+    reveal take them). The account
+    must still choose its own password at its next sign-in, any lockout is
+    cleared, and every session signed in with the old password ends (the
+    session hash Django stores derives from it). Returns whether a lockout
+    was cleared. The new password is read through reveal_credentials only.
+    """
+    credential_cipher()  # Fail closed before the old password is replaced.
+    account = invitation.account
+    password = secrets.token_urlsafe(24)
+    validate_password(password, user=account)
+    was_locked = bool(account.locked_until and account.locked_until > timezone.now())
+    account.set_password(password)
+    account.must_change_password = True
+    account.failed_login_count = 0
+    account.locked_until = None
+    account.save(update_fields=['password', 'must_change_password', 'failed_login_count', 'locked_until', 'updated_at'])
+    invitation.credential_ciphertext = seal_credentials(invitation, password)
+    invitation.password_reset_at = timezone.now()
+    invitation.save(update_fields=['credential_ciphertext', 'password_reset_at', 'updated_at'])
+    return was_locked
 
 
 @transaction.atomic
