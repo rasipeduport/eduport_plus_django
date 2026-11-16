@@ -1,7 +1,7 @@
 // Normal Session lifecycle tests: where a class stands (Upcoming, In Progress,
 // Notes Due, Not Started, Completed, No-show / Not Conducted, Cancelled), what
-// its tutor's notes may do (nothing without a Start, complete within 48 hours,
-// late notes for approval after), and what an administrator or the student's
+// its tutor's notes may do (nothing without a Start; once it has ended they
+// complete it, however late -- no deadline, no approval), and what an administrator or the student's
 // mentor may record or correct -- in the Hub's Sessions page and Learn's
 // sessions list, rendered for real in jsdom (harness.jsx) with the API stood
 // in for (api-stub.js). The backend decides; these check what is offered.
@@ -120,12 +120,12 @@ const session = (extra = {}) => {
   const end = start + HOUR;
   return {
     id: 's-1', student_id: 'stu-1', title: 'Algebra', status: 'scheduled', series_id: null, class_number: null,
-    start_time: at(start), end_time: at(end), start_opens_at: at(start - 5 * 60 * 1000), notes_due_by: at(end + 48 * HOUR),
+    start_time: at(start), end_time: at(end), start_opens_at: at(start - 5 * 60 * 1000),
     students: { student_code: 'EDP1', full_name: 'Riya', mentor_profile: null, avatar_url: null },
     tutor: 't-a', tutor_profile: TUTOR_PROFILE, tutor_meet_link: 'https://meet.google.com/aaa-aaaa-aaa',
     started_at: null, started_by_profile: null, completed_at: null, completed_by_profile: null, duration_hours: 1,
     recording_link: null, notes_link: null, homework_link: null, content_files: {}, homework: null, rating: null,
-    late_notes_status: null, late_notes_submitted_at: null, outcome_reason: null, outcome_note: null, outcome_kind: null,
+    outcome_reason: null, outcome_note: null, outcome_kind: null,
     consumes_credit: true,
     ...rest,
   };
@@ -166,22 +166,24 @@ test('Hub and Learn put every class in the same one state, as the backend does',
   }
 });
 
-test("The tutor's notes: none without a Start, complete within 48 hours, late after, edits once completed", () => {
+test("The tutor's notes: none without a Start, complete once it ended however late, edits once completed", () => {
   const now = new Date();
   assert.equal(hub.notesMode(session({ startIn: 24 * HOUR }), now), 'not_started');
   assert.equal(hub.notesMode(session({ startIn: -7 * HOUR }), now), 'not_started');
   assert.equal(hub.notesMode(session({ startIn: -7 * HOUR, status: 'attended' }), now), 'not_started');
   assert.equal(hub.notesMode(started(-10 * 60 * 1000), now), 'wait');
   assert.equal(hub.notesMode(started(-3 * HOUR), now), 'complete');
-  assert.equal(hub.notesMode(started(-50 * HOUR), now), 'late');
-  assert.equal(hub.notesMode(started(-50 * HOUR, { late_notes_status: 'PENDING' }), now), 'late_pending');
+  // No deadline: days or weeks later they still complete it.
+  assert.equal(hub.notesMode(started(-50 * HOUR), now), 'complete');
+  assert.equal(hub.notesMode(started(-30 * 24 * HOUR), now), 'complete');
   assert.equal(hub.notesMode(started(-3 * HOUR, { status: 'attended', completed_at: at(-HOUR) }), now), 'save');
   assert.equal(hub.notesMode(session({ status: 'cancelled' }), now), null);
   assert.equal(hub.notesMode(session({ startIn: -5 * HOUR, status: 'not_conducted' }), now), null);
-  // Exactly at the deadline they still complete it.
+  // Exactly at its end, and long after.
   const due = started(-3 * HOUR);
-  assert.equal(hub.notesMode(due, new Date(due.notes_due_by)), 'complete');
-  assert.equal(hub.notesMode(due, new Date(new Date(due.notes_due_by).getTime() + 1)), 'late');
+  assert.equal(hub.notesMode(due, new Date(due.end_time)), 'complete');
+  assert.equal(hub.notesMode(due, new Date(new Date(due.end_time).getTime() + 60 * 24 * HOUR)), 'complete');
+  for (const gone of ['notesDueBy', 'lateNotesPending', 'notesOverdue']) assert.equal(hub[gone], undefined, gone);
 });
 
 test('Outcomes and cancelling: recorded once ended without a completion; cancelled only until the end', () => {
@@ -193,8 +195,6 @@ test('Outcomes and cancelling: recorded once ended without a completion; cancell
   assert.ok(!hub.mayRecordOutcome(started(-3 * HOUR, { status: 'attended', homework: { id: 'h-1', status: 'assigned' } }), now));
   assert.ok(hub.mayCancel(session({ startIn: -10 * 60 * 1000 }), now), 'under way it may still be cancelled');
   assert.ok(!hub.mayCancel(session({ startIn: -2 * HOUR }), now), 'never once it has ended');
-  assert.ok(hub.notesOverdue(started(-50 * HOUR), now));
-  assert.ok(!hub.notesOverdue(started(-50 * HOUR, { late_notes_status: 'PENDING' }), now));
 });
 
 test('Learn tells the student what happened, never the staff reason', () => {
@@ -223,7 +223,7 @@ test('Sessions page: the tabs follow where each class stands, Needs Action count
   assert.deepEqual(titles().sort(), ['Class 3', 'Class 4', 'Class 5', 'Class 6']);
   assert.ok(document.querySelector('[aria-label="4 need action"]'), 'Needs Action counts its classes');
   assert.ok(text().includes('Nobody started this class'));
-  assert.ok(text().includes('Notes due by'));
+  assert.ok(text().includes("Awaiting the tutor's notes"));
   await tab('Completed');
   assert.deepEqual(titles(), ['Class 7']);
   await tab('No-show / Not Conducted');
@@ -249,7 +249,7 @@ test('Tutor: Submit Notes stays shut until someone started the class and it has 
   }
 });
 
-test("Tutor: within 48 hours the notes complete the class; after, they go for approval", async () => {
+test("Tutor: the notes complete the class, hours or days after it ended -- never for approval", async () => {
   const due = started(-3 * HOUR);
   sessionsApi([due], { 'PUT /api/sessions/': { success: true, completed: true } });
   await open('sessions', { user: TUTOR, path: '/sessions?tab=needs_action' });
@@ -260,14 +260,15 @@ test("Tutor: within 48 hours the notes complete the class; after, they go for ap
   await cleanup(); cleanup = null;
 
   const late = started(-50 * HOUR, { id: 's-late' });
-  sessionsApi([late]);
+  sessionsApi([late], { 'PUT /api/sessions/': { success: true, completed: true } });
   await open('sessions', { user: TUTOR, path: '/sessions?tab=needs_action' });
-  assert.ok(text().includes('Notes overdue since'));
+  assert.ok(text().includes("Awaiting the tutor's notes"), text());
+  assert.ok(!text().includes('overdue') && !text().includes('Late notes'), text());
   [item] = await rowActions();
-  assert.equal(item.label, 'Submit Late Notes');
+  assert.equal(item.label, 'Submit Notes');
   await click(item.el);
-  assert.ok(text().includes('must approve them before the class is completed'), text());
-  assert.equal(buttons('Submit for Approval').length, 1);
+  assert.equal(buttons('Submit & Complete').length, 1);
+  assert.ok(!text().includes('approve'), text());
 });
 
 test('Staff: an ended class nobody started offers Record Outcome, never Cancel; one still to come the reverse', async () => {
@@ -299,25 +300,13 @@ test('Record Outcome: a reason from the list, Other only with its note, posted a
   assert.deepEqual(calls('POST', `/api/sessions/${row.id}/outcome/`).map((c) => c.data), [{ reason: 'OTHER', note: 'Power cut at the student’s home' }]);
 });
 
-test('Late notes: reviewed instead of an outcome; approved, or rejected by recording what happened', async () => {
-  const row = started(-50 * HOUR, { late_notes_status: 'PENDING', late_notes_submitted_at: at(-HOUR), notes_link: 'https://docs.test/n' });
-  sessionsApi([row], { [`POST /api/sessions/${row.id}/late-notes/approve/`]: { success: true, session: row } });
-  await open('sessions', { user: MENTOR, path: '/sessions?tab=needs_action' });
-  assert.ok(text().includes('Late notes awaiting approval'));
-  let labels = (await rowActions()).map((entry) => entry.label);
-  assert.ok(labels.includes('Review Late Notes') && !labels.includes('Record Outcome'), labels.join(', '));
-  await click(buttons('Review Late Notes')[0]);
-  await click(buttons('Approve & complete')[0]);
-  assert.equal(calls('POST', `/api/sessions/${row.id}/late-notes/approve/`).length, 1);
-  await cleanup(); cleanup = null;
-
+test('Staff: no late-notes review -- an ended, started class without its notes offers Record Outcome', async () => {
+  const row = started(-50 * HOUR, { notes_link: null });
   sessionsApi([row]);
   await open('sessions', { user: MENTOR, path: '/sessions?tab=needs_action' });
-  await rowActions();
-  await click(buttons('Review Late Notes')[0]);
-  await click(buttons('Reject them and record what happened instead')[0]);
-  assert.ok(text().includes('Reject late notes'), text());
-  assert.ok(text().includes("late notes will not complete this class"));
+  const labels = (await rowActions()).map((entry) => entry.label);
+  assert.ok(labels.includes('Record Outcome') && !labels.includes('Review Late Notes'), labels.join(', '));
+  assert.ok(!text().includes('Late notes awaiting approval'), text());
 });
 
 test('Correct Outcome: administrators only, always saying why; removing it is a revocation', async () => {

@@ -78,10 +78,9 @@ function NoteField({ id, label, value, onChange, required, disabled, placeholder
  * administrator or the student's mentor records what happened to a class
  * that ended without its tutor's completion, for a reason from the list
  * (Other needs a note). Final once recorded -- only an administrator can
- * correct it -- and it rejects late notes still awaiting approval
- * (``rejectingLateNotes`` says so). The API checks it all again.
+ * correct it. The API checks it all again.
  */
-export function RecordOutcomeDialog({ session, open, onOpenChange, onSaved, rejectingLateNotes = false }) {
+export function RecordOutcomeDialog({ session, open, onOpenChange, onSaved }) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState(null);
@@ -114,7 +113,7 @@ export function RecordOutcomeDialog({ session, open, onOpenChange, onSaved, reje
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={rejectingLateNotes ? 'Reject late notes' : 'Record outcome'}
+      title="Record outcome"
       description={describe(session)}
       error={error}
       onConfirm={record}
@@ -126,10 +125,7 @@ export function RecordOutcomeDialog({ session, open, onOpenChange, onSaved, reje
       size="md"
     >
       <p className="text-muted-foreground text-sm">
-        {rejectingLateNotes
-          ? "The tutor's late notes will not complete this class. Record what actually happened instead. "
-          : 'Record why this class was not conducted. '}
-        Once recorded, it is final: only an administrator can correct it, and the class never counts toward Tutor Earnings.
+        Record why this class was not conducted. Once recorded, it is final: only an administrator can correct it, and the class never counts toward Tutor Earnings.
       </p>
       <ReasonPicker value={reason} onChange={setReason} disabled={pending} name="session-outcome-reason" />
       <NoteField
@@ -141,75 +137,6 @@ export function RecordOutcomeDialog({ session, open, onOpenChange, onSaved, reje
         disabled={pending}
         placeholder="What happened, for the record"
       />
-    </FormDialog>
-  );
-}
-
-/**
- * Late notes (POST /api/sessions/<id>/late-notes/approve/): the tutor's notes
- * came in more than 48 hours after the class. Approving them completes the
- * class as of when they came in, and it then counts toward Tutor Earnings;
- * rejecting them is recording the class's outcome (``onReject``).
- */
-export function ReviewLateNotesDialog({ session, open, onOpenChange, onSaved, onReject }) {
-  const [error, setError] = useState(null);
-  const [pending, setPending] = useState(false);
-  useOnOpen(open, () => setError(null));
-
-  async function approve() {
-    if (!session) return;
-    setPending(true);
-    setError(null);
-    try {
-      const response = await api.post(`/api/sessions/${session.id}/late-notes/approve/`);
-      onSaved?.(response.data.session);
-      onOpenChange(false);
-    } catch (err) {
-      setError(lifecycleError(err, 'Could not approve the late notes.').message);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  const notes = (session?.notes_link || '').trim();
-  const tutor = session?.tutor_profile?.full_name || session?.tutor_profile?.email || 'The tutor';
-
-  return (
-    <FormDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Review late notes"
-      description={describe(session)}
-      error={error}
-      onConfirm={approve}
-      confirmLabel="Approve & complete"
-      pendingLabel="Approving…"
-      cancelLabel="Close"
-      pending={pending}
-      size="md"
-    >
-      <div className="flex flex-col gap-3 text-sm">
-        <p className="text-muted-foreground">
-          {tutor} submitted these notes {stamp(session?.late_notes_submitted_at)}, after the 48 hours that ended{' '}
-          {stamp(session?.notes_due_by)}. Approving them completes the class as of then, and it counts toward Tutor
-          Earnings.
-        </p>
-        {notes ? (
-          <a href={notes} target="_blank" rel="noopener noreferrer" className="text-primary break-all underline">
-            Open the notes
-          </a>
-        ) : (
-          <p className="text-destructive">The notes are no longer on this class.</p>
-        )}
-        <button
-          type="button"
-          className="text-muted-foreground hover:text-foreground self-start text-xs underline"
-          onClick={() => onReject?.(session)}
-          disabled={pending}
-        >
-          Reject them and record what happened instead
-        </button>
-      </div>
     </FormDialog>
   );
 }
@@ -295,8 +222,8 @@ export function CorrectOutcomeDialog({ session, open, onOpenChange, onSaved }) {
       </fieldset>
       {revoking ? (
         <p className="text-muted-foreground text-sm">
-          The class goes back to how it was before the outcome was recorded, and any late notes the outcome rejected
-          await approval again.
+          The class goes back to how it was before the outcome was recorded; a class someone started takes its
+          tutor's notes again.
         </p>
       ) : (
         <>

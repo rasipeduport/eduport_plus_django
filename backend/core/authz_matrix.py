@@ -35,6 +35,7 @@ from rest_framework.test import APIClient
 from activity.models import ActivityLog
 from bookings.models import BookingSlot, BookingType, DemoBooking, Lead, ReferralStatus, SlotTime
 from bookings.scheduling import indian_today, slot_instants
+from earnings.values import india_today
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
@@ -565,13 +566,12 @@ SCENARIOS = [
     # stu_a's mentor and the administrators are told it is too early; everyone
     # else is refused.
     Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
-    # No-show / Not Conducted, late-notes approval (the student's mentor and the
-    # administrators) and an outcome's correction or revocation (administrators
-    # only), sessions.lifecycle. ses_a_att has its homework under way, no late
-    # notes and no recorded outcome, so whoever may act is told why not (409).
+    # No-show / Not Conducted (the student's mentor and the administrators) and
+    # an outcome's correction or revocation (administrators only),
+    # sessions.lifecycle. ses_a_att has its homework under way and no recorded
+    # outcome, so whoever may act is told why not (409).
     Scenario('sessions.outcome.a', 'post', '/api/sessions/{ses_a_att}/outcome/',
              lambda w: {'reason': 'STUDENT_NO_SHOW'}),
-    Scenario('sessions.late_notes_approve.a', 'post', '/api/sessions/{ses_a_att}/late-notes/approve/'),
     Scenario('sessions.outcome_correct.a', 'post', '/api/sessions/{ses_a_att}/outcome/correct/',
              lambda w: {'reason': 'TUTOR_ABSENT', 'correction_note': 'Matrix'}),
     Scenario('sessions.outcome_revoke.a', 'post', '/api/sessions/{ses_a_att}/outcome/revoke/',
@@ -896,6 +896,37 @@ SCENARIOS += [
     Scenario('student_finance.foreign', 'get', '/api/sales/students/{stu_b}/finance/'),
     Scenario('student_finance.payments', 'get', '/api/sales/students/{stu_a}/payments/'),
     Scenario('student_finance.proof', 'get', '/api/sales/purchases/{stu_a}/payments/{stu_a}/proof/'),
+]
+
+
+# Tutor Earnings (earnings app): every tutor's earnings, the rates, payments
+# and ledger corrections are the administrators' (and the superusers'); a
+# tutor reads their own under /me/. The matrix world has the activation (its
+# migration) but no pricing and no earning, so the rate, payment and tutor-rate
+# changes are answered PRICING_NOT_STARTED, starting pricing and an adjustment
+# go through (rolled back), and a payment or entry that does not exist is a 404.
+EARNINGS_MISSING = '00000000-0000-0000-0000-00000000e001'
+SCENARIOS += [
+    Scenario('earnings.overview', 'get', '/api/earnings/overview/'),
+    Scenario('earnings.rates', 'get', '/api/earnings/rates/'),
+    Scenario('earnings.rates_change', 'post', '/api/earnings/rates/', {'rates': {'SESSION': '410'}, 'reason': 'Matrix'}),
+    Scenario('earnings.rates_initial', 'post', '/api/earnings/rates/initial/', {
+        'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True}),
+    Scenario('earnings.review', 'get', '/api/earnings/review/'),
+    Scenario('earnings.tutor', 'get', '/api/earnings/tutors/{tutor_a}/'),
+    Scenario('earnings.tutor_entries', 'get', '/api/earnings/tutors/{tutor_a}/entries/'),
+    Scenario('earnings.tutor_rates', 'post', '/api/earnings/tutors/{tutor_a}/rates/',
+             {'rates': {'SESSION': '450'}, 'reason': 'Matrix'}),
+    Scenario('earnings.tutor_payment', 'post', '/api/earnings/tutors/{tutor_a}/payments/', lambda w: {
+        'request_id': str(fixed_id('earnings_payment_request')), 'amount': '100', 'paid_on': india_today().isoformat(),
+        'method': 'UPI', 'reference': 'UPI MATRIX 1'}),
+    Scenario('earnings.tutor_adjustment', 'post', '/api/earnings/tutors/{tutor_a}/adjustments/',
+             {'amount': '50', 'reason': 'Matrix'}),
+    Scenario('earnings.payment_void', 'post', f'/api/earnings/payments/{EARNINGS_MISSING}/void/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_reverse', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/reverse/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_keep', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/keep/', {'reason': 'Matrix'}),
+    Scenario('earnings.me', 'get', '/api/earnings/me/'),
+    Scenario('earnings.me_entries', 'get', '/api/earnings/me/entries/'),
 ]
 
 

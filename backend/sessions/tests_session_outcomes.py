@@ -1,26 +1,32 @@
 """
 Where a normal session stands and what is recorded about it once it is over
-(sessions.lifecycle): the derived class state, the tutor's notes deadline and
-late notes awaiting approval, No-show / Not Conducted recorded by an
-administrator or the student's mentor, an administrator's audited correction
-or revocation of it, the credit each outcome leaves used, and the cut-off
-for cancelling.
+(sessions.lifecycle): the derived class state, the tutor's notes completing a
+started class whenever they come in after its end (no deadline, no approval),
+No-show / Not Conducted recorded by an administrator or the student's mentor,
+an administrator's audited correction or revocation of it, the credit each
+outcome leaves used, and the cut-off for cancelling.
 """
 from datetime import timedelta
 
-from django.db import IntegrityError, transaction
-from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TransactionTestCase
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from rest_framework import status
 
 from homework.models import Homework
+from students.models import StatusChoices, Student
 from students.services import build_profile_stats
 
 from . import lifecycle
 from .lifecycle import ClassState
-from .models import NOTES_DEADLINE, LateNotesStatus, Session, SessionOutcomeReason
+from .models import Session, SessionOutcomeReason
 from .services import apply_state_filter, calculate_credits_used, state_q
 from .tests_session_lifecycle import ATTENDED, CANCELLED, SCHEDULED, SessionLifecycleWorld
+
+User = get_user_model()
 
 NOT_CONDUCTED = 'NOT_CONDUCTED'
 NO_SHOW = SessionOutcomeReason.STUDENT_NO_SHOW
@@ -37,23 +43,12 @@ class OutcomeWorld(SessionLifecycleWorld):
     def record(self, user, session, reason=NO_SHOW, note=None):
         return self.post(user, 'session-outcome', session, {'reason': reason, 'note': note})
 
-    def approve(self, user, session):
-        return self.post(user, 'session-late-notes-approve', session)
-
     def correct(self, user, session, reason, note=None, correction_note='Recorded against the wrong class'):
         return self.post(user, 'session-outcome-correct', session,
                          {'reason': reason, 'note': note, 'correction_note': correction_note})
 
     def revoke(self, user, session, correction_note='Recorded against the wrong class'):
         return self.post(user, 'session-outcome-revoke', session, {'correction_note': correction_note})
-
-    def late(self, days=4, **fields):
-        """A started class whose notes deadline has passed, with its tutor's late notes in."""
-        session = self.make(-timedelta(days=days), started=True, **fields)
-        res = self.notes(self.tutor, session)
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        session.refresh_from_db()
-        return session
 
     def row(self, user, session, **params):
         self.client.force_authenticate(user=user)
@@ -126,7 +121,9 @@ class ClassStateTests(OutcomeWorld):
             with self.subTest(label):
                 row = self.row(self.admin, session)
                 self.assertEqual(row['class_state'], self.EXPECTED[label].lower())
-                self.assertEqual(row['notes_due_by'], (session.end_time + NOTES_DEADLINE).isoformat())
+                # No deadline and no late notes: nothing about either is served.
+                self.assertFalse({'notes_due_by', 'late_notes_status', 'late_notes_submitted_at',
+                                  'late_notes_reviewed_at', 'late_notes_reviewed_by_profile'} & set(row))
         self.client.force_authenticate(user=self.admin)
         res = self.client.get(self.sessions_url, {'state': 'notes_due,NOT_STARTED'})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
@@ -148,110 +145,65 @@ class ClassStateTests(OutcomeWorld):
             apply_state_filter(Session.objects.all(), 'attended', self.now)
 
 
-class NotesDeadlineTests(OutcomeWorld):
+class NotesWithoutDeadlineTests(OutcomeWorld):
     def mode_at(self, session, now):
         with transaction.atomic():
             return lifecycle.tutor_notes_target(session, self.tutor, now, 'cancelled')[1]
 
-    def test_notes_complete_until_exactly_48_hours_after_the_scheduled_end(self):
-        session = self.make(-timedelta(days=5), started=True)
-        self.assertEqual(session.notes_due_by, session.end_time + timedelta(hours=48))
-        self.assertEqual(self.mode_at(session, session.end_time), lifecycle.NOTES_COMPLETE)
-        self.assertEqual(self.mode_at(session, session.notes_due_by), lifecycle.NOTES_COMPLETE)
-        self.assertEqual(self.mode_at(session, session.notes_due_by + timedelta(microseconds=1)), lifecycle.NOTES_LATE)
+    def test_notes_complete_a_started_class_whenever_they_come_in_after_its_end(self):
+        session = self.make(-timedelta(days=40), started=True)
+        for after in (timedelta(0), timedelta(hours=48), timedelta(hours=48, microseconds=1), timedelta(days=30)):
+            with self.subTest(after=after):
+                self.assertEqual(self.mode_at(session, session.end_time + after), lifecycle.NOTES_COMPLETE)
 
-    def test_late_notes_are_kept_awaiting_approval_and_complete_nothing(self):
-        session = self.make(-timedelta(days=3), started=True)
+    def test_notes_weeks_after_the_class_complete_it_with_no_approval(self):
+        session = self.make(-timedelta(days=21), started=True, homework_link='https://hw.example/1')
         res = self.notes(self.tutor, session)
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual((res.data['completed'], res.data['late_notes']), (False, True))
+        self.assertTrue(res.data['completed'])
+        self.assertNotIn('late_notes', res.data)
         session.refresh_from_db()
-        self.assertEqual((session.status, session.notes_link), (SCHEDULED, 'https://example.com/notes'))
-        self.assertIsNone(session.completed_at)
-        self.assertEqual(session.late_notes_status, LateNotesStatus.PENDING)
-        self.assertGreater(session.late_notes_submitted_at, session.notes_due_by)
-        self.assertEqual(lifecycle.class_state(session, timezone.now()), ClassState.NOTES_DUE)
-        self.assertEqual(self.logs(session, 'session.submit_late_notes').count(), 1)
-        self.assertFalse(self.logs(session, 'session.complete').exists())
-        row = self.row(self.mentor, session)
-        self.assertEqual((row['late_notes_status'], row['class_state']), ('PENDING', 'notes_due'))
+        self.assertEqual((session.status, session.completed_by), (ATTENDED, self.tutor))
+        self.assertGreater(session.completed_at, session.end_time + timedelta(days=20))
+        self.assertEqual(lifecycle.class_state(session, timezone.now()), ClassState.COMPLETED)
+        self.assertEqual(self.logs(session, 'session.complete').count(), 1)
+        self.assertFalse(self.logs(session, 'session.submit_late_notes').exists())
+        self.assertEqual(Homework.objects.get(session=session).status, 'ASSIGNED')
+        self.assertEqual(self.row(self.mentor, session)['class_state'], 'completed')
 
-    def test_late_notes_may_be_replaced_while_they_await_approval(self):
-        session = self.late()
-        first = session.late_notes_submitted_at
-        res = self.notes(self.tutor, session, link='https://example.com/notes-v2')
-        self.assertEqual((res.data['completed'], res.data['late_notes']), (False, True))
-        session.refresh_from_db()
-        self.assertEqual(session.notes_link, 'https://example.com/notes-v2')
-        self.assertEqual((session.late_notes_status, session.late_notes_submitted_at), (LateNotesStatus.PENDING, first))
-        self.assertEqual(self.logs(session, 'session.submit_late_notes').count(), 1)
-
-    def test_uploaded_late_notes_wait_too(self):
+    def test_uploaded_notes_days_later_complete_it_too(self):
         session = self.make(-timedelta(days=3), started=True)
         res = self.upload_notes(self.tutor, session)
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual((res.data['completed'], res.data['late_notes']), (False, True))
+        self.assertTrue(res.data['completed'])
+        self.assertNotIn('late_notes', res.data)
         session.refresh_from_db()
-        self.assertEqual(session.late_notes_status, LateNotesStatus.PENDING)
+        self.assertEqual((session.status, session.completed_by), (ATTENDED, self.tutor))
         self.assertEqual(session.files.count(), 1)
 
-    def test_a_class_staff_marked_attended_waits_for_approval_too(self):
+    def test_a_class_staff_marked_attended_is_completed_by_its_tutors_later_notes(self):
         session = self.make(-timedelta(days=3), started=True, status_value=ATTENDED)
-        self.assertTrue(self.notes(self.tutor, session).data['late_notes'])
+        self.assertTrue(self.notes(self.tutor, session).data['completed'])
         session.refresh_from_db()
-        self.assertEqual((session.status, session.late_notes_status), (ATTENDED, LateNotesStatus.PENDING))
+        self.assertEqual((session.status, session.completed_by), (ATTENDED, self.tutor))
 
-
-class LateNotesApprovalTests(OutcomeWorld):
-    def test_the_students_mentor_or_an_administrator_approves_them(self):
-        for approver in (self.mentor, self.admin):
-            with self.subTest(role=approver.role):
-                session = self.late(homework_link='https://hw.example/1')
-                res = self.approve(approver, session)
-                self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-                session.refresh_from_db()
-                self.assertEqual(session.status, ATTENDED)
-                self.assertEqual((session.completed_by, session.completed_at), (self.tutor, session.late_notes_submitted_at))
-                self.assertEqual(session.late_notes_status, LateNotesStatus.APPROVED)
-                self.assertEqual(session.late_notes_reviewed_by, approver)
-                self.assertEqual(res.data['session']['class_state'], 'completed')
-                self.assertEqual(self.logs(session, 'session.approve_late_notes').get().actor, approver)
-                completion = self.logs(session, 'session.complete').get()
-                self.assertTrue(completion.context['approved_late_notes'])
-                self.assertEqual(Homework.objects.get(session=session).status, 'ASSIGNED')
-
-    def test_nobody_else_approves_them(self):
-        session = self.late()
-        for user, code in ((self.other_mentor, status.HTTP_403_FORBIDDEN), (self.tutor, status.HTTP_403_FORBIDDEN),
-                           (self.bde, status.HTTP_403_FORBIDDEN), (self.student_user, status.HTTP_403_FORBIDDEN)):
-            with self.subTest(role=user.role, email=user.email):
-                self.assertEqual(self.approve(user, session).status_code, code)
+    def test_an_unstarted_class_still_takes_no_notes_however_long_after(self):
+        session = self.make(-timedelta(days=5))
+        res = self.notes(self.tutor, session)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], lifecycle.SESSION_NOT_STARTED)
         session.refresh_from_db()
-        self.assertEqual(session.late_notes_status, LateNotesStatus.PENDING)
+        self.assertIsNone(session.completed_at)
 
-    def test_only_late_notes_awaiting_approval_can_be_approved(self):
-        on_time = self.make(-timedelta(hours=3), started=True)
-        self.notes(self.tutor, on_time)
-        for session in (on_time, self.make(-timedelta(days=3), started=True)):
-            res = self.approve(self.mentor, session)
-            self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
-            self.assertEqual(res.data['code'], lifecycle.NO_LATE_NOTES)
-        approved = self.late()
-        self.approve(self.mentor, approved)
-        self.assertEqual(self.approve(self.mentor, approved).data['code'], lifecycle.NO_LATE_NOTES)
-        self.assertEqual(self.logs(approved, 'session.complete').count(), 1)
-
-    def test_late_notes_staff_removed_are_not_approved(self):
-        session = self.late()
-        self.assertEqual(self.put(self.mentor, {'id': str(session.id), 'notes_link': None}).status_code, status.HTTP_200_OK)
-        res = self.approve(self.mentor, session)
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(res.data['code'], lifecycle.LATE_NOTES_MISSING)
-
-    def test_an_unknown_session_is_404(self):
+    def test_the_late_notes_approval_is_gone(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse('sessions:session-late-notes-approve', args=[self.make(-timedelta(days=3), started=True).id])
+        session = self.make(-timedelta(days=3), started=True)
         self.client.force_authenticate(user=self.admin)
-        url = reverse('sessions:session-late-notes-approve', args=['00000000-0000-0000-0000-000000000000'])
-        self.assertEqual(self.client.post(url).status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.post(f'/api/sessions/{session.id}/late-notes/approve/').status_code,
+                         status.HTTP_404_NOT_FOUND)
+        for name in ('NOTES_LATE', 'NOTES_LATE_UPDATE', 'approve_late_notes', 'NO_LATE_NOTES'):
+            self.assertFalse(hasattr(lifecycle, name), name)
 
 
 class RecordOutcomeTests(OutcomeWorld):
@@ -336,14 +288,12 @@ class RecordOutcomeTests(OutcomeWorld):
                 self.assertEqual(res.data['code'], lifecycle.INVALID_OUTCOME)
         self.assertEqual(self.record(self.mentor, session, OTHER, note='Power cut').status_code, status.HTTP_200_OK)
 
-    def test_it_rejects_late_notes_awaiting_approval(self):
-        session = self.late()
-        self.assertEqual(self.record(self.mentor, session, TUTOR_ABSENT).status_code, status.HTTP_200_OK)
-        session.refresh_from_db()
-        self.assertEqual((session.late_notes_status, session.late_notes_reviewed_by), (LateNotesStatus.REJECTED, self.mentor))
-        self.assertIsNone(session.completed_at)
-        log = self.logs(session, 'session.record_outcome').get()
-        self.assertEqual(log.changes['late_notes_status'], {'old': 'PENDING', 'new': 'REJECTED'})
+    def test_a_class_its_tutors_notes_completed_days_later_is_not_recorded(self):
+        session = self.make(-timedelta(days=4), started=True)
+        self.assertTrue(self.notes(self.tutor, session).data['completed'])
+        res = self.record(self.mentor, session, TUTOR_ABSENT)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], lifecycle.SESSION_COMPLETED)
 
     def test_a_recorded_outcome_is_final(self):
         session = self.make(-timedelta(hours=3), started=True)
@@ -420,17 +370,16 @@ class OutcomeCorrectionTests(OutcomeWorld):
                 self.assertEqual(log.changes['status'], {'old': NOT_CONDUCTED, 'new': prior})
                 self.assertEqual(log.context['correction_note'], 'Recorded against the wrong class')
                 self.assertEqual(log.context['recorded_by_id'], str(self.mentor.id))
-        # The started class takes its tutor's notes again (completing it within the deadline).
+        # The started class takes its tutor's notes again, completing it.
         self.assertTrue(self.notes(self.tutor, cases['scheduled']).data['completed'])
 
-    def test_revoking_brings_rejected_late_notes_back_for_approval(self):
-        session = self.late()
+    def test_after_a_revocation_the_tutors_notes_complete_the_class_however_late(self):
+        session = self.make(-timedelta(days=6), started=True)
         self.record(self.mentor, session, TUTOR_ABSENT)
+        self.assertEqual(self.notes(self.tutor, session).data['code'], lifecycle.OUTCOME_RECORDED)
         self.assertEqual(self.revoke(self.admin, session).status_code, status.HTTP_200_OK)
-        session.refresh_from_db()
-        self.assertEqual(session.late_notes_status, LateNotesStatus.PENDING)
-        self.assertIsNone(session.late_notes_reviewed_at)
-        self.assertEqual(self.approve(self.admin, session).status_code, status.HTTP_200_OK)
+        self.assertNotIn('late_notes_status', self.logs(session, 'session.revoke_outcome').get().changes)
+        self.assertTrue(self.notes(self.tutor, session).data['completed'])
         session.refresh_from_db()
         self.assertEqual((session.status, session.completed_by), (ATTENDED, self.tutor))
 
@@ -526,7 +475,7 @@ class StudentViewTests(OutcomeWorld):
         for session, kind in ((no_show, 'no_show'), (not_held, 'not_conducted')):
             row = self.row(self.student_user, session)
             self.assertEqual((row['class_state'], row['outcome_kind']), ('not_conducted', kind))
-            for hidden in ('outcome_reason', 'outcome_note', 'outcome_recorded_by_profile', 'late_notes_status'):
+            for hidden in ('outcome_reason', 'outcome_note', 'outcome_recorded_by_profile', 'outcome_corrected_at'):
                 self.assertNotIn(hidden, row)
             self.assertEqual(self.row(self.mentor, session)['outcome_note'], 'Mentor-only remark')
 
@@ -543,7 +492,7 @@ class OutcomeIntegrityTests(OutcomeWorld):
         with self.assertRaises(IntegrityError), transaction.atomic():
             self.make(-timedelta(hours=3), **fields)
 
-    def test_the_database_holds_the_outcome_and_late_notes_rules(self):
+    def test_the_database_holds_the_outcome_rules(self):
         recorded = dict(status_value=NOT_CONDUCTED, outcome_reason=NO_SHOW, outcome_recorded_at=self.now,
                         outcome_prior_status=SCHEDULED)
         # Not conducted without its outcome, or an outcome on another status.
@@ -554,14 +503,85 @@ class OutcomeIntegrityTests(OutcomeWorld):
         self.refused(**{**recorded, 'outcome_recorded_at': self.now - timedelta(hours=3)})
         self.refused(**{**recorded, 'outcome_prior_status': CANCELLED})
         self.refused(**{**recorded, 'outcome_reason': OTHER})
-        # Late notes before the deadline, without a start, or approved without a completion.
-        self.refused(started=True, late_notes_status=LateNotesStatus.PENDING, late_notes_submitted_at=self.now)
-        late = self.now + timedelta(days=3)
-        self.refused(late_notes_status=LateNotesStatus.PENDING, late_notes_submitted_at=late)
-        self.refused(started=True, late_notes_status=LateNotesStatus.APPROVED, late_notes_submitted_at=late,
-                     late_notes_reviewed_at=late)
-        # Rejected late notes only with a recorded outcome.
-        self.refused(started=True, late_notes_status=LateNotesStatus.REJECTED, late_notes_submitted_at=late,
-                     late_notes_reviewed_at=late)
         # A sound recorded outcome is held.
         self.make(-timedelta(hours=3), **recorded)
+
+    def test_the_database_holds_a_completion_long_after_the_end_but_never_without_a_start(self):
+        weeks_later = dict(status_value=ATTENDED, completed_at=self.now + timedelta(days=30), completed_by=self.tutor)
+        self.refused(**weeks_later)
+        self.make(-timedelta(hours=3), started=True, **weeks_later)
+
+
+class NotesDeadlineMigrationTests(TransactionTestCase):
+    """
+    sessions_app.0005 completes late notes still awaiting approval -- with the
+    homework row an approval made -- and reverses: a class its tutor's notes
+    completed days after its end comes back as late notes approved, so the
+    deadline's checks hold again.
+    """
+
+    def people(self):
+        tutor = User.objects.create_user(email='nd_tutor@eduport.com', password='x', full_name='Nd Tutor', role='TUTOR',
+                                         is_staff=True)
+        student = Student.objects.create(
+            profile=User.objects.create_user(email='nd_stu@eduport.com', password='x', full_name='Nd Stu', role='STUDENT'),
+            student_code='EDPND1', full_name='Nd Stu', tutor=tutor, total_class_quota=10, status=StatusChoices.ACTIVE,
+        )
+        return tutor, student
+
+    def test_late_notes_awaiting_approval_complete_their_class(self):
+        tutor, student = self.people()
+        end = timezone.now().replace(microsecond=0) - timedelta(days=10)
+        submitted = end + timedelta(days=3)
+        executor = MigrationExecutor(connection)
+        try:
+            before = [('sessions_app', '0004_session_outcomes_and_late_notes')]
+            executor.migrate(before)
+            OldSession = executor.loader.project_state(before).apps.get_model('sessions_app', 'Session')
+
+            def awaiting(**fields):
+                return OldSession.objects.create(
+                    student_id=student.pk, tutor_id=tutor.pk, title='Algebra', start_time=end - timedelta(hours=1),
+                    end_time=end, status='SCHEDULED', started_at=end - timedelta(hours=1), started_by_id=tutor.pk,
+                    late_notes_status='PENDING', late_notes_submitted_at=submitted, **fields,
+                ).pk
+
+            with_notes = awaiting(notes_link='https://example.com/notes', homework_link='https://example.com/homework')
+            no_notes = awaiting(notes_link='  ')
+        finally:
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes('sessions_app'))
+        done = Session.objects.get(pk=with_notes)
+        self.assertEqual((done.status, done.completed_at, done.completed_by_id), (ATTENDED, submitted, tutor.pk))
+        homework = Homework.objects.get(session_id=with_notes)
+        self.assertEqual((homework.status, homework.assigned_at, homework.assigned_by_id), ('ASSIGNED', submitted, None))
+        untouched = Session.objects.get(pk=no_notes)
+        self.assertEqual((untouched.status, untouched.completed_at), (SCHEDULED, None))
+        self.assertFalse(Homework.objects.filter(session_id=no_notes).exists())
+
+    def test_reverse_and_reapply(self):
+        tutor, student = self.people()
+        end = timezone.now().replace(microsecond=0) - timedelta(days=10)
+
+        def completed(after):
+            return Session.objects.create(
+                student=student, tutor=tutor, title='Algebra', start_time=end - timedelta(hours=1), end_time=end,
+                status=ATTENDED, started_at=end - timedelta(hours=1), started_by=tutor, completed_at=end + after,
+                completed_by=tutor, notes_link='https://example.com/notes',
+            )
+
+        late, on_time = completed(timedelta(days=5)), completed(timedelta(hours=3))
+        executor = MigrationExecutor(connection)
+        try:
+            executor.migrate([('sessions_app', '0004_session_outcomes_and_late_notes')])
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT id, late_notes_status, late_notes_submitted_at, late_notes_reviewed_at, '
+                               'late_notes_reviewed_by_id FROM sessions')
+                rows = {row[0]: row[1:] for row in cursor.fetchall()}
+            self.assertEqual(rows[late.pk], ('APPROVED', late.completed_at, late.completed_at, None))
+            self.assertEqual(rows[on_time.pk], (None, None, None, None))
+        finally:
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes('sessions_app'))
+        late.refresh_from_db()
+        self.assertEqual((late.status, late.completed_at), (ATTENDED, end + timedelta(days=5)))

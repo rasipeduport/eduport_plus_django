@@ -8,7 +8,7 @@ administrator, from 5 minutes before its scheduled start until its scheduled
 end, by the server's clock; a start opens the tutor's notes and never
 completes it on its own. It is completed only by its assigned tutor's own
 notes submitted after its originally scheduled end on a class someone
-started (the deadline and late notes: tests_session_outcomes); staff
+started, however long after (tests_session_outcomes); staff
 attendance, notes and recordings never complete it; and it always counts as
 the class that was booked. A tutor whose student moved on keeps their own
 classes to complete.
@@ -682,15 +682,11 @@ class SessionIntegrityTests(SessionLifecycleWorld):
         unstarted.completed_at = self.now
         with self.assertRaises(IntegrityError), transaction.atomic():
             unstarted.save(update_fields=['completed_at'])
-        # Never after the notes deadline without an approval.
-        late = self.make(-timedelta(days=3), status_value=ATTENDED, started=True)
-        late.completed_at = self.now
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            late.save(update_fields=['completed_at'])
-        # Started, attended, within the deadline: held.
-        on_time = self.make(-timedelta(hours=2), status_value=ATTENDED, started=True)
-        on_time.completed_at = self.now
-        on_time.save(update_fields=['completed_at'])
+        # Started, attended, after the end -- however long after: held (there is no deadline).
+        for ago in (timedelta(hours=2), timedelta(days=3), timedelta(days=60)):
+            held = self.make(-ago, status_value=ATTENDED, started=True)
+            held.completed_at = self.now
+            held.save(update_fields=['completed_at'])
 
 
 class FormerTutorTests(SessionLifecycleWorld):

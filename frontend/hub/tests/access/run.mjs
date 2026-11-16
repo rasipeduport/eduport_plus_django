@@ -426,15 +426,115 @@ const SALES_CATALOGUE = { status: 200, body: { count: 2, page: 1, page_size: 25,
     plan_types: ['BRIDGE_COURSE'], chapter_count: 30, totals: { regular: null, revision: null, bridge: '30' } },
 ] } };
 
+// Tutor Earnings (accounts.0030), laid over the same recorded answers: every
+// tutor's earnings, the rates, payments and corrections for the administrators
+// -- and a superuser, who holds every permission (D1), a tutor's own too -- and a
+// tutor's own earnings for a tutor. Fixed answers: tutor_a earned a Demo at the
+// global rate and a session at their own, was paid once (and once voided), and
+// owes notes on one class; one earning needs review.
+const EARNINGS_ADMIN_PERMISSIONS = ['accounts.correct_tutor_earnings', 'accounts.manage_tutor_payments',
+  'accounts.manage_tutor_rates', 'accounts.view_tutor_earnings'];
+const VIEW_OWN_EARNINGS = 'accounts.view_own_earnings';
+const EARNINGS_ADMIN = { id: 'admin', name: 'Asha Admin' };
+const EARNINGS_STATUS = {
+  currency: 'INR', activated_at: '2026-11-15T16:53:53+00:00', months: ['2026-12', '2026-11'],
+  pricing: { started_at: '2026-11-20T05:00:00+00:00', started_by: EARNINGS_ADMIN },
+  last_sync: { started_at: '2026-12-10T05:06:00+00:00', finished_at: '2026-12-10T05:06:01+00:00', status: 'SUCCEEDED', earned_count: 0, waiting_count: 0 },
+};
+const EARNINGS_COUNTS = { diagnostic: 0, demo: 1, sessions: 1, session_hours: '1.50', classes: 2 };
+const NO_COUNTS = { diagnostic: 0, demo: 0, sessions: 0, session_hours: '0.00', classes: 0 };
+const earningsEntry = (id, classType, extra) => ({ id, kind: 'EARNING', class_type: classType, source_id: `${id}-src`,
+  class_start: '2026-11-25T10:30:00+00:00', class_end: '2026-11-25T12:00:00+00:00', month: '2026-11', reason: null,
+  created_at: '2026-11-25T12:06:00+00:00', reverses_id: null, reversed: false, reversal: null,
+  details: { student_name: 'Riya', started_at: '2026-11-25T10:31:00+00:00', completed_at: '2026-11-25T13:00:00+00:00' }, ...extra });
+const EARNINGS_ENTRIES_ADMIN = [
+  earningsEntry('entry-session', 'SESSION', { units: '1.50', unit: 'HOUR', rate: '450.00', amount: '675.00', rate_source: 'TUTOR', created_by: null }),
+  earningsEntry('entry-demo', 'DEMO', { units: '1.00', unit: 'CLASS', rate: '300.00', amount: '300.00', rate_source: 'GLOBAL', created_by: null }),
+];
+const EARNINGS_ENTRIES_OWN = EARNINGS_ENTRIES_ADMIN.map(({ rate_source: _source, created_by: _by, ...entry }) => entry);
+const earningsPayment = (id, extra) => ({ id, amount: '500.00', currency: 'INR', paid_on: '2026-12-05', method: 'ACCOUNT_TRANSFER',
+  method_label: 'Account Transfer', reference: `UTR ${id}`, notes: '', recorded_at: '2026-12-05T06:00:00+00:00', voided: false,
+  voided_at: null, void_reason: null, ...extra });
+const EARNINGS_PAYMENTS_ADMIN = [
+  earningsPayment('pay-1', { recorded_by: EARNINGS_ADMIN, voided_by: null }),
+  earningsPayment('pay-0', { amount: '50.00', voided: true, voided_at: '2026-12-05T06:10:00+00:00', void_reason: 'Typed wrongly',
+    recorded_by: EARNINGS_ADMIN, voided_by: EARNINGS_ADMIN }),
+];
+const EARNINGS_PAYMENTS_OWN = EARNINGS_PAYMENTS_ADMIN.map(({ recorded_by: _r, voided_by: _v, ...payment }) => payment);
+const earningsBreakdown = (admin) => [
+  { class_type: 'DIAGNOSTIC', unit: 'CLASS', classes: 0, units: '0.00', amount: '0.00', lines: [] },
+  { class_type: 'DEMO', unit: 'CLASS', classes: 1, units: '1.00', amount: '300.00',
+    lines: [{ rate: '300.00', classes: 1, units: '1.00', amount: '300.00', ...(admin ? { rate_source: 'GLOBAL' } : {}) }] },
+  { class_type: 'SESSION', unit: 'HOUR', classes: 1, units: '1.50', amount: '675.00',
+    lines: [{ rate: '450.00', classes: 1, units: '1.50', amount: '675.00', ...(admin ? { rate_source: 'TUTOR' } : {}) }] },
+];
+const earningsRates = (admin) => [['DIAGNOSTIC', 'CLASS', '300.00', 'GLOBAL'], ['DEMO', 'CLASS', '300.00', 'GLOBAL'], ['SESSION', 'HOUR', '450.00', 'TUTOR']]
+  .map(([classType, unit, amount, source]) => ({ class_type: classType, unit, amount,
+    ...(admin ? { source, global_amount: classType === 'SESSION' ? '400.00' : amount, effective_from: '2026-11-15T16:53:53+00:00' } : {}) }));
+const rateVersion = (id, classType, amount, tutorId = null) => ({ id, class_type: classType, unit: classType === 'SESSION' ? 'HOUR' : 'CLASS',
+  amount, tutor_id: tutorId, effective_from: '2026-11-15T16:53:53+00:00', initial: true, reason: 'Initial rates',
+  created_at: '2026-11-20T05:00:00+00:00', created_by: EARNINGS_ADMIN });
+const GLOBAL_RATE_HISTORY = [rateVersion('rate-d', 'DIAGNOSTIC', '300.00'), rateVersion('rate-m', 'DEMO', '300.00'), rateVersion('rate-s', 'SESSION', '400.00')];
+const earningsDetail = (admin) => ({
+  ...EARNINGS_STATUS, period: { month: null },
+  tutor: { id: ids.tutor_a, name: 'Tutor A', email: 'tutor_a@matrix.test', active: true, is_tutor: true },
+  summary: { earned: '975.00', paid: '500.00', outstanding: '475.00', balance_state: 'pending', earned_all_time: '975.00',
+    paid_all_time: '500.00', payments: 1, voided_payments: 1, last_paid_on: '2026-12-05', ...EARNINGS_COUNTS },
+  breakdown: earningsBreakdown(admin), adjustments: '0.00',
+  months_breakdown: [{ month: '2026-11', earned: '975.00', ...EARNINGS_COUNTS }],
+  rates: earningsRates(admin),
+  not_counted: [{ class_type: 'SESSION', source_id: 'ses-due', reason: 'NOTES_DUE', class_start: '2026-12-09T10:30:00+00:00',
+    class_end: '2026-12-09T11:30:00+00:00', title: 'Algebra', student_name: 'Riya', student_id: 'stu-x' }],
+  payments: admin ? EARNINGS_PAYMENTS_ADMIN : EARNINGS_PAYMENTS_OWN,
+  ...(admin ? {
+    own_rates: true,
+    rate_history: { tutor: [rateVersion('rate-t', 'SESSION', '450.00', ids.tutor_a)], global: GLOBAL_RATE_HISTORY },
+    review: [{ problem: 'TIMES_CHANGED', current: { tutor_id: ids.tutor_a, class_start: '2026-11-25T10:30:00+00:00',
+      class_end: '2026-11-25T12:30:00+00:00', eligible: true }, current_tutor: { id: ids.tutor_a, name: 'Tutor A' },
+      entry: EARNINGS_ENTRIES_ADMIN[0], tutor: { id: ids.tutor_a, name: 'Tutor A' } }],
+  } : {}),
+});
+const earningsEntries = (results) => ({ status: 200, body: { count: results.length, page: 1, page_size: 25, results } });
+const EARNINGS_OVERVIEW = { status: 200, body: {
+  ...EARNINGS_STATUS, period: { month: null },
+  totals: { earned: '975.00', paid: '500.00', pending: '475.00', overpaid: '0.00', tutors: 2, tutors_with_balance: 1, payments: 1, ...EARNINGS_COUNTS },
+  not_counted: { NOTES_DUE: 1, REPORT_DUE: 0, SLOT_NOT_ENDED: 0, BEING_ADDED: 0 },
+  review_count: 1,
+  tutors: [
+    { id: ids.tutor_a, name: 'Tutor A', email: 'tutor_a@matrix.test', active: true, ...EARNINGS_COUNTS, earned: '975.00',
+      paid: '500.00', outstanding: '475.00', balance_state: 'pending', own_rates: true },
+    { id: ids.tutor_b, name: 'Tutor B', email: 'tutor_b@matrix.test', active: true, ...NO_COUNTS, earned: '0.00', paid: '0.00',
+      outstanding: '0.00', balance_state: 'none', own_rates: false },
+  ],
+} };
+function withEarnings(answers, kind) {
+  const me = answers['/api/auth/me/'];
+  const added = kind === 'tutor' ? [VIEW_OWN_EARNINGS]
+    : kind === 'superuser' ? [...EARNINGS_ADMIN_PERMISSIONS, VIEW_OWN_EARNINGS] : EARNINGS_ADMIN_PERMISSIONS;
+  const permissions = [...new Set([...me.body.user.permissions, ...added])].sort();
+  const admin = kind !== 'tutor';
+  return {
+    ...answers,
+    '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
+    ...(admin ? {
+      '/api/earnings/overview/': EARNINGS_OVERVIEW,
+      [`/api/earnings/tutors/${ids.tutor_a}/`]: { status: 200, body: earningsDetail(true) },
+      [`/api/earnings/tutors/${ids.tutor_a}/entries/`]: earningsEntries(EARNINGS_ENTRIES_ADMIN),
+    } : {}),
+    '/api/earnings/me/': { status: 200, body: earningsDetail(false) },
+    '/api/earnings/me/entries/': earningsEntries(EARNINGS_ENTRIES_OWN),
+  };
+}
+
 const CALLERS = {
-  admin: { answers: withSales(withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS))) },
-  superuser: { answers: withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS))) },
-  su_mentor: { answers: withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
-    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS))) },
+  admin: { answers: withEarnings(withSales(withLeads(withCommunications(withBookings(withBookingSlots(fixtures.callers.admin)), ADMIN_COMMUNICATIONS))), 'admin') },
+  superuser: { answers: withEarnings(withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.superuser))))), SUPERUSER_COMMUNICATIONS))), 'superuser') },
+  su_mentor: { answers: withEarnings(withSales(withLeads(withCommunications(withAssignedBookings(withBookings(withBookingSlots(asSuperuserAfterEnquiries(
+    asSuperuserAfterBookingLinks(fixtures.callers.su_mentor))))), SUPERUSER_COMMUNICATIONS))), 'superuser') },
   mentor_a: { answers: fixtures.callers.mentor_a },
-  tutor_a: { answers: withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS) },
-  tutor_b: { answers: withAssignedBookings(fixtures.callers.tutor_b) },
+  tutor_a: { answers: withEarnings(withAssignedBookings(fixtures.callers.tutor_a, OWN_BOOKINGS), 'tutor') },
+  tutor_b: { answers: withEarnings(withAssignedBookings(fixtures.callers.tutor_b), 'tutor') },
   parent_a: { answers: fixtures.callers.parent_a },
   unknown: { answers: fixtures.callers.unknown },
   bde: {
@@ -470,6 +570,9 @@ const PATHS = [
   // Diagnostic Bookings pages, and the Sales & Finance modules: Syllabus & Plans, Global Pricing and those still to come.
   `/admissions?range=custom&from=${ADMISSIONS_RANGE.from}&to=${ADMISSIONS_RANGE.to}`, '/bookings/demo', '/bookings/diagnostic',
   '/sales-dashboard', '/sales-module', '/sales-punching', '/sales-syllabus', '/sales-pricing', '/tutor-earnings',
+  // Tutor Earnings (accounts.0030): one tutor's page for the administrators, a tutor's own My Earnings
+  // (and the address it had while it was still to come, Hourly Earnings).
+  `/tutor-earnings/${ids.tutor_a}`, '/my-earnings', '/hourly-earnings',
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };

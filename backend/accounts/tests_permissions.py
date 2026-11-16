@@ -53,6 +53,7 @@ SEED_SALES_QUOTES = importlib.import_module('accounts.migrations.0022_sales_quot
 SEED_INITIAL_SALES = importlib.import_module('accounts.migrations.0023_alter_hubpermission_options')
 SEED_ADDITIONAL_PURCHASES = importlib.import_module('accounts.migrations.0026_additional_purchase_permission')
 SEED_SESSION_OUTCOMES = importlib.import_module('accounts.migrations.0029_correct_session_outcome_permission')
+SEED_TUTOR_EARNINGS = importlib.import_module('accounts.migrations.0030_tutor_earnings_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -101,8 +102,9 @@ ADMIN_ONLY = names(
     'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
     'view_all_communications', 'manage_message_templates', 'view_all_leads', 'add_lead',
     'manage_sales_syllabi', 'manage_sales_pricing', 'manage_sales_quotes', 'correct_session_outcome',
+    'view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings',
 )
-TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report')
+TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report', 'view_own_earnings')
 # What later migrations add, one module each: BDE its booking links (0010),
 # ADMIN the booking slots (0011), BDE its enquiries (0012), ADMIN booking
 # management (0013), TUTOR its own bookings (0014).
@@ -163,6 +165,11 @@ ADDITIONAL_PURCHASE_GRANTS = {'ADMIN': ADDITIONAL_PURCHASE_PERMISSIONS, 'MENTOR'
 # Session outcomes (0029): correcting or revoking a recorded No-show / Not Conducted is the Admin's alone.
 OUTCOME_CORRECTION_PERMISSIONS = names('correct_session_outcome')
 OUTCOME_CORRECTION_GRANTS = {'ADMIN': OUTCOME_CORRECTION_PERMISSIONS}
+# Tutor Earnings (0030): every tutor's earnings, the rates, payments and corrections are the Admin's;
+# a tutor sees their own earnings. Nobody else holds any of it.
+EARNINGS_ADMIN_PERMISSIONS = names('view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings')
+EARNINGS_PERMISSIONS = EARNINGS_ADMIN_PERMISSIONS | names('view_own_earnings')
+EARNINGS_GRANTS = {'ADMIN': EARNINGS_ADMIN_PERMISSIONS, 'TUTOR': names('view_own_earnings')}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -216,8 +223,11 @@ GROUP_PERMISSIONS_AT_0023 = {role: held | INITIAL_SALES_GRANTS.get(role, set()) 
 GROUP_PERMISSIONS_AT_0026 = {role: held | ADDITIONAL_PURCHASE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0023.items()}
 # 0028 retires accounts.create_invitation: student invitations are created at enrollment only.
 GROUP_PERMISSIONS_AT_0028 = {role: held - names('create_invitation') for role, held in GROUP_PERMISSIONS_AT_0026.items()}
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0029 = {
     role: held | OUTCOME_CORRECTION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0028.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | EARNINGS_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0029.items()
 }
 
 
@@ -256,12 +266,13 @@ class PermissionTestCase(TestCase):
 
 class CatalogueTests(PermissionTestCase):
     def test_the_catalogue_includes_initial_sales(self):
-        # 74 seeded up to 0026, less accounts.create_invitation (0028), plus correct_session_outcome (0029).
-        self.assertEqual(len(CATALOGUE), 74)
+        # 74 seeded up to 0026, less accounts.create_invitation (0028), plus correct_session_outcome (0029),
+        # plus Tutor Earnings' five (0030).
+        self.assertEqual(len(CATALOGUE), 79)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
             | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
-            | ADDITIONAL_PURCHASE_PERMISSIONS | OUTCOME_CORRECTION_PERMISSIONS,
+            | ADDITIONAL_PURCHASE_PERMISSIONS | OUTCOME_CORRECTION_PERMISSIONS | EARNINGS_PERMISSIONS,
             set(CATALOGUE),
         )
         # Every permission is carried by at least one role group today.
@@ -346,6 +357,7 @@ class CatalogueTests(PermissionTestCase):
             + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
             + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS + SEED_INITIAL_SALES.HUB_PERMISSIONS
             + SEED_ADDITIONAL_PURCHASES.HUB_PERMISSIONS + SEED_SESSION_OUTCOMES.HUB_PERMISSIONS
+            + SEED_TUTOR_EARNINGS.HUB_PERMISSIONS
         )
         # 0025 changes only the invitation permission's display label. Preserve
         # the historical 0008 seed and compare the final migrated catalogue.
@@ -364,6 +376,8 @@ class CatalogueTests(PermissionTestCase):
                          ADDITIONAL_PURCHASE_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SESSION_OUTCOMES.GRANTS.items()},
                          OUTCOME_CORRECTION_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_TUTOR_EARNINGS.GRANTS.items()},
+                         EARNINGS_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
                          STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
@@ -1239,7 +1253,19 @@ class MigrationReversalTests(TransactionTestCase):
         # 0029 gives the Admin role accounts.correct_session_outcome, and reverses to take it away again.
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0029_correct_session_outcome_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0029)
+
+        # 0030 gives the Admin role Tutor Earnings' four and the Tutor role its own earnings, and reverses
+        # to take all five away again.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0030_tutor_earnings_permissions')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0029_correct_session_outcome_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0029)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in EARNINGS_PERMISSIONS],
+        ).exists())
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0028_retire_create_invitation_permission')])
         self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0028)

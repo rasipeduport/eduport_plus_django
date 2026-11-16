@@ -4,6 +4,7 @@ import { REDEMO_CLOSE_REASONS, cancelReasonLabel, rescheduleReasonLabel } from '
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
 import { reportFieldsText } from './reports';
+import { formatInr } from './earnings';
 import { formatAmount } from './sales';
 
 // Short, human label per action — used for badges and the action filter.
@@ -29,9 +30,19 @@ export const ACTION_LABELS = {
   // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
   'session.start': 'Session started',
   'session.complete': 'Session completed',
+  // Entries from before the notes deadline was removed (2026-11-16); nothing writes these any more.
   'session.submit_late_notes': 'Late notes submitted',
   'session.approve_late_notes': 'Late notes approved',
   'session.record_outcome': 'Outcome recorded',
+  // Tutor Earnings (backend earnings): rates, payments to tutors and corrections to the ledger.
+  'earnings.start_pricing': 'Pricing started',
+  'earnings.change_rates': 'Global rates changed',
+  'earnings.change_tutor_rates': 'Tutor rates changed',
+  'earnings.record_payment': 'Tutor payment recorded',
+  'earnings.void_payment': 'Tutor payment voided',
+  'earnings.reverse_entry': 'Earning reversed',
+  'earnings.keep_entry': 'Earning kept as earned',
+  'earnings.add_adjustment': 'Earnings adjusted',
   'session.correct_outcome': 'Outcome corrected',
   'session.revoke_outcome': 'Outcome removed',
   'session.cancel': 'Session cancelled',
@@ -288,6 +299,7 @@ export function describeActivity(row) {
       return row.context?.approved_late_notes
         ? "Completed the session by approving the tutor's late notes"
         : 'Completed the session with their notes';
+    // From before the notes deadline was removed (2026-11-16).
     case 'session.submit_late_notes':
       return 'Submitted notes after the 48-hour deadline, for approval';
     case 'session.approve_late_notes':
@@ -524,6 +536,24 @@ export function describeActivity(row) {
       // The currency is logged only when it changed: the amount reads alone otherwise.
       return offer ? `${version}: offer fee ${formatAmount(offer, row.changes?.currency?.new ?? '').trim()} a class` : `${version} saved`;
     }
+    case 'earnings.start_pricing':
+      return 'Started pricing Tutor Earnings with the initial rates';
+    case 'earnings.change_rates':
+      return `Changed the global rates (${Object.keys(row.changes || {})
+        .map((type) => `${type.toLowerCase()} ${formatInr(row.changes[type]?.new)}`)
+        .join(', ')})`;
+    case 'earnings.change_tutor_rates':
+      return `Changed ${row.entity_label ?? "a tutor"}'s rates`;
+    case 'earnings.record_payment':
+      return `Recorded a payment of ${formatInr(row.changes?.paid?.new)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.void_payment':
+      return `Voided a payment of ${formatInr(row.changes?.paid?.old)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.reverse_entry':
+      return `Reversed ${formatInr(row.changes?.amount?.old)} of earnings${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.keep_entry':
+      return `Kept ${formatInr(row.context?.amount)} as earned${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.add_adjustment':
+      return `Adjusted ${row.entity_label ?? 'a tutor'}'s earnings by ${formatInr(row.changes?.amount?.new, { signed: true })}`;
     case 'booking_schedule.update': {
       const parts = [];
       if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);

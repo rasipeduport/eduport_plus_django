@@ -1,5 +1,6 @@
 // Where a normal session stands -- Start Session, the completion its tutor's
-// notes make, late notes and a recorded outcome (backend sessions.lifecycle).
+// notes make (whenever they come in after the class) and a recorded outcome
+// (backend sessions.lifecycle).
 // Every moment here is an instant from the API (UTC ISO), so the window is the
 // same whatever zone the device is in; only labels are formatted, in the zone
 // the Sessions table already reads in. The server decides every start,
@@ -10,8 +11,6 @@ const ms = (now) => (now instanceof Date ? now.getTime() : now);
 
 // The backend's START_EARLY, read only when an answer lacks `start_opens_at`.
 const START_EARLY_MS = 5 * 60 * 1000;
-// The backend's NOTES_DEADLINE, read only when an answer lacks `notes_due_by`.
-const NOTES_DEADLINE_MS = 48 * 60 * 60 * 1000;
 
 /** The first moment its tutor may start the session, as a Date: the API's `start_opens_at`. */
 export function startOpensAt(session) {
@@ -30,12 +29,6 @@ export function hasEnded(session, now) {
   return ms(now) >= instant(session?.end_time);
 }
 
-/** The last moment its tutor's notes complete it without an approval (48 hours after its end), as a Date. */
-export function notesDueBy(session) {
-  const due = instant(session?.notes_due_by);
-  return new Date(Number.isFinite(due) ? due : instant(session?.end_time) + NOTES_DEADLINE_MS);
-}
-
 /**
  * Where the class stands now -- the backend's `class_state`, worked out from
  * the same fields so the page moves on with its clock: 'upcoming' (not
@@ -52,16 +45,6 @@ export function classState(session, now) {
   if (session?.completed_at) return 'completed';
   if (!hasEnded(session, now)) return session?.started_at ? 'in_progress' : 'upcoming';
   return session?.started_at ? 'notes_due' : 'not_started';
-}
-
-/** Whether the tutor's notes came in after the deadline and await an approval. */
-export function lateNotesPending(session) {
-  return (session?.late_notes_status || '').toUpperCase() === 'PENDING';
-}
-
-/** Whether the class's notes are due and the 48 hours have passed with none in. */
-export function notesOverdue(session, now) {
-  return classState(session, now) === 'notes_due' && !lateNotesPending(session) && ms(now) > notesDueBy(session).getTime();
 }
 
 /**
@@ -94,10 +77,8 @@ export function startState(session, now) {
 /**
  * What the assigned tutor's notes do now: 'not_started' (nobody started the
  * class: no notes at all), 'wait' (started, not over yet), 'complete' (started
- * and ended, within 48 hours: they complete it), 'late' (past the 48 hours:
- * kept until an administrator or the student's mentor approves them),
- * 'late_pending' (late notes already await that approval: a new link for
- * them), 'save' (completed: an edit), or null (cancelled, or recorded as not
+ * and ended: they complete it, however long after the class they come in),
+ * 'save' (completed: an edit), or null (cancelled, or recorded as not
  * conducted: no notes).
  */
 export function notesMode(session, now) {
@@ -106,8 +87,7 @@ export function notesMode(session, now) {
   if (session?.completed_at) return 'save';
   if (!session?.started_at) return 'not_started';
   if (!hasEnded(session, now)) return 'wait';
-  if (lateNotesPending(session)) return 'late_pending';
-  return ms(now) <= notesDueBy(session).getTime() ? 'complete' : 'late';
+  return 'complete';
 }
 
 // Why a class was not conducted (backend SessionOutcomeReason), and what it does to the student's credit.
@@ -144,8 +124,6 @@ const REFUSALS = {
   SESSION_NOT_STARTED: 'This class was not started, so notes cannot be submitted for it.',
   OUTCOME_RECORDED: "This class's outcome is already recorded.",
   SESSION_COMPLETED: 'This class was completed by its tutor.',
-  NO_LATE_NOTES: 'This class has no late notes awaiting approval.',
-  LATE_NOTES_MISSING: "The tutor's late notes are no longer on this class.",
   HOMEWORK_EXISTS: 'This class has homework set through it, so it cannot be recorded as not conducted.',
   NO_OUTCOME: 'This class has no recorded outcome to correct.',
   SESSION_ENDED: "This class's scheduled time has ended, so it can no longer be cancelled. Record its outcome instead.",

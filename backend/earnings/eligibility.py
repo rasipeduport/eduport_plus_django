@@ -6,23 +6,38 @@ A normal session counts when all of these hold:
   administrator) -- needed for its tutor's notes at all, never enough on its
   own;
 - its assigned tutor's own notes completed it after its scheduled end
-  (sessions.lifecycle), within NOTES_DEADLINE of that end, or later with
-  those late notes approved by an administrator or the student's mentor;
+  (sessions.lifecycle), however long after: there is no deadline;
 - it was scheduled to end at or after the moment Tutor Earnings was
   activated (TutorEarningsActivation).
 
-A class that ended before the activation never counts, whenever its notes
-come in, and nothing writes earnings for classes that already existed: there
-is no backfill. Staff attendance, staff notes, recordings, a start alone, late
-notes awaiting approval and a class recorded as No-show / Not Conducted never
-make a class count. A class counts as booked: Session.duration_hours, its
-scheduled end minus its scheduled start.
+It counts as booked: Session.duration_hours, its scheduled end minus its
+scheduled start.
 
-Earnings reads this module, never ``completed_at`` on its own.
+A Diagnostic or Demo booking -- a Re-Demo included, which is a Demo booking of
+its own with its own tutor -- counts when all of these hold:
+- it was conducted (completed, or completed and then sent for a Re-Demo): a
+  status alone is never enough;
+- its assigned tutor started it themselves (Start Demo / Start Diagnostic);
+- that tutor submitted its report themselves, which completed it;
+- its slot ended at or after the activation, and has ended: a report submitted
+  before the slot ends counts only once it has.
+
+It counts as one class (every slot lasts an hour).
+
+A class that ended before the activation never counts, whenever it was
+completed, and nothing writes earnings for classes that already existed: there
+is no backfill. Staff attendance, staff notes, recordings, a start alone, a
+class nobody started, and a class recorded as No-show / Not Conducted -- or a
+booking cancelled (a no-show included) or moved -- never count.
+
+The ledger (earnings.ledger) reads this module, never ``completed_at`` on its
+own.
 """
-from django.db.models import F, Q
+from django.db.models import F
+from django.utils import timezone
 
-from sessions.models import NOTES_DEADLINE, LateNotesStatus, Session, SessionStatusChoices
+from bookings.models import CONDUCTED
+from sessions.models import Session, SessionStatusChoices
 
 from .models import TutorEarningsActivation
 
@@ -39,7 +54,6 @@ def eligible_sessions(queryset=None):
     if since is None:
         return queryset.none()
     return queryset.filter(
-        Q(completed_at__lte=F('end_time') + NOTES_DEADLINE) | Q(late_notes_status=LateNotesStatus.APPROVED),
         status=SessionStatusChoices.ATTENDED,
         started_at__isnull=False,
         completed_at__isnull=False,
@@ -60,6 +74,28 @@ def is_eligible(session):
         and session.completed_by_id is not None
         and session.completed_by_id == session.tutor_id
         and session.completed_at >= session.end_time
-        and (session.completed_at <= session.notes_due_by or session.late_notes_status == LateNotesStatus.APPROVED)
         and session.end_time >= since
+    )
+
+
+def eligible_bookings(model, queryset=None, now=None):
+    """
+    The bookings of ``queryset`` (every booking of ``model`` -- DiagnosticBooking
+    or DemoBooking -- by default) that count towards Tutor Earnings as of ``now``.
+    """
+    queryset = model.objects.all() if queryset is None else queryset
+    since = activated_at()
+    if since is None:
+        return queryset.none()
+    return queryset.filter(
+        status__in=CONDUCTED,
+        assigned_tutor__isnull=False,
+        started_at__isnull=False,
+        started_by=F('assigned_tutor'),
+        completed_at__isnull=False,
+        completed_by=F('assigned_tutor'),
+        report__isnull=False,
+        report__submitted_by=F('assigned_tutor'),
+        slot__ends_at__gte=since,
+        slot__ends_at__lte=now or timezone.now(),
     )

@@ -184,6 +184,15 @@ CATALOGUE = {
     # revoking a No-show / Not Conducted recorded by mistake -- the
     # administrators' alone, every correction with its reason in the activity log.
     'accounts.correct_session_outcome': _entry('Correct a recorded session outcome', 'Sessions', ADMIN_ONLY),
+    # Tutor Earnings (earnings app), accounts.0030: every tutor's earnings, the
+    # rates, payments to tutors and corrections to the ledger are the
+    # administrators' -- each its own permission; a tutor reads their own
+    # earnings only. None is individually grantable.
+    'accounts.view_tutor_earnings': _entry("View every tutor's earnings", 'Earnings', ADMIN_ONLY),
+    'accounts.manage_tutor_rates': _entry('Set the tutor earning rates', 'Earnings', ADMIN_ONLY),
+    'accounts.manage_tutor_payments': _entry('Record and void payments to tutors', 'Earnings', ADMIN_ONLY),
+    'accounts.correct_tutor_earnings': _entry('Correct tutor earnings', 'Earnings', ADMIN_ONLY),
+    'accounts.view_own_earnings': _entry('View their own earnings', 'Earnings', TUTOR_ONLY),
 }
 
 

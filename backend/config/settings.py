@@ -530,7 +530,20 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='4-59/5'),
         'options': {'expires': 240},
     },
+    # Tutor Earnings (earnings.ledger): every 10 minutes the eligible classes
+    # with no earning yet are priced and added to the ledger -- each once,
+    # ever. A tick no worker takes in time expires; nothing runs while
+    # TUTOR_EARNINGS_SYNC_ENABLED is off.
+    'reconcile-tutor-earnings': {
+        'task': 'earnings.tasks.reconcile_tutor_earnings',
+        'schedule': crontab(minute='6-59/10'),
+        'options': {'expires': 540},
+    },
 }
+
+# The Tutor Earnings sync's switch: off, the schedule (and the manual command)
+# write nothing and the ledger stays as it is.
+TUTOR_EARNINGS_SYNC_ENABLED = env.bool('TUTOR_EARNINGS_SYNC_ENABLED', default=True)
 
 # Email Configuration
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')

@@ -16206,7 +16206,7 @@
    }
   },
   "/tutor-earnings @ admin": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review.",
    "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/tutor-earnings",
@@ -16231,17 +16231,41 @@
      "/activity"
     ],
     "buttons": [
+     "All time",
+     "All tutors",
+     "Any rate",
+     "Global rates",
+     "Needs review1",
      "Toggle Sidebar"
     ],
     "links": [
-     "/dashboard"
+     "/sessions?tab=needs_action",
+     "/tutor-earnings/{tutor_b}",
+     "/tutor-earnings/{tutor_a}"
     ],
-    "headers": [],
+    "headers": [
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Open",
+     "Paid",
+     "Pending",
+     "Rates",
+     "Session hours",
+     "Sessions",
+     "Total earned",
+     "Tutor"
+    ],
     "tabs": [],
-    "filters": [],
+    "filters": [
+     "Balance",
+     "Period",
+     "Rates"
+    ],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/earnings/overview/"
     ]
    }
   },
@@ -16432,7 +16456,7 @@
    }
   },
   "/tutor-earnings @ superuser": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review.",
    "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/tutor-earnings",
@@ -16457,17 +16481,41 @@
      "/activity"
     ],
     "buttons": [
+     "All time",
+     "All tutors",
+     "Any rate",
+     "Global rates",
+     "Needs review1",
      "Toggle Sidebar"
     ],
     "links": [
-     "/dashboard"
+     "/sessions?tab=needs_action",
+     "/tutor-earnings/{tutor_b}",
+     "/tutor-earnings/{tutor_a}"
     ],
-    "headers": [],
+    "headers": [
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Open",
+     "Paid",
+     "Pending",
+     "Rates",
+     "Session hours",
+     "Sessions",
+     "Total earned",
+     "Tutor"
+    ],
     "tabs": [],
-    "filters": [],
+    "filters": [
+     "Balance",
+     "Period",
+     "Rates"
+    ],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/earnings/overview/"
     ]
    }
   },
@@ -18205,6 +18253,1301 @@
      "GET /api/homework/",
      "GET /api/sessions/",
      "GET /api/students/"
+    ]
+   }
+  },
+  "/hourly-earnings @ admin": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/hourly-earnings @ bde": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/follow-ups",
+     "/sales",
+     "/plans",
+     "/quotes",
+     "/activity"
+    ],
+    "buttons": [
+     "Add Enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries/{enquiry_a}?tab=bookings&highlight={id}",
+     "/enquiries?status=BOOKED",
+     "/follow-ups?due=today"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/",
+     "GET /api/bde/follow-ups/"
+    ]
+   }
+  },
+  "/hourly-earnings @ mentor_a": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/hourly-earnings @ parent_a": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/hourly-earnings",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/hourly-earnings @ sales_tl": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/hourly-earnings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/hourly-earnings @ su_mentor": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/leads",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/hourly-earnings @ superuser": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/hourly-earnings @ tutor_a": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "All time",
+     "December 2026",
+     "November 2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/sessions?tab=needs_action"
+    ],
+    "headers": [
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts",
+     "Your rate"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/me/",
+     "GET /api/earnings/me/entries/"
+    ]
+   }
+  },
+  "/hourly-earnings @ tutor_b": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "All time",
+     "December 2026",
+     "November 2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/sessions?tab=needs_action"
+    ],
+    "headers": [
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts",
+     "Your rate"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/me/",
+     "GET /api/earnings/me/entries/"
+    ]
+   }
+  },
+  "/hourly-earnings @ unknown": {
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/hourly-earnings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-earnings @ admin": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-earnings @ bde": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/follow-ups",
+     "/sales",
+     "/plans",
+     "/quotes",
+     "/activity"
+    ],
+    "buttons": [
+     "Add Enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries/{enquiry_a}?tab=bookings&highlight={id}",
+     "/enquiries?status=BOOKED",
+     "/follow-ups?due=today"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/",
+     "GET /api/bde/follow-ups/"
+    ]
+   }
+  },
+  "/my-earnings @ mentor_a": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-earnings @ parent_a": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-earnings @ sales_tl": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-earnings @ su_mentor": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/leads",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/my-earnings @ superuser": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/my-earnings @ tutor_a": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "All time",
+     "December 2026",
+     "November 2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/sessions?tab=needs_action"
+    ],
+    "headers": [
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts",
+     "Your rate"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/me/",
+     "GET /api/earnings/me/entries/"
+    ]
+   }
+  },
+  "/my-earnings @ tutor_b": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "All time",
+     "December 2026",
+     "November 2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/sessions?tab=needs_action"
+    ],
+    "headers": [
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts",
+     "Your rate"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/me/",
+     "GET /api/earnings/me/entries/"
+    ]
+   }
+  },
+  "/my-earnings @ unknown": {
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/my-earnings",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ admin": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/tutor-earnings/{tutor_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Actions for the payment of 5 Dec 2026",
+     "Actions for this earning",
+     "Add adjustment",
+     "All class types",
+     "All time",
+     "Edit",
+     "Edit tutor rates",
+     "Keep as earned\u2026",
+     "November 2026",
+     "Record payment",
+     "Reverse earning\u2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/tutor-earnings"
+    ],
+    "headers": [
+     "Actions",
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Rate applied",
+     "Rate source",
+     "Recorded by",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts"
+    ],
+    "tabs": [],
+    "filters": [
+     "Class type",
+     "Period"
+    ],
+    "menus": [
+     "Reverse earning\u2026",
+     "Void payment\u2026"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/tutors/{tutor_a}/",
+     "GET /api/earnings/tutors/{tutor_a}/entries/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ bde": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/follow-ups",
+     "/sales",
+     "/plans",
+     "/quotes",
+     "/activity"
+    ],
+    "buttons": [
+     "Add Enquiry",
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries/{enquiry_a}?tab=bookings&highlight={id}",
+     "/enquiries?status=BOOKED",
+     "/follow-ups?due=today"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/",
+     "GET /api/bde/follow-ups/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ mentor_a": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ parent_a": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/tutor-earnings/{tutor_a}",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ sales_tl": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/tutor-earnings/{tutor_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ su_mentor": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/leads",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ superuser": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/tutor-earnings/{tutor_a}",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Actions for the payment of 5 Dec 2026",
+     "Actions for this earning",
+     "Add adjustment",
+     "All class types",
+     "All time",
+     "Edit",
+     "Edit tutor rates",
+     "Keep as earned\u2026",
+     "November 2026",
+     "Record payment",
+     "Reverse earning\u2026",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/tutor-earnings"
+    ],
+    "headers": [
+     "Actions",
+     "Amount",
+     "Class date",
+     "Class type",
+     "Classes",
+     "Demo",
+     "Diagnostic",
+     "Earned",
+     "Method",
+     "Month",
+     "Notes",
+     "Payable units",
+     "Payment date",
+     "Rate",
+     "Rate applied",
+     "Rate source",
+     "Recorded by",
+     "Reference",
+     "Session hours",
+     "Sessions",
+     "Student / lead",
+     "Type",
+     "Units",
+     "Why it counts"
+    ],
+    "tabs": [],
+    "filters": [
+     "Class type",
+     "Period"
+    ],
+    "menus": [
+     "Reverse earning\u2026",
+     "Void payment\u2026"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/earnings/tutors/{tutor_a}/",
+     "GET /api/earnings/tutors/{tutor_a}/entries/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ tutor_a": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard",
+     "/activity",
+     "/admissions-dashboard",
+     "/homework",
+     "/my-bookings/demo/{my_booking_a}",
+     "/my-bookings/demo?view=completed&feedback=due",
+     "/my-bookings/diagnostic/{id}",
+     "/my-bookings/diagnostic?view=completed&feedback=due",
+     "/sessions",
+     "/sessions?student_id={stu_a}",
+     "/sessions?tab=needs_action",
+     "/students",
+     "https://meet.google.com/abc-defg-hij"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/",
+     "GET /api/tutor/bookings/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ tutor_b": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard",
+     "/activity",
+     "/admissions-dashboard",
+     "/homework",
+     "/my-bookings/demo?view=completed&feedback=due",
+     "/my-bookings/diagnostic?view=completed&feedback=due",
+     "/sessions",
+     "/sessions?student_id={stu_b}",
+     "/sessions?tab=needs_action",
+     "/students"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/",
+     "GET /api/tutor/bookings/"
+    ]
+   }
+  },
+  "/tutor-earnings/{tutor_a} @ unknown": {
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "note": "New page (2026-11-16).",
+   "result": {
+    "at": "/tutor-earnings/{tutor_a}",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
     ]
    }
   }

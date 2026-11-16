@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, BookOpen, CalendarX, CheckCircle2, ClipboardList, FileClock, FileText, Mail, Video } from 'lucide-react';
+import { AlertTriangle, BookOpen, CalendarX, CheckCircle2, ClipboardList, FileText, Mail, Video } from 'lucide-react';
 
-import { classState, lateNotesPending } from '@/lib/session-lifecycle';
+import { classState } from '@/lib/session-lifecycle';
 import { cn } from '@/lib/utils';
 import { Panel } from './dashboard-primitives';
 
@@ -12,8 +12,7 @@ import { Panel } from './dashboard-primitives';
  *   - attended classes whose notes / recording / homework are not all in
  *     (the API's derived display_status "pending")
  *   - ended classes nobody started, whose outcome is still to be recorded,
- *     classes whose tutor's notes are due, and late notes awaiting approval
- *     (lib/session-lifecycle classState)
+ *     and classes whose tutor's notes are due (lib/session-lifecycle classState)
  *   - pending invitations (the stats endpoint's count), for whoever may view invitations
  *   - additional exams with a submitted answer sheet and no score yet
  *     (tutors are not served the exam endpoints, so the row is left out)
@@ -22,7 +21,6 @@ import { Panel } from './dashboard-primitives';
  */
 export function attentionItems({ homework, sessions, additionalExams, stats, canSeeInvitations, now = new Date() }) {
   const states = sessions.map((s) => [s, classState(s, now)]);
-  const lateNotes = states.filter(([s, state]) => state === 'notes_due' && lateNotesPending(s)).length;
   const items = [
     {
       key: 'homework',
@@ -52,15 +50,7 @@ export function attentionItems({ homework, sessions, additionalExams, stats, can
       source: 'sessions',
       icon: FileText,
       label: 'Session notes due',
-      count: states.filter(([, state]) => state === 'notes_due').length - lateNotes,
-      to: '/sessions?tab=needs_action',
-    },
-    {
-      key: 'late_notes',
-      source: 'sessions',
-      icon: FileClock,
-      label: 'Late notes awaiting approval',
-      count: lateNotes,
+      count: states.filter(([, state]) => state === 'notes_due').length,
       to: '/sessions?tab=needs_action',
     },
   ];
