@@ -86,7 +86,8 @@ def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), l
     nothing; a SalesError says why it cannot be quoted.
     """
     sold = services.on_sale_revision(syllabus_id, revision)
-    if collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY'):
+    # TOKEN only ever comes from sales.token_sales: the quotes API offers the other three.
+    if collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY', 'TOKEN'):
         raise _invalid('collection_mode', 'Choose Single / Complete Payment, Partial Payment or Autopay before issuing the quote.')
     if plan_type not in sold.plan_types:
         raise _invalid('plan_type', f'{sold.title} is not sold as {PlanType(plan_type).label}.')
@@ -142,7 +143,7 @@ def quote_snapshot(actor, *, syllabus_id, revision, plan_type, chapter_ids=(), l
 
 def issue(snapshot, quote_id=None):
     """``snapshot`` saved as the next quote -- its lines and chapters with it -- in one transaction."""
-    if snapshot.collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY'):
+    if snapshot.collection_mode not in ('FULL', 'PARTIAL', 'AUTOPAY', 'TOKEN'):
         raise _invalid('collection_mode', 'Choose the collection intention before issuing the quote.')
     pricing = snapshot.pricing
     with transaction.atomic():
@@ -178,8 +179,11 @@ def issue(snapshot, quote_id=None):
 
 
 @transaction.atomic
-def create_quote(actor, data, request=None):
-    """A new quote for ``actor`` from ``data`` (QuoteCreateSerializer's), issued and logged."""
+def create_quote(actor, data, request=None, reserving=False):
+    """
+    A new quote for ``actor`` from ``data`` (QuoteCreateSerializer's), issued and logged. ``reserving``:
+    a Token Sale quote whose token reservation sales.token_sales makes in the same transaction.
+    """
     # Lock the enquiry before the syllabus and quote table, consistently with
     # any future payment writer. A stale browser cannot overwrite a newer choice.
     lead = _lead(actor, data['lead'], lock=True) if data.get('lead') else None
@@ -201,7 +205,7 @@ def create_quote(actor, data, request=None):
     )
     if data.get('pricing_version') is not None and snapshot.pricing.version != data['pricing_version']:
         raise SalesError('PRICING_CHANGED', 'Pricing changed meanwhile. Reload the syllabus and review the new amount.')
-    validate_sale_snapshot(lead, snapshot)
+    validate_sale_snapshot(lead, snapshot, reserving=reserving)
     quote = issue(replace(snapshot, supersedes=previous))
     _log('quote.create', quote, request, actor, plan_type=quote.plan_type, class_mode=quote.class_mode, full_course=quote.full_course,
          revision=quote.revision.number, pricing_version=quote.pricing_version.version,
@@ -210,15 +214,24 @@ def create_quote(actor, data, request=None):
     return quote
 
 
-def validate_sale_snapshot(lead, snapshot):
-    """Retain the existing token balance guard for either replacement path."""
-    if lead:
-        from .payment_models import Sale
-        from .payments import TOKEN_AMOUNT, require_token_quote
-        if Sale.objects.filter(enquiry=lead, kind='TOKEN').exists():
-            require_token_quote(snapshot)
-            if snapshot.pricing.currency != 'AED' or snapshot.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP) <= TOKEN_AMOUNT:
-                raise SalesError('TOKEN_EXCEEDS_PACKAGE', 'A token reservation needs an AED package with a positive tuition balance beyond its token.')
+def validate_sale_snapshot(lead, snapshot, reserving=False):
+    """
+    The sale type's rules for a quote, on every path that issues one for an enquiry: a Token Sale's
+    tuition plan is quoted as a Token Sale (TOKEN) and leaves a positive balance beyond its AED 100
+    token; a TOKEN quote belongs to a Token Sale -- the enquiry's own or, ``reserving``, the one
+    sales.token_sales reserves in the same transaction. New Sale quotes are left as they were.
+    """
+    from .payment_models import Sale, SaleKind
+    from .payments import TOKEN_AMOUNT
+    sale = Sale.objects.filter(enquiry=lead).first() if lead else None
+    token_sale = sale is not None and sale.kind == SaleKind.TOKEN
+    if snapshot.collection_mode == 'TOKEN':
+        if not (token_sale or (reserving and lead and sale is None)):
+            raise SalesError('TOKEN_SALE_REQUIRED', 'A Token Sale quote is issued with its token reservation, from Plan Choosing.', 409)
+        if snapshot.pricing.currency != 'AED' or snapshot.payable_amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP) <= TOKEN_AMOUNT:
+            raise SalesError('TOKEN_EXCEEDS_PACKAGE', 'A token reservation needs an AED package with a positive tuition balance beyond its token.')
+    elif token_sale:
+        raise SalesError('TOKEN_SALE_QUOTE_REQUIRED', 'This enquiry has a Token Sale: choose its tuition plan as a Token Sale in Plan Choosing.', 409)
 
 
 def cancel_quote(actor, quote_id, reason, request=None):

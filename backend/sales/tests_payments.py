@@ -106,6 +106,19 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
     def start(self, kind='NEW', **extra):
         return self.client.post(self.url(), {'kind': kind, **extra}, format='json')
 
+    def token_sale(self, **extra):
+        """Token Sale chosen in Plan Choosing (sales.token_sales): the full Bridge Course, AED 500 here, replacing the latest quote."""
+        latest = quotes.latest_quote(self.lead)
+        return self.client.post(f'/api/sales/enquiries/{self.lead.pk}/token-sale/', {
+            'syllabus': str(self.bridge.pk), 'revision': 1, 'plan_type': 'BRIDGE_COURSE',
+            'replaces': str(latest.pk) if latest else None, **extra}, format='json')
+
+    def reserve_token(self, **extra):
+        """A new token reservation with its plan: classes expected in ten days, the remaining balance due in seven."""
+        today = timezone.localdate()
+        return self.token_sale(**{'expected_start_date': (today + timedelta(days=10)).isoformat(),
+                                  'balance_due_date': (today + timedelta(days=7)).isoformat(), **extra})
+
     def payload(self, **extra):
         return {'request_id': str(uuid.uuid4()), 'method': 'TRANSFER', 'purpose': 'TUITION', 'collection_mode': 'PARTIAL',
                 'classes': '6', 'amount': '300', 'received_confirmed': True,
@@ -189,8 +202,11 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
                 self.assertEqual(proof['Cache-Control'], 'private, no-store')
 
     def test_token_requires_date_is_fixed_and_alone_never_enrolls(self):
-        self.assertEqual(self.start('TOKEN').status_code, 400)
-        self.assertEqual(self.start('TOKEN', expected_start_date=(timezone.localdate() + timedelta(days=5)).isoformat()).status_code, 201)
+        # Sales & Payment starts no Token Sale: it is chosen with its tuition plan (sales.token_sales).
+        refused = self.start('TOKEN', expected_start_date=(timezone.localdate() + timedelta(days=5)).isoformat())
+        self.assertEqual((refused.status_code, refused.json()['error']), (409, 'TOKEN_SALE_FROM_PLAN'))
+        self.assertEqual(self.reserve_token(expected_start_date=None).status_code, 400)
+        self.assertEqual(self.reserve_token(expected_start_date=(timezone.localdate() + timedelta(days=5)).isoformat()).status_code, 201)
         bad = self.collect(purpose='TOKEN', classes='0', collection_mode='FULL', amount='99')
         self.assertEqual(bad.status_code, 400)
         response = self.collect(purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')
@@ -203,20 +219,22 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual((items[0]['reservation']['payment_status'], items[0]['reservation']['remaining_amount']), ('SUCCEEDED', '400'))
         self.assertEqual(self.client.get(f'/api/bde/follow-ups/?enquiry={self.lead.pk}').json()['results'], followups.json()['results'])
-        response = self.collect(amount='200')
+        # Only the whole remaining balance, in one payment, enrolls -- with every class.
+        partial = self.collect(collection_mode='FULL', amount='200')
+        self.assertEqual((partial.status_code, partial.json()['error']), (409, 'TOKEN_FULL_BALANCE_REQUIRED'))
+        self.assertEqual(Student.objects.count(), 0)
+        response = self.collect(collection_mode='FULL', classes='10', amount='400')
         self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(Student.objects.get().total_class_quota, D(6))
-        self.assertEqual(response.json()['state']['totals']['paid_amount'], '300')
+        self.assertEqual(Student.objects.get().total_class_quota, D(10))
+        self.assertEqual(response.json()['state']['totals']['paid_amount'], '500')
         self.assertEqual(Payment.objects.count(), 2)
 
     def test_token_reservation_cannot_replace_its_quote_with_a_package_below_the_token(self):
-        self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+        self.assertEqual(self.reserve_token(expected_start_date=timezone.localdate().isoformat()).status_code, 201)
         self.assertEqual(self.collect(purpose='TOKEN', classes='0', collection_mode='FULL', amount='100').status_code, 201)
         original = quotes.latest_quote(self.lead)
-        with self.assertRaises(services.SalesError) as caught:
-            quotes.create_quote(self.bde, {'collection_mode': 'FULL', 'lead': self.lead.pk, 'syllabus': self.bridge.pk, 'revision': 1,
-                'plan_type': 'BRIDGE_COURSE', 'chapter_ids': [self.days[0]], 'replaces': original.pk})
-        self.assertEqual(caught.exception.code, 'TOKEN_EXCEEDS_PACKAGE')
+        refused = self.token_sale(chapter_ids=[str(self.days[0])])
+        self.assertEqual((refused.status_code, refused.json()['error']), (409, 'TOKEN_EXCEEDS_PACKAGE'))
         self.assertEqual(quotes.latest_quote(self.lead).pk, original.pk)
         self.assertEqual((Student.objects.count(), Payment.objects.count()), (0, 1))
 
@@ -389,7 +407,7 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
 
     def test_stripe_customer_reused_for_token_and_full_tuition_and_metadata_updated(self):
         self.lead = self.new_lead(collection_mode='FULL')
-        self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+        self.reserve_token(expected_start_date=timezone.localdate().isoformat())
         gateway, calls = self.stripe_transport()
         with mock.patch('sales.stripe_gateway.client', return_value=gateway):
             self.collect(method='STRIPE', purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')
@@ -472,7 +490,8 @@ class InitialPaymentTests(QuoteTestCase, APITestCase):
         self.assertEqual(Student.objects.get().tutor, tutor)
 
     def test_overdue_reminder_state_and_expired_stripe_link(self):
-        self.start('TOKEN', expected_start_date=(timezone.localdate() + timedelta(days=1)).isoformat())
+        tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
+        self.reserve_token(expected_start_date=tomorrow, balance_due_date=tomorrow)
         gateway, _ = self.stripe_transport()
         with mock.patch('sales.stripe_gateway.client', return_value=gateway):
             self.collect(method='STRIPE', purpose='TOKEN', classes='0', collection_mode='FULL', amount='100')

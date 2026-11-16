@@ -43,7 +43,7 @@ fits on its page.
 <h2 class="package-title">{{ package_title }}</h2>{% if quote %}<p class="quote-ref">Quote {{ quote.reference }} · {{ quote.date }}{% if quote.plan_label %} · {{ quote.plan_label }}{% endif %}</p>{% endif %}{% if quote.cancelled %}<p class="quote-cancelled">Cancelled on {{ quote.cancelled }}: this quote is no longer valid.</p>{% endif %}
 {% if quote.collection_amount %}
 <div class="fee-label">Agreed Package Amount: {{ quote.currency }} {{ quote.collection_amount }}</div>
-<p class="quote-ref">{% if quote.collection_mode == 'AUTOPAY' %}Autopay{% elif quote.collection_mode == 'PARTIAL' %}Partial Payment{% else %}Single / Complete Payment{% endif %}</p>
+<p class="quote-ref">{% if quote.collection_mode == 'AUTOPAY' %}Autopay{% elif quote.collection_mode == 'PARTIAL' %}Partial Payment{% elif quote.collection_mode == 'TOKEN' %}Token Sale{% else %}Single / Complete Payment{% endif %}</p>
 <p class="quote-ref">Original price: {{ quote.currency }} {{ quote.collection_subtotal }} · Discount: {{ quote.currency }} {{ quote.collection_discount }}</p>
 {% for package in collection_packages %}<div class="card"><h3>{{ package.title }}</h3><p class="classes">{{ package.classes_label }}</p><table class="lines"><tr><td>Amount allocated</td><td class="value">{{ package.amount }}</td></tr></table></div>{% endfor %}
 {% else %}

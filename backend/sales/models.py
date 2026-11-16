@@ -448,7 +448,9 @@ class Quote(models.Model):
     # NULL on historical quotes (Chapter Plans before this feature used Regular),
     # and on other plan types. Every new Chapter Plan stores its explicit mode.
     class_mode = models.CharField(max_length=8, choices=ChapterClassMode.choices, null=True, blank=True)
-    collection_mode = models.CharField(max_length=7, choices=[('FULL', 'Single / Complete Payment'), ('PARTIAL', 'Partial Payment'), ('AUTOPAY', 'Autopay')])
+    # TOKEN: a Token Sale's tuition plan (sales.token_sales) -- AED 100 first, then the rest in one
+    # payment, never with the single-payment discount. Issued only with its token reservation.
+    collection_mode = models.CharField(max_length=7, choices=[('FULL', 'Single / Complete Payment'), ('PARTIAL', 'Partial Payment'), ('AUTOPAY', 'Autopay'), ('TOKEN', 'Token Sale')])
     # Existing snapshots predate the mandatory question; never rewrite them
     # to claim that a parent confirmed the implicit FULL default.
     collection_intention_confirmed = models.BooleanField(default=False)

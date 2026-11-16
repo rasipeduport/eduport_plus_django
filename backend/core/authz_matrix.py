@@ -838,6 +838,10 @@ SCENARIOS += [
              {'request_id': str(fixed_id('payment_request')), 'purpose': 'TUITION', 'classes': '1', 'method': 'STRIPE'}),
     Scenario('initial_sales.replacement', 'post', '/api/sales/enquiries/{lead_a}/installment-quote/', lambda w: {'quote_id': w.id('quote_a'), 'collection_mode': 'PARTIAL'}),
     Scenario('initial_sales.replacement_preview', 'get', '/api/sales/enquiries/{lead_a}/installment-quote/?quote_id={quote_a}&collection_mode=PARTIAL'),
+    # Token Sale chosen with its plan in Plan Choosing (2026-11-16): the quote and the reservation together.
+    Scenario('initial_sales.token_sale', 'post', '/api/sales/enquiries/{lead_a}/token-sale/', lambda w: {
+        'syllabus': w.id('syllabus_a'), 'revision': 1, 'plan_type': 'REGULAR',
+        'expected_start_date': w.day(10)[0], 'balance_due_date': w.day(7)[0]}),
     Scenario('initial_sales.proof', 'get', '/api/sales/payments/{stu_a}/proof/'),
     Scenario('initial_sales.expire', 'post', '/api/sales/payments/{stu_a}/expire/', {}),
     Scenario('initial_sales.student', 'get', '/api/sales/students/{stu_a}/initial-sale/'),

@@ -161,29 +161,43 @@ def open_items(user, now, request=None, enquiry=None):
 
 
 def _token_reservations(user, now, enquiry=None):
-    # Derived from one reservation row: no reminder jobs or duplicate records.
-    # A reassigned enquiry requires Admin review; it cannot leak back to its former owner.
-    from sales.payment_models import Sale
-    from sales.payments import received, token_state
+    # Derived from one reservation row, from the moment it is made until the student enrolls -- the full
+    # tuition verified (sales.payments.succeed): no reminder jobs or duplicate records, and nothing clears
+    # or hides it before. Due three days before the balance deadline, overdue after it, and still listed.
+    # It stays with the enquiry's current BDE, flagged for an administrator when the enquiry was reassigned
+    # or its plan issued by someone else: only an administrator collects against another's quote
+    # (sales.payments.current_quote).
+    from sales.payment_models import Purchase, Sale
+    from sales.payments import deadline_state, received, reservation_deadline, token_state
     from sales.quotes import _collection_amount, latest_quote
     from sales.pricing import plain
-    reservations = Sale.objects.filter(kind='TOKEN', student__isnull=True, original_bde=user,
-                                       enquiry__owner_bde=user).select_related('enquiry')
+    reservations = Sale.objects.filter(kind='TOKEN', student__isnull=True, enquiry__owner_bde=user).select_related('enquiry')
     if enquiry:
         reservations = reservations.filter(enquiry_id=enquiry)
     items = []
+    today = indian_today(now)
     for sale in reservations:
         paid = received(sale)
-        if not paid['token']:
-            continue
-        state = token_state(sale, paid, indian_today(now))
-        quote = latest_quote(sale.enquiry)
-        balance = _collection_amount(quote) - paid['amount'] if quote and quote.status == 'ISSUED' and quote.currency == 'AED' else None
-        due = datetime.combine(sale.expected_start_date - timedelta(days=3), time(hour=9), tzinfo=BOOKING_TIMEZONE)
+        purchase = Purchase.objects.filter(sale=sale, is_initial=True).first()
+        quote = None if purchase else latest_quote(sale.enquiry)
+        package = purchase.amount if purchase else (
+            _collection_amount(quote) if quote and quote.status == 'ISSUED' and quote.currency == 'AED' else None)
+        token = sale.payments.filter(purpose='TOKEN').order_by('-created_at').first()
+        # The quote Sales & Payment checks (sales.payments.sale_data): the pinned one, else the latest, even cancelled.
+        owner_quote = purchase.quote if purchase else quote
+        review = ('REASSIGNED' if sale.original_bde_id != user.pk
+                  else 'PLAN_OWNER' if owner_quote is not None and owner_quote.created_by_id != user.pk else None)
+        deadline = reservation_deadline(sale)
+        due = datetime.combine(deadline - timedelta(days=3), time(hour=9), tzinfo=BOOKING_TIMEZONE)
         items.append(Item(FollowUpType.TOKEN_TUITION, sale.pk, sale.enquiry, due,
-                          state={'OVERDUE': FollowUpState.OVERDUE, 'DUE': FollowUpState.DUE_TODAY, 'UPCOMING': FollowUpState.PENDING}[state],
+                          state={'OVERDUE': FollowUpState.OVERDUE, 'DUE': FollowUpState.DUE_TODAY, 'UPCOMING': FollowUpState.PENDING}[deadline_state(sale, today)],
                           reservation={'reference': sale.reservation_reference, 'expected_start_date': sale.expected_start_date.isoformat(),
-                                       'token_status': state, 'payment_status': 'SUCCEEDED', 'remaining_amount': plain(balance)}))
+                                       'balance_due_date': sale.balance_due_date.isoformat() if sale.balance_due_date else None,
+                                       'token_status': token_state(sale, paid, today), 'token_paid': bool(paid['token']),
+                                       # The token payment as it stands: received, a link awaiting payment, failed or expired; None before one.
+                                       'payment_status': 'SUCCEEDED' if paid['token'] else token.status if token else None,
+                                       'remaining_amount': plain(package - paid['amount']) if package is not None else None,
+                                       'admin_review': review is not None, 'admin_review_reason': review}))
     return items
 
 

@@ -8,12 +8,13 @@ from rest_framework.views import APIView
 
 from accounts.authz import has_app_permission
 from core.permissions import HasAppPermission
-from . import payments, quotes
+from . import payments, quotes, token_sales
 from .payment_models import CollectionMode, Payment, PaymentMethod, Sale, SaleKind
 from .services import SalesError
 from .views import _invalid, _refused
 from .account_models import GuardianRelationship
 from .account_views import BillingContactSerializer
+from .quote_views import QuoteCreateSerializer
 
 
 class FamilySerializer(serializers.Serializer):
@@ -113,7 +114,36 @@ class CollectPaymentView(APIView):
 
 class CollectionReplacementSerializer(serializers.Serializer):
     quote_id = serializers.UUIDField()
-    collection_mode = serializers.ChoiceField(choices=['FULL', 'PARTIAL', 'AUTOPAY'])
+    # TOKEN re-issues a Token Sale's plan as a Token Sale quote (its only replacement).
+    collection_mode = serializers.ChoiceField(choices=['FULL', 'PARTIAL', 'AUTOPAY', 'TOKEN'])
+
+
+class TokenSaleSerializer(QuoteCreateSerializer):
+    """The tuition plan, as Plan Choosing quotes it, with the reservation's two dates the first time."""
+    lead = None  # the enquiry in the URL
+    collection_mode = None  # always a Token Sale quote
+    expected_start_date = serializers.DateField(required=False)
+    balance_due_date = serializers.DateField(required=False)
+    # No parent details: the enquiry's are the billing contact. A family is chosen only when the
+    # parent's phone or email already belongs to one (student_accounts.open_account).
+    family = FamilySerializer(required=False)
+    relationship = serializers.ChoiceField(choices=GuardianRelationship.choices, required=False)
+    confirm_distinct_child = serializers.BooleanField(default=False)
+
+
+class TokenSaleView(APIView):
+    """POST: a Token Sale chosen with its tuition plan in Plan Choosing (sales.token_sales)."""
+    permission_classes = [IsAuthenticated, HasAppPermission(payments.MANAGE), HasAppPermission(quotes.CREATE_QUOTES)]
+
+    def post(self, request, pk):
+        serializer = TokenSaleSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer, 'Check the token reservation.')
+        try:
+            quote, _ = token_sales.reserve(request.user, pk, serializer.validated_data, request)
+            return Response({'quote': quotes.quote_data(quote), 'state': payments.sale_data(request.user, pk, request)}, status=201)
+        except SalesError as exc:
+            return _refused(exc)
 
 
 class InstallmentQuoteView(APIView):

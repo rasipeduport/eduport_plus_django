@@ -22007,6 +22007,146 @@
     "status": 200
    }
   },
+  "initial_sales.token_sale @ admin": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "error": "BDE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Assign the responsible BDE before starting a sale.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "initial_sales.token_sale @ anon": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ mentor_a": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ mentor_b": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ parent_a": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ su_mentor": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "error": "BDE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Assign the responsible BDE before starting a sale.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "initial_sales.token_sale @ su_tutor": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "error": "BDE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Assign the responsible BDE before starting a sale.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "initial_sales.token_sale @ superuser": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "error": "BDE_REQUIRED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "Assign the responsible BDE before starting a sale.",
+    "records": [],
+    "status": 400
+   }
+  },
+  "initial_sales.token_sale @ tutor_a": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ tutor_b": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "initial_sales.token_sale @ unknown": {
+   "decision": "Token Sale chosen with its tuition plan (2026-11-16): new POST route that issues a Token Sale quote and its token reservation together, for the audience of quote replacement: accounts.manage_initial_sales and accounts.create_sales_quotes, held by the BDE and ADMIN role groups only. No permission was added.",
+   "note": "Callers without both permissions are refused (403); anonymous callers too. Administrators reach the service: the matrix enquiry has no responsible BDE (BDE_REQUIRED, 400). The BDE reserves its own enquiry (201, new-role check).",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "invitations.create.staff @ admin": {
    "decision": "Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched.",
    "result": {

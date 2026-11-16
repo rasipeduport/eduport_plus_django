@@ -56,6 +56,9 @@ class Sale(models.Model):
     student = models.ForeignKey('students.Student', on_delete=models.PROTECT, null=True, blank=True, related_name='sales')
     reservation_reference = models.CharField(max_length=30, unique=True, null=True, blank=True)
     expected_start_date = models.DateField(null=True, blank=True)
+    # A Token Sale's deadline for its remaining tuition, fixed with the reservation (sales.token_sales).
+    # Reservations made before it existed have none: their expected start date stays their reminder's date.
+    balance_due_date = models.DateField(null=True, blank=True)
     parent_email = models.EmailField(blank=True)
     enrolled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
@@ -63,6 +66,7 @@ class Sale(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(condition=Q(kind__in=['NEW', 'ADDITIONAL']) | Q(kind='TOKEN', expected_start_date__isnull=False, reservation_reference__isnull=False), name='sales_token_has_date_reference'),
+            models.CheckConstraint(condition=Q(balance_due_date__isnull=True) | Q(kind='TOKEN'), name='sales_balance_due_date_token_only'),
             models.CheckConstraint(condition=Q(kind__in=INITIAL_KINDS, student__isnull=True, enrolled_at__isnull=True)
                                    | Q(kind__in=INITIAL_KINDS, student__isnull=False, enrolled_at__isnull=False)
                                    | Q(kind='ADDITIONAL', student__isnull=False, enrolled_at__isnull=True), name='sales_enrollment_fields_together'),

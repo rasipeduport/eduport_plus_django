@@ -40,6 +40,8 @@ class CollectionCompatibilityTests(QuoteTestCase, APITestCase):
     new_lead = payment_helpers.InitialPaymentTests.new_lead
     url = payment_helpers.InitialPaymentTests.url
     start = payment_helpers.InitialPaymentTests.start
+    token_sale = payment_helpers.InitialPaymentTests.token_sale
+    reserve_token = payment_helpers.InitialPaymentTests.reserve_token
     payload = payment_helpers.InitialPaymentTests.payload
     collect = payment_helpers.InitialPaymentTests.collect
     stripe_transport = payment_helpers.InitialPaymentTests.stripe_transport
@@ -72,9 +74,11 @@ class CollectionCompatibilityTests(QuoteTestCase, APITestCase):
     def test_uncollected_historical_quote_blocks_new_and_token_sales_without_assuming_full(self):
         old = self.legacy(); before = self.fingerprint(old)
         self.assertFalse(self.client.get(self.url()).json()['can_collect'])
-        for kind in ['NEW', 'TOKEN']:
-            response = self.start(kind, expected_start_date=timezone.localdate().isoformat())
-            self.assertEqual((response.status_code, response.json()['error']), (409, 'COLLECTION_INTENTION_REQUIRED'))
+        response = self.start('NEW')
+        self.assertEqual((response.status_code, response.json()['error']), (409, 'COLLECTION_INTENTION_REQUIRED'))
+        # A Token Sale is chosen with its own plan in Plan Choosing; Sales & Payment starts none.
+        response = self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_FROM_PLAN'))
         self.assertEqual((Sale.objects.count(), Purchase.objects.count(), Payment.objects.count(), Student.objects.count()), (0, 0, 0, 0))
         self.assertEqual(self.fingerprint(old), before)
 
@@ -145,10 +149,14 @@ class CollectionCompatibilityTests(QuoteTestCase, APITestCase):
         token = Payment.objects.create(request_id=uuid.uuid4(), sale=sale, purpose='TOKEN', method='TRANSFER',
             collection_mode='FULL', amount=D(100), classes=D(0), status='SUCCEEDED', received_confirmed=True,
             verified_at=timezone.now(), proof=self.payload()['proof'], recorded_by=self.bde)
-        response = self.collect(amount='200')
+        # Its frozen Partial terms stand, but a Token Sale's tuition is one payment for the whole balance.
+        partial = self.collect(amount='200')
+        self.assertEqual((partial.status_code, partial.json()['error']), (409, 'TOKEN_FULL_BALANCE_REQUIRED'))
+        self.assertEqual(Student.objects.count(), 0)
+        response = self.collect(classes='10', amount='400')
         self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual((Student.objects.get().total_class_quota, Payment.objects.count()), (D(6), 2))
-        self.assertEqual(response.json()['state']['totals']['paid_amount'], '300')
+        self.assertEqual((Student.objects.get().total_class_quota, Payment.objects.count()), (D(10), 2))
+        self.assertEqual(response.json()['state']['totals']['paid_amount'], '500')
         token.refresh_from_db(); self.assertEqual((token.amount, token.classes), (D(100), D(0)))
         self.assertEqual(self.fingerprint(old), before)
 
@@ -164,40 +172,46 @@ class CollectionCompatibilityTests(QuoteTestCase, APITestCase):
         self.assertEqual((Payment.objects.count(), Student.objects.count(), Student.objects.get().total_class_quota), (1, 1, D(6)))
         self.assertEqual(self.fingerprint(old), before)
 
-    def test_autopay_quote_blocks_token_sale_before_reservation_or_collection_is_created(self):
+    def test_sales_and_payment_starts_no_token_sale_and_new_sale_autopay_remains(self):
         self.lead = self.new_lead(collection_mode='AUTOPAY')
         response = self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
-        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_AUTOPAY_NOT_ALLOWED'))
+        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_FROM_PLAN'))
         self.assertEqual((Sale.objects.count(), Payment.objects.count(), Student.objects.count()), (0, 0, 0))
         self.assertEqual(self.start().status_code, 201, 'New Sale Autopay remains supported')
 
-    def test_token_reservation_rejects_autopay_through_both_quote_replacement_paths(self):
-        self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+    def test_token_reservation_rejects_new_sale_quotes_through_both_quote_replacement_paths(self):
+        self.assertEqual(self.reserve_token(expected_start_date=timezone.localdate().isoformat()).status_code, 201)
         old = quotes.latest_quote(self.lead); before = self.fingerprint(old)
-        for method in [self.client.get, self.client.post]:
-            response = method(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': 'AUTOPAY'})
-            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_AUTOPAY_NOT_ALLOWED'))
-        response = self.client.post('/api/sales/quotes/', {'syllabus': str(self.bridge.pk), 'revision': 1,
-            'plan_type': 'BRIDGE_COURSE', 'lead': str(self.lead.pk), 'replaces': str(old.pk), 'collection_mode': 'AUTOPAY'}, format='json')
-        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_AUTOPAY_NOT_ALLOWED'))
+        for mode in ['FULL', 'PARTIAL', 'AUTOPAY']:
+            for method in [self.client.get, self.client.post]:
+                response = method(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': mode})
+                self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_QUOTE_REQUIRED'))
+            response = self.client.post('/api/sales/quotes/', {'syllabus': str(self.bridge.pk), 'revision': 1,
+                'plan_type': 'BRIDGE_COURSE', 'lead': str(self.lead.pk), 'replaces': str(old.pk), 'collection_mode': mode}, format='json')
+            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_QUOTE_REQUIRED'))
         self.assertEqual(self.fingerprint(old), before)
         self.assertEqual(quotes.latest_quote(self.lead).pk, old.pk)
 
-    def test_old_token_autopay_draft_cannot_collect_until_full_or_partial_replacement(self):
+    def test_old_token_autopay_draft_cannot_collect_until_token_sale_replacement(self):
+        self.lead = self.new_lead(collection_mode='AUTOPAY'); old = quotes.latest_quote(self.lead)
+        self.existing_sale(old, 'TOKEN')
+        self.assertFalse(self.client.get(self.url()).json()['can_collect'])
+        response = self.collect(purpose='TOKEN', collection_mode='FULL', classes='0', amount='100')
+        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_AUTOPAY_NOT_ALLOWED'))
         for mode in ['FULL', 'PARTIAL']:
-            self.lead = self.new_lead(collection_mode='AUTOPAY'); old = quotes.latest_quote(self.lead)
-            self.existing_sale(old, 'TOKEN')
-            self.assertFalse(self.client.get(self.url()).json()['can_collect'])
-            response = self.collect(purpose='TOKEN', collection_mode='FULL', classes='0', amount='100')
-            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_AUTOPAY_NOT_ALLOWED'))
             response = self.client.post(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': mode}, format='json')
-            self.assertEqual(response.status_code, 201, response.content)
-            self.assertEqual(self.collect(purpose='TOKEN', collection_mode='FULL', classes='0', amount='100').status_code, 201)
+            self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_QUOTE_REQUIRED'))
+        response = self.client.post(self.replacement_url(), {'quote_id': str(old.pk), 'collection_mode': 'TOKEN'}, format='json')
+        self.assertEqual((response.status_code, response.json()['collection_mode']), (201, 'TOKEN'), response.content)
+        self.assertTrue(self.client.get(self.url()).json()['can_collect'])
+        self.assertEqual(self.collect(purpose='TOKEN', collection_mode='FULL', classes='0', amount='100').status_code, 201)
         self.assertEqual(Student.objects.count(), 0)
 
-    def test_token_without_quote_still_reserves_aed_100_without_enrollment(self):
+    def test_existing_token_without_quote_still_reserves_aed_100_without_enrollment(self):
         self.lead = lead_of(self.bde, 'Unquoted token', '509449992')
-        self.assertEqual(self.start('TOKEN', expected_start_date=timezone.localdate().isoformat()).status_code, 201)
+        response = self.start('TOKEN', expected_start_date=timezone.localdate().isoformat())
+        self.assertEqual((response.status_code, response.json()['error']), (409, 'TOKEN_SALE_FROM_PLAN'))
+        self.existing_sale(None, 'TOKEN')
         response = self.collect(purpose='TOKEN', collection_mode='FULL', classes='0', amount='100')
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual((Payment.objects.get().amount, Student.objects.count()), (D(100), 0))
