@@ -252,10 +252,13 @@ class BookingTests(DemoInviteTestCase):
         invite = self.fresh(invite)
         self.assertEqual((invite.used_at, invite.demo_booking_id, invite.status(AFTER)),
                          (AFTER, booking.pk, DemoInviteStatus.USED))
-        event = booking.events.get()
-        self.assertEqual((event.kind, event.actor, event.data),
+        created, assigned = booking.events.all()
+        self.assertEqual((created.kind, created.actor, created.data),
                          (BookingEventKind.CREATED, None,
                           {'slot_id': str(booking.slot_id), 'seat': 1, 'via': 'demo_invite', 'invite_id': str(invite.pk)}))
+        # Taught by the Diagnostic's tutor, assigned by the system (bookings.tests_diagnostic_tutor).
+        self.assertEqual((assigned.kind, assigned.actor, booking.assigned_tutor_id),
+                         (BookingEventKind.TUTOR_ASSIGNED, None, self.diagnostic.assigned_tutor_id))
         # Its parent communication is planned as for any Demo, with the lead's own BDE.
         tasks = CommunicationTask.objects.filter(demo_booking=booking)
         self.assertEqual((tasks.count(), {task.owner_id for task in tasks}), (5, {self.bde.pk}))
