@@ -22,7 +22,12 @@ create_booking runs in one transaction:
 
 create_invited_demo_booking books a Demo with a Demo invitation
 (bookings.demo_invites) the same way, for the invitation's lead instead of a
-matched one, and then locks the invitation's row too. schedule_redemo books
+matched one, and then locks the invitation's row too. A Demo either of them
+books for a child whose Diagnostic is completed starts with that
+Diagnostic's tutor (diagnostic_for_demo), when they can take it: under
+assign_tutor's tutor locks, taken after the lead's, they must still be an
+active tutor free for the whole slot, or the Demo is booked unassigned, as
+before, for an administrator to assign. schedule_redemo books
 an administrator's Re-Demo (bookings.redemos) likewise, for the request's
 lead, and then locks the request and the tutor as assign_tutor does;
 request_redemo marks a completed Demo RE-DEMO REQUIRED as the request is made;
@@ -499,6 +504,10 @@ def create_booking(request, now=None):
     yet ended (bookings.enquiries). A cancelled, rescheduled or completed
     booking holds nothing, nor does a booked one whose slot has ended -- the
     child may book that type again.
+
+    A Demo of a child whose Diagnostic is completed is taught by that
+    Diagnostic's tutor when they are free for its slot (diagnostic_for_demo,
+    _diagnostic_tutor); otherwise it is booked unassigned.
     """
     now = now or timezone.now()
     model = booking_model(request.booking_type)
@@ -516,6 +525,8 @@ def create_booking(request, now=None):
             if existing is not None:
                 return existing, False
             seat = _free_seat(model, slot, lead, phone_key, now)
+            diagnostic = diagnostic_for_demo(lead) if model is DemoBooking else None
+            tutor = _diagnostic_tutor(diagnostic, slot)
 
             if referral.status == ReferralStatus.ATTRIBUTED:
                 # First valid attribution wins: only a lead nobody owns yet
@@ -531,11 +542,13 @@ def create_booking(request, now=None):
                 referral_link=referral.link,
                 attributed_bde=referral.bde,
                 details=_submitted(request),
+                **_diagnostic_tutor_columns(tutor),
             )
             history.record(
                 booking, BookingEventKind.CREATED,
                 slot_id=slot.id, seat=booking.seat, referral_status=booking.referral_status, via='public_booking',
             )
+            _record_diagnostic_tutor(booking, tutor, diagnostic)
             owner_id = Lead.objects.filter(pk=lead.pk).values_list('owner_bde_id', flat=True).get()
             # Its five communication steps and first messages, committed with it or not at all.
             planner.plan_booking(booking, now)
@@ -558,6 +571,7 @@ def create_booking(request, now=None):
             'lead_id': str(booking.lead_id),
             'lead_owner_id': _str_or_none(owner_id),
             'via': 'public_booking',
+            'tutor_id': _str_or_none(booking.assigned_tutor_id),
         },
     )
     return booking, True
@@ -586,7 +600,10 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
     second sees what the first did. The invitation must still be active and
     its lead still invitable (demo_invite_refusal); it is marked used, naming
     the booking, in the same transaction. The Diagnostic, its report and its
-    history are only read.
+    history are only read. The Demo is taught by that Diagnostic's tutor --
+    the invitation's own Diagnostic, whichever other the child has -- when
+    they are free for its slot (_diagnostic_tutor); otherwise it is booked
+    unassigned.
     """
     pinned = now
     now = now or timezone.now()
@@ -615,6 +632,7 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
             if refusal is not None:
                 raise refusal
             seat = _free_seat(DemoBooking, slot, lead, lead.phone_key, now)
+            tutor = _diagnostic_tutor(diagnostic, slot)
 
             zone = student_timezones.clean(student_timezone)
             if not lead.student_timezone and student_timezones.fill(lead.pk, zone):
@@ -626,6 +644,7 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
                 channel=BookingChannel.BDE_HANDOFF,
                 created_by_id=invite.created_by_id,
                 details=_lead_submission(lead, display_time, zone),
+                **_diagnostic_tutor_columns(tutor),
             )
             invite.used_at = at
             invite.demo_booking = booking
@@ -634,6 +653,7 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
                 booking, BookingEventKind.CREATED,
                 slot_id=slot.id, seat=booking.seat, via='demo_invite', invite_id=invite.id,
             )
+            _record_diagnostic_tutor(booking, tutor, diagnostic)
             owner_id = lead.owner_bde_id
             planner.plan_booking(booking, now)
     except OperationalError as exc:
@@ -657,9 +677,25 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
             'via': 'demo_invite',
             'invite_id': str(invite.id),
             'diagnostic_booking_id': str(invite.diagnostic_booking_id),
+            'tutor_id': _str_or_none(booking.assigned_tutor_id),
         },
     )
     return booking, True
+
+
+def diagnostic_for_demo(lead):
+    """
+    The completed Diagnostic of ``lead`` whose tutor a Demo booked for the
+    same child on the Demo page is given (_diagnostic_tutor), or None: the one
+    taught last when there are several. Completed means its report is in; a
+    booked, cancelled or moved Diagnostic keeps its tutor but hands it to no
+    Demo.
+    """
+    return (
+        DiagnosticBooking.objects.filter(lead=lead, status=BookingStatus.COMPLETED)
+        .order_by('-slot__starts_at', '-completed_at')
+        .first()
+    )
 
 
 def held_demo(lead, now):
@@ -1985,6 +2021,47 @@ def _locked_tutor(tutor_id):
     """
     lock_tutor_schedule(tutor_id)
     return User.objects.select_for_update(no_key=True).filter(pk=tutor_id).first()
+
+
+def _diagnostic_tutor(diagnostic, slot):
+    """
+    The tutor of the completed Diagnostic ``diagnostic`` for a new Demo of the
+    same lead in ``slot``, or None: no Diagnostic, one not completed, or a
+    tutor who can no longer take it -- not an active tutor
+    (is_assignable_tutor) or not free for the whole slot (find_tutor_conflict).
+    The Demo is then booked unassigned, never refused. Read under
+    assign_tutor's tutor locks (_locked_tutor), after the slot's and the
+    lead's, which the caller holds -- the order of every booking write -- so
+    what is checked here still holds when the Demo commits.
+    """
+    if diagnostic is None or diagnostic.status != BookingStatus.COMPLETED:
+        return None
+    tutor = _locked_tutor(diagnostic.assigned_tutor_id)
+    if not is_assignable_tutor(tutor):
+        return None
+    if find_tutor_conflict(tutor, slot.starts_at, slot.ends_at) is not None:
+        return None
+    return tutor
+
+
+def _diagnostic_tutor_columns(tutor):
+    """
+    A new Demo's tutor columns for ``tutor`` (None: unassigned), as
+    assign_tutor writes them, with their Meet link as it is now; assigned by
+    nobody -- the system, not whoever booked or invited.
+    """
+    if tutor is None:
+        return {}
+    return {'assigned_tutor': tutor, 'tutor_assigned_at': timezone.now(), 'tutor_meet_link': tutor.tutor_meet_link}
+
+
+def _record_diagnostic_tutor(booking, tutor, diagnostic):
+    """``booking``'s history: ``tutor`` assigned from ``diagnostic`` (none when the Demo was booked unassigned)."""
+    if tutor is not None:
+        history.record(
+            booking, BookingEventKind.TUTOR_ASSIGNED,
+            old_tutor_id=None, new_tutor_id=tutor.pk, via='diagnostic', diagnostic_booking_id=diagnostic.pk,
+        )
 
 
 def _log_tutor_change(booking, action, actor, old_tutor_id, new_tutor_id):
