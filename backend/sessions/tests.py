@@ -1,3 +1,4 @@
+import importlib
 import os
 import shutil
 import tempfile
@@ -5,7 +6,9 @@ import threading
 import time
 import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest import mock, skipUnless
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -16,7 +19,6 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from students.models import Student, StatusChoices
-from invitations.models import Invitation, InvitationStatusChoices, InvitationRoleChoices
 from activity.models import ActivityLog
 from sessions.models import Session, SessionStatusChoices, SessionFile
 
@@ -92,26 +94,18 @@ class EduportPlusBackendAPITests(APITestCase):
         self.tutors_url = reverse('tutor-list')
         self.activity_logs_url = reverse('activity:activity-logs-list')
 
-    def test_mentor_and_tutor_list_counts(self):
+    def test_mentor_and_tutor_lists(self):
         """
-        Verify that mentors and tutors endpoints return assigned student counts.
+        The slim mentor and tutor lists name the active staff; the full-record
+        mode with assigned-student counts (?all=true) is retired (D3).
         """
         self.client.force_authenticate(user=self.admin)
-        
-        # Test Mentor list
-        res = self.client.get(self.mentors_url + '?all=true')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        mentors_list = res.data.get('mentors', [])
-        # Find our mentor
-        m_data = next(m for m in mentors_list if m['id'] == str(self.mentor.id))
-        self.assertEqual(m_data['assigned_students_count'], 2)
-
-        # Test Tutor list
-        res = self.client.get(self.tutors_url + '?all=true')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        tutors_list = res.data.get('tutors', [])
-        t_data = next(t for t in tutors_list if t['id'] == str(self.tutor.id))
-        self.assertEqual(t_data['assigned_students_count'], 2)
+        for url, key, member in ((self.mentors_url, 'mentors', self.mentor), (self.tutors_url, 'tutors', self.tutor)):
+            with self.subTest(url=url):
+                res = self.client.get(url)
+                self.assertEqual(res.status_code, status.HTTP_200_OK)
+                self.assertIn(str(member.id), [row['id'] for row in res.data[key]])
+                self.assertEqual(self.client.get(url + '?all=true').status_code, status.HTTP_410_GONE)
 
     def test_staff_dashboard_stats(self):
         """
@@ -286,16 +280,7 @@ class EduportPlusBackendAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('credits', res.data['error'])
 
-        # 4. Update session (reschedule)
-        new_start = start_time1 + timedelta(days=10)
-        update_payload = {
-            "id": session_id,
-            "start_time": new_start.isoformat(),
-            "duration_hours": 1
-        }
-
-
-        # 5. List sessions
+        # 4. List sessions
         res = self.client.get(self.sessions_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertTrue(any(s['id'] == session_id for s in res.data['sessions']))
@@ -632,7 +617,10 @@ class SessionWritePermissionAndValidationTests(APITestCase):
         self.assertEqual(self.session.rating, 4)
 
     def test_mentor_mark_attended_flow_unchanged(self):
-        """The hub SPA marks attended via PUT with status + all three links."""
+        """The hub SPA marks attended via PUT with status + all three links (once the class has ended)."""
+        self.session.start_time = timezone.now() - timedelta(hours=2)
+        self.session.end_time = self.session.start_time + timedelta(hours=1)
+        self.session.save(update_fields=['start_time', 'end_time'])
         self.client.force_authenticate(user=self.mentor)
         res = self.client.put(
             self.sessions_url,
@@ -831,28 +819,31 @@ class SessionLocalTimeSchedulingTests(APITestCase):
 
 class SessionMeetLinkExposureTests(APITestCase):
     """
-    The Sessions list nests the student's Meet room (students.meet_link) so
-    staff can join from the table. It rides on the existing row scoping only:
-    a tutor or mentor receives links solely for the students allocated to
-    them, a student only their own, and no other endpoint serves it.
+    The Sessions list gives each class the Meet room of the tutor it is
+    assigned to (tutor_meet_link) so staff and the student can join from it,
+    and never the student's own link. It rides on the existing row scoping
+    only: a tutor or mentor receives rooms solely for the classes they can
+    see, a student only their own.
     """
 
     LINK_A = 'https://meet.google.com/aaa-bbbb-ccc'
+    STUDENT_LINK = 'https://meet.google.com/sss-ssss-sss'
 
     def setUp(self):
         self.admin = User.objects.create_user(email='ml_admin@eduport.com', password='x', full_name='Ml Admin', role='ADMIN', is_staff=True)
         self.mentor_a = User.objects.create_user(email='ml_ma@eduport.com', password='x', full_name='Ml Mentor A', role='MENTOR', is_staff=True)
-        self.tutor_a = User.objects.create_user(email='ml_ta@eduport.com', password='x', full_name='Ml Tutor A', role='TUTOR', is_staff=True)
+        self.tutor_a = User.objects.create_user(email='ml_ta@eduport.com', password='x', full_name='Ml Tutor A', role='TUTOR', is_staff=True,
+                                                tutor_meet_link=self.LINK_A)
         self.tutor_b = User.objects.create_user(email='ml_tb@eduport.com', password='x', full_name='Ml Tutor B', role='TUTOR', is_staff=True)
         self.user_a = User.objects.create_user(email='ml_sa@eduport.com', password='x', full_name='Ml Stu A', role='STUDENT')
         self.user_b = User.objects.create_user(email='ml_sb@eduport.com', password='x', full_name='Ml Stu B', role='STUDENT')
         self.student_a = Student.objects.create(
             profile=self.user_a, student_code='MLA', full_name='Ml Stu A', mentor=self.mentor_a, tutor=self.tutor_a,
-            meet_link=self.LINK_A, status=StatusChoices.ACTIVE,
+            meet_link=self.STUDENT_LINK, status=StatusChoices.ACTIVE,
         )
         self.student_b = Student.objects.create(
             profile=self.user_b, student_code='MLB', full_name='Ml Stu B', tutor=self.tutor_b,
-            meet_link=None, status=StatusChoices.ACTIVE,
+            meet_link=self.STUDENT_LINK, status=StatusChoices.ACTIVE,
         )
         now = timezone.now()
         for student, tutor in ((self.student_a, self.tutor_a), (self.student_b, self.tutor_b)):
@@ -864,21 +855,21 @@ class SessionMeetLinkExposureTests(APITestCase):
         self.client.force_authenticate(user=user)
         res = self.client.get(self.sessions_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        return {s['students']['student_code']: s['students']['meet_link'] for s in res.data['sessions']}
+        self.assertNotIn(self.STUDENT_LINK, str(res.data))
+        return {s['students']['student_code']: s['tutor_meet_link'] for s in res.data['sessions']}
 
-    def test_each_session_carries_its_own_students_link(self):
+    def test_each_session_carries_its_own_tutors_room(self):
         self.assertEqual(self.links_by_student(self.admin), {'MLA': self.LINK_A, 'MLB': None})
 
-    def test_tutor_and_mentor_only_receive_links_for_allocated_students(self):
+    def test_tutor_and_mentor_only_receive_rooms_for_classes_they_see(self):
         self.assertEqual(self.links_by_student(self.tutor_a), {'MLA': self.LINK_A})
         self.assertEqual(self.links_by_student(self.mentor_a), {'MLA': self.LINK_A})
-        # Tutor B's only student has no room configured, and Student A's link
-        # must not appear anywhere in their payload.
+        # Tutor B has no room configured, and Tutor A's must not appear anywhere in their payload.
         self.assertEqual(self.links_by_student(self.tutor_b), {'MLB': None})
         res = self.client.get(self.sessions_url)
         self.assertNotIn(self.LINK_A, str(res.data))
 
-    def test_student_only_receives_their_own_link(self):
+    def test_student_only_receives_their_own_classes_rooms(self):
         self.assertEqual(self.links_by_student(self.user_a), {'MLA': self.LINK_A})
         self.assertEqual(self.links_by_student(self.user_b), {'MLB': None})
 
@@ -1001,14 +992,27 @@ class PostSessionWorkflowTests(APITestCase):
         )
         self.sessions_url = reverse('sessions:sessions-list-create-update')
         self.next_slot = (timezone.now() + timedelta(days=2)).replace(minute=0, second=0, microsecond=0)
+        # Classes already over, for marking attended (never before the scheduled
+        # end) -- and recently enough for the tutor's notes to complete a started one.
+        self.past_slot = (timezone.now() - timedelta(hours=40)).replace(minute=0, second=0, microsecond=0)
 
     # -- helpers ---------------------------------------------------------
 
-    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', **fields):
-        """One session per two-hour slot so nothing in a test overlaps by accident."""
+    def make_session(self, status_value=SessionStatusChoices.SCHEDULED, student=None, title='Demo2', ended=False,
+                     started=False, **fields):
+        """
+        One session per two-hour slot so nothing in a test overlaps by accident;
+        ``ended`` = one already over, ``started`` = one its tutor started on time.
+        """
         student = student or self.student
-        start = self.next_slot
-        self.next_slot = start + timedelta(hours=2)
+        if ended:
+            start = self.past_slot
+            self.past_slot = start + timedelta(hours=2)
+        else:
+            start = self.next_slot
+            self.next_slot = start + timedelta(hours=2)
+        if started:
+            fields.update(started_at=start, started_by=student.tutor)
         return Session.objects.create(
             student=student, tutor=student.tutor, title=title,
             start_time=start, end_time=start + timedelta(hours=1), status=status_value, **fields,
@@ -1059,22 +1063,27 @@ class PostSessionWorkflowTests(APITestCase):
     # -- 4-7: tutor may add notes and nothing else -----------------------------
 
     def test_tutor_can_add_notes_to_authorized_session(self):
-        session = self.make_session()
+        # After a started class: the tutor's notes then also complete it (sessions.lifecycle).
+        session = self.make_session(ended=True, started=True)
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "  https://example.com/notes "})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
         self.assertEqual(session.notes_link, 'https://example.com/notes')
-        self.assertEqual(session.status, SessionStatusChoices.SCHEDULED)
+        self.assertEqual(session.status, SessionStatusChoices.ATTENDED)
+        self.assertEqual(session.completed_by, self.tutor)
         self.assertEqual(res.data['session']['notes_link'], 'https://example.com/notes')
-        # Same activity entry a mentor's link edit produces -- no parallel log.
+        # Same activity entry a mentor's link edit produces, plus the completion.
         log = ActivityLog.objects.filter(action='session.update_links', entity_id=str(session.id)).first()
         self.assertIsNotNone(log)
         self.assertEqual(log.actor_role, 'TUTOR')
         self.assertEqual(log.changes['notes_link'], {"old": None, "new": 'https://example.com/notes'})
-        self.assertEqual(ActivityLog.objects.filter(entity_id=str(session.id)).count(), 1)
+        self.assertEqual(
+            sorted(ActivityLog.objects.filter(entity_id=str(session.id)).values_list('action', flat=True)),
+            ['session.complete', 'session.update_links'],
+        )
 
     def test_tutor_can_update_existing_notes(self):
-        session = self.make_session(notes_link='https://example.com/old')
+        session = self.make_session(ended=True, started=True, notes_link='https://example.com/old')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": "https://example.com/new"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1149,7 +1158,7 @@ class PostSessionWorkflowTests(APITestCase):
         self.assertEqual(session.homework_link, 'https://example.com/hw')
 
     def test_mentor_can_mark_attended_with_all_content_present(self):
-        session = self.make_session(**self.LINKS)
+        session = self.make_session(ended=True, **self.LINKS)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1162,7 +1171,7 @@ class PostSessionWorkflowTests(APITestCase):
 
     def _mark_attended_missing(self, missing_key):
         links = {k: v for k, v in self.LINKS.items() if k != f"{missing_key}_link"}
-        session = self.make_session(**links)
+        session = self.make_session(ended=True, **links)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         session.refresh_from_db()
@@ -1184,7 +1193,7 @@ class PostSessionWorkflowTests(APITestCase):
         self._mark_attended_missing('homework')
 
     def test_mentor_can_mark_attended_with_nothing_present(self):
-        session = self.make_session()
+        session = self.make_session(ended=True)
         res = self.put(self.mentor, {"id": str(session.id), "status": "ATTENDED"})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data['session']['display_status'], 'pending')
@@ -1192,7 +1201,7 @@ class PostSessionWorkflowTests(APITestCase):
 
     def test_mark_attended_can_carry_recording_and_homework(self):
         """The SPA's Mark Attended sends the mentor's two links in the same call."""
-        session = self.make_session()
+        session = self.make_session(ended=True)
         res = self.put(self.mentor, {
             "id": str(session.id), "status": "ATTENDED",
             "recording_link": self.LINKS['recording_link'], "homework_link": self.LINKS['homework_link'],
@@ -1232,15 +1241,16 @@ class PostSessionWorkflowTests(APITestCase):
         self.assertEqual(self.row(res, cancelled)['display_status'], 'cancelled')
 
     def test_adding_final_missing_field_flips_pending_to_attended(self):
-        session = self.make_session(SessionStatusChoices.ATTENDED, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
+        session = self.make_session(SessionStatusChoices.ATTENDED, ended=True, started=True, recording_link=self.LINKS['recording_link'], homework_link=self.LINKS['homework_link'])
         self.assertEqual(self.row(self.list_as(self.mentor), session)['display_status'], 'pending')
         res = self.put(self.tutor, {"id": str(session.id), "notes_link": self.LINKS['notes_link']})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data['session']['display_status'], 'attended')
         self.assertTrue(res.data['session']['content_complete'])
-        # Nothing but the link was written: attendance stays as the mentor set it.
+        # Attendance stays as the mentor set it; the tutor's notes add their completion.
         session.refresh_from_db()
         self.assertEqual(session.status, SessionStatusChoices.ATTENDED)
+        self.assertEqual(session.completed_by, self.tutor)
         row = self.row(self.list_as(self.mentor), session)
         self.assertEqual(row['display_status'], 'attended')
         self.assertEqual(row['missing_content'], [])
@@ -1416,10 +1426,12 @@ class SessionContentUploadTests(APITestCase):
             profile=self.other_student_user, student_code='EDPUP2', full_name='Up Stu Two',
             mentor=self.other_mentor, tutor=self.other_tutor, total_class_quota=20, status=StatusChoices.ACTIVE,
         )
+        # Started by its tutor and over: the tutor's notes complete it (there is no deadline).
         start = timezone.now() - timedelta(days=1)
         self.session = Session.objects.create(
             student=self.student, tutor=self.tutor, title='Upload Class',
             start_time=start, end_time=start + timedelta(hours=1), status=SessionStatusChoices.ATTENDED,
+            started_at=start, started_by=self.tutor,
         )
         self.sessions_url = reverse('sessions:sessions-list-create-update')
 
@@ -1854,15 +1866,15 @@ class TutorAvailabilityTests(APITestCase):
         res = self.book(self.student2, now)                        # any time after
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
 
-    def test_marking_attended_early_frees_the_tutor_immediately(self):
+    def test_marking_attended_before_the_end_is_refused_and_the_class_keeps_blocking(self):
+        # A class is marked attended only once its scheduled end has passed
+        # (sessions.lifecycle), so it cannot be marked early to free its slot.
         first = self.existing(self.student1, self.two, self.three)
-        # Still blocks while scheduled...
         self.assertEqual(self.book(self.student2, self.two + timedelta(minutes=45)).status_code, status.HTTP_409_CONFLICT)
-        # ...mark attended "at 2:40": the 2:45 booking for the same tutor goes through.
         res = self.put({"id": str(first.id), "status": "attended"})
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        res = self.book(self.student2, self.two + timedelta(minutes=45))
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT, res.data)
+        self.assertEqual(res.data['code'], 'CLASS_NOT_ENDED')
+        self.assertEqual(self.book(self.student2, self.two + timedelta(minutes=45)).status_code, status.HTTP_409_CONFLICT)
 
     # ------------------------------------------------------- tutor reassignment
 
@@ -1888,6 +1900,21 @@ class TutorAvailabilityTests(APITestCase):
         mine = self.existing(self.student1, self.two, self.three)                  # 2-3
         res = self.put({"id": str(mine.id), "tutor": str(self.tutor_b.id)})
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_a_session_is_handed_only_to_an_active_tutor(self):
+        # Decision D5: the new tutor must hold the TUTOR role and be active.
+        mine = self.existing(self.student1, self.two, self.three)
+        retired = User.objects.create_user(
+            email='ta_retired@eduport.com', password='x', full_name='Retired Tutor', role='TUTOR',
+            is_active=False, deactivated_at=timezone.now(),
+        )
+        for target in (self.mentor, retired):
+            with self.subTest(target=target.full_name):
+                res = self.put({"id": str(mine.id), "tutor": str(target.id)})
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+                self.assertEqual(res.data['error'], 'Selected tutor is not an active tutor.')
+                mine.refresh_from_db()
+                self.assertEqual(mine.tutor, self.tutor_a)
 
     def test_resending_the_same_tutor_is_not_a_conflict_with_itself(self):
         mine = self.existing(self.student1, self.two, self.three)
@@ -1997,6 +2024,13 @@ class ConcurrentBookingTests(TransactionTestCase):
     """
 
     def setUp(self):
+        # A TransactionTestCase empties the database between tests, the role
+        # groups seeded by migrations 0008/0009 included, which would leave
+        # the mentor without permissions. Seed them again (a no-op if present).
+        for migration in ('0008_role_groups', '0009_hub_roles_bde_sales_tl'):
+            importlib.import_module(f'accounts.migrations.{migration}').seed_role_groups(
+                django_apps, SimpleNamespace(connection=connection)
+            )
         self.mentor = User.objects.create_user(email='cb_mentor@eduport.com', password='x', full_name='Cb Mentor', role='MENTOR', is_staff=True)
         self.tutor = User.objects.create_user(email='cb_tutor@eduport.com', password='x', full_name='Cb Tutor', role='TUTOR', is_staff=True)
         self.students = []

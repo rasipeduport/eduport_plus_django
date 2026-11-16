@@ -1,11 +1,13 @@
 """
 Exam API, ported from the Supabase Hub route handlers + the Learn submit route.
 
-Role rules (see core.permissions.IsAdminMentorOrStudentRead and
-core.querysets.scope_exams_by_role): admins manage any student's exams,
-mentors only their allocated students', students read their selected
-persona's exams and may submit one answer sheet per additional exam, tutors
-have no exam access at all.
+Who may do what (accounts.permission_catalogue): reading needs one of the
+exam view permissions and is scoped by core.querysets.scope_exams (admins
+every student's exams, mentors their allocated students'); each write needs
+its own permission (create_exam, manage_exam, cancel_exam, record_exam_result,
+score_additional_exam) and a student within that scope. Tutors hold no exam
+permission at all. Students read their selected persona's exams and may submit
+one answer sheet per additional exam.
 """
 import uuid
 from django.core.exceptions import ValidationError
@@ -21,9 +23,9 @@ from rest_framework.permissions import IsAuthenticated
 
 from students.models import Student, StatusChoices
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
-from core.permissions import IsAdminOrMentor, IsAdminMentorOrStudentRead, IsStudentUser
-from core.querysets import scope_exams_by_role
+from accounts.authz import has_app_permission
+from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser, IsStudentUserFor
+from core.querysets import EXAM_VIEW_PERMISSIONS, reaches, scope_exams
 from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_list, paginate_queryset
 from sessions.views import SessionFileDownloadView
@@ -61,6 +63,10 @@ from .services import (
 
 FEEDBACK_MAX_LENGTH = 2000
 TITLE_MAX_LENGTH = 200
+RESCHEDULE_FIELDS = ('start_time', 'local_date', 'local_time', 'duration_hours')
+
+# Staff reading exams, or the selected student reading their own.
+READ_EXAMS = HasAnyAppPermission(*EXAM_VIEW_PERMISSIONS) | IsStudentUserFor('GET')
 
 
 def _ctx(request):
@@ -71,11 +77,17 @@ def _forbidden(message):
     return Response({"error": "Forbidden", "message": message}, status=status.HTTP_403_FORBIDDEN)
 
 
-def _can_manage(user, student):
-    """Admins manage any student; a mentor only their allocated students."""
-    if user.role == 'ADMIN' or user.is_superuser:
-        return True
-    return user.role == 'MENTOR' and student.mentor_id == user.id
+def _refusal(request, student, *perms):
+    """
+    The 403 for a caller who lacks one of ``perms``, or whose exam scope does
+    not reach ``student`` (admins reach every student, a mentor their
+    allocated students); None when they may go ahead.
+    """
+    if not all(has_app_permission(request.user, perm, request) for perm in perms):
+        return _forbidden("You do not have permission to do this.")
+    if not reaches('exams', request.user, student, request):
+        return _forbidden("You can only manage exams for your allocated students.")
+    return None
 
 
 def _student_persona_error(request):
@@ -105,12 +117,12 @@ def _lookup(model, pk):
 
 
 def _visible_queryset(model, request):
-    """Rows the caller may read: selected persona for students, role scope for staff."""
+    """Rows the caller may read: selected persona for students, exam scope for staff."""
     qs = model.objects.select_related('student', 'student__profile', 'student__mentor', 'mentor').prefetch_related('files')
     if request.user.role == 'STUDENT':
         student = resolve_selected_student(request)
         return qs.filter(student=student) if student else qs.none()
-    return scope_exams_by_role(qs, request.user)
+    return scope_exams(qs, request.user, request)
 
 
 def _status_filter(queryset, raw, choices):
@@ -143,10 +155,14 @@ def _apply_common_filters(queryset, params, choices, chapter_field):
 class ExamsView(APIView):
     """
     GET: list chapter exams (admin: all, mentor: allocated students, student:
-         the selected persona). PUT/POST: schedule, reschedule or cancel.
+         the selected persona). POST: schedule (create_exam). PUT: reschedule
+         (manage_exam) or cancel (cancel_exam).
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
+    permission_classes = [IsAuthenticated, ByMethod(
+        GET=READ_EXAMS,
+        POST=HasAppPermission('accounts.create_exam'),
+        PUT=HasAnyAppPermission('accounts.manage_exam', 'accounts.cancel_exam'),
+    )]
 
     def get(self, request, *args, **kwargs):
         queryset = _visible_queryset(Exam, request).order_by('-start_time')
@@ -180,8 +196,9 @@ class ExamsView(APIView):
             student = Student.objects.select_related('mentor').get(id=student_id)
         except (Student.DoesNotExist, ValidationError, ValueError):
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        refusal = _refusal(request, student, 'accounts.create_exam')
+        if refusal:
+            return refusal
         if student.status == StatusChoices.EXPIRED:
             return _forbidden("This student's enrollment has expired.")
 
@@ -238,8 +255,12 @@ class ExamsView(APIView):
         exam = _lookup(Exam, exam_id)
         if not exam:
             return Response({"error": "Exam not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, exam.student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        needed = (['accounts.cancel_exam'] if 'status' in data else []) + (
+            ['accounts.manage_exam'] if any(k in data for k in RESCHEDULE_FIELDS) else []
+        )
+        refusal = _refusal(request, exam.student, *needed)
+        if refusal:
+            return refusal
 
         new_status = None
         if 'status' in data:
@@ -259,7 +280,7 @@ class ExamsView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
-        wants_reschedule = any(k in data for k in ('start_time', 'local_date', 'local_time', 'duration_hours'))
+        wants_reschedule = any(k in data for k in RESCHEDULE_FIELDS)
         new_start = new_end = None
         if wants_reschedule:
             has_time = any(k in data for k in ('start_time', 'local_date', 'local_time'))
@@ -327,8 +348,7 @@ class ExamsView(APIView):
 
 class ChapterNamesView(APIView):
     """GET /api/exams/chapter-names/?student_id= -- the dropdown behind New Chapter Exam."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminOrMentor]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.create_exam')]
 
     def get(self, request, *args, **kwargs):
         student_id = request.query_params.get('student_id')
@@ -338,15 +358,15 @@ class ChapterNamesView(APIView):
             student = Student.objects.get(id=student_id)
         except (Student.DoesNotExist, ValidationError, ValueError):
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        refusal = _refusal(request, student, 'accounts.create_exam')
+        if refusal:
+            return refusal
         return Response({"chapter_names": derive_chapter_names(student)}, status=status.HTTP_200_OK)
 
 
 class ExamDetailView(APIView):
     """GET /api/exams/<id>/ -- one exam with its question-paper files."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
+    permission_classes = [IsAuthenticated, READ_EXAMS]
 
     def get(self, request, exam_id, *args, **kwargs):
         exam = _visible_queryset(Exam, request).filter(id=exam_id).first()
@@ -363,16 +383,16 @@ class ExamResultView(APIView):
     the first call; later calls edit it. New uploads are rolled back on
     failure; existing files are only removed after the row update succeeds.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminOrMentor]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.record_exam_result')]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request, exam_id, *args, **kwargs):
         exam = _lookup(Exam, exam_id)
         if not exam:
             return Response({"error": "Exam not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, exam.student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        refusal = _refusal(request, exam.student, 'accounts.record_exam_result')
+        if refusal:
+            return refusal
         if exam.status == ExamStatusChoices.CANCELLED:
             return Response({"error": "A cancelled exam has no result to record"}, status=status.HTTP_409_CONFLICT)
 
@@ -468,8 +488,9 @@ class _FileDownloadBase(APIView):
 
     Learn renders PDFs inside an iframe, so the concrete download views below
     are the only endpoints exempt from the global ``X-Frame-Options: DENY``.
+    Open to every signed-in account on purpose: the exam scope decides, and a
+    refusal reads "no access to this file".
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
     model = None
     parent_model = None
@@ -480,7 +501,7 @@ class _FileDownloadBase(APIView):
         user = request.user
         if user.role == 'STUDENT':
             return get_usable_students(user).filter(id=parent.student_id).exists()
-        return scope_exams_by_role(self.parent_model.objects.filter(id=parent.id), user).exists()
+        return scope_exams(self.parent_model.objects.filter(id=parent.id), user, request).exists()
 
     def get(self, request, file_id, *args, **kwargs):
         try:
@@ -520,9 +541,8 @@ class AdditionalExamFileDownloadView(_FileDownloadBase):
 # ============================================================ additional exams
 
 class AdditionalExamsView(APIView):
-    """GET: list additional exams. POST (multipart): assign one with its question paper."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
+    """GET: list additional exams. POST (multipart, create_exam): assign one with its question paper."""
+    permission_classes = [IsAuthenticated, ByMethod(GET=READ_EXAMS, POST=HasAppPermission('accounts.create_exam'))]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request, *args, **kwargs):
@@ -562,8 +582,9 @@ class AdditionalExamsView(APIView):
             student = Student.objects.select_related('mentor').get(id=student_id)
         except (Student.DoesNotExist, ValidationError, ValueError):
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        refusal = _refusal(request, student, 'accounts.create_exam')
+        if refusal:
+            return refusal
         if student.status == StatusChoices.EXPIRED:
             return _forbidden("This student's enrollment has expired.")
 
@@ -597,8 +618,7 @@ class AdditionalExamsView(APIView):
 
 class AdditionalExamDetailView(APIView):
     """GET /api/additional-exams/<id>/ -- with files split into question paper / answer sheet."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminMentorOrStudentRead]
+    permission_classes = [IsAuthenticated, READ_EXAMS]
 
     def get(self, request, exam_id, *args, **kwargs):
         exam = _visible_queryset(AdditionalExam, request).filter(id=exam_id).first()
@@ -616,7 +636,6 @@ class AdditionalExamSubmitView(APIView):
     uploads their answer sheet ONCE. Only the owning (selected) student, only
     while the exam is still assigned.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -670,15 +689,15 @@ class AdditionalExamSubmitView(APIView):
 
 class AdditionalExamScoreView(APIView):
     """POST /api/additional-exams/<id>/score/ (JSON): the mentor/admin scores a submitted exam."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminOrMentor]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.score_additional_exam')]
 
     def post(self, request, exam_id, *args, **kwargs):
         exam = _lookup(AdditionalExam, exam_id)
         if not exam:
             return Response({"error": "Exam not found"}, status=status.HTTP_404_NOT_FOUND)
-        if not _can_manage(request.user, exam.student):
-            return _forbidden("You can only manage exams for your allocated students.")
+        refusal = _refusal(request, exam.student, 'accounts.score_additional_exam')
+        if refusal:
+            return refusal
         if exam.status != AdditionalExamStatusChoices.SUBMITTED:
             return Response({"error": "Only a submitted exam can be scored"}, status=status.HTTP_409_CONFLICT)
 
@@ -734,7 +753,6 @@ class AdditionalExamScoreView(APIView):
 
 class ScorecardView(APIView):
     """GET /api/student/scorecard/?range=week|month|all -- the Learn progress numbers."""
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
 
     def get(self, request, *args, **kwargs):
@@ -755,7 +773,6 @@ class StudentScoresView(APIView):
     merged, newest first, paged. Same persona and window rules as the
     scorecard; page 1 with the default size equals the scorecard's ``recent``.
     """
-    authentication_classes = [CSRFExemptSessionAuthentication]
     permission_classes = [IsAuthenticated, IsStudentUser]
 
     def get(self, request, *args, **kwargs):

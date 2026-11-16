@@ -1,0 +1,81 @@
+from django.urls import path
+from .autopay_views import AutopayScheduleView, BeginAutopayView, RestartInitialCheckoutView, ParentAutopayActionView
+from .account_views import (BillingContactView, CancelAutopayView, IdentityCorrectionView, ResolveReviewView, SalesDashboardView,
+                            StripeReviewView)
+from .purchase_views import (PurchaseAmountView, PurchaseExpireView, PurchasePaymentsView, PurchaseProofView, PurchaseView,
+                             StudentFinanceView, StudentPaymentsView, StudentPurchasesView)
+
+from .quote_views import EnquiryPlanView, QuoteCancelView, QuoteDetailView, QuotePdfView, QuotesView
+from .payment_views import (InitialSalesView, CollectionAmountView, CollectPaymentView, InstallmentQuoteView,
+                            PaymentProofView, ExpirePaymentView, InitialStudentSaleView, StripeWebhookView, TokenSaleView)
+
+from .views import (
+    CatalogueDetailView, CataloguePdfView, CatalogueSelectionPdfView, CatalogueSelectionView, CatalogueView, PricingView, SyllabiView, SyllabusDetailView, SyllabusDraftView, SyllabusDuplicateView, SyllabusLifecycleView,
+    SyllabusPdfDownloadView, SyllabusPdfPreviewView, SyllabusPublishView, SyllabusRevisionPdfView, SyllabusRevisionView,
+    SyllabusSelectionPdfView, SyllabusSelectionView,
+)
+
+app_name = 'sales'
+
+urlpatterns = [
+    path('enquiries/<uuid:pk>/sale/autopay/preview/', AutopayScheduleView.as_view(), name='autopay_preview'),
+    path('enquiries/<uuid:pk>/sale/autopay/', BeginAutopayView.as_view(), name='begin_autopay'),
+    path('autopay/<uuid:pk>/initial-checkout/', RestartInitialCheckoutView.as_view(), name='restart_autopay_checkout'),
+    path('autopay/actions/<str:token>/', ParentAutopayActionView.as_view(), name='parent_autopay_action'),
+    path('enquiries/<uuid:pk>/sale/', InitialSalesView.as_view(), name='initial_sale'),
+    path('enquiries/<uuid:pk>/sale/amount/', CollectionAmountView.as_view(), name='collection_amount'),
+    path('enquiries/<uuid:pk>/sale/payments/', CollectPaymentView.as_view(), name='collect_payment'),
+    path('enquiries/<uuid:pk>/installment-quote/', InstallmentQuoteView.as_view(), name='installment_quote'),
+    # Token Sale, chosen with its tuition plan in Plan Choosing (sales.token_sales).
+    path('enquiries/<uuid:pk>/token-sale/', TokenSaleView.as_view(), name='token_sale'),
+    path('payments/<uuid:pk>/proof/', PaymentProofView.as_view(), name='payment_proof'),
+    path('payments/<uuid:pk>/expire/', ExpirePaymentView.as_view(), name='expire_payment'),
+    path('students/<uuid:pk>/initial-sale/', InitialStudentSaleView.as_view(), name='student_initial_sale'),
+    path('webhooks/stripe/', StripeWebhookView.as_view(), name='stripe_webhook'),
+    # Student financial identity: billing contact, audited corrections, Autopay
+    # cancellation and the review queue for Stripe activity Django did not create.
+    path('enquiries/<uuid:pk>/sale/billing-contact/', BillingContactView.as_view(), name='billing_contact'),
+    path('accounts/<uuid:pk>/identity-correction/', IdentityCorrectionView.as_view(), name='identity_correction'),
+    path('autopay/<uuid:pk>/cancel/', CancelAutopayView.as_view(), name='cancel_autopay'),
+    path('stripe-review/', StripeReviewView.as_view(), name='stripe_review'),
+    path('stripe-review/<uuid:pk>/resolve/', ResolveReviewView.as_view(), name='resolve_stripe_review'),
+    # Sales and collections across every student, for administrators.
+    path('dashboard/', SalesDashboardView.as_view(), name='dashboard'),
+    # After enrollment, the student's mentor (or an Admin): their finance, their payments, a
+    # further (additional) Sale, and collecting any of their purchases.
+    path('students/<uuid:pk>/finance/', StudentFinanceView.as_view(), name='student_finance'),
+    path('students/<uuid:pk>/payments/', StudentPaymentsView.as_view(), name='student_payments'),
+    path('students/<uuid:pk>/purchases/', StudentPurchasesView.as_view(), name='student_purchases'),
+    path('purchases/<uuid:pk>/', PurchaseView.as_view(), name='purchase'),
+    path('purchases/<uuid:pk>/amount/', PurchaseAmountView.as_view(), name='purchase_amount'),
+    path('purchases/<uuid:pk>/payments/', PurchasePaymentsView.as_view(), name='purchase_payments'),
+    path('purchases/<uuid:pk>/payments/<uuid:payment_id>/expire/', PurchaseExpireView.as_view(), name='purchase_expire'),
+    path('purchases/<uuid:pk>/payments/<uuid:payment_id>/proof/', PurchaseProofView.as_view(), name='purchase_proof'),
+    path('syllabi/', SyllabiView.as_view(), name='syllabi'),
+    path('syllabi/pdf-preview/', SyllabusPdfPreviewView.as_view(), name='pdf_preview'),
+    path('syllabi/<uuid:pk>/', SyllabusDetailView.as_view(), name='syllabus'),
+    path('syllabi/<uuid:pk>/draft/', SyllabusDraftView.as_view(), name='draft'),
+    path('syllabi/<uuid:pk>/publish/', SyllabusPublishView.as_view(), name='publish'),
+    path('syllabi/<uuid:pk>/deactivate/', SyllabusLifecycleView.as_view(lifecycle_action='deactivate'), name='deactivate'),
+    path('syllabi/<uuid:pk>/reactivate/', SyllabusLifecycleView.as_view(lifecycle_action='reactivate'), name='reactivate'),
+    path('syllabi/<uuid:pk>/duplicate/', SyllabusDuplicateView.as_view(), name='duplicate'),
+    path('syllabi/<uuid:pk>/revisions/<int:number>/', SyllabusRevisionView.as_view(), name='revision'),
+    path('syllabi/<uuid:pk>/pdf/', SyllabusPdfDownloadView.as_view(), name='pdf'),
+    path('syllabi/<uuid:pk>/revisions/<int:number>/pdf/', SyllabusRevisionPdfView.as_view(), name='revision_pdf'),
+    path('syllabi/<uuid:pk>/revisions/<int:number>/selection/', SyllabusSelectionView.as_view(), name='selection'),
+    path('syllabi/<uuid:pk>/revisions/<int:number>/selection/pdf/', SyllabusSelectionPdfView.as_view(),
+         name='selection_pdf'),
+    path('pricing/', PricingView.as_view(), name='pricing'),
+    # The catalogue on sale: what BDEs (and administrators) quote parents from.
+    path('catalogue/', CatalogueView.as_view(), name='catalogue'),
+    path('catalogue/<uuid:pk>/', CatalogueDetailView.as_view(), name='catalogue_syllabus'),
+    path('catalogue/<uuid:pk>/pdf/', CataloguePdfView.as_view(), name='catalogue_pdf'),
+    path('catalogue/<uuid:pk>/selection/', CatalogueSelectionView.as_view(), name='catalogue_selection'),
+    path('catalogue/<uuid:pk>/selection/pdf/', CatalogueSelectionPdfView.as_view(), name='catalogue_selection_pdf'),
+    # Quotes: what a parent was quoted, kept as it was issued (sales.quotes).
+    path('quotes/', QuotesView.as_view(), name='quotes'),
+    path('enquiries/<uuid:pk>/plan/', EnquiryPlanView.as_view(), name='enquiry_plan'),
+    path('quotes/<uuid:pk>/', QuoteDetailView.as_view(), name='quote'),
+    path('quotes/<uuid:pk>/pdf/', QuotePdfView.as_view(), name='quote_pdf'),
+    path('quotes/<uuid:pk>/cancel/', QuoteCancelView.as_view(), name='quote_cancel'),
+]

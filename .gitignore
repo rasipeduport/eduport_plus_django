@@ -13,6 +13,9 @@ __pycache__/
 !.env.example
 !.env.dev.example
 
+# Local Stripe CLI credentials; never include these in an image or commit.
+/.local/stripe/
+
 # React
 frontend/hub/node_modules/
 frontend/hub/dist/

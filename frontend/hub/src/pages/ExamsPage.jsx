@@ -4,6 +4,7 @@ import { Loader2, Calendar, ClipboardList, Video, ExternalLink, ChevronDown, X, 
 import { format } from 'date-fns';
 
 import api from '../lib/api';
+import { PERMISSIONS, can } from '../lib/access';
 import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { Badge } from '../components/ui/badge';
@@ -115,7 +116,7 @@ function QuestionPaperFiles({ exam }) {
  * list (admin: all, mentor: own students); with it, the student's exams page
  * with the New menu and row actions, reached from "Manage Exams".
  */
-export default function ExamsPage() {
+export default function ExamsPage({ user }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const studentIdQuery = searchParams.get('student_id');
 
@@ -125,7 +126,12 @@ export default function ExamsPage() {
   const [chapterNames, setChapterNames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState('ADMIN');
+  // What the caller may do follows their permissions (App.jsx, from /me);
+  // the API checks the same ones.
+  const canCreate = can(user, PERMISSIONS.createExam);
+  const canRecordResult = can(user, PERMISSIONS.recordExamResult);
+  const canReschedule = can(user, PERMISSIONS.manageExam);
+  const canCancel = can(user, PERMISSIONS.cancelExam);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState(undefined);
@@ -143,7 +149,6 @@ export default function ExamsPage() {
   const [createAdditionalOpen, setCreateAdditionalOpen] = useState(false);
 
   useEffect(() => {
-    fetchUserInfo();
     fetchStudents();
     fetchExams();
   }, []);
@@ -162,15 +167,6 @@ export default function ExamsPage() {
       .then((res) => setChapterNames(res.data.chapter_names || []))
       .catch(() => setChapterNames([]));
   }, [selectedStudentId]);
-
-  const fetchUserInfo = async () => {
-    try {
-      const res = await api.get('/api/auth/me/');
-      setUserRole(res.data.user?.role || 'ADMIN');
-    } catch (err) {
-      console.error('Failed to load user info', err);
-    }
-  };
 
   const fetchStudents = async () => {
     try {
@@ -211,7 +207,8 @@ export default function ExamsPage() {
   };
 
   const isGlobal = !selectedStudentId;
-  const isAdmin = userRole === 'ADMIN';
+  // The mentor filter is for whoever sees every student's exams.
+  const isAdmin = can(user, PERMISSIONS.viewAllExams);
 
   const term = searchTerm.trim().toLowerCase();
   const filteredExams = exams.filter((e) => {
@@ -321,9 +318,11 @@ export default function ExamsPage() {
     const isScheduled = status === 'scheduled';
     const isAttended = status === 'attended';
     return [
-      { label: isAttended ? 'Edit Result' : 'Record Result', disabled: !isScheduled && !isAttended, onClick: () => setResultExam(exam) },
-      { label: 'Reschedule', disabled: !isScheduled, onClick: () => setRescheduleExam(exam) },
-      { label: 'Cancel Exam', disabled: !isScheduled, danger: true, onClick: () => setCancelExam(exam) },
+      ...(canRecordResult
+        ? [{ label: isAttended ? 'Edit Result' : 'Record Result', disabled: !isScheduled && !isAttended, onClick: () => setResultExam(exam) }]
+        : []),
+      ...(canReschedule ? [{ label: 'Reschedule', disabled: !isScheduled, onClick: () => setRescheduleExam(exam) }] : []),
+      ...(canCancel ? [{ label: 'Cancel Exam', disabled: !isScheduled, danger: true, onClick: () => setCancelExam(exam) }] : []),
     ];
   };
 
@@ -444,7 +443,7 @@ export default function ExamsPage() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {selectedStudentId && (
+        {selectedStudentId && canCreate && (
           <div className="ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

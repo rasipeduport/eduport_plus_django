@@ -11,9 +11,9 @@ from rest_framework.test import APITestCase
 
 from activity.models import ActivityLog
 from students.models import Student, StatusChoices
-from sessions.models import Session, SessionStatusChoices, SessionFile
+from sessions.models import Session, SessionStatusChoices
 from exams.models import Exam
-from .models import Homework, HomeworkFile
+from .models import Homework
 from .services import collect_homework_entries
 
 User = get_user_model()
@@ -122,9 +122,10 @@ class RowCreationTests(HomeworkTestBase):
         self.assertEqual(ActivityLog.objects.get(action='homework.assign').context['source'], 'upload')
 
     def test_scheduled_session_waits_for_mark_attended(self):
+        # A class already over: one is marked attended only after its scheduled end.
         scheduled = Session.objects.create(
             student=self.student, title='Algebra', tutor=self.tutor,
-            start_time=timezone.now() + timedelta(days=1), end_time=timezone.now() + timedelta(days=1, hours=1),
+            start_time=timezone.now() - timedelta(days=2), end_time=timezone.now() - timedelta(days=2, hours=-1),
         )
         self.assertEqual(self.assign_via_put(session=scheduled).status_code, 200)
         self.assertFalse(Homework.objects.filter(session=scheduled).exists())
@@ -135,9 +136,10 @@ class RowCreationTests(HomeworkTestBase):
         self.assertEqual(ActivityLog.objects.get(action='homework.assign').context['source'], 'mark_attended')
 
     def test_mark_attended_with_link_in_same_request(self):
+        # A class already over: one is marked attended only after its scheduled end.
         scheduled = Session.objects.create(
             student=self.student, title='Algebra', tutor=self.tutor,
-            start_time=timezone.now() + timedelta(days=1), end_time=timezone.now() + timedelta(days=1, hours=1),
+            start_time=timezone.now() - timedelta(days=2), end_time=timezone.now() - timedelta(days=2, hours=-1),
         )
         self.client.force_authenticate(user=self.admin)
         res = self.client.put(self.sessions_url, {'id': str(scheduled.id), 'status': 'attended', 'homework_link': 'https://hw.example/x'}, format='json')
@@ -318,7 +320,6 @@ class IntegrationTests(HomeworkTestBase):
             homework_link='https://hw.example/s',
         )
         self.make_homework(session=s)
-        s_id = s.id
         # Delete the session but keep an orphan-free check: the student still has a session -> 409 anyway,
         # so remove the session row first and recreate the homework on a fresh session to isolate the homework guard.
         self.client.force_authenticate(user=self.admin)

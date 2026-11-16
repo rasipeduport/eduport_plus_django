@@ -1,37 +1,27 @@
-import { BookOpen, CalendarCheck, ClipboardList, Compass, GraduationCap, History, LayoutDashboard, Mail, Presentation, ShieldCheck } from 'lucide-react';
+import { Fragment } from 'react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenuButton, SidebarRail } from '@/components/ui/sidebar';
-
-const navMain = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Students', url: '/students', icon: GraduationCap },
-  { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
-  { title: 'Exams', url: '/exams', icon: ClipboardList },
-  { title: 'Homework', url: '/homework', icon: BookOpen },
-  { title: 'Admins', url: '/admins', icon: ShieldCheck },
-  { title: 'Mentors', url: '/mentors', icon: Compass },
-  { title: 'Tutors', url: '/tutors', icon: Presentation },
-  { title: 'Invitations', url: '/invitations', icon: Mail },
-  { title: 'Activity', url: '/activity', icon: History },
-];
-
-// Mentors and tutors get the operational pages and the activity log (the API
-// pins it to their own entries); staff management and the invitation queue
-// stay admin-only, matching the route guards in App.jsx and the backend
-// permissions.
-const STAFF_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/exams', '/homework', '/activity']);
-// Exams are mentor/admin only -- tutors are not involved.
-const TUTOR_NAV_URLS = new Set(['/dashboard', '/students', '/sessions', '/homework', '/activity']);
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenuButton,
+  SidebarRail,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+import { usesRefreshedDesign } from '@/lib/design';
+import { workspaceFor } from '@/lib/navigation';
 
 export function AppSidebar({ user, logout, ...props }) {
-  const items =
-    user?.role === 'TUTOR'
-      ? navMain.filter((item) => TUTOR_NAV_URLS.has(item.url))
-      : user?.role === 'MENTOR'
-        ? navMain.filter((item) => STAFF_NAV_URLS.has(item.url))
-        : navMain;
+  // Exactly the pages the route guards in App.jsx open for this account
+  // (lib/navigation, lib/access): those its permissions open. An account
+  // holding none is offered nothing, and a section none of whose pages open is
+  // not shown.
+  const workspace = workspaceFor(user);
+  // The refreshed design (lib/design) closes the phone's sidebar sheet once a page is picked.
+  const closeOnNavigate = usesRefreshedDesign(user);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -45,12 +35,23 @@ export function AppSidebar({ user, logout, ...props }) {
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">Eduport Plus</span>
-            <span className="truncate text-xs">Hub</span>
+            <span className="truncate text-xs">{workspace.name}</span>
           </div>
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={items} />
+        {workspace.sections.map((section, index) => (
+          <Fragment key={section.label ?? index}>
+            {/* A section with no heading of its own is set apart by a rule. */}
+            {index > 0 && !section.label ? <SidebarSeparator /> : null}
+            <NavMain
+              label={section.label}
+              items={section.items}
+              collapsible={workspace.collapsible}
+              closeOnNavigate={closeOnNavigate}
+            />
+          </Fragment>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} logout={logout} />

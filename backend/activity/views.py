@@ -1,3 +1,5 @@
+import uuid
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5,8 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
-from core.permissions import IsStaffUser
-from core.querysets import scope_activity_by_role
+from accounts.authz import has_app_permission
+from core.permissions import HasAnyAppPermission
+from core.querysets import ACTIVITY_VIEW_PERMISSIONS, scope_activity
 from .models import ActivityLog
 from .serializers import ActivityLogSerializer
 
@@ -17,17 +20,14 @@ User = get_user_model()
 AUTH_ACTIONS = ('user.sign_in', 'user.sign_out', 'user.onboarded')
 
 
-def _is_admin(user):
-    return user.role == 'ADMIN' or user.is_superuser
-
-
-def _actor_options(is_admin):
+def _actor_options(may_filter_by_actor):
     """
-    Choices for the actor filter dropdown. Admins pick from every account. A
-    mentor or tutor is pinned to their own entries, so they get no choices
-    (the SPA hides the control) and the staff roster is not handed out.
+    Choices for the actor filter dropdown. Whoever holds
+    accounts.view_activity_actors (admins) picks from every account. Anyone
+    else is pinned to their own entries, so they get no choices (the SPA hides
+    the control) and the staff roster is not handed out.
     """
-    if not is_admin:
+    if not may_filter_by_actor:
         return []
     return [
         {"id": str(u.id), "name": u.full_name or u.email}
@@ -41,21 +41,21 @@ class ActivityLogListView(APIView):
     Returns list of activity logs matching query parameters.
     Supports pagination, filters, and full-text keyword search.
 
-    Every staff role may read, but not the same rows. Admins get the whole log
-    (their oversight tool, as in the original Hub). Mentors and tutors get only
-    the entries they wrote themselves -- see core.querysets.scope_activity_by_role.
-    The scope is applied before any query parameter, so ?actor=, ?student_id=
-    and the rest can only narrow it, never widen it.
+    Every staff role may read, but not the same rows. view_all_activity
+    (admins) gets the whole log -- their oversight tool, as in the original
+    Hub. view_own_activity (mentors, tutors) gets only the entries they wrote
+    themselves -- see core.querysets.scope_activity. The scope is applied
+    before any query parameter, so ?actor=, ?student_id= and the rest can only
+    narrow it, never widen it.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAnyAppPermission(*ACTIVITY_VIEW_PERMISSIONS)]
 
     def get(self, request, *args, **kwargs):
         params = request.query_params
-        is_admin = _is_admin(request.user)
 
         # Everything this caller may ever see; the request filters below only
         # narrow it further.
-        queryset = scope_activity_by_role(ActivityLog.objects.all(), request.user).order_by('-created_at')
+        queryset = scope_activity(ActivityLog.objects.all(), request.user, request).order_by('-created_at')
 
         # Filters
         student_id = params.get('student_id')
@@ -79,6 +79,22 @@ class ActivityLogListView(APIView):
         actor_id = params.get('actor') or params.get('actor_id')
         if actor_id:
             queryset = queryset.filter(actor_id=actor_id)
+
+        # One account's history (the Hub's Team details page): what they did,
+        # and what was done to their profile -- role changes, password resets,
+        # deactivation. Like every filter it only narrows the scope above.
+        subject = params.get('subject')
+        if subject:
+            try:
+                subject_id = uuid.UUID(str(subject))
+            except ValueError:
+                return Response(
+                    {"error": "INVALID_INPUT", "message": "subject must be a valid account id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(
+                Q(actor_id=subject_id) | Q(entity_type='profile', entity_id=str(subject_id))
+            )
 
         from_date = params.get('from')
         if from_date:
@@ -123,7 +139,9 @@ class ActivityLogListView(APIView):
             "count": total_count,
             "page": page,
             "page_size": page_size,
-            "actor_options": _actor_options(is_admin),
+            "actor_options": _actor_options(
+                has_app_permission(request.user, 'accounts.view_activity_actors', request)
+            ),
         }
 
         return Response(response_data, status=status.HTTP_200_OK)

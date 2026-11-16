@@ -11,7 +11,8 @@ ENROLLMENT_WORKSHEET = 'enrollment data'
 ENROLLMENT_RANGE = 'A3:AB'
 
 # Column indices inside ENROLLMENT_RANGE (A=0). Only the columns code reads by
-# name are listed; the rest are mapped inline in lookup_student_by_code.
+# name are listed. The sheet is read for class quotas only (students.quota_sync):
+# Learn accounts are created at enrollment, never from a sheet row.
 #
 # N and O are both class counts and are easy to confuse:
 #   N "Actual No of classes purchased" -- what was ordered. DISPLAY ONLY; it is
@@ -87,59 +88,3 @@ class GoogleSheetsService:
                 f"Error accessing worksheet '{ENROLLMENT_WORKSHEET}' for sheet '{sheet_id}': {e}"
             )
             raise
-
-    @classmethod
-    def lookup_student_by_code(cls, student_code: str, rows=None) -> dict:
-        """
-        Queries Google Sheets ('enrollment data' tab, A3:AB range) for matching student code.
-        Replicates the findStudentByCode logic with exact production index mapping.
-
-        Pass ``rows`` to reuse an already-fetched range: the enrolment flow
-        needs the profile fields AND the class quota from the same snapshot, and
-        one fetch for both keeps them consistent as well as halving the API
-        calls. Quota arithmetic deliberately lives in ``students.quota_sync``,
-        not here -- this class stays the raw sheet reader.
-
-        The profile fields come from the FIRST matching row, unchanged. A code
-        may legitimately appear on several rows (one per payment); the later
-        ones repeat the same person, so only their class counts are additive.
-        """
-        logger.info(f"Initiating production-matched Sheets lookup for student_code: {student_code}")
-        if rows is None:
-            rows = cls.fetch_enrollment_rows()
-
-        target_code = str(student_code).strip().lower()
-
-        # Helper to get value at index safely
-        def get_val(row, idx):
-            if len(row) > idx:
-                return str(row[idx]).strip()
-            return ""
-
-        for row in rows:
-            # AB is index 27 (0-indexed column AB where A=0, B=1, ... Z=25, AA=26, AB=27)
-            row_student_code = get_val(row, COL_STUDENT_CODE)
-            if row_student_code.strip().lower() == target_code:
-                # Match found! Map variables exactly to production specs
-                return {
-                    "student_code": row_student_code,
-                    "full_name": get_val(row, 1),        # B
-                    "mobile_number": get_val(row, 2),    # C
-                    "email": get_val(row, 3),            # D
-                    "country": get_val(row, 5),          # F
-                    "state": get_val(row, 6),            # G
-                    "school_name": get_val(row, 7),      # H
-                    "grade": get_val(row, 8),            # I
-                    "syllabus": get_val(row, 9),         # J
-                    "admission_date": get_val(row, 10),  # K
-                    "tutor_name": get_val(row, 21),      # V
-                    "remarks": get_val(row, 25),         # Z
-                }
-
-        logger.warning(
-            f"Student code '{student_code}' not found in '{ENROLLMENT_WORKSHEET}' "
-            f"worksheet range {ENROLLMENT_RANGE}."
-        )
-        return None
-
-

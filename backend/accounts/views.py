@@ -1,25 +1,26 @@
 import logging
 import uuid
 from django.conf import settings
-from django.shortcuts import get_object_or_404
-from django.contrib.auth import login, logout, get_user_model
+from django.contrib.auth import authenticate, login, logout, get_user_model, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import DateTimeField, Value
+from django.db.models.functions import Coalesce
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 
 from students.models import Student
-from invitations.models import Invitation, InvitationStatusChoices
 from activity.models import ActivityLog
 from activity.utils import log_activity
-from core.authentication import CSRFExemptSessionAuthentication
-from core.permissions import IsAdminUser, IsStaffUser
+from core.permissions import HasAppPermission
 from core.students import (
     get_account_students,
     get_usable_students,
@@ -27,13 +28,27 @@ from core.students import (
     EP_STUDENT_COOKIE,
 )
 from .serializers import UserSerializer, StudentSerializer
-from .services import UserProvisioningService
+from .models import RoleChoices, normalize_username
+from .throttles import LoginIPThrottle, PasswordChangeThrottle
 
 logger = logging.getLogger(__name__)
+retired_logger = logging.getLogger('accounts.retired_endpoints')
 User = get_user_model()
 
 # One year, in seconds; the selected-student cookie is a long-lived preference.
 EP_STUDENT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+# The one answer every failed password login gets. An unknown username, a wrong
+# password, a locked or inactive account, a Google-only account (unusable
+# password) and a student account are indistinguishable from outside, so the
+# endpoint cannot enumerate accounts.
+LOGIN_FAILED_RESPONSE = {
+    "error": "INVALID_CREDENTIALS",
+    "message": "Invalid username or password.",
+}
+
+def is_student_account(user):
+    return user.role == RoleChoices.STUDENT and not user.is_superuser and not user.is_staff
 
 
 def build_student_payload(request, user):
@@ -50,179 +65,230 @@ def build_student_payload(request, user):
         "selected_student_id": str(selected.id) if selected else None,
     }
 
-def verify_google_token(token: str) -> dict:
+def csrf_token_for(request):
     """
-    Verifies Google ID Token. If ALLOW_MOCK_AUTH is True and token starts with "mock:",
-    allows mock auth of format "mock:email@example.com:Name:Avatar_URL" for dev/test convenience.
-    """
-    client_id = getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')
-    allow_mock = settings.ALLOW_MOCK_AUTH
-    
-    if allow_mock and token.startswith("mock:"):
-        parts = token.split(":", 3)
-        email = parts[1]
-        name = parts[2] if len(parts) > 2 else email.split("@")[0]
-        picture = parts[3] if len(parts) > 3 else "https://example.com/avatar.png"
-        return {"email": email, "name": name, "picture": picture}
-        
-    if not client_id:
-        raise ValueError("GOOGLE_OAUTH_CLIENT_ID settings parameter is not configured.")
+    The (masked) CSRF token for this request's CSRF cookie, for the JSON body.
 
-    try:
-        id_info = id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            client_id,
-            clock_skew_in_seconds=10
-        )
-        return {
-            "email": id_info.get("email"),
-            "name": id_info.get("name"),
-            "picture": id_info.get("picture")
-        }
-    except Exception as e:
-        logger.error(f"Google ID Token verification exception: {e}")
-        raise ValueError(f"Google token verification failed: {str(e)}")
-
-class GoogleLoginView(APIView):
+    The SPAs keep it in memory and send it as X-CSRFToken instead of reading
+    the csrftoken cookie through document.cookie, which is impossible when the
+    API is served from another host than the SPA and unreliable when another
+    application on the same parent domain sets a cookie with the same name.
+    The browser still sends the cookie itself; CORS stops other origins from
+    reading this body.
     """
-    Accepts Google OAuth ID Token (credential JWT), validates against Google servers,
-    provisions the user if they are whitelisted via an Invitation, and logs them in.
+    return get_token(getattr(request, '_request', request))
+
+
+# The backend recorded in new sessions; get_user() loads the user through it on
+# every later request. Named explicitly because two backends are configured
+# (settings.AUTHENTICATION_BACKENDS) and login() must choose the session backend explicitly.
+SESSION_BACKEND = 'accounts.backends.LockoutModelBackend'
+
+
+def establish_session(request, user):
+    """
+    Log ``user`` in.
+
+    Django's ``login()`` rotates the session key (session-fixation defence)
+    and records the password hash the session was issued against, so a later
+    password change or administrator reset signs every *other* session out
+    automatically.
+    """
+    login(request, user, backend=SESSION_BACKEND)
+
+
+class CsrfTokenView(APIView):
+    """
+    GET /api/auth/csrf/ -- issues the CSRF cookie and returns the matching
+    token in the body, so an SPA that has not yet called any authenticated
+    endpoint (the login page) can send X-CSRFToken on its first POST.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @method_decorator(ensure_csrf_cookie)  # Sets CSRF cookie on login call
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request, *args, **kwargs):
+        return Response({"csrf_token": csrf_token_for(request)}, status=status.HTTP_200_OK)
+
+
+@method_decorator(sensitive_post_parameters('password'), name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+class LoginView(APIView):
+    """
+    POST /api/auth/login/ -- username + password sign-in for staff accounts.
+
+    Security properties:
+      * one generic failure answer (LOGIN_FAILED_RESPONSE) whatever the cause,
+        so the endpoint cannot be used to enumerate accounts;
+      * the per-account lockout and the failure audit live in the shared
+        authentication backend (accounts.backends), which the Django admin
+        login uses too; a per-address rate limit (LoginIPThrottle) sits in
+        front of it;
+      * student accounts are refused here, and only here: they sign in to
+        Learn through its dedicated username/password endpoint;
+      * login CSRF enforced with csrf_protect; the SPA primes the token via
+        GET /api/auth/csrf/;
+      * Django's login() rotates the session key.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [LoginIPThrottle]
+
     def post(self, request, *args, **kwargs):
-        token = request.data.get("credential")
-        if not token:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "Google credential token is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            return self._invalid_input()
+        # The canonical form get_by_natural_key() looks up (NFKC, stripped,
+        # lower-case), so every Unicode-equivalent spelling of a username
+        # shares one lockout counter.
+        username = normalize_username(username)
+        if not username or not password:
+            return self._invalid_input()
 
-        try:
-            google_claims = verify_google_token(token)
-        except ValueError as e:
-            return Response(
-                {"error": "INVALID_CREDENTIAL", "message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response(LOGIN_FAILED_RESPONSE, status=status.HTTP_400_BAD_REQUEST)
 
-        email = google_claims["email"]
-        name = google_claims["name"]
-        picture = google_claims["picture"]
-
-        # Check if the email exists in the Invitations table (whitelisted_emails)
-        from invitations.models import Invitation
-        if not Invitation.objects.filter(email=email).exists():
-            return Response(
-                {
-                    "error": "ACCESS_RESTRICTED",
-                    "message": "Access Restricted\n\nYour email is not authorized to access EduPlus.\n\nPlease contact your administrator for access."
-                },
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-
-
-        # Search for existing user
-        user = User.objects.filter(email=email).first()
-        is_new_user = False
-
-        if not user:
-            # First login: Onboard user using UserProvisioningService
-            try:
-                user = UserProvisioningService.provision_user(
-                    email=email,
-                    google_name=name,
-                    google_avatar=picture
-                )
-                is_new_user = True
-            except ValueError as e:
-                # Returned if no pending invitation exists, or if student code is missing
-                return Response(
-                    {"error": "INVITATION_REQUIRED", "message": str(e)},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            except Exception as e:
-                logger.error(f"Error provisioning user {email}: {e}")
-                return Response(
-                    {"error": "PROVISIONING_FAILED", "message": "Failed to provision user profile."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        # Handle active check
-        if not user.is_active:
-            return Response(
-                {"error": "USER_DISABLED", "message": "This account is inactive. Please contact admin."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # For existing student accounts, attach any children invited since their
-        # last login (new students provisioned above already have theirs).
-        if not is_new_user and user.role == 'STUDENT':
-            try:
-                UserProvisioningService.attach_pending_students(user, name)
-            except ValueError as e:
-                logger.warning(f"Could not attach pending students for {email}: {e}")
-
-        # Log session in Django
-        login(request, user)
-
-        # If user existed, update avatar if Google provided a new one
-        if not is_new_user and picture and user.avatar_url != picture:
-            user.avatar_url = picture
-            user.save(update_fields=['avatar_url'])
-
-        # Write the sign-in to ActivityLog (a new user already gets a user.onboarded log)
-        if not is_new_user:
-            student = Student.objects.filter(profile=user).first()
-            ActivityLog.objects.create(
-                actor=user,
-                actor_email=user.email,
-                actor_name=user.full_name,
-                actor_role=user.role,
-                action="user.sign_in",
+        # Checked after the password, so a student account costs the same
+        # hashing as any other and its refusal looks the same.
+        if not self.accepts_user(user):
+            log_activity(
+                action="user.sign_in_failed",
                 entity_type="profile",
                 entity_id=str(user.id),
-                entity_label=user.full_name or user.email,
-                student=student
+                entity_label=user.full_name or user.username,
+                actor=user,
+                context={"reason": "student_account"},
+                request=request,
             )
+            return Response(LOGIN_FAILED_RESPONSE, status=status.HTTP_400_BAD_REQUEST)
 
-        # Serialize user response details
-        user_serializer = UserSerializer(user)
-        response_data = {
-            "status": "authenticated" if not is_new_user else "onboarded",
-            "is_new_user": is_new_user,
-            "user": user_serializer.data,
-        }
+        establish_session(request, user)
 
-        # Include Student specific info if applicable
-        if user.role == 'STUDENT':
-            response_data.update(build_student_payload(request, user))
+        log_activity(
+            action="user.sign_in",
+            entity_type="profile",
+            entity_id=str(user.id),
+            entity_label=user.full_name or user.username,
+            context={"method": "password"},
+            request=request,
+        )
 
         return Response(
-            response_data,
-            status=status.HTTP_201_CREATED if is_new_user else status.HTTP_200_OK
+            {
+                "status": "authenticated",
+                "must_change_password": user.must_change_password,
+                "user": UserSerializer(user).data,
+                # login() rotated the CSRF secret; the token from before is stale.
+                "csrf_token": csrf_token_for(request),
+            },
+            status=status.HTTP_200_OK,
         )
+
+    def accepts_user(self, user):
+        return user.role != RoleChoices.STUDENT
+
+    @staticmethod
+    def _invalid_input():
+        return Response(
+            {"error": "INVALID_INPUT", "message": "Username and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class LearnLoginView(LoginView):
+    """Same session, CSRF, lockout and throttling as Hub; student accounts only."""
+    def accepts_user(self, user):
+        from invitations.models import Invitation
+        return is_student_account(user) and Invitation.objects.filter(
+            account=user, student__profile=user, role='STUDENT',
+            status__in=['PENDING', 'ACCEPTED']).exists()
+
+
+@method_decorator(sensitive_post_parameters('current_password', 'new_password'), name='dispatch')
+class ChangePasswordView(APIView):
+    """
+    POST /api/auth/change-password/ -- the signed-in user sets a new password.
+
+    Re-authenticates with the current password, applies AUTH_PASSWORD_VALIDATORS,
+    clears the first-login flag, keeps THIS session alive and -- through the
+    session hash Django stores at login -- signs every other session out.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [PasswordChangeThrottle]
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        current = request.data.get("current_password")
+        new = request.data.get("new_password")
+        if not isinstance(current, str) or not isinstance(new, str) or not current or not new:
+            return Response(
+                {"error": "INVALID_INPUT", "message": "current_password and new_password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.select_for_update().get(pk=request.user.pk)
+        if not user.check_password(current):
+            return Response(
+                {"error": "INVALID_CURRENT_PASSWORD", "message": "The current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new == current:
+            return Response(
+                {"error": "PASSWORD_REUSED", "message": "The new password must differ from the current one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(new, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {
+                    "error": "PASSWORD_POLICY",
+                    "message": "The new password does not meet the password policy.",
+                    "details": list(exc.messages),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new)
+        user.must_change_password = False
+        user.password_changed_at = timezone.now()
+        user.save(update_fields=['password', 'must_change_password', 'password_changed_at', 'updated_at'])
+        from invitations.models import Invitation
+        # The first activation is kept for good: a later change -- the
+        # student's own, or after an administrator's reset -- never moves it.
+        Invitation.objects.filter(account=user, student__profile=user).update(
+            status='ACCEPTED', activated_at=Coalesce('activated_at', Value(timezone.now(), output_field=DateTimeField())),
+            credential_ciphertext='', updated_at=timezone.now())
+        # Re-key this session to the new hash so it survives; all others die.
+        update_session_auth_hash(request._request, user)
+
+        log_activity(
+            action="user.password_change",
+            entity_type="profile",
+            entity_id=str(user.id),
+            entity_label=user.full_name or user.username,
+            request=request,
+        )
+        return Response({"status": "password_changed", "must_change_password": False}, status=status.HTTP_200_OK)
+
 
 class LogoutView(APIView):
     """
-    Logs out the authenticated user session.
+    Logs out the authenticated user session. CSRF-protected like every other
+    state-changing endpoint (DRF SessionAuthentication).
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        session_key = request.session.session_key
-        
+
         # Log logout activity
         student = Student.objects.filter(profile=user).first() if user.role == 'STUDENT' else None
         ActivityLog.objects.create(
             actor=user,
-            actor_email=user.email,
+            actor_email=user.email or None,
             actor_name=user.full_name,
             actor_role=user.role,
             action="user.sign_out",
@@ -240,9 +306,15 @@ class LogoutView(APIView):
         response.delete_cookie(EP_STUDENT_COOKIE, domain=settings.SESSION_COOKIE_DOMAIN)
         return response
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class MeView(APIView):
     """
-    Returns the profile details of the current logged-in user.
+    Returns the profile details of the current logged-in user, including the
+    effective permission codenames the SPAs use for their own guards.
+
+    Decorated on ``dispatch`` so the CSRF cookie is (re)issued even when the
+    answer is a 403: a reloaded SPA always calls /me first, which keeps the
+    token fresh for its next write.
     """
     permission_classes = [IsAuthenticated]
 
@@ -250,10 +322,12 @@ class MeView(APIView):
         user = request.user
         user_serializer = UserSerializer(user)
         response_data = {
-            "user": user_serializer.data
+            "user": user_serializer.data,
+            "must_change_password": user.must_change_password,
+            "csrf_token": csrf_token_for(request),
         }
 
-        if user.role == 'STUDENT':
+        if user.role == 'STUDENT' and not user.must_change_password:
             response_data.update(build_student_payload(request, user))
 
         return Response(response_data, status=status.HTTP_200_OK)
@@ -266,7 +340,6 @@ class SelectStudentView(APIView):
     ``ep-student-id`` cookie. Validates that the student belongs to the account.
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def post(self, request, *args, **kwargs):
         student_id = request.data.get("student_id")
@@ -305,333 +378,119 @@ class SelectStudentView(APIView):
         )
         return response
 
+def retired_endpoint(request, replacement):
+    """
+    Decision D3, step 1: a legacy endpoint the Hub no longer calls answers 410
+    Gone to every signed-in caller, and every call is logged with its caller,
+    so the cleanup (step 2) can show it has no callers left before its route
+    is removed.
+
+    Accepted deviation from the two-step plan (approved 2026-10-26): the
+    routes stay until the cleanup, but the code they used to run -- full
+    staff records, the details edit, the status change -- was removed in step
+    1. It remains in commit 3d56003; Team's own endpoints replace it.
+    """
+    user = request.user
+    retired_logger.warning(
+        'Retired endpoint called: %s %s by account %s (role %s, user agent %r)',
+        request.method, request.get_full_path(), getattr(user, 'pk', None), getattr(user, 'role', None),
+        request.META.get('HTTP_USER_AGENT', ''),
+    )
+    return Response(
+        {"error": "ENDPOINT_RETIRED", "message": f"This endpoint has been retired. {replacement}"},
+        status=status.HTTP_410_GONE
+    )
+
+
 class BaseRoleListView(APIView):
     """
-    Lists active users of a single role with their assigned-student counts.
+    The active, assignable accounts of one role -- the slim list behind the
+    mentor/tutor dropdowns (reassign a student, invite a student, hand over a
+    departing colleague's students). Needs accounts.view_staff_directory.
 
-    Subclasses set ``role`` and ``response_key``; roles that own students set
-    ``count_relation`` (the reverse FK used to count allocations) which also
-    enables the dropdown-compatibility mode (a slim payload unless ?all=true).
+    Deactivated staff must not be assignable, so this filters on BOTH
+    lifecycle flags -- a row where they disagree (only creatable through the
+    Django admin) is treated as deactivated, never as assignable.
 
-    Staff-only: a directory of colleagues is not student-visible data. The full
-    record (email, mobile, inviter) is admin-only, so ?all=true is refused for
-    the other staff roles rather than quietly downgraded.
+    The full-record mode (?all=true: contact details, inviter, student counts
+    and pending invitations) is retired (D3); Team (/api/team/) lists staff.
     """
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.view_staff_directory')]
     role = None
     response_key = None
-    count_relation = None
-
-    def _serialize(self, u):
-        return {
-            "kind": "active",
-            "id": str(u.id),
-            "full_name": u.full_name or "",
-            "email": u.email,
-            "avatar_url": u.avatar_url or None,
-            "mobile_number": u.mobile_number or "",
-            "created_at": u.created_at.isoformat(),
-            "invited_by_profile": {
-                "id": str(u.invited_by.id),
-                "full_name": u.invited_by.full_name or "",
-                "email": u.invited_by.email
-            } if u.invited_by else None,
-            "assigned_students_count": getattr(u, 'assigned_students_count', None),
-            "deactivated_at": u.deactivated_at.isoformat() if u.deactivated_at else None
-        }
-
-    def _serialize_ghost(self, inv):
-        """
-        A pending invitation rendered as a placeholder ("ghost") staff row.
-
-        The Hub's staff tables list these above the real accounts so an admin
-        can see and manage an invite before the person has signed up.
-        """
-        return {
-            "kind": "ghost",
-            "id": str(inv.id),
-            "email": inv.email,
-            "role": inv.role.lower(),
-            "created_at": inv.created_at.isoformat(),
-            "extra_data": inv.extra_data or {},
-            "invited_by_profile": {
-                "id": str(inv.invited_by.id),
-                "full_name": inv.invited_by.full_name or "",
-                "email": inv.invited_by.email
-            } if inv.invited_by else None
-        }
 
     def get(self, request, *args, **kwargs):
-        from django.db.models import Count
+        if request.GET.get('all') == 'true':
+            return retired_endpoint(request, 'Staff records are listed by GET /api/team/.')
 
-        if request.GET.get('all') == 'true' and not IsAdminUser().has_permission(request, self):
-            return Response(
-                {"error": "FORBIDDEN", "message": "Only admins can list full staff records."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Full records include deactivated staff (shown with a badge, needed
-        # for the reactivate flow); the slim dropdown mode below stays
-        # active-only so nothing new can be assigned to deactivated staff.
-        queryset = User.objects.filter(role=self.role)
-        if self.count_relation:
-            queryset = queryset.annotate(assigned_students_count=Count(self.count_relation))
-        queryset = queryset.order_by('-created_at')
-
-        # Backward compatibility for dropdown selects (which don't pass ?all=true).
-        # Deactivated staff must not be assignable, so this filters on BOTH
-        # lifecycle flags — a row where they disagree (only creatable through
-        # the Django admin) is treated as deactivated, never as assignable.
-        if self.count_relation and request.GET.get('all') != 'true':
-            slim = queryset.filter(deactivated_at__isnull=True, is_active=True)
-            return Response(
-                {self.response_key: [
-                    {"id": str(u.id), "full_name": u.full_name or "", "email": u.email}
-                    for u in slim
-                ]},
-                status=status.HTTP_200_OK
-            )
-
-        # Full-record mode is admin-only (enforced above, and by the
-        # admin-only subclass), which is exactly where the Hub includes
-        # pending invitations. Only PENDING ones: an accepted invitation is
-        # already represented by the active account it created.
-        ghosts = (
-            Invitation.objects
-            .filter(role=self.role, status=InvitationStatusChoices.PENDING)
-            .select_related('invited_by')
-            .order_by('-created_at')
+        slim = User.objects.filter(
+            role=self.role, deactivated_at__isnull=True, is_active=True
+        ).order_by('-created_at')
+        return Response(
+            {self.response_key: [
+                {"id": str(u.id), "full_name": u.full_name or "", "email": u.email}
+                for u in slim
+            ]},
+            status=status.HTTP_200_OK
         )
 
-        rows = [self._serialize_ghost(i) for i in ghosts]
-        rows += [self._serialize(u) for u in queryset]
-
-        return Response({self.response_key: rows}, status=status.HTTP_200_OK)
-
 class MentorListView(BaseRoleListView):
-    """
-    GET /api/mentors/
-    Returns list of active mentors with their assigned student counts.
-    If ?all=true is passed, returns the full mentor records.
-    """
+    """GET /api/mentors/ -- active mentors, for assignment dropdowns."""
     role = 'MENTOR'
     response_key = 'mentors'
-    count_relation = 'mentored_students'
 
 class TutorListView(BaseRoleListView):
-    """
-    GET /api/tutors/
-    Returns list of active tutors with their assigned student counts.
-    """
+    """GET /api/tutors/ -- active tutors, for assignment dropdowns."""
     role = 'TUTOR'
     response_key = 'tutors'
-    count_relation = 'tutored_students'
 
-class AdminListView(BaseRoleListView):
-    """
-    GET /api/admins/
-    Returns list of active admins. Admin-only: this view has no slim mode, so
-    every response carries the full record.
-    """
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    role = 'ADMIN'
-    response_key = 'admins'
-    count_relation = None
+class AdminListView(APIView):
+    """GET /api/admins/ -- retired (D3); Team lists administrators."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return retired_endpoint(request, 'Administrators are listed by GET /api/team/?role=ADMIN.')
 
 class UserDetailView(APIView):
     """
-    PATCH /api/users/<id>/ - Edit User name and mobile number.
-    DELETE /api/users/<id>/ - Delete User profile.
+    PATCH /api/users/<id>/ -- retired (D3); Team edits staff details.
+
+    There is deliberately no DELETE here. Staff are soft-deactivated, never
+    hard-deleted -- deleting a user would cascade away student personas and
+    orphan the append-only audit trail. This mirrors the original Hub, which
+    removed user deletion entirely.
     """
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CSRFExemptSessionAuthentication]
 
     def patch(self, request, pk, *args, **kwargs):
-        if request.user.role != 'ADMIN':
-            return Response(
-                {"error": "FORBIDDEN", "message": "Only admins can edit user details."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-            
-        target_user = get_object_or_404(User, pk=pk)
-        
-        full_name = request.data.get("full_name")
-        mobile_number = request.data.get("mobile_number")
-
-        # Snapshot before the edit so the log can carry a real before/after
-        # diff -- that is what the activity feed expands to show.
-        before_full_name = target_user.full_name
-        before_mobile_number = target_user.mobile_number
-        
-        if full_name is not None:
-            full_name = full_name.strip()
-            if not full_name:
-                return Response(
-                    {"error": "INVALID_INPUT", "message": "Name cannot be empty."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            target_user.full_name = full_name
-            
-        if "mobile_number" in request.data:
-            target_user.mobile_number = mobile_number.strip() if mobile_number else None
-            
-        target_user.save()
-
-        # Only fields that actually moved, as {field: {old, new}} -- the shape
-        # the feed's changes table renders.
-        changes = {}
-        if target_user.full_name != before_full_name:
-            changes["full_name"] = {"old": before_full_name, "new": target_user.full_name}
-        if target_user.mobile_number != before_mobile_number:
-            changes["mobile_number"] = {"old": before_mobile_number, "new": target_user.mobile_number}
-        
-        # Log activity
-        ActivityLog.objects.create(
-            actor=request.user,
-            actor_email=request.user.email,
-            actor_name=request.user.full_name,
-            actor_role=request.user.role,
-            action="user.update_details",
-            entity_type="profile",
-            entity_id=str(target_user.id),
-            entity_label=target_user.full_name or target_user.email,
-            student=None,
-            changes=changes,
-        )
-        
-        return Response({"success": True, "profile": {
-            "id": str(target_user.id),
-            "full_name": target_user.full_name,
-            "mobile_number": target_user.mobile_number,
-            "email": target_user.email,
-        }}, status=status.HTTP_200_OK)
-
-    # NOTE: there is deliberately no DELETE here. Staff are soft-deactivated
-    # (StaffStatusView), never hard-deleted — deleting a user would cascade
-    # away student personas and orphan the append-only audit trail. This
-    # mirrors the original Hub, which removed user deletion entirely.
+        return retired_endpoint(request, "Staff details are changed through PATCH /api/team/<id>/.")
 
 
 class StaffStatusView(APIView):
-    """
-    POST /api/users/<id>/status/ — deactivate or reactivate a staff member.
-
-    Admin-only. Only mentors and tutors are managed through this flow: admins
-    are peers, one admin never deactivates (or reactivates) another. A mentor/
-    tutor with ACTIVE students still assigned cannot be deactivated until they
-    are handed over (StaffReassignView) — mirrors the Hub's set_staff_active
-    RPC guards. Role is never cleared, so historical attribution survives.
-    """
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
+    """POST /api/users/<id>/status/ -- retired (D3); Team deactivates and reactivates staff."""
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, *args, **kwargs):
-        action = request.data.get("action")
-        if action not in ('deactivate', 'reactivate'):
-            return Response(
-                {"error": "INVALID_INPUT", "message": "action must be 'deactivate' or 'reactivate'."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        reason = request.data.get("reason")
-        if reason is not None and not isinstance(reason, str):
-            return Response(
-                {"error": "INVALID_INPUT", "message": "reason must be a string."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        reason = (reason or "").strip() or None
-        if reason and len(reason) > 500:
-            return Response(
-                {"error": "INVALID_INPUT", "message": "reason must be 500 characters or fewer."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        with transaction.atomic():
-            # Lock the target row so the handover guard and the write are one
-            # unit: a concurrent reassign-to-this-user (which locks the
-            # replacement row) or second status change serializes against it.
-            target = User.objects.select_for_update().filter(pk=pk).first()
-            if not target:
-                return Response(
-                    {"error": "NOT_FOUND", "message": "User not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if target.role not in ('ADMIN', 'MENTOR', 'TUTOR'):
-                return Response(
-                    {"error": "INVALID_ROLE", "message": "Only staff can be deactivated."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Admins are peers and out of scope: one admin never deactivates
-            # (or reactivates) another.
-            if target.role == 'ADMIN':
-                return Response(
-                    {"error": "FORBIDDEN", "message": "Administrators cannot be deactivated."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            was_deactivated = target.deactivated_at is not None
-
-            if action == 'deactivate':
-                # Handover guard: no ACTIVE students may still be assigned.
-                from django.db.models import Q
-                assigned = Student.objects.filter(status='ACTIVE').filter(
-                    Q(mentor=target) | Q(tutor=target)
-                ).count()
-                if assigned > 0:
-                    return Response(
-                        {
-                            "error": "HANDOVER_REQUIRED",
-                            "message": f"Reassign this staff member's {assigned} active student(s) before deactivating."
-                        },
-                        status=status.HTTP_409_CONFLICT
-                    )
-
-                target.deactivated_at = timezone.now()
-                target.deactivated_by = request.user
-                target.deactivation_reason = reason
-                target.is_active = False  # kills existing sessions on next request
-                target.save(update_fields=['deactivated_at', 'deactivated_by', 'deactivation_reason', 'is_active', 'updated_at'])
-            else:
-                target.deactivated_at = None
-                target.deactivated_by = None
-                target.deactivation_reason = None
-                target.is_active = True
-                target.save(update_fields=['deactivated_at', 'deactivated_by', 'deactivation_reason', 'is_active', 'updated_at'])
-
-        log_activity(
-            action='user.reactivate' if action == 'reactivate' else 'user.deactivate',
-            entity_type='profile',
-            entity_id=str(target.id),
-            entity_label=target.full_name or target.email,
-            changes={
-                "status": {
-                    "old": "deactivated" if was_deactivated else "active",
-                    "new": "active" if action == 'reactivate' else "deactivated"
-                }
-            },
-            context={"reason": reason},
-            request=request,
+        return retired_endpoint(
+            request, "Staff are deactivated through POST /api/team/<id>/deactivate/ and reactivated "
+                     "through POST /api/team/<id>/reactivate/."
         )
-
-        return Response({"success": True}, status=status.HTTP_200_OK)
 
 
 class StaffReassignView(APIView):
     """
     POST /api/users/<id>/reassign/ — bulk hand over every ACTIVE student
     assigned to a departing staff member to a replacement, before deactivating
-    them. Re-points that student's open (SCHEDULED) sessions for a tutor
-    handover; completed/cancelled history keeps the old staff pointer for
+    them (accounts.manage_team: Team's handover step). Re-points that student's classes still to come that nobody
+    started (sessions.services.transferable_sessions) for a tutor handover; started, past, completed and cancelled
+    classes keep the old staff pointer for
     attribution, and inactive/expired students are left untouched — mirrors
     the Hub's reassign_all_for_staff RPC.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    authentication_classes = [CSRFExemptSessionAuthentication]
+    permission_classes = [IsAuthenticated, HasAppPermission('accounts.manage_team')]
 
     def post(self, request, pk, *args, **kwargs):
-        from sessions.models import Session, SessionStatusChoices
+        from sessions.models import Session
 
         old_staff = User.objects.filter(pk=pk).first()
         if not old_staff:
@@ -667,9 +526,30 @@ class StaffReassignView(APIView):
         exams_repointed = 0
         additional_exams_repointed = 0
 
+        from sessions.services import (
+            find_handover_conflict, handover_conflict_response_data, lock_scheduling, lock_tutor_schedule,
+            transferable_sessions,
+        )
+
+        # The students whose classes would move to the new tutor, read before
+        # anything is locked: their scheduling locks and the new tutor's come
+        # first (sessions.services.lock_scheduling), in the order every class
+        # and booking write takes them, so none of their classes and no
+        # commitment of the new tutor's can change between the check and the
+        # move. A student assigned to the departing tutor meanwhile is left
+        # to them -- deactivation still waits for their handover.
+        tutor_student_ids = sorted(
+            Student.objects.filter(tutor=old_staff, status='ACTIVE').values_list('id', flat=True), key=str
+        )
+
         with transaction.atomic():
+            if tutor_student_ids:
+                for student_id in tutor_student_ids:
+                    lock_scheduling(student_id, None)
+                if new_tutor_id:
+                    lock_tutor_schedule(new_tutor_id)
             mentor_students = Student.objects.filter(mentor=old_staff, status='ACTIVE')
-            tutor_students = Student.objects.filter(tutor=old_staff, status='ACTIVE')
+            tutor_students = Student.objects.filter(tutor=old_staff, status='ACTIVE', id__in=tutor_student_ids)
             need_mentor = mentor_students.exists()
             need_tutor = tutor_students.exists()
 
@@ -707,6 +587,14 @@ class StaffReassignView(APIView):
                         },
                         status=status.HTTP_409_CONFLICT
                     )
+            open_sessions = transferable_sessions(Session.objects.filter(student__in=tutor_students))
+            if need_tutor:
+                # Every open class the new tutor takes over must fit their
+                # schedule: one student at a time, classes and Demo/Diagnostic
+                # bookings alike. Checked before anything moves.
+                clash = find_handover_conflict(open_sessions, new_tutor)
+                if clash is not None:
+                    return Response(handover_conflict_response_data(*clash, new_tutor), status=status.HTTP_409_CONFLICT)
 
             if need_mentor:
                 # Open exam work of the departing mentor's ACTIVE students moves
@@ -721,11 +609,7 @@ class StaffReassignView(APIView):
             # Tutor handover: re-point open scheduled sessions first, then the
             # student pointer (the session query keys off the student pointer).
             if need_tutor:
-                sessions_repointed = Session.objects.filter(
-                    student__tutor=old_staff,
-                    student__status='ACTIVE',
-                    status=SessionStatusChoices.SCHEDULED
-                ).update(tutor=new_tutor)
+                sessions_repointed = open_sessions.update(tutor=new_tutor)
                 students_tutor_reassigned = tutor_students.update(tutor=new_tutor)
 
         summary = {

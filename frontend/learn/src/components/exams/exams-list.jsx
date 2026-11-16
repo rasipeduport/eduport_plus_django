@@ -10,7 +10,7 @@ const tabs = ['Scheduled', 'Past'];
  * chapter exams still scheduled plus additional exams assigned or submitted.
  * Past: attended or cancelled chapter exams plus scored additional exams.
  */
-export function ExamsList({ exams, additionalExams, meetLink }) {
+export function ExamsList({ exams, additionalExams }) {
   const [activeTab, setActiveTab] = useState('Scheduled');
 
   const filteredExams = useMemo(() => {
@@ -60,7 +60,7 @@ export function ExamsList({ exams, additionalExams, meetLink }) {
               {showHeaders && <h2 className="text-text-secondary text-xs font-semibold uppercase tracking-wide">Chapter Exams</h2>}
               <div className="space-y-3 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:items-start md:max-lg:gap-4 md:max-lg:space-y-0">
                 {filteredExams.map((exam) => (
-                  <ExamCard key={exam.id} exam={exam} meetLink={meetLink} />
+                  <ExamCard key={exam.id} exam={exam} />
                 ))}
               </div>
             </section>

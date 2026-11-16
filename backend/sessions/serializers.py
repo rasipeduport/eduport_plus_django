@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from students.models import Student
-from .models import Session, SessionContentField, SessionFile
+from .lifecycle import class_state, start_opens_at
+from .models import Session, SessionContentField, SessionFile, SessionOutcomeReason
+from .services import consumes_credit
 
 User = get_user_model()
 
@@ -16,11 +19,10 @@ class StudentBriefSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Student
-        # meet_link is the student's Google Meet room (students.meet_link, the
-        # same column the Students API and "Edit Demo Link" use). Nesting it
-        # here lets the sessions table offer "Join Meet" without a second
-        # endpoint; it reaches exactly the callers who can already see the row.
-        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url', 'meet_link']
+        # Never the student's own meet_link: a class is joined in its tutor's
+        # room (SessionSerializer.tutor_meet_link) and a chapter exam in its
+        # mentor's (exams.serializers.ExamSerializer.mentor_meet_link).
+        fields = ['student_code', 'full_name', 'mentor_profile', 'avatar_url']
 
 class SessionFileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -49,6 +51,32 @@ class SessionSerializer(serializers.ModelSerializer):
     # attended session has homework content): what the Homework badge and
     # the Learn tile read.
     homework = serializers.SerializerMethodField()
+    # Who started the class and when (its tutor, the student's mentor or an
+    # administrator), and the tutor's completion their own notes made
+    # (sessions.lifecycle), read only. A class marked attended by staff has no completion.
+    started_by_profile = ProfileBriefSerializer(source='started_by', read_only=True)
+    completed_by_profile = ProfileBriefSerializer(source='completed_by', read_only=True)
+    # The class as booked, in hours (end_time - start_time): what it counts as, whenever it was completed.
+    duration_hours = serializers.FloatField(read_only=True)
+    # The first moment its tutor may start it (5 minutes before its scheduled start).
+    start_opens_at = serializers.SerializerMethodField()
+    # Where the class stands now (sessions.lifecycle.class_state), lowercase:
+    # upcoming, in_progress, notes_due, not_started, completed, not_conducted, cancelled.
+    class_state = serializers.SerializerMethodField()
+    # No-show / Not Conducted as recorded, and an administrator's latest correction.
+    outcome_recorded_by_profile = ProfileBriefSerializer(source='outcome_recorded_by', read_only=True)
+    outcome_corrected_by_profile = ProfileBriefSerializer(source='outcome_corrected_by', read_only=True)
+    # What a student is told about a class not conducted: no_show for their
+    # own no-show, not_conducted for any other reason, null otherwise.
+    outcome_kind = serializers.SerializerMethodField()
+    # Whether its hours count against the student's quota (sessions.services.CREDIT_RETURNED).
+    consumes_credit = serializers.SerializerMethodField()
+    # Where the class is joined: the permanent Google Meet link of the tutor it
+    # is assigned to (accounts.meet_links), as it is now, or null when that
+    # tutor has none or no tutor is assigned. Never the student's link or
+    # anyone else's. A change of tutor hands over the classes still to come,
+    # and with them this link; started and past classes keep their tutor.
+    tutor_meet_link = serializers.CharField(source='tutor.tutor_meet_link', read_only=True, default=None)
 
     class Meta:
         model = Session
@@ -76,8 +104,41 @@ class SessionSerializer(serializers.ModelSerializer):
             'display_status',
             'content_files',
             'homework',
+            'started_at',
+            'started_by_profile',
+            'completed_at',
+            'completed_by_profile',
+            'duration_hours',
+            'start_opens_at',
+            'tutor_meet_link',
+            'class_state',
+            'outcome_kind',
+            'outcome_reason',
+            'outcome_note',
+            'outcome_recorded_at',
+            'outcome_recorded_by_profile',
+            'outcome_corrected_at',
+            'outcome_corrected_by_profile',
+            'consumes_credit',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'series_id', 'class_number']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'series_id', 'class_number', 'started_at', 'completed_at',
+            'outcome_reason', 'outcome_note', 'outcome_recorded_at', 'outcome_corrected_at',
+        ]
+
+    def get_start_opens_at(self, instance):
+        return start_opens_at(instance).isoformat()
+
+    def get_class_state(self, instance):
+        return class_state(instance, timezone.now()).lower()
+
+    def get_outcome_kind(self, instance):
+        if instance.outcome_reason is None:
+            return None
+        return 'no_show' if instance.outcome_reason == SessionOutcomeReason.STUDENT_NO_SHOW else 'not_conducted'
+
+    def get_consumes_credit(self, instance):
+        return consumes_credit(instance)
 
     def get_homework(self, instance):
         hw = getattr(instance, 'homework', None)
@@ -112,3 +173,16 @@ class SessionSerializer(serializers.ModelSerializer):
             data = data.copy()
             data['status'] = data['status'].upper()
         return super().to_internal_value(data)
+
+
+# What only staff read about a class: the outcome's reason, note and who
+# recorded or corrected it. A student is told only outcome_kind.
+STAFF_ONLY_FIELDS = (
+    'outcome_reason', 'outcome_note', 'outcome_recorded_by_profile', 'outcome_corrected_at',
+    'outcome_corrected_by_profile',
+)
+
+
+def for_student(row):
+    """A serialized session as a student may read it: without STAFF_ONLY_FIELDS."""
+    return {key: value for key, value in row.items() if key not in STAFF_ONLY_FIELDS}

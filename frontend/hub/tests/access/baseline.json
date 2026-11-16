@@ -1,0 +1,6841 @@
+{
+ "results": {
+  "/dashboard @ admin": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/invitations",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_c}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ admin": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Expired Students (1)",
+    "New Student",
+    "Open menu",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/invitations?role=student&open=true",
+    "/students/{stu_p}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [
+    "Admission Date",
+    "Class Quota",
+    "Country",
+    "Email",
+    "Grade",
+    "Joined At",
+    "Meet Link",
+    "Mentor",
+    "Mobile",
+    "Name",
+    "Remarks for Mentor",
+    "School",
+    "State",
+    "Status",
+    "Student ID",
+    "Syllabus",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ admin": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Sync from sheet",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "mailto:parent_a@matrix.test",
+    "tel:+910000000002"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ admin": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Assigned",
+    "Awaiting review",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Scored 8/10",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}",
+    "/students",
+    "https://hw.matrix.test/1",
+    "https://hw.matrix.test/2",
+    "https://hw.matrix.test/3",
+    "https://n.matrix.test/1",
+    "https://r.matrix.test/1"
+   ],
+   "headers": [
+    "Class",
+    "Content",
+    "Homework",
+    "Rating",
+    "Status",
+    "Tutor",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ admin": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Score",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/students",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Question paper",
+    "Recording",
+    "Result",
+    "Status",
+    "Submitted",
+    "Title",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ admin": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Grade",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [
+    "Assigned",
+    "Class",
+    "Score",
+    "Scored by",
+    "Status",
+    "Submitted"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ admin": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Additional exams2",
+    "All6",
+    "Class content1",
+    "Documents",
+    "Exams1",
+    "Exams4",
+    "Homework2",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "http://testserver/api/additional-exams/files/{aqf_a}/",
+    "http://testserver/api/additional-exams/files/{aaf_a}/",
+    "http://testserver/api/exams/files/{ef_a}/",
+    "http://testserver/api/homework/files/{hwf_a_sub}/",
+    "http://testserver/api/homework/files/{hwf_a_scored}/",
+    "https://n.matrix.test/1"
+   ],
+   "headers": [
+    "Added",
+    "Attached to",
+    "File",
+    "Size",
+    "Type"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ admin": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Mentor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "Tutor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/activity/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ admin": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Add note",
+    "Delete",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/notes/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ admin": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams2",
+    "Homework1",
+    "Notes",
+    "Open",
+    "Open menu",
+    "Overview",
+    "Sessions2",
+    "Sync from sheet",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "mailto:parent_b@matrix.test",
+    "tel:+910000000002"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams2",
+    "Homework1",
+    "Notes",
+    "Overview",
+    "Sessions2"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ admin": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ admin": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New Session",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ admin": {
+   "at": "/exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Mentor",
+    "Review & score",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Mentor",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Student",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ admin": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "Mentor",
+    "New",
+    "Review & score",
+    "Row actions",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Additional Exam | Chapter Exam",
+    "Cancel Exam | Edit Result | Reschedule",
+    "Cancel Exam | Record Result | Reschedule"
+   ],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/exams/chapter-names/?student_id={stu_a}",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ admin": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "All4",
+    "Awaiting1",
+    "Grade",
+    "Needs review2",
+    "Newest submissions",
+    "Scored1",
+    "Toggle Sidebar",
+    "Tutor",
+    "View"
+   ],
+   "links": [],
+   "headers": [
+    "Score",
+    "Session",
+    "Status",
+    "Student",
+    "Submitted",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ admin": {
+   "at": "/invitations",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "New Invitation",
+    "Open menu",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Invited At",
+    "Invited by",
+    "Role"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Edit email | Withdraw invitation",
+    "Withdraw invitation"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/invitations/"
+   ]
+  },
+  "/activity @ admin": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All actors",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All actors",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ admin": {
+   "at": "/team",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "All roles",
+    "All statuses",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/team/{mentor_c} @ admin": {
+   "at": "/team/{mentor_c}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "Mentor",
+    "MentorTutor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ admin": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "Mentor",
+    "MentorTutor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/?subject={mentor_c}",
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/admins @ admin": {
+   "at": "/team?role=ADMIN",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "Admin",
+    "All statuses",
+    "Clear",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/nowhere @ admin": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/invitations",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_c}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ superuser": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/invitations",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_c}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ superuser": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Expired Students (1)",
+    "New Student",
+    "Open menu",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/invitations?role=student&open=true",
+    "/students/{stu_p}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [
+    "Admission Date",
+    "Class Quota",
+    "Country",
+    "Email",
+    "Grade",
+    "Joined At",
+    "Meet Link",
+    "Mentor",
+    "Mobile",
+    "Name",
+    "Remarks for Mentor",
+    "School",
+    "State",
+    "Status",
+    "Student ID",
+    "Syllabus",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ superuser": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Sync from sheet",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "mailto:parent_a@matrix.test",
+    "tel:+910000000002"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ superuser": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Assigned",
+    "Awaiting review",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Scored 8/10",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}",
+    "/students",
+    "https://hw.matrix.test/1",
+    "https://hw.matrix.test/2",
+    "https://hw.matrix.test/3",
+    "https://n.matrix.test/1",
+    "https://r.matrix.test/1"
+   ],
+   "headers": [
+    "Class",
+    "Content",
+    "Homework",
+    "Rating",
+    "Status",
+    "Tutor",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ superuser": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Score",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/students",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Question paper",
+    "Recording",
+    "Result",
+    "Status",
+    "Submitted",
+    "Title",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ superuser": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Grade",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [
+    "Assigned",
+    "Class",
+    "Score",
+    "Scored by",
+    "Status",
+    "Submitted"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ superuser": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Additional exams2",
+    "All6",
+    "Class content1",
+    "Documents",
+    "Exams1",
+    "Exams4",
+    "Homework2",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "http://testserver/api/additional-exams/files/{aqf_a}/",
+    "http://testserver/api/additional-exams/files/{aaf_a}/",
+    "http://testserver/api/exams/files/{ef_a}/",
+    "http://testserver/api/homework/files/{hwf_a_sub}/",
+    "http://testserver/api/homework/files/{hwf_a_scored}/",
+    "https://n.matrix.test/1"
+   ],
+   "headers": [
+    "Added",
+    "Attached to",
+    "File",
+    "Size",
+    "Type"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ superuser": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Mentor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "Tutor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/activity/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ superuser": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Add note",
+    "Delete",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/notes/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ superuser": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams2",
+    "Homework1",
+    "Notes",
+    "Open",
+    "Open menu",
+    "Overview",
+    "Sessions2",
+    "Sync from sheet",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "mailto:parent_b@matrix.test",
+    "tel:+910000000002"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams2",
+    "Homework1",
+    "Notes",
+    "Overview",
+    "Sessions2"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Delete permanently | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions | Reassign Mentor / Tutor | View History"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ superuser": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ superuser": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New Session",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ superuser": {
+   "at": "/exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Mentor",
+    "Review & score",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Mentor",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Student",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ superuser": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "Mentor",
+    "New",
+    "Review & score",
+    "Row actions",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Additional Exam | Chapter Exam",
+    "Cancel Exam | Edit Result | Reschedule",
+    "Cancel Exam | Record Result | Reschedule"
+   ],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/exams/chapter-names/?student_id={stu_a}",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ superuser": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "All4",
+    "Awaiting1",
+    "Grade",
+    "Needs review2",
+    "Newest submissions",
+    "Scored1",
+    "Toggle Sidebar",
+    "Tutor",
+    "View"
+   ],
+   "links": [],
+   "headers": [
+    "Score",
+    "Session",
+    "Status",
+    "Student",
+    "Submitted",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ superuser": {
+   "at": "/invitations",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "New Invitation",
+    "Open menu",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Invited At",
+    "Invited by",
+    "Role"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Edit email | Withdraw invitation",
+    "Withdraw invitation"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/invitations/"
+   ]
+  },
+  "/activity @ superuser": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All actors",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All actors",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ superuser": {
+   "at": "/team",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "All roles",
+    "All statuses",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/team/{mentor_c} @ superuser": {
+   "at": "/team/{mentor_c}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ superuser": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/?subject={mentor_c}",
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/admins @ superuser": {
+   "at": "/team?role=ADMIN",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "Admin",
+    "All statuses",
+    "Clear",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/nowhere @ superuser": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/invitations",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/invitations",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_c}",
+    "/students/{stu_b}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ su_mentor": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/sessions",
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ su_mentor": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Expired Students (0)",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Admission Date",
+    "Class Quota",
+    "Country",
+    "Grade",
+    "Joined At",
+    "Meet Link",
+    "Mobile",
+    "Name",
+    "Remarks for Mentor",
+    "School",
+    "Status",
+    "Student ID",
+    "Syllabus",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ su_mentor": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ su_mentor": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ su_mentor": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ su_mentor": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ su_mentor": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ su_mentor": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ su_mentor": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ su_mentor": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ su_mentor": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ su_mentor": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New Session",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ su_mentor": {
+   "at": "/exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Status",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ su_mentor": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New",
+    "Status",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Additional Exam | Chapter Exam"
+   ],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/exams/chapter-names/?student_id={stu_a}",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ su_mentor": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "All0",
+    "Awaiting0",
+    "Needs review0",
+    "Newest submissions",
+    "Scored0",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ su_mentor": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/sessions",
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/activity @ su_mentor": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ su_mentor": {
+   "at": "/team",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "All roles",
+    "All statuses",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/team/{mentor_c} @ su_mentor": {
+   "at": "/team/{mentor_c}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ su_mentor": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity Log",
+    "Assign Selected",
+    "Cancel",
+    "Deactivate account",
+    "Details & Permissions",
+    "Mentor",
+    "Remove View the team directory",
+    "Save changes",
+    "Search or select permissions...",
+    "Show password",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [
+    "Module",
+    "Permission Name",
+    "Remove"
+   ],
+   "tabs": [
+    "Activity Log",
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/?subject={mentor_c}",
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/",
+    "GET /api/team/permissions/"
+   ]
+  },
+  "/admins @ su_mentor": {
+   "at": "/team?role=ADMIN",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Add staff member",
+    "Admin",
+    "All statuses",
+    "Clear",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/nowhere @ su_mentor": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/sessions",
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ mentor_a": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Expired Students (1)",
+    "Open menu",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students/{stu_a}"
+   ],
+   "headers": [
+    "Admission Date",
+    "Class Quota",
+    "Country",
+    "Grade",
+    "Joined At",
+    "Meet Link",
+    "Mobile",
+    "Name",
+    "Remarks for Mentor",
+    "School",
+    "Status",
+    "Student ID",
+    "Syllabus",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ mentor_a": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Sync from sheet",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "tel:+910000000002"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ mentor_a": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Assigned",
+    "Awaiting review",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Scored 8/10",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}",
+    "/students",
+    "https://hw.matrix.test/1",
+    "https://hw.matrix.test/2",
+    "https://hw.matrix.test/3",
+    "https://n.matrix.test/1",
+    "https://r.matrix.test/1"
+   ],
+   "headers": [
+    "Class",
+    "Content",
+    "Homework",
+    "Rating",
+    "Status",
+    "Tutor",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ mentor_a": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Score",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/students",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Question paper",
+    "Recording",
+    "Result",
+    "Status",
+    "Submitted",
+    "Title",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ mentor_a": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [
+    "Assigned",
+    "Class",
+    "Score",
+    "Scored by",
+    "Status",
+    "Submitted"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ mentor_a": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Additional exams2",
+    "All5",
+    "Class content1",
+    "Documents",
+    "Exams1",
+    "Exams4",
+    "Homework1",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "http://testserver/api/additional-exams/files/{aqf_a}/",
+    "http://testserver/api/additional-exams/files/{aaf_a}/",
+    "http://testserver/api/exams/files/{ef_a}/",
+    "http://testserver/api/homework/files/{hwf_a_scored}/",
+    "https://n.matrix.test/1"
+   ],
+   "headers": [
+    "Added",
+    "Attached to",
+    "File",
+    "Size",
+    "Type"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/additional-exams/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/exams/?student_id={stu_a}",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ mentor_a": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Mentor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/activity/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ mentor_a": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Add note",
+    "Delete",
+    "Documents",
+    "Edit",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Open menu",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Exams4",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [
+    "Change Status | Edit Demo Link | Edit Profile | Manage Exams | Manage Sessions"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/notes/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ mentor_a": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ mentor_a": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ mentor_a": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New Session",
+    "Row actions",
+    "Toggle Sidebar",
+    "Tutor",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Cancel Session | Edit Resource Links | Mark Attended | Reschedule"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ mentor_a": {
+   "at": "/exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Review & score",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Mentor",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Student",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ mentor_a": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "New",
+    "Review & score",
+    "Row actions",
+    "Status",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/exams?student_id={stu_a}",
+    "/sessions?student_id={stu_a}",
+    "http://testserver/api/exams/files/{ef_a}/"
+   ],
+   "headers": [
+    "Chapter",
+    "Created",
+    "Date",
+    "Question Paper",
+    "Recording",
+    "Score",
+    "Status",
+    "Time",
+    "Title"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Additional Exam | Chapter Exam",
+    "Cancel Exam | Edit Result | Reschedule",
+    "Cancel Exam | Record Result | Reschedule"
+   ],
+   "calls": [
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/exams/",
+    "GET /api/exams/chapter-names/?student_id={stu_a}",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ mentor_a": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "All3",
+    "Awaiting1",
+    "Needs review1",
+    "Newest submissions",
+    "Scored1",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [],
+   "headers": [
+    "Score",
+    "Session",
+    "Status",
+    "Student",
+    "Submitted",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/activity @ mentor_a": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/team/{mentor_c} @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/admins @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/nowhere @ mentor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/exams",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/exams",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_c}",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/additional-exams/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ tutor_a": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}",
+    "/students/{stu_a}"
+   ],
+   "headers": [
+    "Grade",
+    "Meet Link",
+    "Mentor",
+    "Name",
+    "Student ID",
+    "Syllabus"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ tutor_a": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Open",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ tutor_a": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Assigned",
+    "Awaiting review",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Scored 8/10",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}",
+    "/students",
+    "https://hw.matrix.test/1",
+    "https://hw.matrix.test/2",
+    "https://hw.matrix.test/3",
+    "https://n.matrix.test/1",
+    "https://r.matrix.test/1"
+   ],
+   "headers": [
+    "Class",
+    "Content",
+    "Homework",
+    "Rating",
+    "Status",
+    "Tutor",
+    "When"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ tutor_a": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Open",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ tutor_a": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Grade",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "View"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [
+    "Assigned",
+    "Class",
+    "Score",
+    "Scored by",
+    "Status",
+    "Submitted"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ tutor_a": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "All3",
+    "Class content1",
+    "Documents",
+    "Homework2",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students",
+    "http://testserver/api/homework/files/{hwf_a_sub}/",
+    "http://testserver/api/homework/files/{hwf_a_scored}/",
+    "https://n.matrix.test/1"
+   ],
+   "headers": [
+    "Added",
+    "Attached to",
+    "File",
+    "Size",
+    "Type"
+   ],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/?student_id={stu_a}",
+    "GET /api/sessions/?student_id={stu_a}",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ tutor_a": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar",
+    "Tutor AMatrix fixtureMatrix fixture26 Oct, 12:27 PM"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/?student_id={stu_a}",
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ tutor_a": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Add note",
+    "Delete",
+    "Documents",
+    "Edit",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework3",
+    "Notes",
+    "Overview",
+    "Sessions6"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/notes/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ tutor_a": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ tutor_a": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Add Notes"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ tutor_a": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Add Notes"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ tutor_a": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "All3",
+    "Awaiting1",
+    "Grade",
+    "Needs review1",
+    "Newest submissions",
+    "Scored1",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Score",
+    "Session",
+    "Status",
+    "Student",
+    "Submitted",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/activity @ tutor_a": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/team/{mentor_c} @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/admins @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/nowhere @ tutor_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ tutor_b": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/students @ tutor_b": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Student ID",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/sessions?student_id={stu_p}",
+    "/sessions?student_id={stu_b}",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [
+    "Grade",
+    "Meet Link",
+    "Mentor",
+    "Name",
+    "Student ID",
+    "Syllabus"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/"
+   ]
+  },
+  "/students/{stu_a} @ tutor_b": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ tutor_b": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ tutor_b": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ tutor_b": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ tutor_b": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ tutor_b": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ tutor_b": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_a}/profile/"
+   ]
+  },
+  "/students/{stu_b} @ tutor_b": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Activity",
+    "Documents",
+    "Homework1",
+    "Notes",
+    "Open",
+    "Overview",
+    "Sessions2",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/students"
+   ],
+   "headers": [],
+   "tabs": [
+    "Activity",
+    "Documents",
+    "Homework1",
+    "Notes",
+    "Overview",
+    "Sessions2"
+   ],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/students/{stu_b}/profile/"
+   ]
+  },
+  "/sessions @ tutor_b": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Columns",
+    "Date range",
+    "Row actions",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [],
+   "headers": [
+    "Date",
+    "Meeting",
+    "Session Title",
+    "Status",
+    "Student",
+    "Student's Mentor",
+    "Time",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [
+    "Add Notes"
+   ],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ tutor_b": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Clear Filter",
+    "Columns",
+    "Date range",
+    "Toggle Sidebar",
+    "attended",
+    "cancelled",
+    "scheduled"
+   ],
+   "links": [
+    "/sessions?student_id={stu_a}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams @ tutor_b": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ tutor_b": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/homework @ tutor_b": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "All1",
+    "Awaiting0",
+    "Grade",
+    "Needs review1",
+    "Newest submissions",
+    "Scored0",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Score",
+    "Session",
+    "Status",
+    "Student",
+    "Submitted",
+    "Tutor"
+   ],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/homework/"
+   ]
+  },
+  "/invitations @ tutor_b": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/activity @ tutor_b": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "All actions",
+    "All types",
+    "Date range",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Action",
+    "Details",
+    "When",
+    "Who"
+   ],
+   "tabs": [],
+   "filters": [
+    "All actions",
+    "All types"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ tutor_b": {
+   "at": "/team",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "All roles",
+    "All statuses",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/team/{mentor_c} @ tutor_b": {
+   "at": "/team/{mentor_c}",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Details & Permissions",
+    "Mentor",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [],
+   "tabs": [
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ tutor_b": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Details & Permissions",
+    "Mentor",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/team"
+   ],
+   "headers": [],
+   "tabs": [
+    "Details & Permissions"
+   ],
+   "filters": [
+    "AdminMentorTutor",
+    "Mentor"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/{mentor_c}/"
+   ]
+  },
+  "/admins @ tutor_b": {
+   "at": "/team?role=ADMIN",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Admin",
+    "All statuses",
+    "Clear",
+    "Next",
+    "Previous",
+    "Toggle Sidebar"
+   ],
+   "links": [],
+   "headers": [
+    "Email",
+    "Name",
+    "Open",
+    "Role",
+    "Status",
+    "Username"
+   ],
+   "tabs": [],
+   "filters": [
+    "Filter by role",
+    "Filter by status"
+   ],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/",
+    "GET /api/team/"
+   ]
+  },
+  "/nowhere @ tutor_b": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [
+    "/dashboard",
+    "/students",
+    "/sessions",
+    "/homework",
+    "/team",
+    "/activity"
+   ],
+   "buttons": [
+    "Oct 20 – Oct 26",
+    "Toggle Sidebar"
+   ],
+   "links": [
+    "/activity",
+    "/homework",
+    "/sessions",
+    "/students",
+    "/students/{stu_p}",
+    "/students/{stu_b}"
+   ],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/activity/",
+    "GET /api/auth/me/",
+    "GET /api/dashboard/stats/",
+    "GET /api/homework/",
+    "GET /api/sessions/",
+    "GET /api/students/"
+   ]
+  },
+  "/dashboard @ parent_a": {
+   "at": "/dashboard",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students @ parent_a": {
+   "at": "/students",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a} @ parent_a": {
+   "at": "/students/{stu_a}",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ parent_a": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ parent_a": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ parent_a": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ parent_a": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ parent_a": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ parent_a": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_b} @ parent_a": {
+   "at": "/students/{stu_b}",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions @ parent_a": {
+   "at": "/sessions",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ parent_a": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams @ parent_a": {
+   "at": "/exams",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ parent_a": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/homework @ parent_a": {
+   "at": "/homework",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/invitations @ parent_a": {
+   "at": "/invitations",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/activity @ parent_a": {
+   "at": "/activity",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ parent_a": {
+   "at": "/team",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c} @ parent_a": {
+   "at": "/team/{mentor_c}",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ parent_a": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/admins @ parent_a": {
+   "at": "/admins",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/nowhere @ parent_a": {
+   "at": "/nowhere",
+   "noAccess": false,
+   "nav": [],
+   "buttons": [],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/dashboard @ unknown": {
+   "at": "/dashboard",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students @ unknown": {
+   "at": "/students",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a} @ unknown": {
+   "at": "/students/{stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ unknown": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ unknown": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ unknown": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ unknown": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ unknown": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ unknown": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_b} @ unknown": {
+   "at": "/students/{stu_b}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions @ unknown": {
+   "at": "/sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ unknown": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams @ unknown": {
+   "at": "/exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ unknown": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/homework @ unknown": {
+   "at": "/homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/invitations @ unknown": {
+   "at": "/invitations",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/activity @ unknown": {
+   "at": "/activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ unknown": {
+   "at": "/team",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c} @ unknown": {
+   "at": "/team/{mentor_c}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ unknown": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/admins @ unknown": {
+   "at": "/admins",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/nowhere @ unknown": {
+   "at": "/nowhere",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/dashboard @ bde": {
+   "at": "/dashboard",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students @ bde": {
+   "at": "/students",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a} @ bde": {
+   "at": "/students/{stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ bde": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ bde": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ bde": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ bde": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ bde": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ bde": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_b} @ bde": {
+   "at": "/students/{stu_b}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions @ bde": {
+   "at": "/sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ bde": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams @ bde": {
+   "at": "/exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ bde": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/homework @ bde": {
+   "at": "/homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/invitations @ bde": {
+   "at": "/invitations",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/activity @ bde": {
+   "at": "/activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ bde": {
+   "at": "/team",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c} @ bde": {
+   "at": "/team/{mentor_c}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ bde": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/admins @ bde": {
+   "at": "/admins",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/nowhere @ bde": {
+   "at": "/nowhere",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/dashboard @ sales_tl": {
+   "at": "/dashboard",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students @ sales_tl": {
+   "at": "/students",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a} @ sales_tl": {
+   "at": "/students/{stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=sessions @ sales_tl": {
+   "at": "/students/{stu_a}?tab=sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=exams @ sales_tl": {
+   "at": "/students/{stu_a}?tab=exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=homework @ sales_tl": {
+   "at": "/students/{stu_a}?tab=homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=documents @ sales_tl": {
+   "at": "/students/{stu_a}?tab=documents",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=activity @ sales_tl": {
+   "at": "/students/{stu_a}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_a}?tab=notes @ sales_tl": {
+   "at": "/students/{stu_a}?tab=notes",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/students/{stu_b} @ sales_tl": {
+   "at": "/students/{stu_b}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions @ sales_tl": {
+   "at": "/sessions",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/sessions?student_id={stu_a} @ sales_tl": {
+   "at": "/sessions?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams @ sales_tl": {
+   "at": "/exams",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/exams?student_id={stu_a} @ sales_tl": {
+   "at": "/exams?student_id={stu_a}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/homework @ sales_tl": {
+   "at": "/homework",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/invitations @ sales_tl": {
+   "at": "/invitations",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/activity @ sales_tl": {
+   "at": "/activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team @ sales_tl": {
+   "at": "/team",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c} @ sales_tl": {
+   "at": "/team/{mentor_c}",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/team/{mentor_c}?tab=activity @ sales_tl": {
+   "at": "/team/{mentor_c}?tab=activity",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/admins @ sales_tl": {
+   "at": "/admins",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  },
+  "/nowhere @ sales_tl": {
+   "at": "/nowhere",
+   "noAccess": true,
+   "nav": [],
+   "buttons": [
+    "Sign out"
+   ],
+   "links": [],
+   "headers": [],
+   "tabs": [],
+   "filters": [],
+   "menus": [],
+   "calls": [
+    "GET /api/auth/me/"
+   ]
+  }
+ }
+}

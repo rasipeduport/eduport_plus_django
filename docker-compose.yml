@@ -65,7 +65,8 @@ services:
 
   # Celery broker. Only the worker and beat talk to it -- nothing is cached
   # here and nothing in a web request depends on it, so losing Redis delays
-  # the quota sync and nothing else.
+  # the scheduled jobs -- the quota sync, parent WhatsApp messages -- and
+  # nothing else.
   redis:
     image: redis:7-alpine
     container_name: eduplus-redis
@@ -83,10 +84,10 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # The enrolment-sheet quota sync runs here. Both services reuse the backend
-  # image and override its entrypoint: migrations and collectstatic belong to
-  # the `backend` service alone, and these wait for it to be healthy so the
-  # schema is already in place.
+  # The scheduled jobs (quota sync, WhatsApp messages) run here. Both
+  # services reuse the backend image and override its entrypoint: migrations
+  # and collectstatic belong to the `backend` service alone, and these wait
+  # for it to be healthy so the schema is already in place.
   worker:
     build:
       context: ./backend

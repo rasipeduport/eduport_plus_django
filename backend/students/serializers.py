@@ -30,7 +30,10 @@ class StudentNoteSerializer(serializers.ModelSerializer):
         return bool(user) and obj.author_id == user.id
 
     def get_can_delete(self, obj):
+        from accounts.authz import has_app_permission
         user = self._user()
         if not user:
             return False
-        return obj.author_id == user.id or user.role == 'ADMIN' or user.is_superuser
+        return obj.author_id == user.id or has_app_permission(
+            user, 'accounts.delete_any_student_note', self.context.get('request')
+        )

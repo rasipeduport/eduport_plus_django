@@ -1,0 +1,31 @@
+# Local Test Mode only. Load explicitly together with docker-compose.yml.
+# This adds only the listener; application services and their secrets are unchanged.
+services:
+  stripe-listener:
+    image: stripe/stripe-cli:v1.55.11
+    profiles: [local-stripe]
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: ./.local/stripe/listener.env
+        required: false
+    environment:
+      EDUPORT_STRIPE_LOCAL: "1"
+    entrypoint: ["/bin/sh", "/opt/eduport-stripe/listener.sh"]
+    command: ["listen"]
+    volumes:
+      - ./docker/stripe/listener.sh:/opt/eduport-stripe/listener.sh:ro
+      - stripe_cli_config:/root/.config/stripe
+      - stripe_webhook_secret:/run/eduport-stripe
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Stripe prints whsec_ at startup. Do not persist raw CLI output.
+    logging:
+      driver: "none"
+
+# Keep these names so the existing project's prepared state is reused.
+# Neither volume is mounted into an application service.
+volumes:
+  stripe_cli_config:
+  stripe_webhook_secret:

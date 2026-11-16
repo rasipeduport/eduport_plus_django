@@ -15,7 +15,7 @@ import environ
 from celery.schedules import crontab
 from pathlib import Path
 
-from core.settings_guards import mock_auth_enabled, validate_production_settings
+from core.settings_guards import validate_cookie_and_origin_settings, validate_production_settings
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -65,7 +65,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    # ArrayField (the report item lists) needs it registered.
+    'django.contrib.postgres',
+
     # Third-party Apps
     'rest_framework',
     'corsheaders',
@@ -78,6 +80,11 @@ INSTALLED_APPS = [
     'activity',
     'exams',
     'homework',
+    'bookings',
+    'reports',
+    'communications',
+    'sales',
+    'earnings',
 ]
 
 MIDDLEWARE = [
@@ -90,6 +97,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Needs request.user, so it sits directly after AuthenticationMiddleware:
+    # a user holding a temporary password can reach nothing but the
+    # password-change flow, in the API and the Django admin alike.
+    'accounts.middleware.PasswordChangeRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -132,18 +143,14 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
+# Deliberately simple: a minimum length and nothing else (no similarity,
+# common-password or all-digits checks). Brute force is held back by the
+# per-account lockout and the per-address login throttle, not by these rules.
+# The Hub states and pre-checks the same rule (src/lib/password-policy.js).
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        'OPTIONS': {'min_length': 8},
     },
 ]
 
@@ -182,6 +189,19 @@ STORAGES = {
 # there is deliberately no MEDIA_URL and nothing exposes this directory.
 MEDIA_ROOT = Path(env('MEDIA_ROOT', default=str(BASE_DIR / 'media')))
 
+# Phase 1 admissions. Hosted Checkout needs no publishable key in the Hub.
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_LIVE_MODE = env.bool('STRIPE_LIVE_MODE', default=False)
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
+# How far the very first webhook backfill run looks back (sales.event_backfill);
+# later runs resume from their checkpoint. Capped at Stripe's 30-day event retention.
+STRIPE_EVENT_BACKFILL_INITIAL_LOOKBACK_HOURS = env.int('STRIPE_EVENT_BACKFILL_INITIAL_LOOKBACK_HOURS', default=1)
+AUTOPAY_TERMS_URL = env('AUTOPAY_TERMS_URL', default='')
+SALES_BILLING_TIMEZONE = env('SALES_BILLING_TIMEZONE', default='Asia/Dubai')
+SALES_EDP_MIN_NUMBER = env.int('SALES_EDP_MIN_NUMBER', default=0)
+PAYMENT_PROOF_MAX_BYTES = env.int('PAYMENT_PROOF_MAX_MB', default=10) * 1024 * 1024
+
 # Per-kind upload ceilings, in bytes. 50 MiB for documents/images matches the
 # Hub's homework bucket; video recordings get more room. Override per
 # environment with SESSION_CONTENT_MAX_MB_<KIND>.
@@ -199,23 +219,61 @@ SESSION_CONTENT_MAX_BYTES = {
 # Custom Authentication User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# The "mock:" Google credential shortcut used for dev/test logins. It skips
-# token verification entirely and logs in as whatever email the caller supplies,
-# so it is gated on DEBUG *as well as* its own flag: with DEBUG=False the answer
-# is False no matter what the environment says. Opt in explicitly for local dev.
-ALLOW_MOCK_AUTH = mock_auth_enabled(
-    debug=DEBUG,
-    env_flag=env.bool('ALLOW_MOCK_AUTH', default=False),
-)
+# ---------------------------------------------------------------------------
+# Login protection
+# ---------------------------------------------------------------------------
+# Every password check (API login, Django admin login) goes through
+# accounts.backends.LockoutModelBackend: after LOGIN_MAX_FAILURES consecutive
+# wrong passwords an account is locked for LOGIN_LOCKOUT_SECONDS, counted in
+# the database. Django's ModelBackend stays listed second only because existing
+# sessions record its path and get_user() restores a session only through a
+# backend listed here; the lockout backend refuses every failed password check
+# outright, so ModelBackend is never asked to check one.
+#
+# Nothing on the login path uses Redis (it serves Celery only). The per-address
+# rate limits in REST_FRAMEWORK below count in Django's default local-memory
+# cache, per gunicorn worker, so they are approximate (see accounts/throttles.py).
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.LockoutModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+LOGIN_MAX_FAILURES = env.int('LOGIN_MAX_FAILURES', default=5)
+LOGIN_LOCKOUT_SECONDS = env.int('LOGIN_LOCKOUT_SECONDS', default=15 * 60)
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
+    # SessionAuthentication enforces CSRF on every unsafe request from a
+    # logged-in session. No view may opt out (core/authentication.py and its
+    # CSRF-exempt class were removed in Phase 2).
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # How many reverse proxies in front of Django append to X-Forwarded-For.
+    # The client address used by the login throttle and the audit log is the
+    # entry those proxies added; anything further left is client-supplied and
+    # ignored. 0 (the default) ignores the header and uses the socket address,
+    # which is correct when nothing proxies the API (the local stack). Behind
+    # one TLS-terminating proxy that APPENDS the header, set NUM_PROXIES=1.
+    'NUM_PROXIES': env.int('NUM_PROXIES', default=0),
+    # Scoped rates for the throttle classes in accounts/throttles.py. DRF
+    # periods are s/m/h/d: "10/min" is ten per minute per client address.
+    'DEFAULT_THROTTLE_RATES': {
+        'login_ip': env('LOGIN_THROTTLE_IP_RATE', default='10/min'),
+        'password_change': env('PASSWORD_CHANGE_THROTTLE_RATE', default='10/hour'),
+        # The public booking API, per parent address (bookings.throttles).
+        # The pages poll the calendar every 8 seconds while a parent picks a time.
+        'public_booking': env('PUBLIC_BOOKING_THROTTLE_RATE', default='10/hour'),
+        'public_booking_calendar': env('PUBLIC_BOOKING_CALENDAR_THROTTLE_RATE', default='120/min'),
+        # The marketing site's lead forms, per parent address (bookings.throttles).
+        'public_lead': env('PUBLIC_LEAD_THROTTLE_RATE', default='10/hour'),
+        # Report PDF downloads, per signed-in account (reports.downloads): each is rendered afresh.
+        'report_pdf': env('REPORT_PDF_THROTTLE_RATE', default='30/min'),
+        # Syllabus PDFs (sales.downloads): rendering one costs real CPU, as a report's does.
+        'syllabus_pdf': env('SYLLABUS_PDF_THROTTLE_RATE', default='30/min'),
+    },
     # The browsable API renders interactive write forms for every endpoint --
     # a development tool. Production serves JSON only.
     'DEFAULT_RENDERER_CLASSES': (
@@ -234,14 +292,46 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = 'Lax'
 
+# Session lifetime: no time limit of our own. Staff and student sessions last
+# until logout, deactivation (is_active=False ends every session on its next
+# request) or a password change (the session hash no longer matches). Django
+# always gives a session an expiry -- two weeks by default -- so it is set to
+# 400 days, the longest the cookie standard lets a browser keep a cookie
+# (RFC 6265bis; Chrome and Edge cap anything longer). Set at login only;
+# requests do not re-save the session.
+# Expired rows are purged daily by accounts.tasks.clear_expired_sessions.
+SESSION_COOKIE_AGE = 400 * 24 * 60 * 60
+
 CSRF_COOKIE_DOMAIN = env('SESSION_COOKIE_DOMAIN', default=None)
 CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=SESSION_COOKIE_SECURE)
 CSRF_COOKIE_HTTPONLY = False  # Allows Axios frontend to read the CSRF token from cookie
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+# JSON instead of Django's HTML page when a login POST fails the CSRF check.
+CSRF_FAILURE_VIEW = 'core.csrf.csrf_failure'
 
 # CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+# The Hub fetches report PDFs from another origin and saves each under the name
+# the server gives it (reports.downloads), so its script must be able to read
+# that one header. Only allowed origins get it, with every other CORS header.
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
+
+# Development-only opt-out. A local stack served over plain http:// cannot use
+# Secure cookies; the guard below refuses to boot with DEBUG=False and
+# insecure cookies unless this is explicitly True. Never set it in production.
+ALLOW_INSECURE_COOKIES = env.bool('ALLOW_INSECURE_COOKIES', default=False)
+
+# Raises ImproperlyConfigured when DEBUG is off and the login cookies would
+# travel over plain HTTP, or when no SPA origin is allowed at all.
+validate_cookie_and_origin_settings(
+    debug=DEBUG,
+    session_cookie_secure=SESSION_COOKIE_SECURE,
+    csrf_cookie_secure=CSRF_COOKIE_SECURE,
+    allow_insecure_cookies=ALLOW_INSECURE_COOKIES,
+    cors_allowed_origins=CORS_ALLOWED_ORIGINS,
+    csrf_trusted_origins=CSRF_TRUSTED_ORIGINS,
+)
 
 # ---------------------------------------------------------------------------
 # Transport security
@@ -339,11 +429,19 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
+        # WeasyPrint logs seven INFO steps for every report PDF (reports.pdf).
+        # Its warnings, on the `weasyprint` logger, still reach the console.
+        'weasyprint.progress': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
     },
 }
 
 # Google Integration Configuration
-GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='')
+# Independent of SECRET_KEY. First key encrypts; older keys decrypt during rotation.
+LEARN_INVITATION_KEYS = env.list('LEARN_INVITATION_KEYS', default=[])
 GOOGLE_SHEET_ID = env('GOOGLE_SHEET_ID', default='')
 GOOGLE_SERVICE_ACCOUNT_EMAIL = env('GOOGLE_SERVICE_ACCOUNT_EMAIL', default='')
 GOOGLE_PRIVATE_KEY = env('GOOGLE_PRIVATE_KEY', default='')
@@ -351,10 +449,11 @@ GOOGLE_PRIVATE_KEY = env('GOOGLE_PRIVATE_KEY', default='')
 # ---------------------------------------------------------------------------
 # Celery (background jobs)
 # ---------------------------------------------------------------------------
-# One job: the enrolment-sheet class-quota sync (students.tasks). No result
-# backend -- nothing waits on a return value, and the task logs its own
-# summary -- and no django-celery-beat, so the schedule below needs no tables
-# and no migrations.
+# A few scheduled jobs: the enrolment-sheet class-quota sync (students.tasks),
+# the session purge (accounts.tasks) and parent WhatsApp messages
+# (communications.tasks). No result backend -- nothing waits on a return
+# value, and each task logs its own summary -- and no django-celery-beat, so
+# the schedule below needs no tables and no migrations.
 # Defaults to a Redis on the host, the same way DB_HOST defaults to localhost:
 # this is the value `manage.py runserver` / `celery -A config worker` want when
 # run natively. Compose overrides it to `redis://redis:6379/0` on all three
@@ -377,6 +476,21 @@ CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
 # lands, so an hour is about the longest a mentor should have to wait before a
 # top-up lets them book; one Google API call per run makes it cheap.
 CELERY_BEAT_SCHEDULE = {
+    'collect-due-autopay-installments': {
+        'task': 'sales.tasks.collect_due_autopay_installments',
+        'schedule': crontab(minute='*'),
+    },
+    'sync-stripe-student-metadata': {
+        'task': 'sales.tasks.sync_stripe_student_metadata',
+        'schedule': crontab(minute='*/15'),
+    },
+    # Stripe events the webhook never delivered (sales.event_backfill). A tick no
+    # worker takes before the next one expires instead of piling up.
+    'recover-missed-stripe-events': {
+        'task': 'sales.tasks.recover_missed_stripe_events',
+        'schedule': crontab(minute='3-59/10'),
+        'options': {'expires': 540},
+    },
     'sync-student-quotas-from-sheet': {
         'task': 'students.tasks.sync_student_quotas',
         'schedule': crontab(
@@ -384,7 +498,52 @@ CELERY_BEAT_SCHEDULE = {
             hour=env('QUOTA_SYNC_CRON_HOUR', default='*'),
         ),
     },
+    # Database sessions are only ignored once expired, never deleted, so the
+    # table is purged nightly (`manage.py clearsessions`).
+    'clear-expired-sessions': {
+        'task': 'accounts.tasks.clear_expired_sessions',
+        'schedule': crontab(minute='30', hour='3'),
+    },
+    # Parent WhatsApp messages (communications.tasks): due messages handed to
+    # the sender every minute; stuck sends recovered and expired steps closed
+    # every 5 minutes, two minutes apart. A tick no worker takes in time
+    # expires, so a worker that was down does not run a backlog. Nothing is
+    # sent while COMMUNICATIONS_SENDING_ENABLED is off.
+    'dispatch-whatsapp-messages': {
+        'task': 'communications.tasks.dispatch_messages',
+        'schedule': crontab(minute='*'),
+        'options': {'expires': 55},
+    },
+    'recover-stuck-whatsapp-sends': {
+        'task': 'communications.tasks.recover_stuck_sends',
+        'schedule': crontab(minute='*/5'),
+        'options': {'expires': 240},
+    },
+    'close-expired-communications': {
+        'task': 'communications.tasks.close_expired_communications',
+        'schedule': crontab(minute='2-59/5'),
+        'options': {'expires': 240},
+    },
+    # WhatsApp statuses that came before their message's id was recorded.
+    'reconcile-whatsapp-statuses': {
+        'task': 'communications.tasks.reconcile_status_updates',
+        'schedule': crontab(minute='4-59/5'),
+        'options': {'expires': 240},
+    },
+    # Tutor Earnings (earnings.ledger): every 10 minutes the eligible classes
+    # with no earning yet are priced and added to the ledger -- each once,
+    # ever. A tick no worker takes in time expires; nothing runs while
+    # TUTOR_EARNINGS_SYNC_ENABLED is off.
+    'reconcile-tutor-earnings': {
+        'task': 'earnings.tasks.reconcile_tutor_earnings',
+        'schedule': crontab(minute='6-59/10'),
+        'options': {'expires': 540},
+    },
 }
+
+# The Tutor Earnings sync's switch: off, the schedule (and the manual command)
+# write nothing and the ledger stays as it is.
+TUTOR_EARNINGS_SYNC_ENABLED = env.bool('TUTOR_EARNINGS_SYNC_ENABLED', default=True)
 
 # Email Configuration
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
@@ -403,3 +562,45 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='rasip.eduport@gmail.com'
 # Frontend URLs for redirect links
 HUB_URL = env('HUB_URL', default='http://localhost:3000')
 LEARN_URL = env('LEARN_URL', default='http://localhost:3001')
+
+# The public site whose /demo and /exam pages parents book on; a BDE's booking
+# links (bookings app) point there. They are only ever meant for parents, so
+# the default is the live site in every environment.
+MARKETING_SITE_URL = env('MARKETING_SITE_URL', default='https://plus.eduport.app')
+
+# Bookings one phone number may make in 24 hours (siblings share it), counted
+# in the database so it holds across workers.
+BOOKING_PHONE_DAILY_LIMIT = env.int('BOOKING_PHONE_DAILY_LIMIT', default=5)
+
+# New leads one phone number may make through the marketing site's lead forms
+# in 24 hours (siblings share it); a child who already has a lead never counts.
+LEAD_PHONE_DAILY_LIMIT = env.int('LEAD_PHONE_DAILY_LIMIT', default=5)
+
+# Keys the marketing site's server presents to the public booking and lead
+# APIs (bookings.authentication), comma-separated so one can be rotated. None
+# set means the APIs answer nobody.
+BOOKING_SERVICE_API_KEYS = env.list('BOOKING_SERVICE_API_KEYS', default=[])
+
+# Parent communication (communications app). Messages for a lead with no BDE --
+# a booking made without a valid BDE link -- sign with this central name and
+# phone; while either is unset they wait instead of going out with a blank.
+COMMUNICATIONS_FALLBACK_SENDER_NAME = env('COMMUNICATIONS_FALLBACK_SENDER_NAME', default='')
+COMMUNICATIONS_FALLBACK_SENDER_PHONE = env('COMMUNICATIONS_FALLBACK_SENDER_PHONE', default='')
+
+# WhatsApp, the only channel parent messages go through (communications.safety).
+# Closed by default: nothing is handed to a provider until sending is switched
+# on, the default provider ("none") sends nothing so messages stay Pending, and
+# only allow-listed numbers -- full international numbers, comma-separated --
+# may receive a message unless every number is allowed on purpose (production).
+COMMUNICATIONS_SENDING_ENABLED = env.bool('COMMUNICATIONS_SENDING_ENABLED', default=False)
+COMMUNICATIONS_WHATSAPP_PROVIDER = env('COMMUNICATIONS_WHATSAPP_PROVIDER', default='none')
+COMMUNICATIONS_RECIPIENT_ALLOWLIST = env.list('COMMUNICATIONS_RECIPIENT_ALLOWLIST', default=[])
+COMMUNICATIONS_ALLOW_ALL_RECIPIENTS = env.bool('COMMUNICATIONS_ALLOW_ALL_RECIPIENTS', default=False)
+# Seconds one provider call may take (1-60).
+COMMUNICATIONS_PROVIDER_TIMEOUT = env.int('COMMUNICATIONS_PROVIDER_TIMEOUT', default=10)
+# Meta's WhatsApp Cloud API webhook (communications.webhooks): the app secret
+# every callback is signed with, and the token Meta's subscription check
+# presents. Both from the platform's secret store, never a tracked file; while
+# either is unset the webhook refuses everything.
+COMMUNICATIONS_META_APP_SECRET = env('COMMUNICATIONS_META_APP_SECRET', default='')
+COMMUNICATIONS_META_VERIFY_TOKEN = env('COMMUNICATIONS_META_VERIFY_TOKEN', default='')

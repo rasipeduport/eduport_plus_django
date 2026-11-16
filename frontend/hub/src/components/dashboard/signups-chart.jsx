@@ -28,7 +28,7 @@ export function defaultRange(now = new Date()) {
 
 /**
  * Sign-ups per local calendar day between `from` and `to` inclusive, counted
- * from the students the page already holds (the same role-scoped set the
+ * from the students the page already holds (the same permission-scoped set the
  * stats endpoint sums its fixed seven-day series from).
  */
 export function signupSeries(students, range) {

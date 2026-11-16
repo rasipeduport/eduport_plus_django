@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PERMISSIONS, can } from '@/lib/access';
 import { formatDate, getInitials } from '@/lib/utils';
 import { ActionCell } from './action-cell';
 
@@ -70,17 +71,18 @@ const admissionDateFormatter = new Intl.DateTimeFormat('en-GB', {
 });
 
 /**
- * Build the students table columns for admins and mentors.
+ * Build the students table columns for whoever holds the full student record.
  *
- * Mentors lose the columns that are not theirs to see (email, the mentor
- * assignment, state) and the admin-only row actions. Tutors get a narrower set
- * of their own — see tutor-columns.jsx.
+ * The oversight columns (email, the mentor assignment, state) go to whoever
+ * may view all students; a mentor, who sees only their own, does without
+ * them. The row actions follow the caller's permissions (ActionCell). Tutors
+ * get a narrower set of their own — see tutor-columns.jsx.
  *
  * `onChanged` is called after any row action that mutates a student, so the
  * page can refetch.
  */
-export function createColumns(role, onChanged) {
-  const isAdmin = role === 'admin';
+export function createColumns(user, onChanged) {
+  const isAdmin = can(user, PERMISSIONS.viewAllStudents);
 
   return [
     {
@@ -131,6 +133,13 @@ export function createColumns(role, onChanged) {
       accessorKey: 'full_name',
       header: 'Name',
     },
+    ...(isAdmin && can(user, PERMISSIONS.manageInitialSales) ? [{
+      id: 'autopay', header: 'Autopay',
+      cell: ({ row }) => {
+        const agreement = row.original.autopay;
+        return agreement ? <div className="space-y-1 text-xs"><Badge variant={agreement.setup_status === 'READY' && !agreement.attention_status ? 'success' : 'warning'}>{(agreement.attention_status || agreement.status).replaceAll('_', ' ')}</Badge><p>{agreement.creator} · {agreement.creator_role}</p>{agreement.collection_engine === 'STRIPE_BILLING' ? <p>Stripe Billing · {agreement.stripe_subscription_status || agreement.billing_status.replaceAll('_', ' ')}</p> : null}<p>{agreement.next_collection_at ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: agreement.billing_timezone }).format(new Date(agreement.next_collection_at)) : 'No future collection'}</p></div> : '—';
+      },
+    }] : []),
     {
       accessorKey: 'status',
       header: 'Status',
@@ -204,11 +213,6 @@ export function createColumns(role, onChanged) {
       cell: ({ row }) => <span>{formatDate(row.getValue('created_at'))}</span>,
     },
     {
-      accessorKey: 'meet_link',
-      header: 'Meet Link',
-      cell: ({ row }) => row.getValue('meet_link') || '—',
-    },
-    {
       accessorKey: 'total_class_quota',
       header: 'Class Quota',
       cell: ({ row }) => row.getValue('total_class_quota') ?? 0,
@@ -216,7 +220,7 @@ export function createColumns(role, onChanged) {
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => <ActionCell student={row.original} role={role} onChanged={onChanged} />,
+      cell: ({ row }) => <ActionCell student={row.original} user={user} onChanged={onChanged} />,
       enableHiding: false,
     },
   ];

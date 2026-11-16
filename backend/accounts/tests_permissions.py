@@ -1,0 +1,1388 @@
+"""
+Permission foundation (Phase A): the catalogue, the role groups migration 0008
+seeds, the resolver (accounts.authz) and what guards it.
+
+The role grants below are written out independently of the migration, so a
+change to either one -- what each role may do -- fails here until both agree.
+"""
+import importlib
+import json
+import os
+import tempfile
+from io import StringIO
+from types import SimpleNamespace
+
+from django.apps import apps as django_apps
+from django.conf import settings
+from django.contrib.auth.models import AnonymousUser, Group, Permission
+from django.core.exceptions import PermissionDenied
+from django.core.management import CommandError, call_command
+from django.db import connection, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.test import Client, RequestFactory, TestCase, TransactionTestCase, override_settings
+from rest_framework.request import Request
+from rest_framework.test import APIClient
+
+from accounts.authz import acting_as, effective_permissions, has_any_app_permission, has_app_permission
+from accounts.models import RoleGroup, User
+from accounts.permission_catalogue import (
+    CATALOGUE,
+    VIEW_TEAM,
+    allowed_for_role,
+    grantable_permissions,
+    hub_permission_meta,
+)
+from activity.models import ActivityLog
+from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUserFor
+from students.models import Student
+
+SEED = importlib.import_module('accounts.migrations.0008_role_groups')
+SEED_NEW_ROLES = importlib.import_module('accounts.migrations.0009_hub_roles_bde_sales_tl')
+SEED_BDE = importlib.import_module('accounts.migrations.0010_bde_booking_links_permission')
+SEED_SLOTS = importlib.import_module('accounts.migrations.0011_booking_slots_permission')
+SEED_ENQUIRIES = importlib.import_module('accounts.migrations.0012_bde_enquiries_permissions')
+SEED_BOOKINGS = importlib.import_module('accounts.migrations.0013_booking_management_permissions')
+SEED_TUTOR_BOOKINGS = importlib.import_module('accounts.migrations.0014_tutor_assigned_bookings_permission')
+SEED_WORKFLOW = importlib.import_module('accounts.migrations.0015_demo_diagnostic_workflow_permissions')
+SEED_COMMUNICATIONS = importlib.import_module('accounts.migrations.0017_communication_permissions')
+SEED_LEADS = importlib.import_module('accounts.migrations.0018_lead_management_permissions')
+SEED_STUDENT_TIMEZONE = importlib.import_module('accounts.migrations.0019_student_timezone_permission')
+SEED_SALES = importlib.import_module('accounts.migrations.0020_sales_permissions')
+SEED_SALES_CATALOGUE = importlib.import_module('accounts.migrations.0021_sales_catalogue_permission')
+SEED_SALES_QUOTES = importlib.import_module('accounts.migrations.0022_sales_quote_permissions')
+SEED_INITIAL_SALES = importlib.import_module('accounts.migrations.0023_alter_hubpermission_options')
+SEED_ADDITIONAL_PURCHASES = importlib.import_module('accounts.migrations.0026_additional_purchase_permission')
+SEED_SESSION_OUTCOMES = importlib.import_module('accounts.migrations.0029_correct_session_outcome_permission')
+SEED_TUTOR_EARNINGS = importlib.import_module('accounts.migrations.0030_tutor_earnings_permissions')
+# Staff roles added by migration 0009, after the baseline below.
+NEW_ROLES = ('BDE', 'SALES_TL')
+
+PLAIN_STORAGES = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+FAST_HASHING = override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+
+
+def names(*codenames):
+    return {f'accounts.{codename}' for codename in codenames}
+
+
+# What each role could do before the move to permissions, written out on its
+# own. Mentors carry no invitation permission (decision D4).
+EXPECTED_ROLE_PERMISSIONS = {
+    'ADMIN': names(
+        'view_team', 'manage_team', 'view_staff_directory', 'view_staff_dashboard',
+        'view_all_students', 'view_full_student_record', 'change_student_details', 'sync_student_quota',
+        'reassign_student_staff', 'purge_student', 'view_student_notes', 'add_student_note', 'delete_any_student_note',
+        'view_all_sessions', 'create_session', 'manage_session', 'cancel_session',
+        'view_all_exams', 'create_exam', 'manage_exam', 'cancel_exam', 'record_exam_result', 'score_additional_exam',
+        'view_all_homework', 'view_homework_submissions', 'score_homework',
+        'view_all_activity', 'view_activity_actors',
+        'view_invitations', 'create_invitation', 'change_invitation', 'withdraw_invitation',
+    ),
+    'MENTOR': names(
+        'view_staff_directory', 'view_staff_dashboard',
+        'view_mentored_students', 'view_full_student_record', 'change_student_details', 'sync_student_quota',
+        'view_student_notes', 'add_student_note',
+        'view_mentored_sessions', 'create_session', 'manage_session', 'cancel_session',
+        'view_mentored_exams', 'create_exam', 'manage_exam', 'cancel_exam', 'record_exam_result', 'score_additional_exam',
+        'view_mentored_homework', 'view_own_activity',
+    ),
+    'TUTOR': names(
+        'view_staff_directory', 'view_staff_dashboard',
+        'view_tutored_students', 'view_student_notes', 'add_student_note',
+        'view_tutored_sessions', 'edit_session_notes',
+        'view_tutored_homework', 'view_homework_submissions', 'score_homework', 'view_own_activity',
+    ),
+}
+ADMIN_ONLY = names(
+    'manage_team', 'reassign_student_staff', 'purge_student', 'view_activity_actors', 'manage_booking_slots',
+    'view_all_bookings', 'assign_booking_tutor',
+    'reschedule_booking', 'manage_conversions', 'assign_lead_owner',
+    'view_all_communications', 'manage_message_templates', 'view_all_leads', 'add_lead',
+    'manage_sales_syllabi', 'manage_sales_pricing', 'manage_sales_quotes', 'correct_session_outcome',
+    'view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings',
+)
+TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report', 'view_own_earnings')
+# What later migrations add, one module each: BDE its booking links (0010),
+# ADMIN the booking slots (0011), BDE its enquiries (0012), ADMIN booking
+# management (0013), TUTOR its own bookings (0014).
+BOOKING_LINK_PERMISSIONS = names('view_own_booking_links')
+BOOKING_SLOT_PERMISSIONS = names('manage_booking_slots')
+ENQUIRY_PERMISSIONS = names('view_own_enquiries', 'add_enquiry')
+BOOKING_MANAGEMENT_PERMISSIONS = names('view_all_bookings', 'assign_booking_tutor')
+ASSIGNED_BOOKING_PERMISSIONS = names('view_assigned_bookings')
+# The Demo/Diagnostic workflow (0015), written out on its own: which role
+# group carries what. Only the Admin reschedules (Q23); the Admin and the
+# owner BDE cancel (Q22); tutors do neither.
+WORKFLOW_PERMISSIONS = names(
+    'create_demo_booking', 'reschedule_booking', 'cancel_booking', 'submit_booking_report', 'view_own_lead_reports',
+    'share_booking_report', 'manage_own_conversion', 'manage_team_conversion', 'view_conversion_tracker',
+    'manage_conversions', 'assign_lead_owner',
+)
+WORKFLOW_GRANTS = {
+    'ADMIN': names('reschedule_booking', 'cancel_booking', 'share_booking_report', 'view_conversion_tracker',
+                   'manage_conversions', 'assign_lead_owner'),
+    'TUTOR': names('submit_booking_report'),
+    'BDE': names('create_demo_booking', 'cancel_booking', 'view_own_lead_reports', 'share_booking_report',
+                 'manage_own_conversion'),
+    'SALES_TL': names('manage_team_conversion', 'view_conversion_tracker'),
+}
+# Parent communication (0017), written out on its own: a BDE their own
+# leads', the Admin every booking's and the templates; tutors and Sales TL none.
+COMMUNICATION_PERMISSIONS = names(
+    'view_own_lead_communications', 'send_lead_communications', 'record_parent_confirmation',
+    'view_all_communications', 'manage_message_templates',
+)
+COMMUNICATION_GRANTS = {
+    'ADMIN': names('send_lead_communications', 'record_parent_confirmation', 'view_all_communications',
+                   'manage_message_templates'),
+    'BDE': names('view_own_lead_communications', 'send_lead_communications', 'record_parent_confirmation'),
+}
+# Lead management (0018): every lead, and adding one, for the Admin alone.
+LEAD_PERMISSIONS = names('view_all_leads', 'add_lead')
+LEAD_GRANTS = {'ADMIN': LEAD_PERMISSIONS}
+# Student Local Time (0019): correcting a student's time zone, for a BDE (their
+# own enquiries) and the Admin (any lead).
+STUDENT_TIMEZONE_PERMISSIONS = names('change_student_timezone')
+STUDENT_TIMEZONE_GRANTS = {'ADMIN': STUDENT_TIMEZONE_PERMISSIONS, 'BDE': STUDENT_TIMEZONE_PERMISSIONS}
+# Sales Management (0020): the syllabuses on offer and the global pricing, for the Admin alone.
+SALES_PERMISSIONS = names('manage_sales_syllabi', 'manage_sales_pricing')
+SALES_GRANTS = {'ADMIN': SALES_PERMISSIONS}
+# The catalogue on sale (0021): read and quoted by the BDE and the Admin.
+SALES_CATALOGUE_PERMISSIONS = names('view_sales_catalogue')
+SALES_CATALOGUE_GRANTS = {'ADMIN': SALES_CATALOGUE_PERMISSIONS, 'BDE': SALES_CATALOGUE_PERMISSIONS}
+# Quotes (0022): the BDE and the Admin quote; only the Admin sees every quote and cancels one.
+QUOTE_PERMISSIONS = names('create_sales_quotes', 'manage_sales_quotes')
+QUOTE_GRANTS = {'ADMIN': QUOTE_PERMISSIONS, 'BDE': names('create_sales_quotes')}
+INITIAL_SALES_PERMISSIONS = names('manage_initial_sales')
+INITIAL_SALES_GRANTS = {'ADMIN': INITIAL_SALES_PERMISSIONS, 'BDE': INITIAL_SALES_PERMISSIONS}
+# Additional purchases (0026): a mentor's further purchase for their own student;
+# the Admin keeps oversight. Never the BDE's.
+ADDITIONAL_PURCHASE_PERMISSIONS = names('create_additional_purchases')
+ADDITIONAL_PURCHASE_GRANTS = {'ADMIN': ADDITIONAL_PURCHASE_PERMISSIONS, 'MENTOR': ADDITIONAL_PURCHASE_PERMISSIONS}
+# Session outcomes (0029): correcting or revoking a recorded No-show / Not Conducted is the Admin's alone.
+OUTCOME_CORRECTION_PERMISSIONS = names('correct_session_outcome')
+OUTCOME_CORRECTION_GRANTS = {'ADMIN': OUTCOME_CORRECTION_PERMISSIONS}
+# Tutor Earnings (0030): every tutor's earnings, the rates, payments and corrections are the Admin's;
+# a tutor sees their own earnings. Nobody else holds any of it.
+EARNINGS_ADMIN_PERMISSIONS = names('view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings')
+EARNINGS_PERMISSIONS = EARNINGS_ADMIN_PERMISSIONS | names('view_own_earnings')
+EARNINGS_GRANTS = {'ADMIN': EARNINGS_ADMIN_PERMISSIONS, 'TUTOR': names('view_own_earnings')}
+# What the new roles' groups carried up to 0014: BDE its booking links and
+# enquiries, Sales TL nothing.
+NEW_ROLE_PERMISSIONS_AT_0014 = {
+    'BDE': BOOKING_LINK_PERMISSIONS | ENQUIRY_PERMISSIONS,
+    'SALES_TL': set(),
+}
+# What they carry -- and, each its own modules only, may ever hold -- today.
+NEW_ROLE_PERMISSIONS = {
+    role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
+    | STUDENT_TIMEZONE_GRANTS.get(role, set()) | SALES_CATALOGUE_GRANTS.get(role, set()) | QUOTE_GRANTS.get(role, set()) | INITIAL_SALES_GRANTS.get(role, set())
+    for role in NEW_ROLE_PERMISSIONS_AT_0014
+}
+# What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
+# after 0018, after 0019, after 0020, after 0021, and today.
+GROUP_PERMISSIONS_AT_0010 = {**EXPECTED_ROLE_PERMISSIONS, 'BDE': BOOKING_LINK_PERMISSIONS, 'SALES_TL': set()}
+GROUP_PERMISSIONS_AT_0011 = {
+    **GROUP_PERMISSIONS_AT_0010,
+    'ADMIN': GROUP_PERMISSIONS_AT_0010['ADMIN'] | BOOKING_SLOT_PERMISSIONS,
+}
+GROUP_PERMISSIONS_AT_0012 = {**GROUP_PERMISSIONS_AT_0011, **NEW_ROLE_PERMISSIONS_AT_0014}
+GROUP_PERMISSIONS_AT_0013 = {
+    **GROUP_PERMISSIONS_AT_0012,
+    'ADMIN': GROUP_PERMISSIONS_AT_0012['ADMIN'] | BOOKING_MANAGEMENT_PERMISSIONS,
+}
+GROUP_PERMISSIONS_AT_0014 = {
+    **GROUP_PERMISSIONS_AT_0013,
+    'TUTOR': GROUP_PERMISSIONS_AT_0013['TUTOR'] | ASSIGNED_BOOKING_PERMISSIONS,
+}
+GROUP_PERMISSIONS_AT_0015 = {
+    role: held | WORKFLOW_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0014.items()
+}
+GROUP_PERMISSIONS_AT_0017 = {
+    role: held | COMMUNICATION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0015.items()
+}
+GROUP_PERMISSIONS_AT_0018 = {
+    role: held | LEAD_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0017.items()
+}
+GROUP_PERMISSIONS_AT_0019 = {
+    role: held | STUDENT_TIMEZONE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0018.items()
+}
+GROUP_PERMISSIONS_AT_0020 = {
+    role: held | SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0019.items()
+}
+GROUP_PERMISSIONS_AT_0021 = {
+    role: held | SALES_CATALOGUE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0020.items()
+}
+GROUP_PERMISSIONS_AT_0022 = {
+    role: held | QUOTE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0021.items()
+}
+GROUP_PERMISSIONS_AT_0023 = {role: held | INITIAL_SALES_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0022.items()}
+GROUP_PERMISSIONS_AT_0026 = {role: held | ADDITIONAL_PURCHASE_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0023.items()}
+# 0028 retires accounts.create_invitation: student invitations are created at enrollment only.
+GROUP_PERMISSIONS_AT_0028 = {role: held - names('create_invitation') for role, held in GROUP_PERMISSIONS_AT_0026.items()}
+GROUP_PERMISSIONS_AT_0029 = {
+    role: held | OUTCOME_CORRECTION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0028.items()
+}
+EXPECTED_GROUP_PERMISSIONS = {
+    role: held | EARNINGS_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0029.items()
+}
+
+
+def permission(name):
+    app_label, codename = name.split('.', 1)
+    return Permission.objects.get(content_type__app_label=app_label, codename=codename)
+
+
+def role_group(role):
+    return RoleGroup.objects.select_related('group').get(role=role).group
+
+
+@FAST_HASHING
+class PermissionTestCase(TestCase):
+    def setUp(self):
+        self.root = User.objects.create_superuser(
+            username='root', email='root@perm.test', full_name='Root', password='Root-Password-1',
+        )
+        self.admin = self.make('admin1', 'ADMIN')
+        self.mentor = self.make('mentor1', 'MENTOR')
+        self.tutor = self.make('tutor1', 'TUTOR')
+        self.parent = self.make('parent1', 'STUDENT')
+
+    def make(self, username, role, **extra):
+        return User.objects.create_user(
+            email=f'{username}@perm.test', username=username, password='Some-Password-1',
+            full_name=username.title(), role=role, **extra,
+        )
+
+    @staticmethod
+    def fresh(user):
+        return User.objects.get(pk=user.pk)
+
+
+# ------------------------------------------------------------------ catalogue
+
+class CatalogueTests(PermissionTestCase):
+    def test_the_catalogue_includes_initial_sales(self):
+        # 74 seeded up to 0026, less accounts.create_invitation (0028), plus correct_session_outcome (0029),
+        # plus Tutor Earnings' five (0030).
+        self.assertEqual(len(CATALOGUE), 79)
+        self.assertLessEqual(
+            WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
+            | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
+            | ADDITIONAL_PURCHASE_PERMISSIONS | OUTCOME_CORRECTION_PERMISSIONS | EARNINGS_PERMISSIONS,
+            set(CATALOGUE),
+        )
+        # Every permission is carried by at least one role group today.
+        self.assertEqual(set().union(*EXPECTED_GROUP_PERMISSIONS.values()), set(CATALOGUE))
+        for name, entry in CATALOGUE.items():
+            with self.subTest(permission=name):
+                self.assertTrue(name.startswith('accounts.'))
+                self.assertEqual(set(entry), {'label', 'module', 'roles', 'grantable'})
+                self.assertTrue(entry['label'] and entry['module'] and entry['roles'])
+                self.assertNotIn('STUDENT', entry['roles'])
+
+    def test_every_catalogue_permission_has_a_row(self):
+        for name in CATALOGUE:
+            with self.subTest(permission=name):
+                self.assertTrue(permission(name))
+
+    def test_hub_permission_carries_no_default_permissions(self):
+        hub = Permission.objects.filter(content_type__app_label='accounts', content_type__model='hubpermission')
+        self.assertEqual({f'accounts.{p.codename}' for p in hub}, set(CATALOGUE) - {VIEW_TEAM})
+        self.assertFalse(hub.filter(codename__regex=r'^(add|change|delete|view)_hubpermission$').exists())
+
+    def test_ceilings(self):
+        self.assertEqual({name for name, entry in CATALOGUE.items() if entry['roles'] == ('ADMIN',)}, ADMIN_ONLY)
+        self.assertEqual({name for name, entry in CATALOGUE.items() if entry['roles'] == ('TUTOR',)}, TUTOR_ONLY)
+        for role, expected in EXPECTED_GROUP_PERMISSIONS.items():
+            with self.subTest(role=role):
+                self.assertLessEqual(expected, allowed_for_role(role))
+        # The new roles may hold their own module's permissions and nothing else.
+        for role, expected in NEW_ROLE_PERMISSIONS.items():
+            with self.subTest(role=role):
+                self.assertEqual(allowed_for_role(role), expected)
+        self.assertEqual(allowed_for_role('STUDENT'), set())
+        self.assertEqual(allowed_for_role('UNASSIGNED'), set())
+
+    def test_the_workflow_ceilings(self):
+        # A Sales TL may hold the Conversion Tracker and their team's
+        # conversions, and nothing else: no booking, report or enrolment right.
+        self.assertEqual(allowed_for_role('SALES_TL'), names('manage_team_conversion', 'view_conversion_tracker'))
+        # Only the Admin reschedules (Q23); the Admin and the owner BDE cancel (Q22). Never a tutor.
+        self.assertEqual(CATALOGUE['accounts.reschedule_booking']['roles'], ('ADMIN',))
+        self.assertEqual(CATALOGUE['accounts.cancel_booking']['roles'], ('BDE', 'ADMIN'))
+        self.assertFalse(allowed_for_role('TUTOR') & names('reschedule_booking', 'cancel_booking'))
+        self.assertEqual(CATALOGUE['accounts.share_booking_report']['roles'], ('BDE', 'ADMIN'))
+        self.assertEqual(CATALOGUE['accounts.view_conversion_tracker']['roles'], ('ADMIN', 'SALES_TL'))
+        # Students and mentors hold none of them.
+        for role in ('MENTOR', 'STUDENT'):
+            with self.subTest(role=role):
+                self.assertFalse(allowed_for_role(role) & WORKFLOW_PERMISSIONS)
+        for name in WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS:
+            with self.subTest(permission=name):
+                self.assertFalse(CATALOGUE[name]['grantable'])
+
+    def test_only_view_team_is_individually_grantable(self):
+        self.assertEqual(grantable_permissions(), {VIEW_TEAM})
+
+    def test_learn_label_migration_preserves_permission_identity_and_all_grants(self):
+        from django.apps import apps
+        from types import SimpleNamespace
+        rename = importlib.import_module('accounts.migrations.0025_learn_invitation_permission_label')
+        permission = Permission.objects.get(content_type__app_label='accounts', codename='change_invitation')
+        identity = (permission.pk, permission.codename, permission.content_type_id)
+        groups = list(Group.permissions.through.objects.order_by('pk').values_list('pk', 'group_id', 'permission_id'))
+        users = list(User.user_permissions.through.objects.order_by('pk').values_list('pk', 'user_id', 'permission_id'))
+        schema = SimpleNamespace(connection=connection)
+        rename.restore_permission(apps, schema)
+        permission.refresh_from_db()
+        self.assertEqual(permission.name, "Change an invitation's email")
+        rename.rename_permission(apps, schema)
+        permission.refresh_from_db()
+        self.assertEqual(permission.name, 'Retrieve initial Learn credentials')
+        self.assertEqual((permission.pk, permission.codename, permission.content_type_id), identity)
+        self.assertEqual(list(Group.permissions.through.objects.order_by('pk').values_list('pk', 'group_id', 'permission_id')), groups)
+        self.assertEqual(list(User.user_permissions.through.objects.order_by('pk').values_list('pk', 'user_id', 'permission_id')), users)
+
+    def test_the_migrations_seed_what_the_catalogue_declares(self):
+        seeded_labels = (
+            SEED.HUB_PERMISSIONS + SEED_BDE.HUB_PERMISSIONS + SEED_SLOTS.HUB_PERMISSIONS + SEED_ENQUIRIES.HUB_PERMISSIONS
+            + SEED_BOOKINGS.HUB_PERMISSIONS + SEED_TUTOR_BOOKINGS.HUB_PERMISSIONS
+            # 0018 renames assign_lead_owner (seeded by 0015): it covers reassigning too.
+            + [(codename, SEED_LEADS.ASSIGN_OWNER_NAMES[1] if codename == SEED_LEADS.ASSIGN_OWNER else name)
+               for codename, name in SEED_WORKFLOW.HUB_PERMISSIONS]
+            + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
+            + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS + SEED_INITIAL_SALES.HUB_PERMISSIONS
+            + SEED_ADDITIONAL_PURCHASES.HUB_PERMISSIONS + SEED_SESSION_OUTCOMES.HUB_PERMISSIONS
+            + SEED_TUTOR_EARNINGS.HUB_PERMISSIONS
+        )
+        # 0025 changes only the invitation permission's display label. Preserve
+        # the historical 0008 seed and compare the final migrated catalogue.
+        self.assertEqual(dict(SEED.HUB_PERMISSIONS)['change_invitation'], "Change an invitation's email")
+        # 0028 retires create_invitation: invitations are created at enrollment only.
+        self.assertEqual([
+            (codename, 'Retrieve initial Learn credentials' if codename == 'change_invitation' else label)
+            for codename, label in seeded_labels if codename != 'create_invitation'
+        ], hub_permission_meta())
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES.GRANTS.items()}, SALES_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_CATALOGUE.GRANTS.items()},
+                         SALES_CATALOGUE_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_QUOTES.GRANTS.items()}, QUOTE_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_INITIAL_SALES.GRANTS.items()}, INITIAL_SALES_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_ADDITIONAL_PURCHASES.GRANTS.items()},
+                         ADDITIONAL_PURCHASE_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_SESSION_OUTCOMES.GRANTS.items()},
+                         OUTCOME_CORRECTION_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_TUTOR_EARNINGS.GRANTS.items()},
+                         EARNINGS_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
+                         STUDENT_TIMEZONE_GRANTS)
+        self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_LEADS.GRANTS.items()}, LEAD_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_WORKFLOW.GRANTS.items()}, WORKFLOW_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_COMMUNICATIONS.GRANTS.items()},
+                         COMMUNICATION_GRANTS)
+        seeded = {role: names(*codenames) for role, _name, codenames in SEED.ROLE_GROUPS}
+        self.assertEqual(seeded, EXPECTED_ROLE_PERMISSIONS)
+        for seed, role, expected in ((SEED_BDE, 'BDE', BOOKING_LINK_PERMISSIONS),
+                                     (SEED_SLOTS, 'ADMIN', BOOKING_SLOT_PERMISSIONS),
+                                     (SEED_ENQUIRIES, 'BDE', ENQUIRY_PERMISSIONS),
+                                     (SEED_BOOKINGS, 'ADMIN', BOOKING_MANAGEMENT_PERMISSIONS),
+                                     (SEED_TUTOR_BOOKINGS, 'TUTOR', ASSIGNED_BOOKING_PERMISSIONS)):
+            with self.subTest(seed=seed.__name__):
+                self.assertEqual(seed.ROLE, role)
+                self.assertEqual(names(*(codename for codename, _name in seed.HUB_PERMISSIONS)), expected)
+
+
+# ------------------------------------------------------------------- seed
+
+class RoleGroupSeedTests(PermissionTestCase):
+    def test_one_linked_group_per_staff_role(self):
+        links = {link.role: link.group.name for link in RoleGroup.objects.select_related('group')}
+        self.assertEqual(links, {
+            'ADMIN': 'Role: Admin / Coordinator', 'MENTOR': 'Role: Mentor', 'TUTOR': 'Role: Tutor',
+            'BDE': 'Role: BDE', 'SALES_TL': 'Role: Sales TL',
+        })
+        self.assertEqual(Group.objects.count(), 5)
+
+    def test_the_new_roles_groups_carry_only_their_own_module(self):
+        for role, expected in NEW_ROLE_PERMISSIONS.items():
+            with self.subTest(role=role):
+                held = {f'{p.content_type.app_label}.{p.codename}' for p in role_group(role).permissions.select_related('content_type')}
+                self.assertEqual(held, expected)
+
+    def test_each_group_carries_todays_access(self):
+        for role in EXPECTED_ROLE_PERMISSIONS:
+            expected = EXPECTED_GROUP_PERMISSIONS[role]
+            with self.subTest(role=role):
+                group = role_group(role)
+                held = {f'{p.content_type.app_label}.{p.codename}' for p in group.permissions.select_related('content_type')}
+                self.assertEqual(held, expected)
+
+    def test_nobody_is_a_member_of_any_group(self):
+        self.assertFalse(User.groups.through.objects.exists())
+
+
+# --------------------------------------------------------------- resolver
+
+class ResolverTests(PermissionTestCase):
+    def test_each_role_holds_its_groups_permissions(self):
+        bde, sales_tl = self.make('bde1', 'BDE'), self.make('salestl1', 'SALES_TL')
+        for user, role in ((self.admin, 'ADMIN'), (self.mentor, 'MENTOR'), (self.tutor, 'TUTOR'),
+                           (bde, 'BDE'), (sales_tl, 'SALES_TL')):
+            with self.subTest(role=role):
+                self.assertEqual(effective_permissions(user), EXPECTED_GROUP_PERMISSIONS[role])
+
+    def test_superusers_hold_everything_whatever_the_role(self):
+        # Decision D1.
+        for role in ('ADMIN', 'MENTOR', 'TUTOR', 'STUDENT', 'UNASSIGNED'):
+            with self.subTest(role=role):
+                account = self.make(f'su_{role.lower()}', role, is_superuser=True)
+                self.assertEqual(effective_permissions(account), set(CATALOGUE))
+
+    def test_students_unknown_roles_inactive_and_anonymous_hold_nothing(self):
+        unknown = self.make('unknown1', 'UNASSIGNED')
+        inactive = self.make('inactive1', 'ADMIN', is_active=False)
+        for account in (self.parent, unknown, inactive, AnonymousUser(), None):
+            with self.subTest(account=account):
+                self.assertEqual(effective_permissions(account), set())
+
+    def test_an_individual_view_team_grant_counts(self):
+        self.mentor.user_permissions.add(permission(VIEW_TEAM))
+        self.assertIn(VIEW_TEAM, effective_permissions(self.fresh(self.mentor)))
+
+    def test_grants_beyond_the_grantable_set_count_for_nothing(self):
+        self.mentor.user_permissions.add(permission('accounts.view_all_students'), permission('accounts.change_user'))
+        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_GROUP_PERMISSIONS['MENTOR'])
+
+    def test_a_student_holding_a_grant_still_holds_nothing(self):
+        self.parent.user_permissions.add(permission(VIEW_TEAM))
+        self.assertEqual(effective_permissions(self.fresh(self.parent)), set())
+
+    def test_the_ceiling_beats_the_group(self):
+        role_group('MENTOR').permissions.add(permission('accounts.manage_team'))
+        self.assertNotIn('accounts.manage_team', effective_permissions(self.mentor))
+        self.assertIn('accounts.manage_team', effective_permissions(self.admin))
+
+    def test_group_changes_apply_at_once(self):
+        role_group('ADMIN').permissions.remove(permission('accounts.create_session'))
+        self.assertNotIn('accounts.create_session', effective_permissions(self.admin))
+        role_group('TUTOR').permissions.add(permission('accounts.create_session'))
+        self.assertIn('accounts.create_session', effective_permissions(self.tutor))
+
+    def test_group_membership_counts_for_nothing(self):
+        # Bypass the guard, as raw SQL would.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f'INSERT INTO {User.groups.through._meta.db_table} (user_id, group_id) VALUES (%s, %s)',
+                [self.mentor.pk, role_group('ADMIN').pk],
+            )
+        self.assertEqual(effective_permissions(self.fresh(self.mentor)), EXPECTED_GROUP_PERMISSIONS['MENTOR'])
+
+    def test_unknown_names_are_held_by_nobody(self):
+        self.assertFalse(has_app_permission(self.root, 'accounts.no_such_thing'))
+        self.assertFalse(has_app_permission(self.root, 'accounts.change_user'))
+        self.assertTrue(has_app_permission(self.root, 'accounts.purge_student'))
+
+    def test_any_of(self):
+        perms = ('accounts.view_all_students', 'accounts.view_mentored_students')
+        self.assertTrue(has_any_app_permission(self.admin, perms))
+        self.assertTrue(has_any_app_permission(self.mentor, perms))
+        self.assertFalse(has_any_app_permission(self.tutor, perms))
+        self.assertFalse(has_any_app_permission(self.tutor, ('accounts.no_such_thing',)))
+
+
+class RequestCacheTests(PermissionTestCase):
+    def test_one_lookup_per_user_per_request(self):
+        request = RequestFactory().get('/')
+        effective_permissions(self.mentor, request)
+        with self.assertNumQueries(0):
+            self.assertTrue(has_app_permission(self.mentor, 'accounts.create_session', request))
+            self.assertTrue(has_any_app_permission(self.mentor, ('accounts.view_mentored_students',), request))
+        with self.assertNumQueries(2):
+            effective_permissions(self.tutor, request)  # another account: its own entry
+
+    def test_a_drf_request_shares_its_http_requests_cache(self):
+        http_request = RequestFactory().get('/')
+        effective_permissions(self.admin, http_request)
+        with self.assertNumQueries(0):
+            effective_permissions(self.admin, Request(http_request))
+
+    def test_the_next_request_reads_afresh(self):
+        effective_permissions(self.tutor, RequestFactory().get('/'))
+        role_group('TUTOR').permissions.add(permission('accounts.create_session'))
+        self.assertIn('accounts.create_session', effective_permissions(self.tutor, RequestFactory().get('/')))
+
+    def test_without_a_request_nothing_is_cached(self):
+        effective_permissions(self.tutor)
+        with self.assertNumQueries(2):
+            effective_permissions(self.tutor)
+
+
+class PermissionClassTests(PermissionTestCase):
+    @staticmethod
+    def request_as(user):
+        request = Request(RequestFactory().get('/'))
+        request.user = user
+        return request
+
+    def test_has_app_permission(self):
+        check = HasAppPermission('accounts.manage_team')()
+        self.assertTrue(check.has_permission(self.request_as(self.admin), None))
+        self.assertTrue(check.has_permission(self.request_as(self.root), None))
+        self.assertFalse(check.has_permission(self.request_as(self.mentor), None))
+        self.assertFalse(check.has_permission(self.request_as(AnonymousUser()), None))
+        self.assertFalse(HasAppPermission('accounts.no_such_thing')().has_permission(self.request_as(self.root), None))
+
+    def test_has_any_app_permission(self):
+        check = HasAnyAppPermission('accounts.view_all_students', 'accounts.view_mentored_students')()
+        self.assertTrue(check.has_permission(self.request_as(self.mentor), None))
+        self.assertFalse(check.has_permission(self.request_as(self.tutor), None))
+        self.assertFalse(check.has_permission(self.request_as(AnonymousUser()), None))
+
+    def test_names_say_what_they_check(self):
+        self.assertEqual(HasAppPermission('accounts.manage_team').__name__, "HasAppPermission('accounts.manage_team')")
+
+    def test_by_method_picks_the_methods_class(self):
+        check = ByMethod(
+            GET=HasAppPermission('accounts.view_student_notes'),
+            POST=HasAppPermission('accounts.manage_team'),
+        )()
+
+        def request(method, user):
+            request = Request(getattr(RequestFactory(), method)('/'))
+            request.user = user
+            return request
+
+        self.assertTrue(check.has_permission(request('get', self.mentor), None))
+        self.assertTrue(check.has_permission(request('head', self.mentor), None))  # HEAD follows GET
+        self.assertFalse(check.has_permission(request('post', self.mentor), None))
+        self.assertTrue(check.has_permission(request('post', self.admin), None))
+        self.assertFalse(check.has_permission(request('delete', self.admin), None))  # not named: nobody
+        self.assertTrue(check.has_permission(request('options', self.mentor), None))
+        self.assertFalse(check.has_permission(request('options', self.parent), None))
+
+    def test_the_student_persona_class_admits_students_for_its_methods_only(self):
+        check = IsStudentUserFor('GET', 'PUT')()
+        get, post = Request(RequestFactory().get('/')), Request(RequestFactory().post('/'))
+        get.user = post.user = self.parent
+        self.assertTrue(check.has_permission(get, None))
+        self.assertFalse(check.has_permission(post, None))
+        get.user = self.admin
+        self.assertFalse(check.has_permission(get, None))
+
+    def test_combined_with_a_permission_by_or(self):
+        check = (HasAppPermission('accounts.view_all_sessions') | IsStudentUserFor('GET'))()
+        for user, allowed in ((self.admin, True), (self.parent, True), (self.mentor, False)):
+            with self.subTest(user=user.username):
+                self.assertEqual(check.has_permission(self.request_as(user), None), allowed)
+
+
+# ------------------------------------------------------- group membership
+
+class GroupMembershipGuardTests(PermissionTestCase):
+    def test_adding_a_user_to_a_group_is_refused_both_ways(self):
+        group = role_group('ADMIN')
+        # Django's add() runs in an atomic block without a savepoint, so the
+        # refusal rolls back the surrounding transaction -- a savepoint per
+        # attempt keeps the test's own transaction usable.
+        with self.assertRaises(PermissionDenied), transaction.atomic():
+            self.mentor.groups.add(group)
+        with self.assertRaises(PermissionDenied), transaction.atomic():
+            group.user_set.add(self.mentor)
+        self.assertFalse(User.groups.through.objects.exists())
+
+    def test_me_reports_no_groups(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        self.assertEqual(client.get('/api/auth/me/').json()['user']['groups'], [])
+
+
+# ------------------------------------------------------------ role changes
+
+class RoleChangeTests(PermissionTestCase):
+    def setUp(self):
+        super().setUp()
+        self.spare = self.make('spare1', 'MENTOR')
+        self.spare.user_permissions.add(permission(VIEW_TEAM))
+
+    def cleared_rows(self):
+        return ActivityLog.objects.filter(action='user.permissions_update', context__reason='role_change')
+
+    def test_saving_a_new_role_clears_individual_grants(self):
+        account = self.fresh(self.spare)
+        account.role = 'TUTOR'
+        account.save()
+        self.assertFalse(account.user_permissions.exists())
+        row = self.cleared_rows().get()
+        self.assertEqual(row.context['removed'], [VIEW_TEAM])
+        self.assertEqual(row.context['via'], 'model')
+        self.assertIsNone(row.actor_id)
+
+    def test_a_save_that_does_not_write_the_role_clears_nothing(self):
+        account = self.fresh(self.spare)
+        account.role = 'TUTOR'
+        account.full_name = 'Renamed'
+        account.save(update_fields=['full_name'])
+        self.assertTrue(account.user_permissions.exists())
+        account = self.fresh(self.spare)
+        account.full_name = 'Renamed again'
+        account.save()
+        self.assertTrue(account.user_permissions.exists())
+        self.assertFalse(self.cleared_rows().exists())
+
+    def test_the_team_api_clears_and_audits_with_the_actor(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        response = client.patch(f'/api/team/{self.spare.pk}/', {'role': 'TUTOR'}, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()['permissions'], [])
+        row = self.cleared_rows().get()
+        self.assertEqual((row.actor_id, row.context['via'], row.context['removed']), (self.admin.pk, 'team', [VIEW_TEAM]))
+        self.assertTrue(ActivityLog.objects.filter(action='user.role_change', entity_id=str(self.spare.pk)).exists())
+
+    def test_a_role_change_without_grants_logs_no_permission_change(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        self.assertEqual(client.patch(f'/api/team/{self.tutor.pk}/', {'role': 'MENTOR'}, format='json').status_code, 200)
+        self.assertFalse(self.cleared_rows().exists())
+
+
+# ------------------------------------------------------ group change audit
+
+class GroupAuditTests(PermissionTestCase):
+    def rows(self):
+        return ActivityLog.objects.filter(action='role.permissions_update').order_by('created_at')
+
+    def test_adding_and_removing_is_audited(self):
+        group = role_group('TUTOR')
+        group.permissions.add(permission('accounts.create_session'))
+        group.permissions.remove(permission('accounts.score_homework'))
+        self.assertEqual(self.rows().count(), 2)
+        added = self.rows().get(context__added=['accounts.create_session'])
+        removed = self.rows().get(context__removed=['accounts.score_homework'])
+        self.assertEqual((added.entity_type, added.entity_id), ('role', 'TUTOR'))
+        self.assertEqual(removed.context['removed'], ['accounts.score_homework'])
+        self.assertEqual((added.context['via'], added.actor_id), ('model', None))
+        self.assertIn('accounts.create_session', added.changes['permissions']['new'])
+        self.assertNotIn('accounts.create_session', added.changes['permissions']['old'])
+
+    def test_clearing_is_audited(self):
+        role_group('TUTOR').permissions.clear()
+        row = self.rows().get()
+        self.assertEqual(set(row.context['removed']), EXPECTED_GROUP_PERMISSIONS['TUTOR'])
+
+    def test_changes_from_the_permission_side_are_audited(self):
+        permission('accounts.create_session').group_set.add(role_group('TUTOR'))
+        row = self.rows().get()
+        self.assertEqual((row.entity_id, row.context['added']), ('TUTOR', ['accounts.create_session']))
+
+    def test_the_actor_is_named_when_known(self):
+        with acting_as(self.root, 'django_admin'):
+            role_group('TUTOR').permissions.add(permission('accounts.create_session'))
+        row = self.rows().get()
+        self.assertEqual((row.actor_id, row.context['via']), (self.root.pk, 'django_admin'))
+
+
+# -------------------------------------------------------------- django admin
+
+def change_form_data(response):
+    """POST data resubmitting an admin change form as rendered."""
+    from django.forms import CheckboxInput
+    form = response.context['adminform'].form
+    data = {}
+    for name, field in form.fields.items():
+        if field.disabled:
+            continue
+        value = form[name].value()
+        widget = getattr(field.widget, 'widget', field.widget)
+        if hasattr(widget, 'decompress'):
+            for index, part in enumerate(widget.decompress(value)):
+                data[f'{name}_{index}'] = '' if part is None else part
+        elif isinstance(widget, CheckboxInput):
+            if value:
+                data[name] = 'on'
+        elif isinstance(value, (list, tuple)):
+            data[name] = [str(item) for item in value]
+        else:
+            data[name] = '' if value is None else value
+    return data
+
+
+@override_settings(STORAGES=PLAIN_STORAGES)
+class DjangoAdminTests(PermissionTestCase):
+    def setUp(self):
+        super().setUp()
+        self.browser = Client()
+        self.browser.force_login(self.root)
+
+    def change_role(self, account, role):
+        url = f'/admin/accounts/user/{account.pk}/change/'
+        data = change_form_data(self.browser.get(url))
+        data['role'] = role
+        return self.browser.post(url, data)
+
+    def test_the_user_form_has_no_group_or_permission_pickers(self):
+        form = self.browser.get(f'/admin/accounts/user/{self.mentor.pk}/change/').context['adminform'].form
+        self.assertNotIn('groups', form.fields)
+        self.assertNotIn('user_permissions', form.fields)
+
+    def test_a_role_change_clears_grants_and_audits_both(self):
+        spare = self.make('spare1', 'MENTOR')
+        spare.user_permissions.add(permission(VIEW_TEAM))
+        response = self.change_role(spare, 'TUTOR')
+        self.assertEqual(response.status_code, 302)
+        spare = self.fresh(spare)
+        self.assertEqual(spare.role, 'TUTOR')
+        self.assertFalse(spare.user_permissions.exists())
+        role_row = ActivityLog.objects.get(action='user.role_change', entity_id=str(spare.pk))
+        self.assertEqual((role_row.actor_id, role_row.context['via'], role_row.changes['role']),
+                         (self.root.pk, 'django_admin', {'old': 'MENTOR', 'new': 'TUTOR'}))
+        cleared = ActivityLog.objects.get(action='user.permissions_update', entity_id=str(spare.pk))
+        self.assertEqual((cleared.actor_id, cleared.context['via'], cleared.context['removed']),
+                         (self.root.pk, 'django_admin', [VIEW_TEAM]))
+
+    def test_a_mentor_with_active_students_keeps_the_role_until_handover(self):
+        Student.objects.create(profile=self.parent, student_code='PERM1', full_name='Kid', mentor=self.mentor)
+        response = self.change_role(self.mentor, 'TUTOR')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('role', response.context['adminform'].form.errors)
+        self.assertEqual(self.fresh(self.mentor).role, 'MENTOR')
+
+    def test_the_last_active_admin_keeps_the_role(self):
+        self.admin.role = 'MENTOR'
+        self.admin.save()
+        response = self.change_role(self.root, 'MENTOR')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('This is the last active administrator.', response.context['adminform'].form.errors['role'])
+
+    def test_superuser_with_another_role_is_flagged(self):
+        # Decision D1.
+        odd = self.make('odd1', 'MENTOR', is_superuser=True)
+        self.assertContains(self.browser.get(f'/admin/accounts/user/{odd.pk}/change/'), 'holds every permission')
+        self.assertNotContains(self.browser.get(f'/admin/accounts/user/{self.mentor.pk}/change/'), 'holds every permission')
+
+    def test_role_groups_cannot_be_added_or_deleted(self):
+        group = role_group('MENTOR')
+        self.assertEqual(self.browser.get('/admin/auth/group/add/').status_code, 403)
+        self.assertEqual(self.browser.get(f'/admin/auth/group/{group.pk}/delete/').status_code, 403)
+
+    def test_the_group_page_offers_only_what_the_role_may_hold(self):
+        group = role_group('MENTOR')
+        form = self.browser.get(f'/admin/auth/group/{group.pk}/change/').context['adminform'].form
+        offered = {f'{p.content_type.app_label}.{p.codename}' for p in form.fields['permissions'].queryset}
+        self.assertEqual(offered, allowed_for_role('MENTOR'))
+        self.assertNotIn('name', form.fields)  # read-only
+
+    def test_a_group_change_beyond_the_ceiling_is_refused(self):
+        group = role_group('MENTOR')
+        url = f'/admin/auth/group/{group.pk}/change/'
+        data = change_form_data(self.browser.get(url))
+        data['permissions'] = data['permissions'] + [str(permission('accounts.manage_team').pk)]
+        response = self.browser.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('permissions', response.context['adminform'].form.errors)
+        self.assertNotIn('accounts.manage_team', {f'accounts.{p.codename}' for p in group.permissions.all()})
+
+    def test_a_group_change_is_audited_with_the_admin(self):
+        group = role_group('MENTOR')
+        url = f'/admin/auth/group/{group.pk}/change/'
+        data = change_form_data(self.browser.get(url))
+        dropped = permission('accounts.sync_student_quota')
+        data['permissions'] = [pk for pk in data['permissions'] if pk != str(dropped.pk)]
+        self.assertEqual(self.browser.post(url, data).status_code, 302)
+        row = ActivityLog.objects.get(action='role.permissions_update')
+        self.assertEqual((row.actor_id, row.context['via'], row.context['removed']),
+                         (self.root.pk, 'django_admin', ['accounts.sync_student_quota']))
+
+
+# ----------------------------------------------------------- the command
+
+class RolePermissionsCommandTests(PermissionTestCase):
+    def run_command(self, *args):
+        out = StringIO()
+        call_command('role_permissions', *args, stdout=out)
+        return out.getvalue()
+
+    def test_show(self):
+        output = self.run_command('show')
+        for name in ('Role: Admin / Coordinator', 'Role: Mentor', 'Role: Tutor', 'accounts.create_session'):
+            self.assertIn(name, output)
+
+    def test_check_passes_on_the_seed_and_warns_about_odd_superusers(self):
+        self.assertIn('No problems found (0 warning(s))', self.run_command('check'))
+        self.make('odd1', 'TUTOR', is_superuser=True)
+        output = self.run_command('check')
+        self.assertIn('has the TUTOR role but holds every permission', output)
+        self.assertIn('No problems found (1 warning(s))', output)
+
+    def test_check_fails_on_each_kind_of_problem(self):
+        def membership():
+            with connection.cursor() as cursor:
+                cursor.execute(f'INSERT INTO {User.groups.through._meta.db_table} (user_id, group_id) VALUES (%s, %s)',
+                               [self.mentor.pk, role_group('ADMIN').pk])
+
+        problems = {
+            'membership': membership,
+            'beyond the ceiling': lambda: role_group('MENTOR').permissions.add(permission('accounts.manage_team')),
+            'stray group': lambda: Group.objects.create(name='Stray'),
+            'unknown role': lambda: self.make('unknown1', 'UNASSIGNED'),
+            'unusable grant': lambda: self.mentor.user_permissions.add(permission('accounts.view_all_students')),
+            'missing row': lambda: permission('accounts.purge_student').delete(),
+        }
+        for label, make_problem in problems.items():
+            with self.subTest(problem=label):
+                sid = connection.savepoint()
+                try:
+                    make_problem()
+                    with self.assertRaises(CommandError):
+                        self.run_command('check')
+                finally:
+                    connection.savepoint_rollback(sid)
+
+    def test_grant_is_a_dry_run_until_applied(self):
+        output = self.run_command('grant', 'tutor', 'accounts.create_session')
+        self.assertIn('Re-run with --apply', output)
+        self.assertNotIn('accounts.create_session', effective_permissions(self.tutor))
+        self.run_command('grant', 'TUTOR', 'accounts.create_session', '--apply')
+        self.assertIn('accounts.create_session', effective_permissions(self.tutor))
+        row = ActivityLog.objects.get(action='role.permissions_update')
+        self.assertEqual((row.context['via'], row.actor_id), ('manage.py role_permissions', None))
+        self.assertIn('Nothing to do', self.run_command('grant', 'TUTOR', 'accounts.create_session', '--apply'))
+
+    def test_grant_refuses_what_the_role_may_not_hold_or_the_catalogue_lacks(self):
+        for args in (('TUTOR', 'accounts.manage_team'), ('TUTOR', 'accounts.change_user'),
+                     ('STUDENT', 'accounts.create_session'), ('TUTOR', 'accounts.nothing')):
+            with self.subTest(args=args), self.assertRaises(CommandError):
+                self.run_command('grant', *args, '--apply')
+        self.assertEqual(effective_permissions(self.tutor), EXPECTED_GROUP_PERMISSIONS['TUTOR'])
+
+    def test_revoke(self):
+        self.run_command('revoke', 'MENTOR', 'accounts.sync_student_quota', '--apply')
+        self.assertNotIn('accounts.sync_student_quota', effective_permissions(self.mentor))
+
+    def test_snapshot_and_compare(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'snapshot.json')
+            self.run_command('snapshot', '--output', path)
+            users = json.load(open(path))['users']
+            self.assertEqual(users[str(self.admin.pk)]['team_access'], 'manage')
+            self.assertEqual(users[str(self.mentor.pk)]['permissions'], sorted(EXPECTED_GROUP_PERMISSIONS['MENTOR']))
+            self.assertIn('match', self.run_command('compare', path))
+            role_group('MENTOR').permissions.remove(permission('accounts.sync_student_quota'))
+            with self.assertRaises(CommandError):
+                self.run_command('compare', path)
+
+
+# -------------------------------------------------------------- migration
+
+class SeedFunctionTests(PermissionTestCase):
+    schema_editor = SimpleNamespace(connection=SimpleNamespace(alias='default'))
+
+    def test_running_the_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED.seed_role_groups(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_an_unlinked_group_with_a_role_groups_name_stops_the_seed(self):
+        link = RoleGroup.objects.select_related('group').get(role='MENTOR')
+        group = link.group
+        link.delete()
+        group.delete()
+        Group.objects.create(name='Role: Mentor')
+        with self.assertRaisesMessage(RuntimeError, 'Role: Mentor'):
+            SEED.seed_role_groups(django_apps, self.schema_editor)
+        self.assertFalse(RoleGroup.objects.filter(role='MENTOR').exists())
+
+    def test_the_new_roles_seed_is_idempotent_and_never_adopts_a_group(self):
+        before = set(Group.objects.values_list('name', flat=True))
+        SEED_NEW_ROLES.seed_role_groups(django_apps, self.schema_editor)
+        self.assertEqual(set(Group.objects.values_list('name', flat=True)), before)
+
+        link = RoleGroup.objects.select_related('group').get(role='BDE')
+        group = link.group
+        link.delete()
+        group.delete()
+        Group.objects.create(name='Role: BDE')
+        with self.assertRaisesMessage(RuntimeError, 'Role: BDE'):
+            SEED_NEW_ROLES.seed_role_groups(django_apps, self.schema_editor)
+        self.assertFalse(RoleGroup.objects.filter(role='BDE').exists())
+
+    def test_running_the_bde_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_BDE.grant_bde_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_running_the_booking_slots_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_SLOTS.grant_admin_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_running_the_enquiries_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_ENQUIRIES.grant_bde_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_running_the_booking_management_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_BOOKINGS.grant_admin_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_running_the_workflow_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_WORKFLOW.grant_workflow_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_running_the_communication_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_COMMUNICATIONS.grant_communication_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_reads_parent_communication(self):
+        held = {role: effective_permissions(self.make(f'comms_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertEqual(held['BDE'] & COMMUNICATION_PERMISSIONS, COMMUNICATION_GRANTS['BDE'])
+        self.assertEqual(held['ADMIN'] & COMMUNICATION_PERMISSIONS, COMMUNICATION_GRANTS['ADMIN'])
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & COMMUNICATION_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand a tutor or Sales TL the log.
+        for role in ('TUTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in COMMUNICATION_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'comms_{role.lower()}_2', role)) & COMMUNICATION_PERMISSIONS)
+
+    def test_running_the_lead_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_LEADS.grant_lead_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_reads_every_lead(self):
+        held = {role: effective_permissions(self.make(f'leads_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertLessEqual(LEAD_PERMISSIONS | names('assign_lead_owner'), held['ADMIN'])
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & (LEAD_PERMISSIONS | names('assign_lead_owner')), role)
+        # A group set up wrongly still cannot hand anyone else every lead.
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in LEAD_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'leads_{role.lower()}_2', role)) & LEAD_PERMISSIONS)
+        self.assertEqual(permission('accounts.assign_lead_owner').name, "Assign or reassign a lead's owner BDE")
+
+    def test_running_the_student_timezone_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_STUDENT_TIMEZONE.grant_student_timezone_permission(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_corrects_a_students_time_zone(self):
+        held = {role: effective_permissions(self.make(f'zone_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        for role in ('ADMIN', 'BDE'):
+            self.assertLessEqual(STUDENT_TIMEZONE_PERMISSIONS, held[role], role)
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & STUDENT_TIMEZONE_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand a tutor, a mentor or a Sales TL the correction: tutors read only.
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in STUDENT_TIMEZONE_PERMISSIONS))
+            self.assertFalse(
+                effective_permissions(self.make(f'zone_{role.lower()}_2', role)) & STUDENT_TIMEZONE_PERMISSIONS, role,
+            )
+        self.assertFalse(CATALOGUE['accounts.change_student_timezone']['grantable'])
+
+    def test_running_the_sales_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_SALES.grant_sales_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_manages_syllabuses_and_pricing(self):
+        held = {role: effective_permissions(self.make(f'sales_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertLessEqual(SALES_PERMISSIONS, held['ADMIN'])
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & SALES_PERMISSIONS, role)
+        # A group set up wrongly still cannot hand anyone else the catalogue or its prices.
+        for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in SALES_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'sales_{role.lower()}_2', role)) & SALES_PERMISSIONS, role)
+        for name in SALES_PERMISSIONS:
+            self.assertFalse(CATALOGUE[name]['grantable'], name)
+        root = self.make('root_sales', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(SALES_PERMISSIONS, effective_permissions(root))
+
+    def test_running_the_sales_catalogue_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_SALES_CATALOGUE.grant_sales_catalogue_permission(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_views_and_quotes_the_catalogue_on_sale(self):
+        held = {role: effective_permissions(self.make(f'catalogue_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        for role in ('ADMIN', 'BDE'):
+            self.assertLessEqual(SALES_CATALOGUE_PERMISSIONS, held[role], role)
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & SALES_CATALOGUE_PERMISSIONS, role)
+        # Quoting is not managing: a BDE holds neither syllabus nor pricing management.
+        self.assertFalse(held['BDE'] & SALES_PERMISSIONS)
+        # A group set up wrongly still cannot hand a tutor, a mentor or a Sales TL the catalogue.
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in SALES_CATALOGUE_PERMISSIONS))
+            self.assertFalse(
+                effective_permissions(self.make(f'catalogue_{role.lower()}_2', role)) & SALES_CATALOGUE_PERMISSIONS, role,
+            )
+        self.assertEqual(CATALOGUE['accounts.view_sales_catalogue']['roles'], ('BDE', 'ADMIN'))
+        self.assertFalse(CATALOGUE['accounts.view_sales_catalogue']['grantable'])
+        root = self.make('root_catalogue', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(SALES_CATALOGUE_PERMISSIONS, effective_permissions(root))
+
+    def test_running_the_quote_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_SALES_QUOTES.grant_sales_quote_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+    def test_who_quotes_and_who_sees_every_quote(self):
+        held = {role: effective_permissions(self.make(f'quotes_{role.lower()}', role))
+                for role in ('ADMIN', 'BDE', 'TUTOR', 'MENTOR', 'SALES_TL')}
+        self.assertLessEqual(QUOTE_PERMISSIONS, held['ADMIN'])
+        self.assertEqual(held['BDE'] & QUOTE_PERMISSIONS, names('create_sales_quotes'))
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            self.assertFalse(held[role] & QUOTE_PERMISSIONS, role)
+        # A group set up wrongly still cannot let a BDE see every quote, nor anyone else quote.
+        role_group('BDE').permissions.add(permission('accounts.manage_sales_quotes'))
+        self.assertNotIn('accounts.manage_sales_quotes', effective_permissions(self.make('quotes_bde_2', 'BDE')))
+        for role in ('TUTOR', 'MENTOR', 'SALES_TL'):
+            role_group(role).permissions.add(*(permission(name) for name in QUOTE_PERMISSIONS))
+            self.assertFalse(effective_permissions(self.make(f'quotes_{role.lower()}_2', role)) & QUOTE_PERMISSIONS, role)
+        self.assertEqual(CATALOGUE['accounts.create_sales_quotes']['roles'], ('BDE', 'ADMIN'))
+        self.assertEqual(CATALOGUE['accounts.manage_sales_quotes']['roles'], ('ADMIN',))
+        for name in QUOTE_PERMISSIONS:
+            self.assertFalse(CATALOGUE[name]['grantable'], name)
+        root = self.make('root_quotes', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(QUOTE_PERMISSIONS, effective_permissions(root))
+
+    def test_who_reschedules_and_who_cancels(self):
+        held = {role: effective_permissions(self.make(f'q2223_{role.lower()}', role)) for role in ('ADMIN', 'BDE', 'TUTOR')}
+        self.assertLessEqual(names('reschedule_booking', 'cancel_booking'), held['ADMIN'])
+        self.assertIn('accounts.cancel_booking', held['BDE'])
+        self.assertNotIn('accounts.reschedule_booking', held['BDE'])
+        self.assertFalse(held['TUTOR'] & names('reschedule_booking', 'cancel_booking'))
+        # A group set up wrongly still cannot hand a tutor either, nor a BDE rescheduling.
+        for role in ('TUTOR', 'BDE'):
+            role_group(role).permissions.add(permission('accounts.reschedule_booking'), permission('accounts.cancel_booking'))
+        self.assertFalse(effective_permissions(self.make('q2223_tutor_2', 'TUTOR')) & names('reschedule_booking', 'cancel_booking'))
+        self.assertNotIn('accounts.reschedule_booking', effective_permissions(self.make('q2223_bde_2', 'BDE')))
+        root = self.make('root_workflow', 'MENTOR', is_superuser=True)
+        self.assertLessEqual(WORKFLOW_PERMISSIONS, effective_permissions(root))
+
+    def test_running_the_tutor_bookings_seed_again_changes_nothing(self):
+        before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        SEED_TUTOR_BOOKINGS.grant_tutor_permissions(django_apps, self.schema_editor)
+        after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
+        self.assertEqual(before, after)
+
+
+# --------------------------------------------------------------- new roles
+
+class NewRoleTests(PermissionTestCase):
+    """
+    BDE and Sales TL: staff accounts with a role group, each reaching only its
+    own modules -- BDE its booking links, enquiries and its own leads' Demo
+    handoff, reports and conversion; Sales TL the Conversion Tracker and its
+    team's conversions (0015).
+    """
+
+    def test_their_ceiling_beats_their_group(self):
+        # However their group is configured, nothing outside their ceiling counts:
+        # no student data, no booking management, no cancelling or rescheduling
+        # (Q22 / Q23 open), no tutor reports, no conversion on every lead.
+        beyond = ('accounts.view_all_students', 'accounts.view_all_bookings', 'accounts.cancel_booking',
+                  'accounts.reschedule_booking', 'accounts.submit_booking_report', 'accounts.manage_conversions',
+                  'accounts.assign_lead_owner')
+        for role in NEW_ROLES:
+            with self.subTest(role=role):
+                self.assertEqual(allowed_for_role(role), NEW_ROLE_PERMISSIONS[role])
+                role_group(role).permissions.add(*(permission(name) for name in beyond))
+                account = self.make(f'new_{role.lower()}', role)
+                self.assertEqual(effective_permissions(account), NEW_ROLE_PERMISSIONS[role])
+
+    def test_they_sign_in_to_the_hub_holding_only_their_modules_permissions(self):
+        for role in NEW_ROLES:
+            with self.subTest(role=role):
+                self.make(f'signin_{role.lower()}', role)
+                client = APIClient()
+                login = client.post('/api/auth/login/', {'username': f'signin_{role.lower()}', 'password': 'Some-Password-1'}, format='json')
+                self.assertEqual(login.status_code, 200)
+                me = client.get('/api/auth/me/').json()['user']
+                self.assertEqual((me['role'], me['permissions']), (role, sorted(NEW_ROLE_PERMISSIONS[role])))
+
+    def test_team_creates_and_lists_them(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        for role in NEW_ROLES:
+            with self.subTest(role=role):
+                response = client.post('/api/team/', {
+                    'username': f'team.{role.lower()}', 'email': f'team.{role.lower()}@perm.test',
+                    'full_name': role, 'role': role, 'temporary_password': 'Temporary-Pass-2026!',
+                }, format='json')
+                self.assertEqual(response.status_code, 201, response.content)
+                listed = client.get('/api/team/', {'role': role}).json()
+                self.assertEqual([row['username'] for row in listed], [f'team.{role.lower()}'])
+        refused = client.post('/api/team/', {
+            'username': 'team.x', 'email': 'team.x@perm.test', 'full_name': 'X', 'role': 'STUDENT',
+            'temporary_password': 'Temporary-Pass-2026!',
+        }, format='json')
+        self.assertEqual(refused.json()['message'], 'role must be Admin, Mentor, Tutor, BDE or Sales TL.')
+
+
+class MigrationReversalTests(TransactionTestCase):
+    """
+    0023, 0022, 0021, 0020, 0019, 0018, 0017, 0016 (with it), 0015, 0014, 0013, 0012, 0011, 0010, 0009 and 0008 reverse cleanly
+    to 0007
+    and apply again with the same seeds, ending at the app's leaf.
+    """
+
+    @staticmethod
+    def profile_columns():
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'profiles'")
+            return {row[0] for row in cursor.fetchall()}
+
+    def groups(self):
+        return {
+            link.role: {f'{p.content_type.app_label}.{p.codename}' for p in link.group.permissions.select_related('content_type')}
+            for link in RoleGroup.objects.select_related('group')
+        }
+
+    def test_reverse_and_reapply(self):
+        # Starts from 0007 so it does not depend on what earlier
+        # TransactionTestCases left in the (emptied) tables.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0007_user_team_permissions')])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('public.role_groups')")
+            self.assertIsNone(cursor.fetchone()[0])
+        self.assertNotIn('tutor_meet_link', self.profile_columns())  # 0016 reversed with the rest
+        self.assertFalse(Group.objects.exists())
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission').exists())
+        self.assertTrue(Permission.objects.filter(codename='view_team').exists())  # 0007's, untouched
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0008_role_groups')])
+        self.assertEqual(self.groups(), EXPECTED_ROLE_PERMISSIONS)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0009_hub_roles_bde_sales_tl')])
+        self.assertEqual(self.groups(), {**EXPECTED_ROLE_PERMISSIONS, 'BDE': set(), 'SALES_TL': set()})
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0010_bde_booking_links_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0010)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0011_booking_slots_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0011)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0012_bde_enquiries_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0012)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0013_booking_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0013)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0014)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0015_demo_diagnostic_workflow_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0015)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0017_communication_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0017)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0018_lead_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0018)
+        assign_owner = Permission.objects.get(content_type__model='hubpermission', codename='assign_lead_owner')
+        self.assertEqual(assign_owner.name, "Assign or reassign a lead's owner BDE")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0019_student_timezone_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0019)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0020_sales_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0020)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0021_sales_catalogue_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0021)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0022_sales_quote_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0022)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0023_alter_hubpermission_options')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0023)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0026_additional_purchase_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0026)
+
+        # 0028 retires accounts.create_invitation, and reverses to give it back to the Admin role.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0028_retire_create_invitation_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0028)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='create_invitation').exists())
+
+        # 0029 gives the Admin role accounts.correct_session_outcome, and reverses to take it away again.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0029_correct_session_outcome_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0029)
+
+        # 0030 gives the Admin role Tutor Earnings' four and the Tutor role its own earnings, and reverses
+        # to take all five away again.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0030_tutor_earnings_permissions')])
+        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0029_correct_session_outcome_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0029)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in EARNINGS_PERMISSIONS],
+        ).exists())
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0028_retire_create_invitation_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0028)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='correct_session_outcome').exists())
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0027_mentor_meet_link')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0026)
+        self.assertTrue(Permission.objects.filter(content_type__model='hubpermission', codename='create_invitation').exists())
+
+        # 0026 alone reverses: the MENTOR and ADMIN groups are back to 0023's and its row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0025_learn_invitation_permission_label')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0023)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='create_additional_purchases').exists())
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0022_sales_quote_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0022)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='manage_initial_sales').exists())
+
+        # 0022 alone reverses: the BDE and ADMIN groups are back to 0021's and the quote rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0021_sales_catalogue_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0021)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in QUOTE_PERMISSIONS],
+        ).exists())
+
+        # 0021 alone reverses: the BDE and ADMIN groups are back to 0020's and the catalogue row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0020_sales_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0020)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission',
+            codename__in=[name.split('.', 1)[1] for name in SALES_CATALOGUE_PERMISSIONS],
+        ).exists())
+
+        # 0020 alone reverses: ADMIN's group is back to 0019's and the sales rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0019_student_timezone_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0019)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in SALES_PERMISSIONS],
+        ).exists())
+
+        # 0019 alone reverses: the BDE and ADMIN groups are back to 0018's and the row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0018_lead_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0018)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename='change_student_timezone',
+        ).exists())
+
+        # 0018 alone reverses: ADMIN's group is back to 0017's, the lead rows gone and the old name back.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0017_communication_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0017)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in LEAD_PERMISSIONS],
+        ).exists())
+        assign_owner.refresh_from_db()
+        self.assertEqual(assign_owner.name, 'Assign an owner BDE to an unowned lead')
+
+        # 0017 alone reverses: every group is back to 0015's and the communication rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0016_user_tutor_meet_link')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0015)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in COMMUNICATION_PERMISSIONS],
+        ).exists())
+
+        # 0015 alone reverses: every group is back to 0014's and the workflow rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0014_tutor_assigned_bookings_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0014)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in WORKFLOW_PERMISSIONS],
+        ).exists())
+
+        # 0014 alone reverses: TUTOR's group is back to 0008's and its permission row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0013_booking_management_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0013)
+        self.assertFalse(Permission.objects.filter(codename='view_assigned_bookings').exists())
+
+        # 0013 alone reverses: ADMIN's group is back to 0011's and the booking-management rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0012_bde_enquiries_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0012)
+        self.assertFalse(Permission.objects.filter(codename__in=('view_all_bookings', 'assign_booking_tutor')).exists())
+
+        # 0012 alone reverses: BDE's group is back to its booking links and the enquiry rows gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0011_booking_slots_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0011)
+        self.assertFalse(Permission.objects.filter(codename__in=('view_own_enquiries', 'add_enquiry')).exists())
+
+        # 0011 alone reverses: ADMIN's group is back to 0008's and its permission row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0010_bde_booking_links_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0010)
+        self.assertFalse(Permission.objects.filter(codename='manage_booking_slots').exists())
+
+        # 0010 alone reverses: BDE's group is empty again and its permission row gone.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0009_hub_roles_bde_sales_tl')])
+        self.assertEqual(self.groups(), {**EXPECTED_ROLE_PERMISSIONS, 'BDE': set(), 'SALES_TL': set()})
+        self.assertFalse(Permission.objects.filter(codename='view_own_booking_links').exists())
+
+        # 0009 alone reverses: the new roles' groups go, the others stay.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0008_role_groups')])
+        self.assertEqual(self.groups(), EXPECTED_ROLE_PERMISSIONS)
+        self.assertFalse(Group.objects.filter(name__in=('Role: BDE', 'Role: Sales TL')).exists())
+
+        # Back to the leaf, whichever migration that is now; 0016 (a tutor's Meet link) changes no group.
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertIn('tutor_meet_link', self.profile_columns())

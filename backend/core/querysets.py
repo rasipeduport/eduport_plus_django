@@ -1,61 +1,131 @@
 """
-Shared helpers for restricting querysets by the requesting user's role.
+Shared helpers restricting querysets to the rows the requesting user may see.
 
-Mentors and tutors only ever see the students (and the sessions of the students)
-allocated to them, and only their own activity-log entries; admins and other
-roles see everything passed in.
+Each module has a "view all" permission and narrower ones for the students a
+caller mentors or tutors (accounts.permission_catalogue). A caller sees the
+union of the scopes they hold; holding none gives an empty result, so an
+account no role group equips -- a new role, or one this code does not know --
+sees nothing rather than everything.
+
+The same scopes answer "may this caller act on this student?" (``reaches``):
+an action permission says what a caller may do, the scope says to whom. Pass
+the request so the permissions are read once per request.
 """
+from django.db.models import Q
+
+# The enrolment statuses under which a tutor still sees a student they tutor.
+# An expired student drops off the tutor's list and profile; a mentor keeps
+# them (follow-up, renewals).
+TUTORED_STATUSES = ('ACTIVE', 'INACTIVE')
+
+# module -> (the "view all" permission, ((narrower permission, the student's
+# field naming the caller), ...)). Exams are a mentor <-> student affair: no
+# scope reaches them through a tutor.
+SCOPES = {
+    'students': ('accounts.view_all_students', (
+        ('accounts.view_mentored_students', 'mentor'),
+        ('accounts.view_tutored_students', 'tutor'),
+    )),
+    'sessions': ('accounts.view_all_sessions', (
+        ('accounts.view_mentored_sessions', 'mentor'),
+        ('accounts.view_tutored_sessions', 'tutor'),
+    )),
+    'exams': ('accounts.view_all_exams', (
+        ('accounts.view_mentored_exams', 'mentor'),
+    )),
+    'homework': ('accounts.view_all_homework', (
+        ('accounts.view_mentored_homework', 'mentor'),
+        ('accounts.view_tutored_homework', 'tutor'),
+    )),
+}
 
 
-def scope_students_by_role(qs, user):
-    """Restrict a ``Student`` queryset to the rows a mentor/tutor may see."""
-    if user.role == 'MENTOR':
-        return qs.filter(mentor=user)
-    if user.role == 'TUTOR':
-        return qs.filter(tutor=user)
-    return qs
+def view_permissions(module):
+    """Every permission that opens some of ``module``'s rows."""
+    view_all, narrower = SCOPES[module]
+    return (view_all, *(perm for perm, _ in narrower))
 
 
-def scope_sessions_by_role(qs, user):
-    """Restrict a ``Session`` queryset to the rows a mentor/tutor may see."""
-    if user.role == 'MENTOR':
-        return qs.filter(student__mentor=user)
-    if user.role == 'TUTOR':
-        return qs.filter(student__tutor=user)
-    return qs
+STUDENT_VIEW_PERMISSIONS = view_permissions('students')
+SESSION_VIEW_PERMISSIONS = view_permissions('sessions')
+EXAM_VIEW_PERMISSIONS = view_permissions('exams')
+HOMEWORK_VIEW_PERMISSIONS = view_permissions('homework')
+ACTIVITY_VIEW_PERMISSIONS = ('accounts.view_all_activity', 'accounts.view_own_activity')
 
 
-def scope_activity_by_role(qs, user):
+def _held(user, request):
+    from accounts.authz import effective_permissions
+    return effective_permissions(user, request)
+
+
+def _scope(module, qs, user, request, prefix='', tutored=None, also_tutor=None):
+    view_all, narrower = SCOPES[module]
+    held = _held(user, request)
+    if view_all in held:
+        return qs
+    condition = Q(pk__in=[])
+    for perm, field in narrower:
+        if perm in held:
+            extra = tutored if field == 'tutor' and tutored else {}
+            condition |= Q(**{f'{prefix}{field}': user}, **{f'{prefix}{k}': v for k, v in extra.items()})
+            # Rows the tutor scope reaches through the row itself, not the student.
+            if field == 'tutor' and also_tutor is not None:
+                condition |= also_tutor
+    return qs.filter(condition)
+
+
+def scope_students(qs, user, request=None, current_only=True):
     """
-    Restrict an ``ActivityLog`` queryset to the rows a mentor/tutor may see:
-    only the entries they wrote themselves. Admins see everything.
+    Restrict a ``Student`` queryset to the students ``user`` may see: all of
+    them, the ones they mentor, the ones they tutor. A tutor sees a student
+    only while ACTIVE or INACTIVE; ``current_only=False`` drops that rule (the
+    dashboard counts every student a tutor has).
     """
-    if user.role in ('MENTOR', 'TUTOR'):
+    tutored = {'status__in': TUTORED_STATUSES} if current_only else None
+    return _scope('students', qs, user, request, tutored=tutored)
+
+
+def scope_sessions(qs, user, request=None):
+    """
+    Restrict a ``Session`` queryset to those of the students ``user`` may see
+    sessions of. A tutor also sees every class assigned to them that was not
+    cancelled, whoever tutors the student now. A change of tutor never takes
+    a started or past class from them (sessions.services.transferable_sessions),
+    even one staff already marked attended, and its notes, which complete it,
+    are still theirs to submit.
+    """
+    assigned = Q(tutor=user) & ~Q(status='CANCELLED')
+    return _scope('sessions', qs, user, request, prefix='student__', also_tutor=assigned)
+
+
+def scope_exams(qs, user, request=None):
+    """Restrict an ``Exam`` / ``AdditionalExam`` queryset."""
+    return _scope('exams', qs, user, request, prefix='student__')
+
+
+def scope_homework(qs, user, request=None):
+    """Restrict a ``Homework`` queryset: the mentor assigns it, the tutor grades it."""
+    return _scope('homework', qs, user, request, prefix='student__')
+
+
+def scope_activity(qs, user, request=None):
+    """Restrict an ``ActivityLog`` queryset: the whole log, or the entries ``user`` wrote."""
+    held = _held(user, request)
+    if 'accounts.view_all_activity' in held:
+        return qs
+    if 'accounts.view_own_activity' in held:
         return qs.filter(actor_id=user.id)
-    return qs
+    return qs.none()
 
 
-def scope_exams_by_role(qs, user):
+def reaches(module, user, student, request=None):
     """
-    Restrict an ``Exam`` / ``AdditionalExam`` queryset to the rows a staff
-    member may see. Exams are a mentor <-> student affair: mentors see their
-    allocated students' exams, admins everything, tutors nothing at all.
+    Whether ``student`` is within ``user``'s scope for ``module`` (sessions,
+    exams, homework): the "to whom" half of every write those modules allow.
+    Read from the student row, no query.
     """
-    if user.role == 'MENTOR':
-        return qs.filter(student__mentor=user)
-    if user.role == 'TUTOR':
-        return qs.none()
-    return qs
-
-
-def scope_homework_by_role(qs, user):
-    """
-    Restrict a ``Homework`` queryset to the rows a staff member may see: the
-    mentor assigns it, the tutor grades it, so both see their allocated
-    students' homework; admins everything.
-    """
-    if user.role == 'MENTOR':
-        return qs.filter(student__mentor=user)
-    if user.role == 'TUTOR':
-        return qs.filter(student__tutor=user)
-    return qs
+    view_all, narrower = SCOPES[module]
+    held = _held(user, request)
+    if view_all in held:
+        return True
+    return any(perm in held and getattr(student, f'{field}_id') == user.id for perm, field in narrower)

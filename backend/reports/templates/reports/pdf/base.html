@@ -1,0 +1,27 @@
+{% comment %}
+The frame both report PDFs share (reports.pdf): the logo, the orange title and
+the details table, as in the samples. Relative URLs resolve in pdf_assets, the
+only place the renderer loads from. Subject is a constant of the template (A6).
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block document_title %}{% endblock %}</title>
+<meta name="author" content="Eduport Plus">
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+<header class="masthead">
+<img class="logo" src="logo.png" alt="Eduport Plus">
+<h1 class="title">{% block title %}{% endblock %}</h1>
+</header>
+<table class="details">
+<tr><th>Student Name</th><td class="colon">:</td><td>{{ student_name }}</td></tr>
+<tr><th>Grade</th><td class="colon">:</td><td>{{ grade }}</td></tr>
+<tr><th>Subject</th><td class="colon">:</td><td>Mathematics</td></tr>
+{% block more_details %}{% endblock %}
+<tr><th>Tutor Name</th><td class="colon">:</td><td>{{ tutor_name }}</td></tr>
+</table>
+{% block content %}{% endblock %}
+</body>
+</html>

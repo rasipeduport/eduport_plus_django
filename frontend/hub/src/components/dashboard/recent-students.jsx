@@ -10,7 +10,7 @@ import { Panel, PanelEmpty, ScrollList } from './dashboard-primitives';
 
 const MAX_VISIBLE = 5;
 
-/** Students newest first, from the list the Hub already serves this role; five visible, the rest by scrolling. */
+/** Students newest first, from the list the Hub already serves this account; five visible, the rest by scrolling. */
 export function RecentStudents({ students }) {
   const rows = [...students].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 

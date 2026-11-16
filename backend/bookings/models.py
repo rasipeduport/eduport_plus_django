@@ -1,0 +1,1210 @@
+"""
+Booking links: the permanent, reusable links a BDE shares with parents.
+
+Each active BDE has one active link per booking type -- a Demo link
+(<marketing site>/demo?ref=<token>) and a Diagnostic link (.../exam?ref=<token>).
+A link is never used up: any number of parents may book through it, and it
+stays the same until it is revoked.
+
+The token is the only thing a link carries: an opaque random string from
+``secrets``, never derived from the account, so the URL does not reveal its
+owner and one BDE's link says nothing about another's. It identifies the BDE
+for attribution and nothing more -- it opens no lead, student or booking data,
+and it is expected to travel (WhatsApp forwards, analytics page views).
+
+Bookings: the public Demo and Diagnostic booking pages book one-hour slots,
+three bookings at most per slot, on a schedule of times of day per booking
+type (SlotTime). A slot on a given date (BookingSlot) exists once someone
+books or closes it. Diagnostic and Demo bookings live in tables of their own
+(DiagnosticBooking, DemoBooking) with the same columns (BookingBase); each
+belongs to a lead (Lead): one parent's enquiry for one child, matched by phone
+and student name, shared by both types. A booking is taught one-to-one by the
+tutor assigned to it, who starts it explicitly (bookings.lifecycle), and every
+change to it is kept in its history
+(BookingEvent). Once a Diagnostic's report is in, the parent may be sent a
+Demo invitation (DemoInvite) that books a Demo for the same lead; a completed
+Demo may be sent for a Re-Demo (ReDemoRequest), which an administrator
+schedules as a new Demo with the tutor and slot they choose.
+bookings.booking_service is the only writer of bookings; the
+leads the lead forms send and the ones added by hand (a BDE's enquiries, an
+administrator's leads) are written by bookings.lead_intake, and a lead's
+owner is changed by bookings.ownership alone.
+"""
+import secrets
+import uuid
+
+from django.conf import settings
+from django.db import models
+from django.db.models import Q
+from django.utils import timezone
+
+from accounts.meet_links import MEET_LINK_DB_PATTERN, MEET_LINK_MAX_LENGTH
+
+# 16 random bytes: 128 bits, 22 URL-safe characters.
+TOKEN_BYTES = 16
+
+
+def new_link_token():
+    """A fresh, unguessable link token."""
+    return secrets.token_urlsafe(TOKEN_BYTES)
+
+
+class BookingType(models.TextChoices):
+    DEMO = 'DEMO', 'Demo'
+    DIAGNOSTIC = 'DIAGNOSTIC', 'Diagnostic'
+
+
+class BookingLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # PROTECT: a link is the record bookings will be attributed through, so a
+    # BDE who owns one is deactivated (Team), never deleted.
+    bde = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='booking_links'
+    )
+    booking_type = models.CharField(max_length=20, choices=BookingType.choices)
+    token = models.CharField(max_length=64, unique=True, default=new_link_token, editable=False)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_booking_links'
+    )
+    # NULL revoked_at = active, as with User.deactivated_at. A revoked link
+    # stays as history; the BDE's next request is issued a new one.
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_booking_links'
+    )
+
+    class Meta:
+        db_table = 'booking_links'
+        verbose_name = 'Booking link'
+        verbose_name_plural = 'Booking links'
+        ordering = ['-created_at']
+        constraints = [
+            # At most one active link per BDE and booking type. Two requests
+            # issuing the same link at once cannot both succeed: the second
+            # insert fails here (bookings.services reads the winner's back).
+            models.UniqueConstraint(
+                fields=['bde', 'booking_type'],
+                condition=Q(revoked_at__isnull=True),
+                name='booking_links_one_active_per_type',
+            ),
+            models.CheckConstraint(
+                condition=Q(booking_type__in=BookingType.values),
+                name='booking_links_known_type',
+            ),
+            models.CheckConstraint(
+                condition=Q(revoked_by__isnull=True) | Q(revoked_at__isnull=False),
+                name='booking_links_revoked_by_needs_revoked_at',
+            ),
+        ]
+
+    def __str__(self):
+        # Never the token: this shows up in the Django admin and in logs.
+        state = 'revoked' if self.revoked_at else 'active'
+        return f"{self.get_booking_type_display()} link of {self.bde_id} ({state})"
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None
+
+
+# ---------------------------------------------------------------- bookings
+
+# Every slot lasts an hour and holds at most three bookings -- the rules the
+# public booking pages have always used.
+SLOT_MINUTES = 60
+SLOT_CAPACITY = 3
+
+
+class BookingStatus(models.TextChoices):
+    BOOKED = 'BOOKED', 'Booked'
+    COMPLETED = 'COMPLETED', 'Completed'
+    CANCELLED = 'CANCELLED', 'Cancelled'
+    RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
+    # A completed Demo that is to be taught again (bookings.redemos): set only
+    # by a Re-Demo request, never on a Diagnostic. It stays completed in every
+    # other way -- its tutor, report and history are kept as they were.
+    REDEMO_REQUIRED = 'REDEMO_REQUIRED', 'Re-Demo required'
+
+
+# A class that took place and has its report: completed, or completed and
+# then sent for a Re-Demo.
+CONDUCTED = (BookingStatus.COMPLETED, BookingStatus.REDEMO_REQUIRED)
+# A booking still to come and one its tutor has completed keep their seat; a
+# cancelled or rescheduled one frees it.
+HOLDS_SEAT = (BookingStatus.BOOKED, *CONDUCTED)
+
+
+class CancelReason(models.TextChoices):
+    """
+    Why a booking was cancelled: a code from this list, never free text (Q9,
+    decision M1), so nothing personal reaches the permanent history. No-show
+    only once the slot's scheduled time has passed (D12).
+    """
+    NO_SHOW = 'NO_SHOW', 'No-show'
+    PARENT_REQUEST = 'PARENT_REQUEST', 'Parent asked to cancel'
+    DUPLICATE = 'DUPLICATE', 'Duplicate booking'
+    BOOKED_BY_MISTAKE = 'BOOKED_BY_MISTAKE', 'Booked by mistake'
+    OTHER = 'OTHER', 'Other'
+    # Set only by recording the parent as Not Confirmed
+    # (booking_service.record_parent_confirmation), never picked on its own.
+    NOT_CONFIRMED = 'NOT_CONFIRMED', 'Parent did not confirm'
+
+
+# What the Admin or a BDE may pick when cancelling a booking.
+MANUAL_CANCEL_REASONS = [value for value in CancelReason.values if value != CancelReason.NOT_CONFIRMED]
+
+
+class ParentConfirmation(models.TextChoices):
+    """
+    What the parent said when the BDE asked them to confirm (PRD 3.11, step 3).
+    Not Confirmed always cancels the booking, in the same step.
+    """
+    AWAITING = 'AWAITING', 'Awaiting confirmation'
+    CONFIRMED = 'CONFIRMED', 'Confirmed'
+    NOT_CONFIRMED = 'NOT_CONFIRMED', 'Not confirmed'
+
+
+class NotConfirmedReason(models.TextChoices):
+    """Why the parent did not confirm: a code, never free text (as for CancelReason, M1)."""
+    PARENT_DECLINED = 'PARENT_DECLINED', 'Parent declined'
+    NO_RESPONSE = 'NO_RESPONSE', 'No response'
+    NOT_INTERESTED = 'NOT_INTERESTED', 'Not interested'
+    TIME_NOT_SUITABLE = 'TIME_NOT_SUITABLE', "Time doesn't suit"
+    OTHER = 'OTHER', 'Other'
+
+
+class RescheduleReason(models.TextChoices):
+    """Why a booking was moved to another slot: a code, never free text (Q9, M1)."""
+    PARENT_REQUEST = 'PARENT_REQUEST', 'Parent asked to move'
+    TUTOR_UNAVAILABLE = 'TUTOR_UNAVAILABLE', 'Tutor unavailable'
+    OTHER = 'OTHER', 'Other'
+
+
+class BookingChannel(models.TextChoices):
+    """How a booking was made."""
+    PUBLIC_PAGE = 'PUBLIC_PAGE', 'Public booking page'
+    BDE_HANDOFF = 'BDE_HANDOFF', 'BDE handoff'
+
+
+class ReferralStatus(models.TextChoices):
+    """What a booking's ``ref`` token turned out to be (bookings.attribution)."""
+    ATTRIBUTED = 'ATTRIBUTED', 'Attributed'
+    NO_REF = 'NO_REF', 'No referral token'
+    INVALID_REF = 'INVALID_REF', 'Malformed token'
+    UNKNOWN_REF = 'UNKNOWN_REF', 'Unknown token'
+    REVOKED_LINK = 'REVOKED_LINK', 'Revoked link'
+    INACTIVE_BDE = 'INACTIVE_BDE', 'Link owner is not an active BDE'
+    WRONG_TYPE = 'WRONG_TYPE', 'Link for the other booking type'
+
+
+# Outcomes that found a BookingLink row; the rest never reached one.
+REFERRAL_WITH_LINK = (
+    ReferralStatus.ATTRIBUTED,
+    ReferralStatus.REVOKED_LINK,
+    ReferralStatus.INACTIVE_BDE,
+    ReferralStatus.WRONG_TYPE,
+)
+REFERRAL_WITHOUT_LINK = (ReferralStatus.NO_REF, ReferralStatus.INVALID_REF, ReferralStatus.UNKNOWN_REF)
+
+
+class SlotTime(models.Model):
+    """
+    A time of day a booking type is offered, in Indian time -- what the
+    Calendar sheet's header row used to hold. Configured with
+    ``manage.py booking_schedule``; a retired time is deactivated, not deleted.
+    """
+    booking_type = models.CharField(max_length=20, choices=BookingType.choices)
+    start_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'booking_slot_times'
+        verbose_name = 'Slot time'
+        verbose_name_plural = 'Slot times'
+        ordering = ['booking_type', 'start_time']
+        constraints = [
+            models.UniqueConstraint(fields=['booking_type', 'start_time'], name='booking_slot_times_one_per_time'),
+            models.CheckConstraint(
+                condition=Q(booking_type__in=BookingType.values),
+                name='booking_slot_times_known_type',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_booking_type_display()} at {self.start_time:%H:%M}"
+
+
+class BookingSlot(models.Model):
+    """
+    One booking type at one Indian date and time. Created by the first booking
+    (or closure) of that slot, so a slot nobody has touched has no row.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking_type = models.CharField(max_length=20, choices=BookingType.choices)
+    local_date = models.DateField()
+    local_time = models.TimeField()
+    # The same moment as an instant (UTC), and its end an hour later.
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    capacity = models.PositiveSmallIntegerField(default=SLOT_CAPACITY)
+    # A closed slot shows as Fully Booked and takes no booking; the bookings
+    # it already holds stay.
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='closed_booking_slots'
+    )
+    close_reason = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'booking_slots'
+        verbose_name = 'Booking slot'
+        verbose_name_plural = 'Booking slots'
+        ordering = ['local_date', 'local_time']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['booking_type', 'local_date', 'local_time'],
+                name='booking_slots_one_per_occurrence',
+            ),
+            models.CheckConstraint(
+                condition=Q(capacity__gte=1) & Q(capacity__lte=SLOT_CAPACITY),
+                name='booking_slots_capacity_in_range',
+            ),
+            models.CheckConstraint(condition=Q(ends_at__gt=models.F('starts_at')), name='booking_slots_ends_after_start'),
+            models.CheckConstraint(
+                condition=Q(closed_by__isnull=True) | Q(closed_at__isnull=False),
+                name='booking_slots_closed_by_needs_closed_at',
+            ),
+            models.CheckConstraint(
+                condition=Q(booking_type__in=BookingType.values),
+                name='booking_slots_known_type',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['booking_type', 'local_date'], name='booking_slots_type_date_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_booking_type_display()} {self.local_date} {self.local_time:%H:%M}"
+
+
+class LeadSource(models.TextChoices):
+    """How an enquiry first reached Eduport Plus."""
+    BOOKING_PAGE = 'BOOKING_PAGE', 'Booking page'
+    # The marketing site's lead forms: the main website's demo form and the landing page's.
+    WEBSITE = 'WEBSITE', 'Website'
+    LANDING_PAGE = 'LANDING_PAGE', 'Landing page'
+    PHONE_CALL = 'PHONE_CALL', 'Phone call'
+    WHATSAPP = 'WHATSAPP', 'WhatsApp'
+    WALK_IN = 'WALK_IN', 'Walk-in'
+    REFERRAL = 'REFERRAL', 'Referral'
+    SOCIAL_MEDIA = 'SOCIAL_MEDIA', 'Social media'
+    OTHER = 'OTHER', 'Other'
+
+
+# The sources only the public pages set: a booking, or a lead form (bookings.lead_intake).
+PUBLIC_LEAD_SOURCES = (LeadSource.BOOKING_PAGE, LeadSource.WEBSITE, LeadSource.LANDING_PAGE)
+PUBLIC_FORM_SOURCES = (LeadSource.WEBSITE, LeadSource.LANDING_PAGE)
+# What a BDE or an administrator may pick when adding a lead by hand.
+MANUAL_LEAD_SOURCES = [value for value in LeadSource.values if value not in PUBLIC_LEAD_SOURCES]
+
+
+class Lead(models.Model):
+    """
+    One parent's enquiry for one child: matched by phone and student name, so
+    siblings sharing a parent's phone stay separate leads. It comes from a
+    booking page, a lead form on the marketing site, or by hand (a BDE's
+    enquiry, an administrator's lead). The owner is the first BDE whose valid
+    link brought a booking, or the BDE who added it by hand; a later booking
+    never overwrites it -- only an administrator assigning another BDE does
+    (bookings.ownership).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent_name = models.CharField(max_length=255)
+    phone_dial_code = models.CharField(max_length=5)
+    phone_number = models.CharField(max_length=15)
+    # "+<dial code><national number>", the matching key (bookings.leads).
+    phone_key = models.CharField(max_length=20)
+    student_name = models.CharField(max_length=255)
+    student_name_key = models.CharField(max_length=255)
+    school_name = models.CharField(max_length=255)
+    grade = models.CharField(max_length=50)
+    syllabus = models.CharField(max_length=100)
+    country = models.CharField(max_length=100, blank=True, default='')
+    # The IANA zone the student's booking page showed its times in, kept for
+    # showing staff the student's own time (bookings.student_timezones): the
+    # first booking that carried one gave it, and a later one never replaces
+    # it; a BDE or an administrator may set or correct it. Empty: not known.
+    # Display only -- every slot stays in Indian time.
+    student_timezone = models.CharField(max_length=64, blank=True, default='')
+    # Optional: no public page asks for it; an administrator may record it.
+    parent_email = models.EmailField(max_length=254, blank=True, default='')
+    # A lead the booking pages or lead forms create came from them; a BDE or
+    # an administrator adding one by hand names how it reached them.
+    source = models.CharField(max_length=20, choices=LeadSource.choices, default=LeadSource.BOOKING_PAGE)
+    # Where a lead form's lead came from, as the form's page URL told it: its
+    # utm_* campaign parameters, written once with the lead (bookings.lead_intake).
+    source_details = models.JSONField(default=dict, blank=True)
+    # Who added it by hand: a BDE (their enquiry) or an administrator. NULL
+    # for a lead a public page made, and for enquiries from before the column.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_leads'
+    )
+    owner_bde = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='owned_leads'
+    )
+    # The owner's link that brought the lead to them; cleared when an
+    # administrator gives the lead to another BDE.
+    owner_link = models.ForeignKey(
+        BookingLink,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='owned_leads'
+    )
+    # When the lead became its current owner's.
+    owner_assigned_at = models.DateTimeField(null=True, blank=True)
+    # A future payment integration must set this under the same lead row lock
+    # before accepting payment. It permanently closes pre-payment plan changes;
+    # it does not record or verify a payment and has no public write endpoint.
+    plan_changes_locked_at = models.DateTimeField(null=True, blank=True, editable=False)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'leads'
+        verbose_name = 'Lead'
+        verbose_name_plural = 'Leads'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['phone_key', 'student_name_key'], name='leads_one_per_phone_and_student'),
+            models.CheckConstraint(
+                condition=(
+                    Q(owner_bde__isnull=True, owner_link__isnull=True, owner_assigned_at__isnull=True)
+                    | Q(owner_bde__isnull=False, owner_assigned_at__isnull=False)
+                ),
+                name='leads_owner_fields_together',
+            ),
+            models.CheckConstraint(
+                condition=Q(source__in=LeadSource.values),
+                name='leads_known_source',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Lead {self.id}"
+
+
+def _cleared(*events):
+    """Each of ``events`` (completed, cancelled, rescheduled) not recorded: its time and author empty."""
+    return Q(**{f'{event}_{field}__isnull': True for event in events for field in ('at', 'by')})
+
+
+class BookingBase(models.Model):
+    """
+    The columns every booking table shares, so Diagnostic and Demo bookings
+    stay separate tables (DiagnosticBooking, DemoBooking) that can still be
+    read side by side. Each table adds its lead, slot and tutor relations,
+    named for its type, and the type it holds (BOOKING_TYPE). Its slot is
+    always of that type: a trigger on each table refuses any other, and one on
+    booking_slots a change of type once a booking holds the slot (bookings.0005).
+
+    One booking of one slot. Never deleted: a cancellation is a status and
+    frees the seat. While booked or completed, a booking holds one of the
+    slot's seats (1..3), so even beside the slot lock the database cannot hold
+    a fourth booking for a slot. A rescheduled booking frees its seat too and
+    points at nothing; its replacement points back at it (rescheduled_from),
+    so moves form one chain.
+    """
+    BOOKING_TYPE = None
+    # The lead's and slot's relation to this table (lead.<name>, slot.<name>).
+    RELATED_NAME = None
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    seat = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=20, choices=BookingStatus.choices, default=BookingStatus.BOOKED)
+    # A public page booking, or one a BDE made through a handoff (who made it: created_by).
+    channel = models.CharField(max_length=20, choices=BookingChannel.choices, default=BookingChannel.PUBLIC_PAGE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='created_%(class)ss'
+    )
+    # What the booking's ``ref`` token turned out to be; empty for a handoff,
+    # which carries no token.
+    referral_status = models.CharField(max_length=20, choices=ReferralStatus.choices, null=True, blank=True)
+    # The link the ref token matched, kept for review even when it could not
+    # attribute the booking (revoked, inactive owner, other booking type).
+    referral_link = models.ForeignKey(
+        BookingLink,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='%(class)ss'
+    )
+    # The BDE this booking is attributed to: set only for ATTRIBUTED.
+    attributed_bde = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='attributed_%(class)ss'
+    )
+    # What the parent submitted, as submitted, written once (the lead keeps the latest).
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+    # When its tutor started teaching it -- their Start Demo / Start
+    # Diagnostic, by the server's clock (booking_service.start_booking) -- and
+    # who that was. Its scheduled time alone never starts a booking (see
+    # bookings.lifecycle). NULL = not started, including a booking completed
+    # before Start existed (bookings.0009): its start was never recorded, and
+    # is never made up.
+    started_at = models.DateTimeField(null=True, blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='started_%(class)ss'
+    )
+    # Set by the tutor's first report (a later phase).
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_%(class)ss'
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cancelled_%(class)ss'
+    )
+    # Why it was cancelled (CancelReason), set with the status.
+    cancel_reason_code = models.CharField(max_length=30, choices=CancelReason.choices, blank=True, default='')
+    # Free text from before reason codes (bookings.0006): kept for the rows
+    # that have it, never written again.
+    cancel_reason = models.TextField(blank=True, default='')
+    # The booking this one replaced when it was moved to another slot.
+    rescheduled_from = models.OneToOneField(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='rescheduled_to'
+    )
+    rescheduled_at = models.DateTimeField(null=True, blank=True)
+    rescheduled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rescheduled_%(class)ss'
+    )
+    # Why it was moved (RescheduleReason), set with the status.
+    reschedule_reason_code = models.CharField(max_length=30, choices=RescheduleReason.choices, blank=True, default='')
+    # When the tutor (the table's assigned_tutor) was assigned, and by whom.
+    # A cancelled booking keeps its tutor, as the record of who was to teach it.
+    tutor_assigned_at = models.DateTimeField(null=True, blank=True)
+    tutor_assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tutor_assigned_%(class)ss'
+    )
+    # The Google Meet room this booking is taught in: its tutor's permanent
+    # link (accounts.User.tutor_meet_link), copied when the tutor is assigned
+    # and kept in step while the booking is live (booking_service.
+    # set_tutor_meet_link). Once it is started, its slot has ended, or it is
+    # completed, cancelled or moved, it keeps the link it had, whatever the tutor's
+    # becomes. NULL = no tutor, or a tutor with no link configured.
+    tutor_meet_link = models.CharField(max_length=MEET_LINK_MAX_LENGTH, null=True, blank=True)
+    # What the parent said when asked to confirm, when it was recorded and by
+    # whom (booking_service.record_parent_confirmation). A replacement made by
+    # a reschedule starts again from Awaiting; the booking it replaced keeps its own.
+    parent_confirmation = models.CharField(
+        max_length=20, choices=ParentConfirmation.choices, default=ParentConfirmation.AWAITING,
+    )
+    parent_confirmation_at = models.DateTimeField(null=True, blank=True)
+    parent_confirmation_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='parent_confirmed_%(class)ss'
+    )
+    # Why the parent did not confirm (NotConfirmedReason), set with Not Confirmed.
+    not_confirmed_reason = models.CharField(
+        max_length=30, choices=NotConfirmedReason.choices, blank=True, default='',
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['-created_at']
+        constraints = [
+            # A repeated submission returns the booking it already made.
+            models.UniqueConstraint(
+                fields=['lead', 'slot'],
+                condition=Q(status__in=HOLDS_SEAT),
+                name='%(class)s_one_holding_per_lead_and_slot',
+            ),
+            models.UniqueConstraint(
+                fields=['slot', 'seat'],
+                condition=Q(status__in=HOLDS_SEAT),
+                name='%(class)s_one_holding_per_seat',
+            ),
+            models.CheckConstraint(
+                condition=Q(seat__gte=1) & Q(seat__lte=SLOT_CAPACITY),
+                name='%(class)s_seat_in_range',
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=BookingStatus.values),
+                name='%(class)s_known_status',
+            ),
+            models.CheckConstraint(
+                condition=Q(channel__in=BookingChannel.values),
+                name='%(class)s_known_channel',
+            ),
+            # One state at a time: a completed booking -- one sent for a
+            # Re-Demo too -- is never also cancelled or rescheduled.
+            models.CheckConstraint(
+                condition=(
+                    (Q(status=BookingStatus.BOOKED) & _cleared('completed', 'cancelled', 'rescheduled'))
+                    | (Q(status__in=CONDUCTED, completed_at__isnull=False, assigned_tutor__isnull=False)
+                       & _cleared('cancelled', 'rescheduled'))
+                    | (Q(status=BookingStatus.CANCELLED, cancelled_at__isnull=False) & _cleared('completed', 'rescheduled'))
+                    | (Q(status=BookingStatus.RESCHEDULED, rescheduled_at__isnull=False) & _cleared('completed', 'cancelled'))
+                ),
+                name='%(class)s_state_fields',
+            ),
+            models.CheckConstraint(
+                condition=Q(rescheduled_from__isnull=True) | ~Q(rescheduled_from=models.F('id')),
+                name='%(class)s_not_its_own_predecessor',
+            ),
+            # A reason code exactly when the status records one: a cancelled
+            # booking says why, a moved one too, and no other carries either.
+            models.CheckConstraint(
+                condition=(
+                    (Q(status=BookingStatus.CANCELLED) & Q(cancel_reason_code__in=CancelReason.values))
+                    | (~Q(status=BookingStatus.CANCELLED) & Q(cancel_reason_code=''))
+                ),
+                name='%(class)s_cancel_reason_with_status',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (Q(status=BookingStatus.RESCHEDULED) & Q(reschedule_reason_code__in=RescheduleReason.values))
+                    | (~Q(status=BookingStatus.RESCHEDULED) & Q(reschedule_reason_code=''))
+                ),
+                name='%(class)s_reschedule_reason_with_status',
+            ),
+            # A public page booking went through attribution; a handoff names its BDE instead.
+            models.CheckConstraint(
+                condition=(
+                    Q(channel=BookingChannel.PUBLIC_PAGE, referral_status__isnull=False, created_by__isnull=True)
+                    | Q(channel=BookingChannel.BDE_HANDOFF, referral_status__isnull=True, referral_link__isnull=True,
+                        attributed_bde__isnull=True, created_by__isnull=False)
+                ),
+                name='%(class)s_channel_fields',
+            ),
+            models.CheckConstraint(
+                condition=Q(referral_status__isnull=True) | Q(referral_status__in=ReferralStatus.values),
+                name='%(class)s_known_referral_status',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(referral_status__isnull=True)
+                    | Q(referral_status__in=REFERRAL_WITH_LINK, referral_link__isnull=False)
+                    | Q(referral_status__in=REFERRAL_WITHOUT_LINK, referral_link__isnull=True)
+                ),
+                name='%(class)s_referral_link_matches_status',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(referral_status=ReferralStatus.ATTRIBUTED, attributed_bde__isnull=False)
+                    | (~Q(referral_status=ReferralStatus.ATTRIBUTED) & Q(attributed_bde__isnull=True))
+                ),
+                name='%(class)s_attributed_only_when_attributed',
+            ),
+            # A tutor comes with the moment they were assigned. Who assigned
+            # them may since be gone (SET_NULL), but is never kept without a tutor.
+            models.CheckConstraint(
+                condition=(
+                    Q(assigned_tutor__isnull=True, tutor_assigned_at__isnull=True, tutor_assigned_by__isnull=True)
+                    | Q(assigned_tutor__isnull=False, tutor_assigned_at__isnull=False)
+                ),
+                name='%(class)s_tutor_assignment_fields',
+            ),
+            # A start comes with its moment, and only from the tutor teaching
+            # it: who started it may since be gone (SET_NULL), but a started
+            # booking always has its tutor -- nothing changes the tutor once
+            # it has started. A moved booking was never started: a started
+            # one is never moved.
+            models.CheckConstraint(
+                condition=Q(started_by__isnull=True) | Q(started_at__isnull=False),
+                name='%(class)s_started_by_needs_started_at',
+            ),
+            models.CheckConstraint(
+                condition=Q(started_at__isnull=True) | Q(assigned_tutor__isnull=False),
+                name='%(class)s_started_needs_tutor',
+            ),
+            models.CheckConstraint(
+                condition=~Q(status=BookingStatus.RESCHEDULED) | Q(started_at__isnull=True),
+                name='%(class)s_rescheduled_never_started',
+            ),
+            # The Meet link is the tutor's: none without one, and only a Google Meet link.
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(assigned_tutor__isnull=False),
+                name='%(class)s_meet_link_needs_tutor',
+            ),
+            models.CheckConstraint(
+                condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
+                name='%(class)s_meet_link_google_meet',
+            ),
+            models.CheckConstraint(
+                condition=Q(parent_confirmation__in=ParentConfirmation.values),
+                name='%(class)s_known_parent_confirmation',
+            ),
+            # An answer comes with the moment it was recorded; who recorded it
+            # may since be gone (SET_NULL).
+            models.CheckConstraint(
+                condition=(
+                    Q(parent_confirmation=ParentConfirmation.AWAITING, parent_confirmation_at__isnull=True,
+                      parent_confirmation_by__isnull=True)
+                    | (~Q(parent_confirmation=ParentConfirmation.AWAITING) & Q(parent_confirmation_at__isnull=False))
+                ),
+                name='%(class)s_parent_confirmation_fields',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                     & Q(not_confirmed_reason__in=NotConfirmedReason.values))
+                    | (~Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED) & Q(not_confirmed_reason=''))
+                ),
+                name='%(class)s_not_confirmed_reason_with_answer',
+            ),
+            # Not Confirmed is a cancellation, and the only one with its reason code.
+            models.CheckConstraint(
+                condition=(
+                    ~Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                    | Q(status=BookingStatus.CANCELLED, cancel_reason_code=CancelReason.NOT_CONFIRMED)
+                ),
+                name='%(class)s_not_confirmed_is_cancelled',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(cancel_reason_code=CancelReason.NOT_CONFIRMED)
+                    | Q(parent_confirmation=ParentConfirmation.NOT_CONFIRMED)
+                ),
+                name='%(class)s_not_confirmed_cancel_reason',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['attributed_bde', 'created_at'], name='%(class)s_bde_idx'),
+            # A tutor's bookings and their slots: the availability check.
+            models.Index(fields=['assigned_tutor', 'slot'], name='%(class)s_tutor_idx'),
+            models.Index(fields=['lead', 'status'], name='%(class)s_lead_idx'),
+            models.Index(fields=['status', 'completed_at'], name='%(class)s_done_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_booking_type_display()} booking {self.id} ({self.get_status_display()})"
+
+    @property
+    def booking_type(self):
+        return self.BOOKING_TYPE
+
+    def get_booking_type_display(self):
+        return BookingType(self.BOOKING_TYPE).label
+
+
+class DiagnosticBooking(BookingBase):
+    BOOKING_TYPE = BookingType.DIAGNOSTIC
+    RELATED_NAME = 'diagnostic_bookings'
+
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='diagnostic_bookings')
+    slot = models.ForeignKey(BookingSlot, on_delete=models.PROTECT, related_name='diagnostic_bookings')
+    # The tutor who teaches this booking (bookings.booking_service.assign_tutor).
+    assigned_tutor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='assigned_diagnostic_bookings'
+    )
+
+    class Meta(BookingBase.Meta):
+        db_table = 'diagnostic_bookings'
+        verbose_name = 'Diagnostic booking'
+        verbose_name_plural = 'Diagnostic bookings'
+        constraints = [
+            *BookingBase.Meta.constraints,
+            # Only Demo bookings are made through a BDE handoff.
+            models.CheckConstraint(
+                condition=Q(channel=BookingChannel.PUBLIC_PAGE),
+                name='%(class)s_public_page_only',
+            ),
+            # ... and only a Demo is taught again (bookings.redemos).
+            models.CheckConstraint(
+                condition=~Q(status=BookingStatus.REDEMO_REQUIRED),
+                name='%(class)s_never_redemo',
+            ),
+        ]
+
+
+class DemoBooking(BookingBase):
+    BOOKING_TYPE = BookingType.DEMO
+    RELATED_NAME = 'demo_bookings'
+
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='demo_bookings')
+    slot = models.ForeignKey(BookingSlot, on_delete=models.PROTECT, related_name='demo_bookings')
+    # The tutor who teaches this booking (bookings.booking_service.assign_tutor).
+    assigned_tutor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='assigned_demo_bookings'
+    )
+
+    # The Re-Demo request this Demo teaches (bookings.redemos): set when an
+    # administrator schedules it, and kept by every booking a reschedule
+    # makes of it, so it is a Re-Demo -- to its tutor too -- however often it
+    # moves. NULL = an ordinary Demo.
+    redemo_for = models.ForeignKey(
+        'ReDemoRequest',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='bookings'
+    )
+
+    class Meta(BookingBase.Meta):
+        db_table = 'demo_bookings'
+        verbose_name = 'Demo booking'
+        verbose_name_plural = 'Demo bookings'
+        constraints = [
+            *BookingBase.Meta.constraints,
+            # A request is taught once: at most one of its Demos is booked or
+            # completed at a time, and once one is completed no other may be.
+            models.UniqueConstraint(
+                fields=['redemo_for'],
+                condition=Q(status__in=HOLDS_SEAT),
+                name='%(class)s_one_holding_per_redemo',
+            ),
+        ]
+
+
+# Every booking table, and the one holding each booking type.
+BOOKING_MODELS = (DiagnosticBooking, DemoBooking)
+_MODEL_BY_TYPE = {model.BOOKING_TYPE: model for model in BOOKING_MODELS}
+
+
+def booking_model(booking_type):
+    """The booking table of ``booking_type`` (a BookingType value)."""
+    return _MODEL_BY_TYPE[booking_type]
+
+
+# ---------------------------------------------------------------- history
+
+class BookingEventKind(models.TextChoices):
+    CREATED = 'CREATED', 'Created'
+    TUTOR_ASSIGNED = 'TUTOR_ASSIGNED', 'Tutor assigned'
+    TUTOR_UNASSIGNED = 'TUTOR_UNASSIGNED', 'Tutor unassigned'
+    STARTED = 'STARTED', 'Started'
+    RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
+    CANCELLED = 'CANCELLED', 'Cancelled'
+    COMPLETED = 'COMPLETED', 'Completed'
+    REPORT_EDITED = 'REPORT_EDITED', 'Report edited'
+    MEET_LINK_UPDATED = 'MEET_LINK_UPDATED', 'Meet link updated'
+    PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmed'
+    PARENT_NOT_CONFIRMED = 'PARENT_NOT_CONFIRMED', 'Parent did not confirm'
+    REDEMO_REQUESTED = 'REDEMO_REQUESTED', 'Re-Demo requested'
+    # A Re-Demo request closed with nothing booked for it, and opened again
+    # (bookings.redemos): recorded on the Demo it would teach again.
+    REDEMO_CLOSED = 'REDEMO_CLOSED', 'Re-Demo request closed'
+    REDEMO_REOPENED = 'REDEMO_REOPENED', 'Re-Demo request reopened'
+
+
+class BookingEvent(models.Model):
+    """
+    One change to one booking, written in the same transaction as the change
+    (bookings.history), so a booking's history never misses a step. Append-only:
+    a database trigger refuses every update and delete. ``data`` holds ids and
+    values only -- never a name or a phone number.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    diagnostic_booking = models.ForeignKey(
+        DiagnosticBooking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='events'
+    )
+    demo_booking = models.ForeignKey(
+        DemoBooking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='events'
+    )
+    kind = models.CharField(max_length=30, choices=BookingEventKind.choices)
+    data = models.JSONField(default=dict, blank=True)
+    # No database constraint, as for activity_log: an account's deletion must
+    # never have to rewrite a row the trigger keeps unchangeable.
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.DO_NOTHING,
+        db_constraint=False,
+        null=True,
+        blank=True,
+        related_name='booking_events'
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'booking_events'
+        verbose_name = 'Booking event'
+        verbose_name_plural = 'Booking events'
+        ordering = ['created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(diagnostic_booking__isnull=False, demo_booking__isnull=True)
+                    | Q(diagnostic_booking__isnull=True, demo_booking__isnull=False)
+                ),
+                name='booking_events_one_booking',
+            ),
+            models.CheckConstraint(
+                condition=Q(kind__in=BookingEventKind.values),
+                name='booking_events_known_kind',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['diagnostic_booking', 'created_at'], name='booking_events_diag_idx'),
+            models.Index(fields=['demo_booking', 'created_at'], name='booking_events_demo_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} ({self.created_at:%Y-%m-%d %H:%M})"
+
+    @property
+    def booking(self):
+        return self.diagnostic_booking or self.demo_booking
+
+
+# ---------------------------------------------------------------- demo invitations
+
+# 32 random bytes: 256 bits, 43 URL-safe characters.
+INVITE_TOKEN_BYTES = 32
+
+
+def new_invite_token():
+    """A fresh, unguessable invitation token."""
+    return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
+
+
+class DemoInviteStatus(models.TextChoices):
+    """Where an invitation stands (DemoInvite.status): read from its columns and the clock, never stored."""
+    ACTIVE = 'ACTIVE', 'Active'
+    USED = 'USED', 'Used'
+    EXPIRED = 'EXPIRED', 'Expired'
+    REVOKED = 'REVOKED', 'Revoked'
+
+
+class DemoInvite(models.Model):
+    """
+    The Demo booking link a parent is sent once their child's Diagnostic
+    report is in (bookings.demo_invites): it names the Diagnostic booking and
+    its lead, so the parent picks a Demo slot and types nothing again.
+
+    The token is all the URL carries -- an opaque random string, as for
+    BookingLink, never derived from the lead, the student or the phone. It is
+    kept as it is so the same link can be copied, sent and previewed again for
+    as long as it lasts; it never reaches a log.
+
+    Active until it expires (``expires_at``), is used to book a Demo
+    (``used_at`` and ``demo_booking``, set together, once) or is revoked. An
+    expired invitation that a new one replaced records when (``replaced_at``):
+    it still reads as expired. A Diagnostic has at most one open invitation --
+    neither used, revoked nor replaced -- at a time; the Demo it books is a
+    separate booking, and the Diagnostic, its report and its history are never
+    written to.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    token = models.CharField(max_length=64, unique=True, default=new_invite_token, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='demo_invites')
+    diagnostic_booking = models.ForeignKey(DiagnosticBooking, on_delete=models.PROTECT, related_name='demo_invites')
+    # The Admin or BDE who sent it; the Demo it books names them as its creator (a BDE handoff).
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='created_demo_invites'
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    demo_booking = models.OneToOneField(
+        DemoBooking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='demo_invite'
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_demo_invites'
+    )
+    replaced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'demo_invites'
+        verbose_name = 'Demo invitation'
+        verbose_name_plural = 'Demo invitations'
+        ordering = ['-created_at']
+        constraints = [
+            # One open invitation per Diagnostic: issuing again under the lead
+            # lock returns it (bookings.demo_invites.issue_invite).
+            models.UniqueConstraint(
+                fields=['diagnostic_booking'],
+                condition=Q(used_at__isnull=True, revoked_at__isnull=True, replaced_at__isnull=True),
+                name='demo_invites_one_open_per_diagnostic',
+            ),
+            models.CheckConstraint(
+                condition=Q(used_at__isnull=True, demo_booking__isnull=True)
+                | Q(used_at__isnull=False, demo_booking__isnull=False),
+                name='demo_invites_used_with_its_booking',
+            ),
+            # Closed once at most: used, revoked or replaced.
+            models.CheckConstraint(
+                condition=~Q(used_at__isnull=False, revoked_at__isnull=False)
+                & ~Q(used_at__isnull=False, replaced_at__isnull=False)
+                & ~Q(revoked_at__isnull=False, replaced_at__isnull=False),
+                name='demo_invites_closed_once',
+            ),
+            models.CheckConstraint(condition=Q(expires_at__gt=models.F('created_at')), name='demo_invites_expires_after_created'),
+            models.CheckConstraint(
+                condition=Q(used_at__isnull=True) | Q(used_at__lt=models.F('expires_at')),
+                name='demo_invites_used_before_expiry',
+            ),
+            models.CheckConstraint(
+                condition=Q(replaced_at__isnull=True) | Q(replaced_at__gte=models.F('expires_at')),
+                name='demo_invites_replaced_once_expired',
+            ),
+            models.CheckConstraint(
+                condition=Q(revoked_by__isnull=True) | Q(revoked_at__isnull=False),
+                name='demo_invites_revoked_by_needs_revoked_at',
+            ),
+        ]
+
+    def __str__(self):
+        # Never the token: this shows up in the Django admin and in logs.
+        return f"Demo invitation {self.id} ({self.get_status_display()})"
+
+    def status(self, now=None):
+        """A DemoInviteStatus: used, revoked, expired by ``now`` (default: the clock), or active."""
+        if self.used_at is not None:
+            return DemoInviteStatus.USED
+        if self.revoked_at is not None:
+            return DemoInviteStatus.REVOKED
+        if (now or timezone.now()) >= self.expires_at:
+            return DemoInviteStatus.EXPIRED
+        return DemoInviteStatus.ACTIVE
+
+    def get_status_display(self):
+        return DemoInviteStatus(self.status()).label
+
+
+# ---------------------------------------------------------------- re-demos
+
+class ReDemoStatus(models.TextChoices):
+    """Where a Re-Demo request stands (bookings.redemo_chain.state): read from its rows, never stored."""
+    AWAITING_SCHEDULING = 'AWAITING_SCHEDULING', 'Awaiting scheduling'
+    SCHEDULED = 'SCHEDULED', 'Re-Demo scheduled'
+    COMPLETED = 'COMPLETED', 'Re-Demo completed'
+    CLOSED = 'CLOSED', 'Closed'
+
+
+class RedemoCloseReason(models.TextChoices):
+    """Why a Re-Demo request was closed with nothing booked for it: a code, never free text (as for CancelReason, M1)."""
+    PARENT_DECLINED = 'PARENT_DECLINED', 'Parent declined'
+    REQUESTED_BY_MISTAKE = 'REQUESTED_BY_MISTAKE', 'Requested by mistake'
+    BOOKED_SEPARATELY = 'BOOKED_SEPARATELY', 'Booked separately'
+    OTHER = 'OTHER', 'Other'
+
+
+class ReDemoRequest(models.Model):
+    """
+    A request to teach a lead's completed Demo again (bookings.redemos): made
+    by an administrator, or by the BDE who owns the lead, with the reason. The
+    Demo it names becomes RE-DEMO REQUIRED and is otherwise left as it was --
+    its tutor, slot, report and history included. An administrator then
+    schedules the Re-Demo: a new Demo of the lead, with the tutor and the slot
+    they chose, that names this request (DemoBooking.redemo_for) and is taught
+    and reported on like any other.
+
+    One request per Demo, ever: the Demo it names is RE-DEMO REQUIRED from
+    then on, so it cannot be asked for twice, and the database refuses a
+    second row. The Demo a request schedules, once completed, may have a
+    request of its own, so repeated Re-Demos form a chain: Demo -> request ->
+    Re-Demo -> request -> ... The reason and the administrators' remarks are
+    staff's words: they reach no booking history, activity log or parent, but
+    the tutor teaching the Re-Demo is shown both (bookings.tutor_bookings).
+
+    While nothing is booked for it, the lead's BDE or an administrator may
+    close it, for a reason code (``closed_at``): its Demo reads COMPLETED
+    again until it is reopened, when it is RE-DEMO REQUIRED once more. The
+    request stays the Demo's one request either way; each close and reopen
+    is a booking-history event of that Demo.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='redemo_requests')
+    # The completed Demo to teach again.
+    demo_booking = models.OneToOneField(DemoBooking, on_delete=models.PROTECT, related_name='redemo_request')
+    reason = models.TextField()
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='requested_redemos'
+    )
+    requested_at = models.DateTimeField(default=timezone.now, editable=False)
+    # The administrators' remarks for the Re-Demo, shown to its tutor; never to the BDE.
+    admin_remarks = models.TextField(blank=True, default='')
+    remarks_updated_at = models.DateTimeField(null=True, blank=True)
+    remarks_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='redemo_remarks_updated'
+    )
+    # The version the Demo's report had when the request was made: what the
+    # decision was based on (the tutor may edit it later). NULL for requests
+    # from before it was kept.
+    original_report_version = models.IntegerField(null=True, blank=True)
+    # Closed with nothing booked for it (bookings.redemos): when, by whom and
+    # why; cleared when it is reopened. The history keeps every close and reopen.
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='redemos_closed'
+    )
+    close_reason_code = models.CharField(max_length=30, choices=RedemoCloseReason.choices, blank=True, default='')
+
+    class Meta:
+        db_table = 'redemo_requests'
+        verbose_name = 'Re-Demo request'
+        verbose_name_plural = 'Re-Demo requests'
+        ordering = ['-requested_at']
+        constraints = [
+            models.CheckConstraint(condition=~Q(reason=''), name='redemo_requests_reason_given'),
+            models.CheckConstraint(
+                condition=Q(remarks_updated_by__isnull=True) | Q(remarks_updated_at__isnull=False),
+                name='redemo_requests_remarks_by_needs_at',
+            ),
+            # A closed request says why, and an open one carries no close.
+            models.CheckConstraint(
+                condition=(
+                    Q(closed_at__isnull=False, close_reason_code__in=RedemoCloseReason.values)
+                    | Q(closed_at__isnull=True, closed_by__isnull=True, close_reason_code='')
+                ),
+                name='redemo_requests_close_fields',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['lead', 'requested_at'], name='redemo_requests_lead_idx'),
+        ]
+
+    def __str__(self):
+        # Never the reason: this shows up in the Django admin and in logs.
+        return f"Re-Demo request {self.id}"
+
+
+class LeadNoteRole(models.TextChoices):
+    """The role a note was written in: the workspace it was added from (bookings.notes)."""
+    BDE = 'BDE', 'BDE'
+    TUTOR = 'TUTOR', 'Tutor'
+    ADMIN = 'ADMIN', 'Admin'
+
+
+class LeadNote(models.Model):
+    """
+    A note staff keep on one lead: a plain running discussion its owner BDE, a
+    tutor assigned to one of its bookings and the administrators all read and
+    add to (bookings.notes). It belongs to the lead, never to a booking, so the
+    lead's Diagnostic and Demo bookings share one discussion. Staff's words
+    only: no parent or student page, booking history, activity log or
+    notification ever carries them. Kept as written -- never edited or
+    deleted -- with who wrote it, in which role and when; the author's name is
+    kept beside them (SET_NULL), as student notes keep theirs, so a note
+    outlives its author's account.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name='notes')
+    body = models.TextField()
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lead_notes'
+    )
+    author_name = models.CharField(max_length=255)
+    author_role = models.CharField(max_length=10, choices=LeadNoteRole.choices)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'lead_notes'
+        verbose_name = 'Lead note'
+        verbose_name_plural = 'Lead notes'
+        ordering = ['created_at', 'id']
+        constraints = [
+            models.CheckConstraint(condition=~Q(body=''), name='lead_notes_body_given'),
+            models.CheckConstraint(condition=Q(author_role__in=LeadNoteRole.values), name='lead_notes_known_role'),
+        ]
+        indexes = [
+            models.Index(fields=['lead', 'created_at'], name='lead_notes_lead_idx'),
+        ]
+
+    def __str__(self):
+        # Never the body: this shows up in the Django admin and in logs.
+        return f"Lead note {self.id}"

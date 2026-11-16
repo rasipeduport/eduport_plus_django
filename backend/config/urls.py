@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from exams.views import ScorecardView, StudentScoresView
 from students.views import StaffDashboardStatsView, StudentDashboardView
 from accounts.views import (
@@ -43,18 +43,47 @@ urlpatterns = [
     path('api/users/<uuid:pk>/status', StaffStatusView.as_view()),
     path('api/users/<uuid:pk>/reassign/', StaffReassignView.as_view(), name='user-reassign'),
     path('api/users/<uuid:pk>/reassign', StaffReassignView.as_view()),
+    # Team Management: staff accounts for administrators (accounts/team.py).
+    path('api/team/', include('accounts.team_urls', namespace='team')),
+    # Each app is included once, under its trailing-slash root. The slash-less
+    # duplicates (`api/students`, ...) registered the same namespace twice
+    # (urls.W005) and no SPA caller used them: every endpoint string in both
+    # frontends ends with a slash, and APPEND_SLASH still redirects a stray GET.
     path('api/students/', include('students.urls', namespace='students')),
-    path('api/students', include('students.urls', namespace='students')),
     path('api/sessions/', include('sessions.urls', namespace='sessions')),
-    path('api/sessions', include('sessions.urls', namespace='sessions')),
     path('api/activity/', include('activity.urls', namespace='activity')),
-    path('api/activity', include('activity.urls', namespace='activity')),
     path('api/exams/', include('exams.urls', namespace='exams')),
-    path('api/exams', include('exams.urls', namespace='exams')),
     path('api/additional-exams/', include('exams.additional_urls', namespace='additional_exams')),
-    path('api/additional-exams', include('exams.additional_urls', namespace='additional_exams')),
     path('api/homework/', include('homework.urls', namespace='homework')),
-    path('api/homework', include('homework.urls', namespace='homework')),
+    # The BDE workspace: a BDE's own permanent booking links, dashboard and enquiries.
+    path('api/bde/', include('bookings.urls', namespace='bookings')),
+    # The reports on a BDE's own leads: each as it prints, and its PDF (P9).
+    path('api/bde/', include('reports.bde_urls', namespace='bde_reports')),
+    # The BDE workspace's follow-ups: the open steps of their own leads' parent communication.
+    path('api/bde/', include('communications.bde_urls', namespace='bde_communications')),
+    # Booking slots for administrators: close or reopen one date's Demo/Diagnostic slots.
+    path('api/booking-slots/', include('bookings.slot_urls', namespace='booking_slots')),
+    # Every lead, for administrators: list, add by hand, assign to a BDE.
+    path('api/leads/', include('bookings.lead_urls', namespace='leads')),
+    # The admissions pipeline at a glance, for administrators: leads, bookings and what awaits action.
+    path('api/admissions/', include('bookings.admissions_urls', namespace='admissions')),
+    # Booking management for administrators: every booking, and the tutor teaching it.
+    path('api/bookings/', include('bookings.booking_urls', namespace='booking_management')),
+    # Each booking's report, for administrators to read (P6).
+    path('api/bookings/', include('reports.management_urls', namespace='booking_reports')),
+    # My Bookings for tutors: the bookings assigned to the caller, read-only.
+    path('api/tutor/bookings/', include('bookings.tutor_urls', namespace='tutor_bookings')),
+    # The tutor's reports on those bookings: read, submit, edit, history (P6).
+    path('api/tutor/bookings/', include('reports.tutor_urls', namespace='tutor_reports')),
+    # The public Demo/Diagnostic booking API, for the marketing site's server only.
+    path('api/public/', include('bookings.public_urls', namespace='public_bookings')),
+    # Parent communications: each booking's, for the Hub (communications.views), and Meta's
+    # WhatsApp webhook -- signed callbacks, no session (communications.webhooks).
+    path('api/communications/', include('communications.urls', namespace='communications')),
+    # Sales Management for administrators: the syllabuses on offer and the global pricing.
+    path('api/sales/', include('sales.urls', namespace='sales')),
+    # Tutor Earnings: every tutor's for administrators, a tutor's own under /me/.
+    path('api/earnings/', include('earnings.urls', namespace='earnings')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
     path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),

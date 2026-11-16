@@ -1,5 +1,12 @@
 import { format } from 'date-fns';
 
+import { REDEMO_CLOSE_REASONS, cancelReasonLabel, rescheduleReasonLabel } from './bookings';
+import { notConfirmedReasonLabel } from './communications';
+import { sourceLabel } from './enquiries';
+import { reportFieldsText } from './reports';
+import { formatInr } from './earnings';
+import { formatAmount } from './sales';
+
 // Short, human label per action — used for badges and the action filter.
 export const ACTION_LABELS = {
   'student.create': 'Student added',
@@ -20,6 +27,24 @@ export const ACTION_LABELS = {
   'session.update_links': 'Session links updated',
   'session.reschedule': 'Session rescheduled',
   'session.mark_attended': 'Marked attended',
+  // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
+  'session.start': 'Session started',
+  'session.complete': 'Session completed',
+  // Entries from before the notes deadline was removed (2026-11-16); nothing writes these any more.
+  'session.submit_late_notes': 'Late notes submitted',
+  'session.approve_late_notes': 'Late notes approved',
+  'session.record_outcome': 'Outcome recorded',
+  // Tutor Earnings (backend earnings): rates, payments to tutors and corrections to the ledger.
+  'earnings.start_pricing': 'Pricing started',
+  'earnings.change_rates': 'Global rates changed',
+  'earnings.change_tutor_rates': 'Tutor rates changed',
+  'earnings.record_payment': 'Tutor payment recorded',
+  'earnings.void_payment': 'Tutor payment voided',
+  'earnings.reverse_entry': 'Earning reversed',
+  'earnings.keep_entry': 'Earning kept as earned',
+  'earnings.add_adjustment': 'Earnings adjusted',
+  'session.correct_outcome': 'Outcome corrected',
+  'session.revoke_outcome': 'Outcome removed',
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
@@ -37,10 +62,76 @@ export const ACTION_LABELS = {
   'invitation.create': 'Invitation sent',
   'invitation.update_email': 'Invitation email changed',
   'invitation.withdraw': 'Invitation withdrawn',
+  // A Learn account's initial credentials (backend invitations.credentials): never the password itself.
+  'invitation.credentials_created': 'Learn credentials issued',
+  'invitation.credentials_revealed': 'Temporary password revealed',
+  'invitation.credentials_regenerated': 'Temporary password regenerated',
+  'invitation.credentials_copied': 'Login details copied',
+  'invitation.password_reset': 'Learn password reset',
   'user.deactivate': 'User deactivated',
   'user.reactivate': 'User reactivated',
   'staff.reassign_all': 'Workload reassigned',
   'user.update_details': 'User details updated',
+  // Team Management and password sign-in.
+  'staff.create': 'Staff account created',
+  'user.role_change': 'Role changed',
+  'user.password_reset': 'Password reset',
+  'user.password_change': 'Password changed',
+  'user.permissions_update': 'Permissions updated',
+  // A tutor's permanent Google Meet link: the log keeps how it changed, never the link.
+  'user.meet_link_update': 'Meet link updated',
+  'user.sign_in_failed': 'Sign-in refused',
+  'user.unlock': 'Account unlocked',
+  'user.lockout_update': 'Lockout changed',
+  // BDE workspace.
+  'booking_link.issue': 'Booking link issued',
+  'enquiry.create': 'Enquiry added',
+  // Leads (backend bookings.lead_intake, bookings.ownership): ids and choices only, never a name.
+  'lead.create': 'Lead added',
+  'lead.update_details': 'Lead details updated',
+  'lead.assign_owner': 'Lead assigned',
+  // A lead's student time zone, set or corrected (backend bookings.student_timezones): the old zone and the new.
+  'lead.update_student_timezone': 'Student timezone changed',
+  // Demo/Diagnostic bookings. An action is labelled once something logs it:
+  // the action filter offers every label here.
+  'booking.create': 'Booking received',
+  'booking.cancel': 'Booking cancelled',
+  'booking.reschedule': 'Booking rescheduled',
+  'booking.assign_tutor': 'Tutor assigned',
+  'booking.unassign_tutor': 'Tutor unassigned',
+  'booking.start': 'Booking started',
+  'booking.complete': 'Booking completed',
+  'booking.confirmation_request': 'Confirmation requested',
+  'booking.parent_confirmation': 'Parent confirmation recorded',
+  // Demo invitations (backend bookings.demo_invites): ids only, never the link.
+  'demo_invite.issue': 'Demo invitation issued',
+  'demo_invite.revoke': 'Demo invitation revoked',
+  // Re-Demos (backend bookings.redemos): ids only, never the reason or the remarks.
+  'redemo.request': 'Re-Demo requested',
+  'redemo.remarks': 'Re-Demo remarks updated',
+  // Closed with nothing booked for it, for a reason code, and opened again.
+  'redemo.close': 'Re-Demo request closed',
+  'redemo.reopen': 'Re-Demo request reopened',
+  // Assessment reports (P6): the log keeps ids, the version and field names, never a report's text.
+  'report.submit': 'Report submitted',
+  'report.edit': 'Report edited',
+  'report.share': 'Report shared',
+  'booking_slot.close': 'Slot closed',
+  'booking_slot.reopen': 'Slot reopened',
+  'booking_schedule.update': 'Booking times changed',
+  // Sales Management (backend sales.services): the revision number, never a syllabus's content.
+  'syllabus.create': 'Syllabus created',
+  'syllabus.start_draft': 'Syllabus draft started',
+  'syllabus.save_draft': 'Syllabus draft saved',
+  'syllabus.discard_draft': 'Syllabus draft discarded',
+  'syllabus.publish': 'Syllabus published',
+  'syllabus.deactivate': 'Syllabus deactivated',
+  'syllabus.reactivate': 'Syllabus reactivated',
+  'syllabus.duplicate': 'Syllabus duplicated',
+  'pricing.create_version': 'Pricing changed',
+  // Quotes (backend sales.quotes): the quote's reference names the entry; its figures are in the context.
+  'quote.create': 'Quote issued',
+  'quote.cancel': 'Quote cancelled',
   // Auth/provisioning entries. Kept out of the unfiltered feed by the API, but
   // labelled so they read properly when picked from the action filter.
   'user.onboarded': 'Onboarded',
@@ -48,6 +139,55 @@ export const ACTION_LABELS = {
   'user.sign_out': 'Signed out',
   tampered: 'Tampered entry',
 };
+
+// What the log's entries are about, as its type filter offers them.
+export const ACTIVITY_ENTITY_TYPES = [
+  { value: 'student', label: 'Student' },
+  { value: 'student_note', label: 'Student note' },
+  { value: 'session', label: 'Session' },
+  { value: 'exam', label: 'Exam' },
+  { value: 'additional_exam', label: 'Additional exam' },
+  { value: 'homework', label: 'Homework' },
+  { value: 'invitation', label: 'Invitation' },
+  { value: 'profile', label: 'User' },
+  { value: 'booking_link', label: 'Booking link' },
+  { value: 'booking', label: 'Booking' },
+  { value: 'lead', label: 'Enquiry' },
+  { value: 'syllabus', label: 'Syllabus' },
+  { value: 'pricing_version', label: 'Pricing' },
+  { value: 'quote', label: 'Quote' },
+];
+
+// How an entry names what it is about, before its label ("Booking: Class 8 demo").
+export const ENTITY_NOUN = {
+  student: 'Student',
+  student_note: 'Note on',
+  session: 'Session',
+  exam: 'Exam',
+  additional_exam: 'Additional exam',
+  homework: 'Homework',
+  invitation: 'Invitation',
+  profile: 'User',
+  booking_link: 'Booking link',
+  booking: 'Booking',
+  demo_invite: 'Demo invitation',
+  report: 'Report',
+  booking_slot: 'Slot',
+  booking_schedule: 'Schedule',
+  lead: 'Enquiry',
+  syllabus: 'Syllabus',
+  pricing_version: 'Pricing',
+  quote: 'Quote',
+};
+
+/** Who made an entry: their name or email -- or, with no account behind it, the page a parent used. */
+export function actorLabel(row) {
+  const named = row.actor_name ?? row.actor_email;
+  if (named != null) return named;
+  if (row.context?.via === 'public_booking') return 'Booking page';
+  if (row.context?.via === 'demo_invite') return 'Invitation page';
+  return 'Unknown';
+}
 
 export function actionLabel(action) {
   return ACTION_LABELS[action] ?? humanize(action);
@@ -59,6 +199,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 export function formatValue(value) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
   if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
     const d = new Date(value);
     if (!Number.isNaN(d.getTime())) return format(d, 'd MMM yyyy, h:mm a');
@@ -70,6 +211,34 @@ function humanize(action) {
   const text = action.replace(/[._]/g, ' ').trim();
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+// Why a sign-in was refused (accounts.backends audit reasons, and the Google
+// sign-in's refusal of staff accounts). The password sign-in page itself never
+// says; only this admin-facing log does.
+const SIGN_IN_REFUSALS = {
+  invalid_password: 'Sign-in refused: wrong password',
+  locked: 'Sign-in refused: account locked after repeated failures',
+  inactive: 'Sign-in refused: account deactivated',
+  no_password: 'Sign-in refused: no password set',
+  student_account: 'Password sign-in refused: student account',
+  google_staff_account: 'Google sign-in refused: staff sign in with a username and password',
+};
+
+const formatRole = (role) => (typeof role === 'string' ? role.charAt(0) + role.slice(1).toLowerCase() : '—');
+
+/** "a demo booking" / "a diagnostic booking" from the entry's context, or "a booking". */
+function bookingOfType(row) {
+  const type = String(row.context?.booking_type ?? '').toLowerCase();
+  return type ? `a ${type} booking` : 'a booking';
+}
+
+// Why a session was not conducted (backend SessionOutcomeReason), as the feed words it.
+const SESSION_OUTCOME_LABELS = {
+  STUDENT_NO_SHOW: 'a student no-show',
+  TUTOR_ABSENT: 'not conducted (tutor absent)',
+  TECHNICAL_ISSUE: 'not conducted (technical issue)',
+  OTHER: 'not conducted',
+};
 
 function reasonOf(row) {
   const reason = row.context?.reason;
@@ -130,6 +299,28 @@ export function describeActivity(row) {
       return 'Rescheduled the session';
     case 'session.mark_attended':
       return 'Marked the session attended';
+    case 'session.start':
+      return 'Started the session';
+    case 'session.complete':
+      return row.context?.approved_late_notes
+        ? "Completed the session by approving the tutor's late notes"
+        : 'Completed the session with their notes';
+    // From before the notes deadline was removed (2026-11-16).
+    case 'session.submit_late_notes':
+      return 'Submitted notes after the 48-hour deadline, for approval';
+    case 'session.approve_late_notes':
+      return "Approved the tutor's late notes";
+    case 'session.record_outcome': {
+      const reason = SESSION_OUTCOME_LABELS[c.outcome_reason?.new] ?? 'not conducted';
+      return c.late_notes_status ? `Recorded the session as ${reason}, rejecting the late notes` : `Recorded the session as ${reason}`;
+    }
+    case 'session.correct_outcome': {
+      const from = SESSION_OUTCOME_LABELS[c.outcome_reason?.old];
+      const to = SESSION_OUTCOME_LABELS[c.outcome_reason?.new];
+      return from && to ? `Corrected the session's outcome from ${from} to ${to}` : "Corrected the session's outcome note";
+    }
+    case 'session.revoke_outcome':
+      return "Removed the session's recorded outcome";
     case 'session.cancel': {
       const reason = reasonOf(row);
       return reason ? `Cancelled the session — ${reason}` : 'Cancelled the session';
@@ -174,6 +365,214 @@ export function describeActivity(row) {
       const s = c.score?.new;
       const m = c.max_score?.new;
       return s != null && m != null ? `Scored the additional exam ${s}/${m}` : 'Scored the additional exam';
+    }
+    case 'staff.create': {
+      const role = row.context?.role;
+      return role ? `Created the staff account as ${formatRole(role)}` : 'Created the staff account';
+    }
+    case 'user.role_change': {
+      const r = c.role;
+      const sentence = r ? `Changed role from ${formatRole(r.old)} to ${formatRole(r.new)}` : 'Changed the role';
+      return row.context?.meet_link_removed ? `${sentence}; their Meet link was removed` : sentence;
+    }
+    case 'user.meet_link_update': {
+      const verb = { added: 'Set', changed: 'Changed', removed: 'Removed' }[row.context?.change] ?? 'Updated';
+      const count = row.context?.live_bookings_updated ?? 0;
+      const bookings = count ? `; ${count} booking${count === 1 ? '' : 's'} not yet ended now use${count === 1 ? 's' : ''} it` : '';
+      const whose = row.context?.role === 'MENTOR' ? "mentor's" : "tutor's";
+      return `${verb} the ${whose} Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
+    }
+    case 'user.update_details':
+      return 'Updated the account details';
+    case 'user.password_reset':
+      return row.context?.unlocked
+        ? 'Set a temporary password and cleared a sign-in lockout'
+        : 'Set a temporary password';
+    case 'user.password_change':
+      return 'Changed their password';
+    case 'invitation.credentials_regenerated':
+      return row.context?.unlocked
+        ? 'Regenerated the temporary Learn password and cleared a sign-in lockout'
+        : 'Regenerated the temporary Learn password';
+    case 'invitation.password_reset':
+      return row.context?.unlocked
+        ? 'Reset the Learn password to a temporary one and cleared a sign-in lockout'
+        : 'Reset the Learn password to a temporary one';
+    case 'user.permissions_update': {
+      const added = row.context?.added ?? [];
+      const removed = row.context?.removed ?? [];
+      const parts = [];
+      if (added.length) parts.push(`granted ${added.join(', ')}`);
+      if (removed.length) parts.push(`revoked ${removed.join(', ')}`);
+      return parts.length ? `Permissions: ${parts.join('; ')}` : 'Updated permissions';
+    }
+    case 'user.sign_in_failed':
+      return SIGN_IN_REFUSALS[row.context?.reason] ?? 'Sign-in refused';
+    case 'user.deactivate': {
+      const reason = reasonOf(row);
+      return reason ? `Deactivated the account — ${reason}` : 'Deactivated the account';
+    }
+    case 'user.reactivate':
+      return 'Reactivated the account';
+    case 'user.unlock':
+      return 'Cleared the sign-in lockout';
+    case 'booking_link.issue': {
+      const type = row.entity_label;
+      return type ? `Issued a ${type.toLowerCase()} booking link` : 'Issued a booking link';
+    }
+    case 'enquiry.create': {
+      // The log keeps no names (backend bookings.enquiries): the class and source only.
+      const source = row.context?.source ? sourceLabel(row.context.source) : null;
+      return source ? `Added an enquiry (${source.toLowerCase()})` : 'Added an enquiry';
+    }
+    case 'lead.create': {
+      // From a lead form on the website or landing page, or added by an administrator.
+      const source = row.context?.source ? sourceLabel(row.context.source) : null;
+      if (row.context?.via === 'lead_form') return source ? `Received a lead from the ${source.toLowerCase()}` : 'Received a lead';
+      return source ? `Added a lead (${source.toLowerCase()})` : 'Added a lead';
+    }
+    case 'lead.assign_owner':
+      return row.context?.previous_owner_id ? 'Reassigned a lead to another BDE' : 'Assigned a lead to a BDE';
+    case 'lead.update_details':
+      return 'Updated parent, student or enquiry source details';
+    // Display only: the lead's bookings stay in Indian time; the zone is null when it was not set, or is cleared.
+    case 'lead.update_student_timezone': {
+      const t = c.student_timezone;
+      return t
+        ? `Changed the student's timezone from ${formatValue(t.old)} to ${formatValue(t.new)}`
+        : "Changed the student's timezone";
+    }
+    case 'booking.create': {
+      const type = String(row.context?.booking_type ?? '').toLowerCase();
+      if (row.context?.via === 'demo_invite') return 'Booked a demo slot with a Demo invitation';
+      if (row.context?.via === 'redemo') return 'Scheduled a Re-Demo';
+      const via = row.context?.referral_status === 'ATTRIBUTED' ? ' through a BDE link' : '';
+      return `Booked a ${type || 'demo'} slot${via}`;
+    }
+    case 'demo_invite.issue':
+      return row.context?.replaced_invite_id
+        ? 'Issued a new Demo invitation link (the last one had expired)'
+        : 'Issued a Demo invitation link';
+    case 'demo_invite.revoke':
+      return 'Revoked a Demo invitation link';
+    case 'redemo.request':
+      return 'Asked for a completed Demo to be taught again';
+    case 'redemo.remarks':
+      return row.context?.cleared ? "Cleared the Re-Demo's remarks" : "Updated the Re-Demo's remarks";
+    // A code from the list, never words (backend booking_service.close_redemo).
+    case 'redemo.close': {
+      const reason = REDEMO_CLOSE_REASONS.find((option) => option.value === row.context?.reason_code)?.label;
+      return reason ? `Closed a Re-Demo request — ${reason}` : 'Closed a Re-Demo request';
+    }
+    case 'redemo.reopen':
+      return 'Reopened a Re-Demo request';
+    case 'booking.cancel': {
+      // A reason code since P3; entries from before carry the text they were given.
+      const reason = cancelReasonLabel(row.context?.reason_code) || reasonOf(row);
+      return reason ? `Cancelled the booking — ${reason}` : 'Cancelled the booking';
+    }
+    case 'booking.reschedule': {
+      const reason = rescheduleReasonLabel(row.context?.reason_code);
+      let tutor = '';
+      if (row.context?.tutor_carried_over) tutor = '; the tutor carried over';
+      else if (row.context?.tutor_id) tutor = '; the tutor was not free, so it needs one';
+      return `Rescheduled ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}${tutor}`;
+    }
+    // The log keeps ids only (backend booking_service): the booking's type, never who teaches it.
+    case 'booking.assign_tutor':
+      return row.context?.old_tutor_id
+        ? `Reassigned the tutor of ${bookingOfType(row)}`
+        : `Assigned a tutor to ${bookingOfType(row)}`;
+    case 'booking.unassign_tutor':
+      return `Unassigned the tutor from ${bookingOfType(row)}`;
+    // The tutor's own Start (backend booking_service.start_booking): ids and instants only.
+    case 'booking.start':
+      return `Started ${bookingOfType(row)}`;
+    // The first report completes its booking (backend reports.services): two entries, one each.
+    case 'booking.complete':
+      return `Completed ${bookingOfType(row)} with its report`;
+    // Asking the parent to confirm (backend communications.services.request_confirmation): logged once, ids only.
+    case 'booking.confirmation_request':
+      return `Asked the parent to confirm ${bookingOfType(row)}`;
+    // The parent's answer (backend booking_service.record_parent_confirmation): codes only. Not Confirmed cancels the booking.
+    case 'booking.parent_confirmation': {
+      if (row.context?.outcome !== 'NOT_CONFIRMED') return `Recorded the parent's confirmation of ${bookingOfType(row)}`;
+      const reason = notConfirmedReasonLabel(row.context?.reason_code);
+      return `Recorded that the parent did not confirm ${bookingOfType(row)}${reason ? ` — ${reason}` : ''}`;
+    }
+    case 'report.submit':
+      return `Submitted the report on ${bookingOfType(row)}`;
+    // The owner BDE sent it to the parent from the enquiry page: ids and the version only.
+    case 'report.share': {
+      const version = row.context?.version ? ` (version ${row.context.version})` : '';
+      return `Sent the parent the report on ${bookingOfType(row)}${version}`;
+    }
+    case 'report.edit': {
+      const version = row.context?.version ? `, now version ${row.context.version}` : '';
+      const fields = reportFieldsText(row.context?.changed_fields);
+      return `Edited the report on ${bookingOfType(row)}${version}${fields ? ` — ${fields}` : ''}`;
+    }
+    case 'booking_slot.close': {
+      const reason = reasonOf(row);
+      return reason ? `Closed the slot — ${reason}` : 'Closed the slot';
+    }
+    case 'booking_slot.reopen':
+      return 'Reopened the slot';
+    // Sales Management (backend sales.services): the revision number is in the context, never the content.
+    case 'syllabus.create':
+      return row.context?.reference ? `Loaded a syllabus as a draft from ${row.context.reference}` : 'Created a syllabus as a draft';
+    case 'syllabus.start_draft':
+      return `Started draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.save_draft':
+      return `Saved draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.discard_draft':
+      return `Discarded draft revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.publish':
+      return `Published revision ${row.context?.revision ?? ''}`.trim();
+    case 'syllabus.deactivate':
+      return 'Deactivated the syllabus';
+    case 'syllabus.reactivate':
+      return 'Reactivated the syllabus';
+    case 'syllabus.duplicate':
+      return 'Created a syllabus as a copy of another';
+    case 'quote.create': {
+      // What is payable at once, and of which revision.
+      const payable = row.context?.payable_amount;
+      const amount = payable ? `: ${formatAmount(payable, row.context?.currency ?? '').trim()} payable at once` : '';
+      return `Issued a quote${row.context?.revision ? ` of revision ${row.context.revision}` : ''}${amount}`;
+    }
+    case 'quote.cancel':
+      return row.context?.reason ? `Cancelled the quote: ${row.context.reason}` : 'Cancelled the quote';
+    case 'pricing.create_version': {
+      // Each changed figure as { old, new }; the version numbers are in the context.
+      const version = row.context?.version ? `Pricing v${row.context.version}` : 'Pricing';
+      const offer = row.changes?.offer_fee?.new;
+      // The currency is logged only when it changed: the amount reads alone otherwise.
+      return offer ? `${version}: offer fee ${formatAmount(offer, row.changes?.currency?.new ?? '').trim()} a class` : `${version} saved`;
+    }
+    case 'earnings.start_pricing':
+      return 'Started pricing Tutor Earnings with the initial rates';
+    case 'earnings.change_rates':
+      return `Changed the global rates (${Object.keys(row.changes || {})
+        .map((type) => `${type.toLowerCase()} ${formatInr(row.changes[type]?.new)}`)
+        .join(', ')})`;
+    case 'earnings.change_tutor_rates':
+      return `Changed ${row.entity_label ?? "a tutor"}'s rates`;
+    case 'earnings.record_payment':
+      return `Recorded a payment of ${formatInr(row.changes?.paid?.new)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.void_payment':
+      return `Voided a payment of ${formatInr(row.changes?.paid?.old)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.reverse_entry':
+      return `Reversed ${formatInr(row.changes?.amount?.old)} of earnings${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.keep_entry':
+      return `Kept ${formatInr(row.context?.amount)} as earned${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.add_adjustment':
+      return `Adjusted ${row.entity_label ?? 'a tutor'}'s earnings by ${formatInr(row.changes?.amount?.new, { signed: true })}`;
+    case 'booking_schedule.update': {
+      const parts = [];
+      if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);
+      if (row.context?.removed?.length) parts.push(`removed ${row.context.removed.join(', ')}`);
+      return parts.length ? `Booking times: ${parts.join('; ')}` : 'Changed the booking times';
     }
     default:
       return actionLabel(row.action);

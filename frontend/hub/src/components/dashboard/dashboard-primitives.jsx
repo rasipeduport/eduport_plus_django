@@ -112,6 +112,9 @@ export function ToneIcon({ icon: Icon, tone = 'default', className }) {
         tone === 'success' && 'bg-success/10 text-success',
         tone === 'warning' && 'bg-warning/10 text-warning',
         tone === 'destructive' && 'bg-destructive/10 text-destructive',
+        // Each booking type's colour (index.css): Demo blue and Diagnostic green on the refreshed design.
+        tone === 'demo' && 'bg-demo/10 text-demo-text',
+        tone === 'diagnostic' && 'bg-diagnostic/10 text-diagnostic-text',
         className
       )}
     >

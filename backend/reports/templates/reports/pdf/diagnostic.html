@@ -1,0 +1,32 @@
+{% extends "reports/pdf/base.html" %}
+{% comment %}
+The Diagnostic report, after the two-page Academic Report sample: page one
+holds the details, the summary and the strength areas; page two starts at the
+skills to strengthen. Longer content runs onto further pages.
+{% endcomment %}
+{% block document_title %}Academic Report: {{ student_name }}{% endblock %}
+{% block title %}<span>Academic</span> <span>Report</span>{% endblock %}
+{% block more_details %}<tr><th>Assessment Type</th><td class="colon">:</td><td>Diagnostic Test</td></tr>{% endblock %}
+{% block content %}
+<section>
+<h2>Summary</h2>
+<p class="line">Score: {{ score }}/{{ max_score }}</p>
+<p class="line">Performance Level: {{ performance_level }}</p>
+</section>
+<section>
+<h3>Strength Areas:</h3>
+<ul>{% for item in strength_areas %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+<section class="page-two">
+<h3>Skills to Strengthen:</h3>
+<ul>{% for item in skills_to_strengthen %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+<section>
+<h2>Teacher’s Remarks</h2>
+<p class="text">{{ teacher_remarks }}</p>
+</section>
+<section>
+<h2>Suggested Plan</h2>
+<p class="text">{{ suggested_plan }}</p>
+</section>
+{% endblock %}

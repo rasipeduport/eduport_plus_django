@@ -1,3 +1,4 @@
+from django.test import override_settings
 import datetime as dt
 from io import StringIO
 from unittest.mock import patch
@@ -1443,20 +1444,14 @@ class SyncedQuotaFeedsTheExistingHourArithmeticTests(APITestCase):
         )
 
 
-class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
+class QuotaForCodeTests(APITestCase):
     """
-    A newly enrolled student must be able to book immediately, so the quota is
-    read from the sheet at invitation time rather than waiting for the next
-    scheduled sync. Both paths go through ``quota_sync``, so the duplicate-row
-    sum and the "Token" rule behave identically in each.
+    ``quota_sync.quota_for_code``: one student's quota from the sheet rows, what
+    the profile's "Sync from sheet" stores (sync_one_student_quota). It and the
+    hourly sync go through the one reduction, so the duplicate-row sum and the
+    "Token" rule behave identically in each. (Students are no longer created
+    from the sheet: Learn accounts come from enrollment.)
     """
-
-    def setUp(self):
-        self.admin = User.objects.create_user(
-            email="enrol-admin@eduport.com", password="pw", full_name="Admin", role="ADMIN")
-        self.lookup_url = reverse('invitations:lookup-student')
-        self.create_url = reverse('invitations:create-invitation')
-        self.client.force_authenticate(user=self.admin)
 
     def _profile_row(self, code, paid, purchased='', email='razi@example.com', name='Razi'):
         from invitations.sheets import (
@@ -1474,162 +1469,29 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
         row[COL_STUDENT_CODE] = code
         return row
 
-    def _enrol(self, rows, code='EDP00041', email='razi@example.com'):
-        """Invite, then sign the parent in, which is what creates the Student."""
-        from accounts.services import UserProvisioningService
-
-        with patch(
-            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
-        ):
-            res = self.client.post(self.create_url, {
-                "role": "STUDENT", "email": email,
-                "student_code": code, "full_name": "Razi",
-            }, format='json')
-        self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
-
-        parent = User.objects.create_user(
-            email=email, password="pw", full_name="Razi Parent", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
-        return Student.objects.get(student_code=code)
-
-    def test_new_student_starts_at_the_sheets_paid_figure(self):
-        """The reported gap: EDP00041 with O=8 must enrol at 8, not 0."""
-        student = self._enrol([self._profile_row('EDP00041', paid='8', purchased='72')])
-        self.assertEqual(student.total_class_quota, 8)
-
-    def test_purchased_column_does_not_leak_into_the_initial_quota(self):
-        student = self._enrol([self._profile_row('EDP00041', paid='8', purchased='72')])
-        self.assertNotEqual(student.total_class_quota, 72)
-
-    def test_duplicate_rows_are_summed_at_enrolment_too(self):
-        student = self._enrol([
-            self._profile_row('EDP00041', paid='10'),
-            self._profile_row('EDP00041', paid='14'),
-        ])
-        self.assertEqual(student.total_class_quota, 24)
-
-    def test_token_is_ignored_at_enrolment_too(self):
-        student = self._enrol([
-            self._profile_row('EDP00041', paid='Token'),
-            self._profile_row('EDP00041', paid='10'),
-        ])
-        self.assertEqual(student.total_class_quota, 10)
-
-    def test_a_code_with_only_token_enrols_at_zero(self):
-        """Nothing paid for is the safe start; the sync will not lower it further."""
-        student = self._enrol([self._profile_row('EDP00041', paid='Token')])
-        self.assertEqual(student.total_class_quota, 0)
-
-    def test_explicit_zero_enrols_at_zero(self):
-        student = self._enrol([self._profile_row('EDP00041', paid='0')])
-        self.assertEqual(student.total_class_quota, 0)
-
-    def test_sheets_failure_does_not_block_enrolment(self):
-        """Google being down must not stop a student being invited."""
-        from accounts.services import UserProvisioningService
-
-        with patch(
-            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows',
-            side_effect=RuntimeError("Google is down"),
-        ):
-            res = self.client.post(self.create_url, {
-                "role": "STUDENT", "email": "down@example.com",
-                "student_code": "EDP00041", "full_name": "Razi",
-            }, format='json')
-        self.assertIn(res.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED), res.data)
-
-        parent = User.objects.create_user(
-            email="down@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
-        student = Student.objects.get(student_code="EDP00041")
-        self.assertEqual(student.total_class_quota, 0)
-
-    def test_quota_is_never_taken_from_the_request_body(self):
-        """
-        The retired manual top-up must not come back through the invitation
-        form: a client-supplied figure is ignored in favour of the sheet's.
-        """
-        from accounts.services import UserProvisioningService
-
-        rows = [self._profile_row('EDP00041', paid='8')]
-        with patch(
-            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
-        ):
-            self.client.post(self.create_url, {
-                "role": "STUDENT", "email": "razi@example.com",
-                "student_code": "EDP00041", "full_name": "Razi",
-                "total_class_quota": 999,
-            }, format='json')
-
-        invitation = Invitation.objects.get(extra_data__student_code='EDP00041')
-        self.assertEqual(invitation.extra_data['total_class_quota'], 8)
-
-        parent = User.objects.create_user(
-            email="razi@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
-        self.assertEqual(Student.objects.get(student_code='EDP00041').total_class_quota, 8)
-
-    def test_lookup_reports_the_paid_figure_for_the_enrolment_form(self):
-        rows = [self._profile_row('EDP00041', paid='8', purchased='72')]
-        with patch(
-            'invitations.sheets.GoogleSheetsService.fetch_enrollment_rows', return_value=rows
-        ) as fetch:
-            res = self.client.post(self.lookup_url, {"student_code": "EDP00041"}, format='json')
-
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(res.data['student_data']['classes_paid_for'], 8)
-        # Profile fields and the quota come from ONE fetch of the same snapshot.
-        self.assertEqual(fetch.call_count, 1)
-
-    def test_an_invitation_predating_this_key_still_enrols(self):
-        """Backward compatibility: extra_data written before the key existed."""
-        from accounts.services import UserProvisioningService
-
-        Invitation.objects.create(
-            email="legacy@example.com", role=InvitationRoleChoices.STUDENT,
-            status=InvitationStatusChoices.PENDING,
-            extra_data={"student_code": "EDP00099", "full_name": "Legacy"},
-        )
-        parent = User.objects.create_user(
-            email="legacy@example.com", password="pw", full_name="P", role="STUDENT")
-        UserProvisioningService.attach_pending_students(parent)
-
-        self.assertEqual(Student.objects.get(student_code="EDP00099").total_class_quota, 0)
-
-    def test_periodic_sync_still_takes_over_when_the_sheet_changes(self):
-        """
-        Enrolment seeds the figure; the sync owns every later change. Both must
-        agree while the sheet is unchanged, and the sync must win once it moves.
-        """
+    def test_the_figure_is_the_paid_column_summed_without_token(self):
         from students import quota_sync
 
-        student = self._enrol([self._profile_row('EDP00041', paid='8')])
-        self.assertEqual(student.total_class_quota, 8)
+        cases = [
+            ([('8', '72')], 8),             # column O, never the purchased column N
+            ([('10', ''), ('14', '')], 24),  # duplicate rows are summed
+            ([('Token', ''), ('10', '')], 10),
+            ([('0', '')], 0),
+            ([('Token', '')], None),         # no number at all: not a zero
+        ]
+        for paid_values, expected in cases:
+            with self.subTest(paid_values=paid_values):
+                rows = [self._profile_row('EDP00041', paid=p, purchased=n) for p, n in paid_values]
+                self.assertEqual(quota_sync.quota_for_code(rows, 'EDP00041'), expected)
 
-        # Sheet unchanged -> the sync is a no-op, not a rewrite.
-        with patch.object(
-            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
-            return_value=[self._profile_row('EDP00041', paid='8')],
-        ):
-            report = quota_sync.sync_student_quotas_from_sheet()
-        self.assertEqual(report.students_unchanged, 1)
-        self.assertEqual(report.students_updated, 0)
+    def test_legacy_invitation_alone_does_not_create_student_on_login(self):
+        Invitation.objects.create(email="legacy@example.com", role='STUDENT',
+            extra_data={'student_code': 'EDP00099', 'full_name': 'Legacy'})
+        response = self.client.post('/api/auth/google/', {'credential': 'old-token'})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Student.objects.filter(student_code='EDP00099').exists())
 
-        # Sales records another payment -> the sync raises the quota.
-        with patch.object(
-            quota_sync.GoogleSheetsService, 'fetch_enrollment_rows',
-            return_value=[
-                self._profile_row('EDP00041', paid='8'),
-                self._profile_row('EDP00041', paid='7'),
-            ],
-        ):
-            report = quota_sync.sync_student_quotas_from_sheet()
-
-        student.refresh_from_db()
-        self.assertEqual(student.total_class_quota, 15)
-        self.assertEqual(report.changes, [['EDP00041', 8, 15]])
-
-    def test_enrolment_and_sync_agree_on_every_shape_of_cell(self):
+    def test_one_student_and_the_full_sync_agree_on_every_shape_of_cell(self):
         """
         The anti-duplication guard: one reduction, so both entry points must
         produce the same number for the same rows.
@@ -1646,8 +1508,8 @@ class EnrolmentInitialisesQuotaFromTheSheetTests(APITestCase):
         for paid_values, expected in cases:
             with self.subTest(paid_values=paid_values):
                 rows = [self._profile_row('EDP00041', paid=p, purchased=n) for p, n in paid_values]
-                via_enrolment = quota_sync.quota_for_code(rows, 'EDP00041')
-                self.assertEqual(0 if via_enrolment is None else via_enrolment, expected)
+                one = quota_sync.quota_for_code(rows, 'EDP00041')
+                self.assertEqual(0 if one is None else one, expected)
 
 
 # ---------------------------------------------------------------------------

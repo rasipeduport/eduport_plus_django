@@ -1,5 +1,11 @@
 # Eduport Plus (Django) — Current-State Audit
 
+> **Historical snapshot (2026-09-29), kept as a record — not current.** It predates the exams and homework apps,
+> password sign-in and Team management, and the move from role checks to catalogue permissions (2026-10-26):
+> the permission classes, `scope_*_by_role` helpers and role rules it describes no longer exist. For access rules
+> today see `backend/accounts/permission_catalogue.py`, `backend/accounts/authz.py`, `backend/core/permissions.py`,
+> `backend/core/querysets.py` and `frontend/hub/src/lib/access.js`.
+
 Date: 2026-09-29. Scope: `eduport_plus_django/` exactly as it sits in the working tree, including uncommitted changes.
 
 Evidence base: every backend module, both SPAs, and the compose/env configuration were read. The full backend test suite (239 tests) was run against the working tree inside the compose backend image and passed. `makemigrations --check` reports no drift. The running Docker stack was probed anonymously. Labels used: IMPLEMENTED / PARTIAL / NOT IMPLEMENTED / UNKNOWN. Nothing here is a proposal.

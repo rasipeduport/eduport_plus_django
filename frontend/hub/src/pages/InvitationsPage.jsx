@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 
 import api from '@/lib/api';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { InvitationsTable } from '@/components/invitations/invitations-table';
+import { NewInvitation } from '@/components/invitations/new-invitation';
+import { Page, PageHeader } from '@/components/page/page';
+import { ErrorState } from '@/components/page/states';
 
-export default function InvitationsPage() {
-  const [searchParams] = useSearchParams();
+/**
+ * Invitations: the students invited to Eduport Plus and where each invitation
+ * stands, with their initial Learn credentials for whoever may reveal them.
+ * Invitations are created by enrollment only: "New Invitation" just says so.
+ * Staff are no longer invited: their accounts are made in Team. The API
+ * enforces every rule.
+ */
+export default function InvitationsPage({ user }) {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Read once on mount: NewInvitation strips these params after consuming them,
-  // so re-reading them on every render would close the form again.
-  const [initialRole] = useState(() => searchParams.get('role') || undefined);
-  const [initialOpen] = useState(() => searchParams.get('open') === 'true');
 
   const fetchInvitations = useCallback(async () => {
     setError('');
@@ -39,24 +42,21 @@ export default function InvitationsPage() {
     };
   }, [fetchInvitations]);
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <TableSkeleton />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-16">
-      {error && <p className="text-destructive mb-4 text-sm">{error}</p>}
-
-      <InvitationsTable
-        data={invitations}
-        initialRole={initialRole}
-        initialOpen={initialOpen}
-        onChanged={fetchInvitations}
+    <Page>
+      <PageHeader
+        title="Invitations"
+        description="Learn accounts are created at enrollment. Share initial credentials securely here; activation requires a password change."
+        actions={<NewInvitation />}
       />
-    </div>
+
+      {error ? <ErrorState message={error} onRetry={fetchInvitations} /> : null}
+
+      {loading ? (
+        <TableSkeleton toolbar={false} />
+      ) : (
+        <InvitationsTable data={invitations} user={user} onChanged={fetchInvitations} />
+      )}
+    </Page>
   );
 }

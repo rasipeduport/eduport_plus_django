@@ -9,7 +9,6 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 
 from core.timezones import DEFAULT_TIMEZONE, is_valid_timezone

@@ -9,7 +9,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework import status
 from rest_framework.test import APITestCase
 
 from activity.models import ActivityLog
@@ -17,8 +16,8 @@ from homework.models import Homework
 from students.models import Student, StatusChoices
 from sessions.models import Session, SessionStatusChoices
 from .models import (
-    Exam, ExamStatusChoices, ExamFile,
-    AdditionalExam, AdditionalExamStatusChoices, AdditionalExamFile,
+    Exam, ExamFile,
+    AdditionalExam, AdditionalExamFile,
 )
 from .services import RECENT_PAGE_SIZE, build_scorecard, derive_chapter_names, entries_in_window, serialize_entry, validate_score, score_entry
 

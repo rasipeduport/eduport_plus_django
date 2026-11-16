@@ -13,7 +13,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.timezones import DEFAULT_TIMEZONE, TimezoneConversionError, is_valid_timezone, zoned_wall_time_to_utc
-from .models import Session, SessionStatusChoices
+from .lifecycle import ClassState
+from .models import Session, SessionOutcomeReason, SessionStatusChoices
 
 ALLOWED_DURATIONS = [0.5, 1, 1.5, 2]
 MAX_SERIES_ITEMS = 20
@@ -120,15 +121,83 @@ def apply_content_filter(queryset, value):
     return queryset.filter(_link_missing(fields[value.removeprefix('missing_')]))
 
 
-def calculate_credits_used(student):
-    """Total hours consumed by the student's non-cancelled sessions."""
-    existing_sessions = Session.objects.filter(student=student).exclude(
-        status=SessionStatusChoices.CANCELLED
+def state_q(state, now):
+    """The sessions in ``state`` (a ClassState value) as of ``now``: lifecycle.class_state as a query."""
+    if state == ClassState.CANCELLED:
+        return Q(status=SessionStatusChoices.CANCELLED)
+    if state == ClassState.NOT_CONDUCTED:
+        return Q(status=SessionStatusChoices.NOT_CONDUCTED)
+    if state == ClassState.COMPLETED:
+        return Q(completed_at__isnull=False)
+    open_class = (
+        ~Q(status__in=[SessionStatusChoices.CANCELLED, SessionStatusChoices.NOT_CONDUCTED])
+        & Q(completed_at__isnull=True)
     )
+    started = Q(started_at__isnull=False)
+    ended = Q(end_time__lte=now)
+    return open_class & {
+        ClassState.UPCOMING: ~ended & ~started,
+        ClassState.IN_PROGRESS: ~ended & started,
+        ClassState.NOTES_DUE: ended & started,
+        ClassState.NOT_STARTED: ended & ~started,
+    }[state]
+
+
+def apply_state_filter(queryset, value, now):
+    """
+    Restrict a Session queryset to the classes in any of the comma-separated
+    ClassState values in ``value`` (either case). Raises ValueError for an
+    unknown one so the view can answer 400.
+    """
+    states = [part.strip().upper() for part in value.split(',') if part.strip()]
+    unknown = [state for state in states if state not in ClassState.values]
+    if not states or unknown:
+        raise ValueError(f"state must be one or more of {', '.join(v.lower() for v in ClassState.values)}")
+    combined = Q()
+    for state in states:
+        combined |= state_q(state, now)
+    return queryset.filter(combined)
+
+
+# A recorded outcome other than the student's own no-show gives the class's
+# credit back, as a cancellation does.
+CREDIT_RETURNED = Q(status=SessionStatusChoices.CANCELLED) | (
+    Q(status=SessionStatusChoices.NOT_CONDUCTED) & ~Q(outcome_reason=SessionOutcomeReason.STUDENT_NO_SHOW)
+)
+
+
+def consumes_credit(session):
+    """Whether ``session`` uses its hours of the student's quota: CREDIT_RETURNED for one row."""
+    if session.status == SessionStatusChoices.CANCELLED:
+        return False
+    if session.status == SessionStatusChoices.NOT_CONDUCTED:
+        return session.outcome_reason == SessionOutcomeReason.STUDENT_NO_SHOW
+    return True
+
+
+def calculate_credits_used(student):
+    """
+    Total hours consumed by the student's sessions: every class but a
+    cancelled one, or one recorded as not conducted for a reason other than
+    the student's no-show (CREDIT_RETURNED). A class nobody has recorded an
+    outcome for keeps its hours used: the clock alone never changes a quota.
+    """
+    existing_sessions = Session.objects.filter(student=student).exclude(CREDIT_RETURNED)
     credits_used = 0.0
     for s in existing_sessions:
         credits_used += (s.end_time - s.start_time).total_seconds() / 3600.0
     return credits_used
+
+
+def transferable_sessions(queryset, now=None):
+    """
+    The classes in ``queryset`` a change of tutor may hand over: scheduled,
+    not started by their tutor and not over yet. A class that has started or
+    whose time has passed stays with the tutor it was scheduled with -- whoever
+    taught it, or was to, keeps it -- as attended and cancelled ones always did.
+    """
+    now = now or timezone.now()
+    return queryset.filter(status=SessionStatusChoices.SCHEDULED, started_at__isnull=True, end_time__gt=now)
 
 
 def find_conflict(student, tutor, start_time, end_time, exclude_id=None):
@@ -201,11 +270,28 @@ def lock_scheduling(student_id, tutor_id):
             cursor.execute("SELECT pg_advisory_xact_lock(%s, hashtext(%s))", [lock_class, key])
 
 
+def lock_tutor_schedule(tutor_id):
+    """
+    The tutor half of ``lock_scheduling``, for a writer that has no student:
+    a Demo/Diagnostic booking given to a tutor (bookings.booking_service.
+    assign_tutor). The same key, so that assignment and any class being
+    scheduled for the same tutor queue behind each other and each sees the
+    other's row once it commits. Must be called inside ``transaction.atomic()``;
+    a no-op off PostgreSQL.
+    """
+    if connection.vendor != 'postgresql':
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s, hashtext(%s))", [_LOCK_CLASS_TUTOR, str(tutor_id)])
+
+
 # ------------------------------------------------------------ conflict replies
 
 TUTOR_SESSION_CONFLICT = 'TUTOR_SESSION_CONFLICT'
 SERIES_ITEMS_OVERLAP = 'SERIES_ITEMS_OVERLAP'
 STUDENT_SESSION_CONFLICT = 'STUDENT_SESSION_CONFLICT'
+TUTOR_BOOKING_CONFLICT = 'TUTOR_BOOKING_CONFLICT'
+INACTIVE_TUTOR = 'INACTIVE_TUTOR'
 
 
 def _staff_name(user):
@@ -272,6 +358,111 @@ def conflict_response_data(conflict, student, zone_name=None, label=None):
             "tutor_name": _staff_name(conflict.tutor),
             "timezone": zone_name,
         },
+    }
+
+
+def booking_conflict_response_data(booking, tutor, student, zone_name=None, label=None):
+    """
+    Body of the 409 answered when ``booking`` -- a live Demo or Diagnostic
+    booking assigned to ``tutor`` (bookings.booking_service.
+    find_booking_conflict) -- blocks a class for ``student``. Shaped like
+    ``conflict_response_data``. The booking's child and parent are a BDE's
+    lead, not the scheduler's student, so they are not named here.
+    """
+    if not zone_name or not is_valid_timezone(zone_name):
+        zone_name = student.timezone if is_valid_timezone(getattr(student, 'timezone', None)) else DEFAULT_TIMEZONE
+    slot = booking.slot
+    window = _format_window(slot.starts_at, slot.ends_at, zone_name)
+    prefix = f"{label} conflicts" if label else "This conflicts"
+    kind = booking.get_booking_type_display()
+    tutor_name = _staff_name(tutor) or 'The tutor'
+    return {
+        "error": (
+            f"{prefix} with a {kind} booking: tutor {tutor_name} is teaching it from {window}. "
+            f"Choose a different time or tutor."
+        ),
+        "code": TUTOR_BOOKING_CONFLICT,
+        "conflict": {
+            "type": 'tutor_booking',
+            "booking_id": str(booking.id),
+            "booking_type": booking.booking_type,
+            "start_time": slot.starts_at.isoformat(),
+            "end_time": slot.ends_at.isoformat(),
+            "tutor_name": _staff_name(tutor),
+            "timezone": zone_name,
+        },
+    }
+
+
+def find_handover_conflict(classes, tutor, now=None):
+    """
+    The first clash that handing ``classes`` (SCHEDULED sessions about to
+    change tutor) to ``tutor`` would create, as ``(class, conflict)`` -- the
+    conflict being another SCHEDULED session of the tutor's, or a live Demo
+    or Diagnostic booking assigned to them -- or None. Every class still to
+    come or under way is checked, each over its own window, with the half-open
+    rule of ``find_conflict``. The classes being handed over are not checked
+    against each other: they are one student's, or one tutor's, and were
+    scheduled clear of each other.
+
+    Call under ``lock_scheduling`` for every student whose classes move and
+    for ``tutor``, so no class or booking assignment for them commits between
+    this check and the move.
+    """
+    # bookings.booking_service imports this module, so it is imported here.
+    from bookings.booking_service import find_booking_conflict
+
+    now = now or timezone.now()
+    moving = list(classes.select_related('student').order_by('start_time'))
+    moving_ids = [session.id for session in moving]
+    for session in moving:
+        if session.end_time <= now:
+            continue
+        clash = (
+            Session.objects.filter(
+                tutor=tutor,
+                status=SessionStatusChoices.SCHEDULED,
+                start_time__lt=session.end_time,
+                end_time__gt=session.start_time,
+            )
+            .exclude(id__in=moving_ids)
+            .select_related('student', 'tutor')
+            .order_by('start_time')
+            .first()
+        )
+        if clash is not None:
+            return session, clash
+        booking = find_booking_conflict(tutor, session.start_time, session.end_time)
+        if booking is not None:
+            return session, booking
+    return None
+
+
+def handover_conflict_response_data(moving, conflict, tutor):
+    """
+    Body of the 409 answered when a reassignment would hand ``moving`` to
+    ``tutor`` over ``conflict`` (from ``find_handover_conflict``). The
+    reassignment endpoints answer ``{"error": CODE, "message": ...}``, so the
+    scheduling replies are reshaped into that, naming the class that clashes.
+    """
+    label = f'The class "{moving.title}"'
+    if isinstance(conflict, Session):
+        body = conflict_response_data(conflict, moving.student, None, label)
+    else:
+        body = booking_conflict_response_data(conflict, tutor, moving.student, None, label)
+    return {
+        "error": body["code"],
+        "message": body["error"],
+        "conflict": {**body["conflict"], "moving_session_id": str(moving.id)},
+    }
+
+
+def inactive_tutor_response_data(label=None):
+    """Body of the 400 answered when the tutor a class would be taught by is not an active tutor (decision D5)."""
+    prefix = label or "This session"
+    return {
+        "error": f"{prefix} cannot be scheduled: its tutor is not an active tutor. Assign an active tutor first.",
+        "code": INACTIVE_TUTOR,
     }
 
 

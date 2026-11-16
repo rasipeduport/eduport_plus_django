@@ -2,7 +2,9 @@ import { Label as LabelPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
-function Label({ className, ...props }) {
+// `required` adds the red star that marks a mandatory field. The star is only
+// visual: give the control itself aria-required so assistive tech announces it.
+function Label({ className, required = false, children, ...props }) {
   return (
     <LabelPrimitive.Root
       data-slot="label"
@@ -11,7 +13,14 @@ function Label({ className, ...props }) {
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {required ? (
+        <span aria-hidden="true" className="text-destructive">
+          *
+        </span>
+      ) : null}
+    </LabelPrimitive.Root>
   );
 }
 

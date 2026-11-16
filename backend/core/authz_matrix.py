@@ -1,0 +1,1082 @@
+"""
+The authorization matrix: every protected API endpoint, asked by every kind of
+caller.
+
+A fixed fixture world (every row has a fixed id, so two runs are comparable)
+and a list of scenarios, each one request. Every scenario runs once per caller
+kind, inside a savepoint that is rolled back, so no request ever sees another
+one's writes. For each "scenario @ caller" a run records the status code, the
+error code and message, which fixture records the response mentions and which
+fields it carries -- enough to notice a changed decision, a widened or narrowed
+scope, or a redacted field.
+
+core.tests_authz_matrix compares a run with the baseline recorded from the
+Phase 1 code (commit 3d56003) plus the explicitly approved changes, so the move
+to permission-based authorization can show it changed nothing else.
+
+Test-only: nothing here is imported by the application. Google Sheets is
+mocked; mail goes to Django's test outbox; uploads land in the test MEDIA_ROOT.
+"""
+import re
+import uuid
+from datetime import time, timedelta
+from unittest import mock
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.core.cache import cache
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import transaction
+from django.urls import URLResolver, get_resolver, resolve
+from django.utils import timezone
+from rest_framework.test import APIClient
+
+from activity.models import ActivityLog
+from bookings.models import BookingSlot, BookingType, DemoBooking, Lead, ReferralStatus, SlotTime
+from bookings.scheduling import indian_today, slot_instants
+from earnings.values import india_today
+from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
+from homework.models import Homework, HomeworkFile
+from invitations.models import Invitation
+from invitations.sheets import GoogleSheetsService
+from sales import quotes as sales_quotes
+from sales.models import PricingVersion, Syllabus, SyllabusChapter, SyllabusRevision
+from sessions.models import Session, SessionFile
+from students.models import Student, StudentNote
+
+User = get_user_model()
+
+PASSWORD = 'Matrix-Pass-2026'
+PDF = b'%PDF-1.4\n' + b'0' * 64
+PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 64
+TZ = 'Asia/Kolkata'
+UUID_RE = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+
+# Every kind of caller. parent_a is the student account acting as persona stu_a.
+CALLERS = (
+    'anon', 'admin', 'superuser', 'su_mentor', 'su_tutor',
+    'mentor_a', 'mentor_b', 'tutor_a', 'tutor_b', 'parent_a', 'unknown',
+)
+SIGNED_IN = tuple(caller for caller in CALLERS if caller != 'anon')
+
+# Roles added after the baseline was recorded. They are not CALLERS -- the
+# baseline has no results for them, and their accounts would change what other
+# callers list -- so tests_authz_matrix adds them to a world of their own
+# (add_new_role_accounts) and checks that each is answered exactly as the
+# account with an unknown role is: no data, no action. The one exception is
+# what BDE holds, its own workspace (tests_authz_matrix lists it).
+NEW_ROLES = {'bde': 'BDE', 'sales_tl': 'SALES_TL'}
+
+
+def fixed_id(label):
+    return uuid.uuid5(uuid.NAMESPACE_URL, f'eduplus/authz-matrix/{label}')
+
+
+# ------------------------------------------------------------------ the world
+
+class World:
+    """The fixture rows by label, and every fixture id mapped back to its label."""
+
+    def __init__(self):
+        self.objects = {}
+        self.labels = {}
+
+    def add(self, label, obj):
+        self.objects[label] = obj
+        self.labels[str(obj.pk)] = label
+        return obj
+
+    def __getitem__(self, label):
+        return self.objects[label]
+
+    def id(self, label):
+        return str(self.objects[label].pk)
+
+    def day(self, days, hour=10):
+        """A wall-clock date and time (in TZ) ``days`` from now, as the scheduling forms send them."""
+        moment = timezone.localtime(self.now) + timedelta(days=days)
+        return moment.strftime('%Y-%m-%d'), f'{hour:02d}:00'
+
+    def utc(self, days, hour=4):
+        return (self.now + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0)
+
+
+def sheet_row(code, name, email, paid):
+    """One enrolment-sheet row (range A3:AB), as invitations.sheets reads it."""
+    row = [''] * 28
+    row[1], row[2], row[3] = name, '+910000000001', email
+    row[5], row[6], row[7], row[8], row[9], row[10] = 'India', 'Kerala', 'Matrix School', '8', 'CBSE', '2026-01-01'
+    row[13] = row[14] = str(paid)
+    row[27] = code
+    return row
+
+
+SHEET_ROWS = [
+    sheet_row('MX-A', 'Student A', 'parent_a@matrix.test', 40),
+    sheet_row('MX-NEW2', 'New Two', 'new2.parent@matrix.test', 12),
+]
+
+
+def add_account(w, label, role, superuser=False, **extra):
+    return w.add(label, User.objects.create_user(
+        id=fixed_id(label), email=f'{label}@matrix.test', username=label.replace('_', '.'),
+        password=PASSWORD, full_name=label.replace('_', ' ').title(), role=role,
+        is_superuser=superuser, **extra,
+    ))
+
+
+def add_new_role_accounts(w):
+    for label, role in NEW_ROLES.items():
+        add_account(w, label, role)
+    # The BDE's own enquiry, for the BDE workspace scenarios.
+    Lead.objects.filter(pk=w['lead_a'].pk).update(owner_bde=w['bde'], owner_assigned_at=w.now)
+
+
+def build_world():
+    w = World()
+    w.now = timezone.now().replace(microsecond=0)
+
+    def user(label, role, superuser=False, **extra):
+        return add_account(w, label, role, superuser, **extra)
+
+    user('admin', 'ADMIN')
+    user('admin2', 'ADMIN')
+    user('superuser', 'ADMIN', superuser=True, is_staff=True)
+    user('su_mentor', 'MENTOR', superuser=True)
+    user('su_tutor', 'TUTOR', superuser=True)
+    for label in ('mentor_a', 'mentor_b', 'mentor_c'):
+        user(label, 'MENTOR')
+    for label in ('tutor_a', 'tutor_b'):
+        user(label, 'TUTOR')
+    user('tutor_off', 'TUTOR', is_active=False, deactivated_at=w.now)
+    for label in ('parent_a', 'parent_b', 'parent_p'):
+        user(label, 'STUDENT')
+    user('unknown', 'UNASSIGNED')
+    view_team = Permission.objects.get(content_type__app_label='accounts', codename='view_team')
+    w['tutor_b'].user_permissions.add(view_team)
+    w['mentor_c'].user_permissions.add(view_team)
+
+    def student(label, code, parent, mentor, tutor, status='ACTIVE'):
+        return w.add(label, Student.objects.create(
+            id=fixed_id(label), profile=w[parent], student_code=code, full_name=label.replace('_', ' ').title(),
+            mobile_number='+910000000002', country='India', state='Kerala', school_name='Matrix School',
+            grade='8', syllabus='CBSE', mentor=w[mentor], tutor=w[tutor], status=status,
+            total_class_quota=50, timezone=TZ, remarks_for_mentor='Matrix remark',
+        ))
+
+    student('stu_a', 'MX-A', 'parent_a', 'mentor_a', 'tutor_a')
+    student('stu_c', 'MX-C', 'parent_a', 'mentor_a', 'tutor_a', status='EXPIRED')
+    student('stu_b', 'MX-B', 'parent_b', 'mentor_b', 'tutor_b')
+    student('stu_p', 'MX-P', 'parent_p', 'mentor_b', 'tutor_b')  # no history: purgeable
+
+    def session(label, stu, title, days, status, **extra):
+        start = w.utc(days)
+        return w.add(label, Session.objects.create(
+            id=fixed_id(label), student=w[stu], tutor=w[stu].tutor, title=title, start_time=start,
+            end_time=start + timedelta(hours=1), status=status, **extra,
+        ))
+
+    series = fixed_id('series_a')
+    session('ses_a_s1', 'stu_a', 'Algebra - Class 1', 20, 'SCHEDULED', series_id=series, class_number=1)
+    session('ses_a_s2', 'stu_a', 'Algebra - Class 2', 21, 'SCHEDULED', series_id=series, class_number=2)
+    session('ses_a_one', 'stu_a', 'Statistics', 22, 'SCHEDULED')
+    links = {'notes_link': 'https://n.matrix.test/1', 'recording_link': 'https://r.matrix.test/1',
+             'homework_link': 'https://hw.matrix.test/1'}
+    session('ses_a_att', 'stu_a', 'Real Numbers', -2, 'ATTENDED', **links)
+    session('ses_a_att2', 'stu_a', 'Polynomials', -3, 'ATTENDED', homework_link='https://hw.matrix.test/2')
+    session('ses_a_att3', 'stu_a', 'Linear Equations', -4, 'ATTENDED', homework_link='https://hw.matrix.test/3')
+    # A day after ses_a_one, so moving ses_a_one to tutor_b is not a clash.
+    session('ses_b_one', 'stu_b', 'Geometry', 23, 'SCHEDULED')
+    session('ses_b_att', 'stu_b', 'Trigonometry', -2, 'ATTENDED', **links)
+
+    def attach(label, row, data=PDF, ext='.pdf', content_type='application/pdf'):
+        row.id = fixed_id(label)
+        row.file_name, row.content_type, row.size_bytes, row.extension = f'{label}{ext}', content_type, len(data), ext
+        row.file.save(f'{row.id}{ext}', ContentFile(data), save=False)
+        row.save()
+        return w.add(label, row)
+
+    attach('sf_a', SessionFile(session=w['ses_a_att'], field='notes', uploaded_by=w['tutor_a']))
+    attach('sf_b', SessionFile(session=w['ses_b_att'], field='notes', uploaded_by=w['tutor_b']))
+
+    def exam(label, stu, days, status, **extra):
+        start = w.utc(days, hour=6)
+        return w.add(label, Exam.objects.create(
+            id=fixed_id(label), student=w[stu], mentor=w[stu].mentor, chapter_name='Real Numbers',
+            start_time=start, end_time=start + timedelta(hours=1), status=status, **extra,
+        ))
+
+    exam('exam_a', 'stu_a', 25, 'SCHEDULED')
+    exam('exam_a_done', 'stu_a', -5, 'ATTENDED', score=7, max_score=10)
+    exam('exam_b', 'stu_b', 25, 'SCHEDULED')
+    attach('ef_a', ExamFile(exam=w['exam_a_done'], uploaded_by=w['mentor_a']))
+
+    def additional(label, stu, status, **extra):
+        return w.add(label, AdditionalExam.objects.create(
+            id=fixed_id(label), student=w[stu], mentor=w[stu].mentor, title=f'Worksheet {label}', status=status, **extra,
+        ))
+
+    additional('add_a', 'stu_a', 'SUBMITTED', submitted_at=w.now)
+    additional('add_a_assigned', 'stu_a', 'ASSIGNED')
+    additional('add_b', 'stu_b', 'SUBMITTED', submitted_at=w.now)
+    attach('aqf_a', AdditionalExamFile(additional_exam=w['add_a'], kind='question_paper', uploaded_by=w['mentor_a']))
+    attach('aaf_a', AdditionalExamFile(additional_exam=w['add_a'], kind='answer_sheet', uploaded_by=w['parent_a']),
+           data=PNG, ext='.png', content_type='image/png')
+
+    def homework(label, ses, status, **extra):
+        return w.add(label, Homework.objects.create(
+            id=fixed_id(label), session=w[ses], student=w[ses].student, status=status,
+            assigned_by=w[ses].student.mentor, **extra,
+        ))
+
+    homework('hw_a_sub', 'ses_a_att', 'SUBMITTED', submitted_at=w.now)
+    homework('hw_a_scored', 'ses_a_att2', 'SCORED', submitted_at=w.now, scored_by=w['tutor_a'],
+             scored_at=w.now, score=8, max_score=10)
+    homework('hw_a_assigned', 'ses_a_att3', 'ASSIGNED')
+    homework('hw_b', 'ses_b_att', 'SUBMITTED', submitted_at=w.now)
+    attach('hwf_a_sub', HomeworkFile(homework=w['hw_a_sub'], uploaded_by=w['parent_a']), data=PNG, ext='.png',
+           content_type='image/png')
+    attach('hwf_a_scored', HomeworkFile(homework=w['hw_a_scored'], uploaded_by=w['parent_a']), data=PNG, ext='.png',
+           content_type='image/png')
+
+    def note(label, stu, author):
+        return w.add(label, StudentNote.objects.create(
+            id=fixed_id(label), student=w[stu], body=f'Note {label}', author=w[author],
+            author_name=w[author].full_name, author_role=w[author].role,
+        ))
+
+    note('note_m', 'stu_a', 'mentor_a')
+    note('note_t', 'stu_a', 'tutor_a')
+    note('note_b', 'stu_b', 'mentor_b')
+
+    w.add('inv_pending', Invitation.objects.create(
+        id=fixed_id('inv_pending'), email='pending.parent@matrix.test', role='STUDENT', status='PENDING',
+        extra_data={'student_code': 'MX-NEW1', 'full_name': 'New One'}, invited_by=w['admin'],
+    ))
+    w.add('inv_legacy', Invitation.objects.create(
+        id=fixed_id('inv_legacy'), email='legacy.staff@matrix.test', role='MENTOR', status='PENDING',
+        extra_data={'full_name': 'Legacy Staff'}, invited_by=w['admin'],
+    ))
+
+    def activity(label, actor, stu=None):
+        return w.add(label, ActivityLog.objects.create(
+            id=fixed_id(label), actor=w[actor], actor_email=w[actor].email, actor_name=w[actor].full_name,
+            actor_role=w[actor].role, action='matrix.fixture', entity_type='student' if stu else 'profile',
+            entity_id=w.id(stu) if stu else w.id(actor), entity_label=label, student=w[stu] if stu else None,
+        ))
+
+    activity('act_admin', 'admin')
+    activity('act_mentor_a', 'mentor_a', 'stu_a')
+    activity('act_tutor_a', 'tutor_a', 'stu_a')
+    activity('act_mentor_b', 'mentor_b', 'stu_b')
+
+    # The booking schedule (bookings app): one evening time per booking type,
+    # so the slot-management scenarios have a slot to show and close.
+    for booking_type in (BookingType.DEMO, BookingType.DIAGNOSTIC):
+        SlotTime.objects.create(booking_type=booking_type, start_time=time(19, 30))
+
+    # A lead (an enquiry), owned by nobody here: no caller is a BDE. The
+    # new-role world gives it to its BDE (add_new_role_accounts).
+    w.add('lead_a', Lead.objects.create(
+        id=fixed_id('lead_a'), parent_name='Matrix Parent', phone_dial_code='+971', phone_number='509000001',
+        phone_key='+971509000001', student_name='Matrix Lead', student_name_key='matrix lead',
+        school_name='Matrix School', grade='Class 8', syllabus='CBSE',
+    ))
+
+    # A Demo booking of another lead, nobody's either, with no tutor yet: the
+    # booking-management scenarios list it, show it, offer it the tutors,
+    # assign one, show its history, move it a day later and cancel it; no
+    # tutor's My Bookings shows it. Its slot, 19:30 IST two
+    # days ahead, clears every fixture class (09:30 IST) and still has seats
+    # for the public booking scenario.
+    w.add('lead_b', Lead.objects.create(
+        id=fixed_id('lead_b'), parent_name='Matrix Booker', phone_dial_code='+971', phone_number='509000002',
+        phone_key='+971509000002', student_name='Matrix Booked', student_name_key='matrix booked',
+        school_name='Matrix School', grade='Class 7', syllabus='CBSE',
+    ))
+    slot_day = indian_today(w.now) + timedelta(days=2)
+    starts_at, ends_at = slot_instants(slot_day, time(19, 30))
+    w.add('slot_a', BookingSlot.objects.create(
+        id=fixed_id('slot_a'), booking_type=BookingType.DEMO, local_date=slot_day, local_time=time(19, 30),
+        starts_at=starts_at, ends_at=ends_at,
+    ))
+    w.add('booking_a', DemoBooking.objects.create(
+        id=fixed_id('booking_a'), lead=w['lead_b'], slot=w['slot_a'], seat=1,
+        referral_status=ReferralStatus.NO_REF,
+    ))
+
+    # Sales Management: syllabus_a published (revision 1, no draft), syllabus_b
+    # never published (its draft revision 1), and the pricing in effect.
+    for label, published in (('syllabus_a', True), ('syllabus_b', False)):
+        w.add(label, Syllabus.objects.create(
+            id=fixed_id(label), created_by=w['admin2'], updated_by=w['admin2'], created_at=w.now, updated_at=w.now,
+        ))
+        revision = w.add(f'{label}_r1', SyllabusRevision.objects.create(
+            id=fixed_id(f'{label}_r1'), syllabus=w[label], number=1, **SALES_REVISION,
+            created_by=w['admin2'], updated_by=w['admin2'], created_at=w.now, updated_at=w.now,
+        ))
+        SyllabusChapter.objects.create(
+            id=fixed_id(f'{label}_ch1'), revision=revision, position=1, name='Matrix Chapter',
+            regular_classes=4, revision_classes=2,
+        )
+        if published:
+            SyllabusRevision.objects.filter(pk=revision.pk).update(published_at=w.now, published_by=w['admin2'])
+    w.add('pricing_v1', PricingVersion.objects.create(
+        id=fixed_id('pricing_v1'), version=1, currency='AED', standard_fee=45, offer_fee=35,
+        single_payment_percent=5, single_payment_plan_types=['REGULAR'], effective_from=w.now,
+        created_by=w['admin2'],
+    ))
+    # A quote (sales.quotes): admin2's, of syllabus_a's Regular course at pricing_v1 -- issued, not logged, so
+    # the activity scenarios read as before.
+    w.add('quote_a', sales_quotes.issue(
+        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR', collection_mode='FULL'),
+        quote_id=fixed_id('quote_a'),
+    ))
+    return w
+
+
+# --------------------------------------------------------------- scenarios
+
+class Scenario:
+    """One request: method, path ({label} and {self} placeholders), body, format, callers."""
+
+    def __init__(self, sid, method, path, body=None, fmt='json', callers=CALLERS, capture=None):
+        self.sid, self.method, self.path, self.body, self.fmt = sid, method, path, body, fmt
+        self.callers, self.capture = callers, capture
+
+
+# A syllabus revision's content (the matrix world's), and as the Admin sends a draft.
+SALES_REVISION = {
+    'title': 'Grade 8 CBSE', 'subtitle': 'Detailed Chapter-Wise 1:1 Learning Plan',
+    'package_title': 'Grade 8 CBSE – 1:1 Tuition Packages & Fee Details', 'grade': 8, 'board': 'CBSE',
+    'syllabus_version': 'New Syllabus', 'structure': 'CHAPTER_WISE', 'plan_types': ['REGULAR', 'REVISION'],
+    'inclusions': ['Personalized 1:1 live sessions'],
+}
+SALES_SYLLABUS = {
+    **SALES_REVISION, 'chapters': [{'name': 'Matrix Chapter', 'regular_classes': '4', 'revision_classes': '1.5'}],
+}
+
+
+# A Bridge Course bought by the day: syllabus_a is chapter-wise, so an administrator reaches the
+# selection and is refused NOT_A_BRIDGE_COURSE -- the scenario is who gets that far.
+SALES_SELECTION = {'chapter_ids': [str(fixed_id('syllabus_a_ch1'))]}
+
+
+def _draft_token(w):
+    """Publishing or discarding a world syllabus's draft (revision 1), as the Admin saw it."""
+    return {'revision': 1, 'updated_at': w.now.isoformat()}
+
+
+# A complete Demo report, as a tutor's submit or edit sends it.
+DEMO_REPORT = {
+    'assessment_review': 'Quick with mental arithmetic.',
+    'class_observation_review': 'Asked good questions.',
+    'suggested_strategy': 'Start with the algebra track.',
+}
+
+
+def pdf(name='matrix.pdf'):
+    return SimpleUploadedFile(name, PDF, content_type='application/pdf')
+
+
+def png(name='matrix.png'):
+    return SimpleUploadedFile(name, PNG, content_type='image/png')
+
+
+def _me(data):
+    user = data.get('user') or {}
+    return {'role': user.get('role'), 'permissions': user.get('permissions'), 'groups': user.get('groups')}
+
+
+def _dashboard(data):
+    return {key: data.get(key) for key in ('students', 'mentors', 'tutors', 'pending_invitations')}
+
+
+def _activity(data):
+    return {'count': data.get('count'), 'actor_options': len(data.get('actor_options') or [])}
+
+
+def _homework(data):
+    homework = data.get('homework') or {}
+    return {'submission_visible': homework.get('submission_visible'), 'submission': len(homework.get('submission') or [])}
+
+
+def _member(data):
+    return {'permissions': data.get('permissions'), 'role': data.get('role')}
+
+
+# A booking link's token is random, so a run records its shape, not its value.
+_LINK_TOKEN_RE = re.compile(r'([?&]ref=)[A-Za-z0-9_-]{22}$')
+
+
+def _booking_links(data):
+    return [
+        {'booking_type': link.get('booking_type'), 'url': _LINK_TOKEN_RE.sub(r'\1<token>', link.get('url') or '')}
+        for link in data.get('links') or []
+    ]
+
+
+def _bde_dashboard(data):
+    return {'enquiries': data.get('enquiries'), 'upcoming': (data.get('upcoming') or {}).get('total')}
+
+
+def _tutor_statuses(data):
+    return {tutor.get('full_name'): tutor.get('status') for tutor in data.get('tutors') or []}
+
+
+def _public_booking(w):
+    date, _time = w.day(2)
+    return {'date': date, 'time': '19:30', 'parent_name': 'Matrix Parent', 'student_name': 'Matrix Child',
+            'phone': {'dial_code': '+971', 'number': '0501234567'}, 'school': 'Matrix School',
+            'student_class': 'Class 8', 'syllabus': 'CBSE', 'ref': None}
+
+
+def _public_invite_booking(w):
+    date, _time = w.day(2)
+    return {'token': 'MatrixInviteToken', 'date': date, 'time': '19:30', 'display_time': '07:30 pm - 08:30 pm'}
+
+
+def _public_lead(w):
+    return {'source': 'WEBSITE', 'parent_name': 'Matrix Parent', 'student_name': 'Matrix Form Child',
+            'phone': {'dial_code': '+971', 'number': '0501234567'}, 'school': 'Matrix School', 'grade': 'Class 8',
+            'syllabus': 'CBSE', 'utm': {'utm_source': 'matrix'}}
+
+
+def _create_session(w, stu):
+    date, time = w.day(30)
+    return {'student_id': w.id(stu), 'base_title': 'Matrix Class', 'series': False, 'timezone': TZ,
+            'items': [{'local_date': date, 'local_time': time, 'duration_hours': 1}]}
+
+
+def _create_exam(w, stu, chapter):
+    date, time = w.day(31, hour=11)
+    return {'student_id': w.id(stu), 'chapter_name': chapter, 'timezone': TZ, 'local_date': date,
+            'local_time': time, 'duration_hours': 1}
+
+
+def _reschedule_exam(w):
+    date, time = w.day(32, hour=11)
+    return {'id': w.id('exam_a'), 'timezone': TZ, 'local_date': date, 'local_time': time, 'duration_hours': 1}
+
+
+ONLY_ANON = ('anon',)
+
+SCENARIOS = [
+    # --- account basics ---------------------------------------------------
+    Scenario('auth.csrf', 'get', '/api/auth/csrf/', callers=('anon', 'admin')),
+    Scenario('auth.login.admin', 'post', '/api/auth/login/', {'username': 'admin', 'password': PASSWORD}, callers=ONLY_ANON),
+    Scenario('auth.login.mentor', 'post', '/api/auth/login/', {'username': 'mentor.a', 'password': PASSWORD}, callers=ONLY_ANON),
+    Scenario('auth.login.student', 'post', '/api/auth/login/', {'username': 'parent.a', 'password': PASSWORD}, callers=ONLY_ANON),
+    Scenario('auth.login.unknown_role', 'post', '/api/auth/login/', {'username': 'unknown', 'password': PASSWORD}, callers=ONLY_ANON),
+    Scenario('auth.login.wrong', 'post', '/api/auth/login/', {'username': 'admin', 'password': 'wrong-password'}, callers=ONLY_ANON),
+    Scenario('auth.learn_login.empty', 'post', '/api/auth/learn/login/', {}, callers=ONLY_ANON),
+    Scenario('auth.me', 'get', '/api/auth/me/', capture=_me),
+    Scenario('auth.logout', 'post', '/api/auth/logout/'),
+    Scenario('auth.change_password.wrong', 'post', '/api/auth/change-password/',
+             {'current_password': 'wrong-password', 'new_password': 'Another-Long-Secret-42'}),
+    Scenario('auth.select_student.a', 'post', '/api/auth/select-student/', lambda w: {'student_id': w.id('stu_a')}),
+    Scenario('auth.select_student.c_expired', 'post', '/api/auth/select-student/', lambda w: {'student_id': w.id('stu_c')}),
+    Scenario('auth.select_student.b', 'post', '/api/auth/select-student/', lambda w: {'student_id': w.id('stu_b')}),
+
+    # --- team ---------------------------------------------------------------
+    Scenario('team.list', 'get', '/api/team/'),
+    Scenario('team.detail', 'get', '/api/team/{mentor_c}/', capture=_member),
+    Scenario('team.create.mentor', 'post', '/api/team/', {
+        'username': 'matrix.new', 'email': 'matrix.new@matrix.test', 'full_name': 'Matrix New',
+        'role': 'MENTOR', 'temporary_password': 'Temporary-Pass-2026!'}),
+    Scenario('team.create.admin', 'post', '/api/team/', {
+        'username': 'matrix.admin', 'email': 'matrix.admin@matrix.test', 'full_name': 'Matrix Admin',
+        'role': 'ADMIN', 'temporary_password': 'Temporary-Pass-2026!'}),
+    Scenario('team.update.name', 'patch', '/api/team/{mentor_c}/', {'full_name': 'Renamed Mentor'}, capture=_member),
+    Scenario('team.update.role', 'patch', '/api/team/{mentor_c}/', {'role': 'TUTOR'}, capture=_member),
+    Scenario('team.update.admin_target', 'patch', '/api/team/{admin2}/', {'full_name': 'Renamed Admin'}),
+    Scenario('team.update.self', 'patch', '/api/team/{self}/', {'full_name': 'Renamed Self'}, callers=SIGNED_IN),
+    Scenario('team.deactivate', 'post', '/api/team/{mentor_c}/deactivate/', {}),
+    Scenario('team.reactivate', 'post', '/api/team/{tutor_off}/reactivate/', {}),
+    Scenario('team.reset_password', 'post', '/api/team/{mentor_c}/reset-password/', {'temporary_password': 'Fresh-Start-Secret-77'}),
+    Scenario('team.permissions.grant', 'put', '/api/team/{tutor_a}/permissions/', {'permissions': ['accounts.view_team']}, capture=_member),
+    Scenario('team.permissions.catalogue', 'get', '/api/team/permissions/'),
+    # A tutor's permanent Google Meet link (BDE-to-PDF Phase 1): team managers only, tutors only.
+    Scenario('team.meet_link', 'put', '/api/team/{tutor_a}/meet-link/',
+             {'tutor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
+    # A mentor's permanent Google Meet link, where their chapter exams are held: team managers only, mentors only.
+    Scenario('team.mentor_meet_link', 'put', '/api/team/{mentor_c}/meet-link/',
+             {'mentor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
+
+    # --- legacy staff endpoints ----------------------------------------------
+    Scenario('staff.mentors', 'get', '/api/mentors/'),
+    Scenario('staff.tutors', 'get', '/api/tutors/'),
+    Scenario('staff.mentors.all', 'get', '/api/mentors/?all=true'),
+    Scenario('staff.admins', 'get', '/api/admins/'),
+    Scenario('staff.user.update', 'patch', '/api/users/{mentor_c}/', {'full_name': 'Legacy Rename'}),
+    Scenario('staff.user.status', 'post', '/api/users/{mentor_c}/status/', {'action': 'deactivate'}),
+    Scenario('staff.user.reassign', 'post', '/api/users/{mentor_a}/reassign/', lambda w: {'new_mentor': w.id('mentor_c')}),
+
+    # --- dashboards -----------------------------------------------------------
+    Scenario('dashboard.staff', 'get', '/api/dashboard/stats/', capture=_dashboard),
+    Scenario('dashboard.student', 'get', '/api/student/dashboard/'),
+
+    # --- students -------------------------------------------------------------
+    Scenario('students.list', 'get', '/api/students/'),
+    Scenario('students.update.a', 'put', '/api/students/', lambda w: {'id': w.id('stu_a'), 'full_name': 'Matrix Rename'}),
+    Scenario('students.update.b', 'put', '/api/students/', lambda w: {'id': w.id('stu_b'), 'full_name': 'Matrix Rename'}),
+    Scenario('students.update.quota', 'put', '/api/students/', lambda w: {'id': w.id('stu_a'), 'total_class_quota': 5}),
+    Scenario('students.reassign', 'post', '/api/students/reassign/',
+             lambda w: {'id': w.id('stu_a'), 'mentor': w.id('mentor_b'), 'tutor': w.id('tutor_a')}),
+    Scenario('students.purge', 'delete', '/api/students/{stu_p}/', {'confirm_code': 'MX-P'}),
+    Scenario('students.purge.history', 'delete', '/api/students/{stu_a}/', {'confirm_code': 'MX-A'}),
+    Scenario('students.profile.a', 'get', '/api/students/{stu_a}/profile/'),
+    Scenario('students.profile.b', 'get', '/api/students/{stu_b}/profile/'),
+    Scenario('students.profile.c_expired', 'get', '/api/students/{stu_c}/profile/'),
+    Scenario('students.sync_quota.a', 'post', '/api/students/{stu_a}/sync-quota/', {}),
+    Scenario('students.notes.list.a', 'get', '/api/students/{stu_a}/notes/'),
+    Scenario('students.notes.list.b', 'get', '/api/students/{stu_b}/notes/'),
+    Scenario('students.notes.add.a', 'post', '/api/students/{stu_a}/notes/', {'body': 'Matrix note'}),
+    Scenario('students.notes.edit.mentor_note', 'patch', '/api/students/notes/{note_m}/', {'body': 'Edited note'}),
+    Scenario('students.notes.delete.mentor_note', 'delete', '/api/students/notes/{note_m}/'),
+    Scenario('students.notes.delete.tutor_note', 'delete', '/api/students/notes/{note_t}/'),
+
+    # --- sessions -------------------------------------------------------------
+    Scenario('sessions.list', 'get', '/api/sessions/'),
+    Scenario('sessions.list.student_a', 'get', '/api/sessions/?student_id={stu_a}'),
+    Scenario('sessions.create.a', 'post', '/api/sessions/', lambda w: _create_session(w, 'stu_a')),
+    Scenario('sessions.create.b', 'post', '/api/sessions/', lambda w: _create_session(w, 'stu_b')),
+    Scenario('sessions.attend.a', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_a_one'), 'status': 'ATTENDED'}),
+    Scenario('sessions.attend.b', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_b_one'), 'status': 'ATTENDED'}),
+    Scenario('sessions.notes_link.a', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_a_one'), 'notes_link': 'https://n.matrix.test/new'}),
+    Scenario('sessions.notes_link.b', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_b_one'), 'notes_link': 'https://n.matrix.test/new'}),
+    Scenario('sessions.rate.a', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_a_att'), 'rating': 4}),
+    Scenario('sessions.cancel_put.a', 'put', '/api/sessions/',
+             lambda w: {'id': w.id('ses_a_one'), 'status': 'CANCELLED', 'cancellation_reason': 'Matrix'}),
+    Scenario('sessions.set_tutor.non_tutor', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_a_one'), 'tutor': w.id('mentor_b')}),
+    Scenario('sessions.set_tutor.tutor', 'put', '/api/sessions/', lambda w: {'id': w.id('ses_a_one'), 'tutor': w.id('tutor_b')}),
+    Scenario('sessions.reschedule.a', 'put', '/api/sessions/',
+             lambda w: {'id': w.id('ses_a_one'), 'start_time': w.utc(35).isoformat(), 'duration_hours': 1}),
+    Scenario('sessions.cancel_series.a', 'post', '/api/sessions/cancel/', lambda w: {
+        'session_id': w.id('ses_a_s1'), 'cancellation_reason': 'Matrix',
+        'new_last_start_time': w.utc(40).isoformat(), 'new_last_duration_hours': 1}),
+    Scenario('sessions.cancel_series.b', 'post', '/api/sessions/cancel-series/',
+             lambda w: {'session_id': w.id('ses_b_one'), 'cancellation_reason': 'Matrix'}),
+    Scenario('sessions.upload.notes.a', 'post', '/api/sessions/{ses_a_att2}/files/notes/', lambda w: {'file': pdf()}, fmt='multipart'),
+    Scenario('sessions.upload.recording.a', 'post', '/api/sessions/{ses_a_att2}/files/recording/', lambda w: {'file': pdf()}, fmt='multipart'),
+    Scenario('sessions.file.a', 'get', '/api/sessions/files/{sf_a}/'),
+    Scenario('sessions.file.b', 'get', '/api/sessions/files/{sf_b}/'),
+    # Start Session (sessions.lifecycle): ses_a_one is weeks away, so its tutor,
+    # stu_a's mentor and the administrators are told it is too early; everyone
+    # else is refused.
+    Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
+    # No-show / Not Conducted (the student's mentor and the administrators) and
+    # an outcome's correction or revocation (administrators only),
+    # sessions.lifecycle. ses_a_att has its homework under way and no recorded
+    # outcome, so whoever may act is told why not (409).
+    Scenario('sessions.outcome.a', 'post', '/api/sessions/{ses_a_att}/outcome/',
+             lambda w: {'reason': 'STUDENT_NO_SHOW'}),
+    Scenario('sessions.outcome_correct.a', 'post', '/api/sessions/{ses_a_att}/outcome/correct/',
+             lambda w: {'reason': 'TUTOR_ABSENT', 'correction_note': 'Matrix'}),
+    Scenario('sessions.outcome_revoke.a', 'post', '/api/sessions/{ses_a_att}/outcome/revoke/',
+             lambda w: {'correction_note': 'Matrix'}),
+
+    # --- exams ----------------------------------------------------------------
+    Scenario('exams.list', 'get', '/api/exams/'),
+    Scenario('exams.detail.a', 'get', '/api/exams/{exam_a}/'),
+    Scenario('exams.detail.b', 'get', '/api/exams/{exam_b}/'),
+    Scenario('exams.create.a', 'post', '/api/exams/', lambda w: _create_exam(w, 'stu_a', 'Real Numbers')),
+    Scenario('exams.create.b', 'post', '/api/exams/', lambda w: _create_exam(w, 'stu_b', 'Trigonometry')),
+    Scenario('exams.reschedule.a', 'put', '/api/exams/', _reschedule_exam),
+    Scenario('exams.cancel.a', 'put', '/api/exams/', lambda w: {'id': w.id('exam_a'), 'status': 'CANCELLED', 'cancellation_reason': 'Matrix'}),
+    Scenario('exams.result.a', 'post', '/api/exams/{exam_a}/result/', {'score': 8, 'max_score': 10}),
+    Scenario('exams.chapter_names.a', 'get', '/api/exams/chapter-names/?student_id={stu_a}'),
+    Scenario('exams.file.a', 'get', '/api/exams/files/{ef_a}/'),
+    Scenario('additional.list', 'get', '/api/additional-exams/'),
+    Scenario('additional.detail.a', 'get', '/api/additional-exams/{add_a}/'),
+    Scenario('additional.detail.b', 'get', '/api/additional-exams/{add_b}/'),
+    Scenario('additional.create.a', 'post', '/api/additional-exams/',
+             lambda w: {'student_id': w.id('stu_a'), 'title': 'Matrix Worksheet', 'files': [pdf()]}, fmt='multipart'),
+    Scenario('additional.submit.a', 'post', '/api/additional-exams/{add_a_assigned}/submit/', lambda w: {'files': [png()]}, fmt='multipart'),
+    Scenario('additional.score.a', 'post', '/api/additional-exams/{add_a}/score/', {'score': 8, 'max_score': 10}),
+    Scenario('additional.score.b', 'post', '/api/additional-exams/{add_b}/score/', {'score': 8, 'max_score': 10}),
+    Scenario('additional.file.question', 'get', '/api/additional-exams/files/{aqf_a}/'),
+    Scenario('additional.file.answer', 'get', '/api/additional-exams/files/{aaf_a}/'),
+    Scenario('student.scorecard', 'get', '/api/student/scorecard/?range=all'),
+    Scenario('student.scores', 'get', '/api/student/scores/?range=all'),
+
+    # --- homework -------------------------------------------------------------
+    Scenario('homework.list', 'get', '/api/homework/'),
+    Scenario('homework.detail.a_submitted', 'get', '/api/homework/{hw_a_sub}/', capture=_homework),
+    Scenario('homework.detail.a_scored', 'get', '/api/homework/{hw_a_scored}/', capture=_homework),
+    Scenario('homework.detail.b', 'get', '/api/homework/{hw_b}/', capture=_homework),
+    Scenario('homework.score.a', 'post', '/api/homework/{hw_a_sub}/score/', {'score': 8, 'max_score': 10}),
+    Scenario('homework.score.b', 'post', '/api/homework/{hw_b}/score/', {'score': 8, 'max_score': 10}),
+    Scenario('homework.submit.a', 'post', '/api/homework/{hw_a_assigned}/submit/', lambda w: {'files': [png()]}, fmt='multipart'),
+    Scenario('homework.file.a_submitted', 'get', '/api/homework/files/{hwf_a_sub}/'),
+    Scenario('homework.file.a_scored', 'get', '/api/homework/files/{hwf_a_scored}/'),
+
+    # --- activity -------------------------------------------------------------
+    Scenario('activity.list', 'get', '/api/activity/', capture=_activity),
+    Scenario('activity.student_a', 'get', '/api/activity/?student_id={stu_a}', capture=_activity),
+    Scenario('activity.subject_mentor_a', 'get', '/api/activity/?subject={mentor_a}', capture=_activity),
+
+    # --- invitations ----------------------------------------------------------
+    Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
+    # Regenerate Temporary Password: for whoever may reveal (inv_pending has no Learn account yet).
+    Scenario('invitations.credentials.regenerate', 'post', '/api/invitations/{inv_pending}/credentials/regenerate/',
+             {'last_password_reset_at': None}),
+    # Reset Password (an activated account): the same audience.
+    Scenario('invitations.credentials.reset', 'post', '/api/invitations/{inv_pending}/credentials/reset/',
+             {'last_password_reset_at': None}),
+    Scenario('invitations.list', 'get', '/api/invitations/'),
+    Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
+    Scenario('invitations.create.student', 'post', '/api/invitations/', lambda w: {
+        'role': 'student', 'email': 'new2.parent@matrix.test', 'student_code': 'MX-NEW2', 'full_name': 'New Two',
+        'mentor_id': w.id('mentor_a'), 'tutor_id': w.id('tutor_a')}),
+    Scenario('invitations.create.staff', 'post', '/api/invitations/', {'role': 'MENTOR', 'email': 'staff.new@matrix.test'}),
+    Scenario('invitations.edit_email', 'patch', '/api/invitations/',
+             lambda w: {'id': w.id('inv_pending'), 'new_email': 'changed.parent@matrix.test'}),
+    Scenario('invitations.withdraw.student', 'delete', '/api/invitations/', lambda w: {'id': w.id('inv_pending')}),
+    Scenario('invitations.withdraw.legacy_staff', 'delete', '/api/invitations/', lambda w: {'id': w.id('inv_legacy')}),
+
+    # --- BDE workspace --------------------------------------------------------
+    Scenario('bde.booking_links', 'get', '/api/bde/booking-links/', capture=_booking_links),
+    Scenario('bde.dashboard', 'get', '/api/bde/dashboard/', capture=_bde_dashboard),
+    Scenario('bde.enquiries.list', 'get', '/api/bde/enquiries/'),
+    Scenario('bde.enquiries.detail', 'get', '/api/bde/enquiries/{lead_a}/'),
+    # Staff's notes on their own enquiry (bookings.notes): lead_a is nobody's here; the new-role world gives it,
+    # with no notes yet, to its BDE.
+    Scenario('bde.enquiries.notes', 'get', '/api/bde/enquiries/{lead_a}/notes/'),
+    # Correcting the time zone their own enquiry's student books from (Student Local Time): lead_a is nobody's
+    # here; the new-role world gives it to its BDE.
+    Scenario('bde.enquiries.student_timezone', 'put', '/api/bde/enquiries/{lead_a}/student-timezone/',
+             {'student_timezone': 'Asia/Dubai'}),
+    # A BDE's Demo Bookings list (BDE Hub redesign, Phase 5): their own leads' bookings only.
+    Scenario('bde.bookings.list', 'get', '/api/bde/bookings/demo/'),
+    # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
+    Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
+    Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
+    Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
+        'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
+        'student_name': 'Matrix Walk-in', 'grade': 'Class 6', 'source': 'WALK_IN'}),
+
+    # --- Leads (administrators: every lead, adding one, giving it a BDE) -------
+    Scenario('leads.list', 'get', '/api/leads/'),
+    Scenario('leads.bdes', 'get', '/api/leads/bdes/'),
+    Scenario('leads.detail', 'get', '/api/leads/{lead_a}/'),
+    # Staff's notes on any lead (bookings.notes): lead_a has none yet.
+    Scenario('leads.notes', 'get', '/api/leads/{lead_a}/notes/'),
+    Scenario('leads.create', 'post', '/api/leads/', {
+        'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000002',
+        'student_name': 'Matrix Admin Lead', 'grade': 'Class 6', 'source': 'PHONE_CALL'}),
+    # No caller here is a BDE, so no account may take lead_a: mentor_a is refused as one.
+    Scenario('leads.assign_owner', 'put', '/api/leads/{lead_a}/owner/',
+             lambda w: {'bde_id': w.id('mentor_a'), 'current_owner_id': None}),
+    # Correcting any lead's student time zone (Student Local Time): lead_a has none yet.
+    Scenario('leads.student_timezone', 'put', '/api/leads/{lead_a}/student-timezone/',
+             {'student_timezone': 'Asia/Dubai'}),
+    # The admissions pipeline at a glance (bookings.admissions): the last seven days of leads and bookings.
+    Scenario('admissions.dashboard', 'get', '/api/admissions/dashboard/'),
+
+    # --- public booking and lead APIs (the marketing site's server key only) --
+    Scenario('public.booking_calendar', 'get', '/api/public/booking-calendar/demo/'),
+    Scenario('public.booking_create', 'post', '/api/public/bookings/demo/', _public_booking),
+    Scenario('public.lead_create', 'post', '/api/public/leads/', _public_lead),
+    # A Demo invitation's page: its state and its booking, the token in the body (bookings.demo_invites).
+    Scenario('public.demo_invite_state', 'post', '/api/public/demo-invites/state/', {'token': 'MatrixInviteToken'}),
+    Scenario('public.demo_invite_book', 'post', '/api/public/demo-invites/book/', _public_invite_booking),
+
+    # --- WhatsApp webhook (Meta's servers only, by signature; no session read) --
+    Scenario('communications.whatsapp_webhook_verify', 'get',
+             '/api/communications/webhooks/whatsapp/?hub.mode=subscribe&hub.verify_token=matrix&hub.challenge=42'),
+    Scenario('communications.whatsapp_webhook_status', 'post', '/api/communications/webhooks/whatsapp/',
+             {'object': 'whatsapp_business_account', 'entry': []}),
+    # --- parent communications in the Hub (every booking's, or a BDE's own leads') --
+    Scenario('communications.booking', 'get', '/api/communications/bookings/demo/{booking_a}/'),
+    Scenario('communications.preview', 'get',
+             '/api/communications/bookings/demo/{booking_a}/preview/?step=CONFIRMATION_REQUEST'),
+    Scenario('communications.request_confirmation', 'post',
+             '/api/communications/bookings/demo/{booking_a}/confirmation-request/'),
+    Scenario('communications.parent_confirmation', 'post',
+             '/api/communications/bookings/demo/{booking_a}/parent-confirmation/', {'outcome': 'CONFIRMED'}),
+    # How the 15-minute call went, recorded from a BDE's follow-ups (or by the Admin).
+    Scenario('communications.call_outcome', 'post',
+             '/api/communications/bookings/demo/{booking_a}/call-outcome/', {'outcome': 'CALLED'}),
+
+    # --- booking slots (administrators) ----------------------------------------
+    # A date that stays ahead of the clock, so it is always one that may change.
+    Scenario('bookings.slot_day', 'get', '/api/booking-slots/demo/2099-01-05/'),
+    Scenario('bookings.slot_change', 'post', '/api/booking-slots/demo/2099-01-05/',
+             {'action': 'close', 'times': ['19:30'], 'reason': 'Matrix'}),
+
+    # --- booking management (administrators) -------------------------------------
+    Scenario('bookings.list', 'get', '/api/bookings/demo/'),
+    Scenario('bookings.detail', 'get', '/api/bookings/demo/{booking_a}/'),
+    Scenario('bookings.tutors', 'get', '/api/bookings/demo/{booking_a}/tutors/', capture=_tutor_statuses),
+    Scenario('bookings.slot_tutors', 'get', '/api/bookings/slots/{slot_a}/tutors/', capture=_tutor_statuses),
+    Scenario('bookings.assign_tutor', 'put', '/api/bookings/demo/{booking_a}/tutor/', lambda w: {'tutor_id': w.id('tutor_a')}),
+    Scenario('bookings.unassign_tutor', 'delete', '/api/bookings/demo/{booking_a}/tutor/'),
+    # Booking operations (P3): the timeline, moving it a day later, cancelling it.
+    Scenario('bookings.history', 'get', '/api/bookings/demo/{booking_a}/history/'),
+    # ... and its student's whole History (bookings.timeline), every booking of theirs.
+    Scenario('bookings.history_student', 'get', '/api/bookings/demo/{booking_a}/history/?scope=student'),
+    Scenario('bookings.reschedule_options', 'get', '/api/bookings/demo/{booking_a}/reschedule-options/'),
+    Scenario('bookings.reschedule', 'post', '/api/bookings/demo/{booking_a}/reschedule/', lambda w: {
+        'date': (indian_today(w.now) + timedelta(days=3)).isoformat(), 'time': '19:30', 'reason': 'PARENT_REQUEST',
+    }),
+    Scenario('bookings.cancel', 'post', '/api/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # Its report, read-only (P6): booking_a has none.
+    Scenario('bookings.report', 'get', '/api/bookings/demo/{booking_a}/report/'),
+    Scenario('bookings.report_revisions', 'get', '/api/bookings/demo/{booking_a}/report/revisions/'),
+    # ... and as a PDF (P7), as last saved or at one version.
+    Scenario('bookings.report_pdf', 'get', '/api/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('bookings.report_revision_pdf', 'get', '/api/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
+    # A BDE cancels only their own leads' bookings (Q22): booking_a's lead is nobody's.
+    Scenario('bde.bookings.cancel', 'post', '/api/bde/bookings/demo/{booking_a}/cancel/', {'reason': 'PARENT_REQUEST'}),
+    # ... and reads only their own leads' reports (P9): lead_a and booking_a's lead are nobody's here; the new-role
+    # world gives lead_a, which has no report, to its BDE.
+    Scenario('bde.enquiries.reports', 'get', '/api/bde/enquiries/{lead_a}/reports/'),
+    Scenario('bde.bookings.report_pdf', 'get', '/api/bde/bookings/demo/{booking_a}/report/pdf/'),
+    # ... and keeps a send of their own leads' reports only: booking_a's lead is nobody's.
+    Scenario('bde.bookings.report_share', 'post', '/api/bde/bookings/demo/{booking_a}/report/share/'),
+    # A Diagnostic's Demo invitation for its parent (bookings.demo_invites): the Admin for any lead, a BDE for
+    # their own. booking_a is a Demo, never a Diagnostic, so whoever may send one is told it does not exist.
+    Scenario('bookings.demo_invite', 'post', '/api/bookings/diagnostic/{booking_a}/demo-invite/'),
+    Scenario('bde.bookings.demo_invite', 'post', '/api/bde/bookings/diagnostic/{booking_a}/demo-invite/'),
+    # A Re-Demo of a completed Demo (bookings.redemos): asked for by the Admin for any lead (booking_a is booked, not
+    # completed, so the Admin is told it may not be), or by a BDE for their own. The Re-Demo requests are the
+    # Admin's, who schedules them: no request has booking_a's id, so whoever may read them is told it does not exist.
+    Scenario('bookings.redemo_request', 'post', '/api/bookings/demo/{booking_a}/redemo/', {'reason': 'Matrix'}),
+    Scenario('bde.bookings.redemo_request', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/', {'reason': 'Matrix'}),
+    Scenario('bookings.redemos', 'get', '/api/bookings/redemos/'),
+    Scenario('bookings.redemo', 'get', '/api/bookings/redemos/{booking_a}/'),
+    Scenario('bookings.redemo_tutors', 'get', '/api/bookings/redemos/{booking_a}/tutors/'),
+    Scenario('bookings.redemo_slots', 'get', '/api/bookings/redemos/{booking_a}/slots/?tutor_id={tutor_a}'),
+    Scenario('bookings.redemo_schedule', 'post', '/api/bookings/redemos/{booking_a}/schedule/',
+             lambda w: {'tutor_id': w.id('tutor_a'), 'date': '2026-11-20', 'time': '10:00', 'remarks': 'Matrix'}),
+    Scenario('bookings.redemo_remarks', 'put', '/api/bookings/redemos/{booking_a}/remarks/', {'remarks': 'Matrix'}),
+    # Scheduling by time, and closing and reopening a request (2026-11-08): no request has booking_a's id.
+    Scenario('bookings.redemo_times', 'get', '/api/bookings/redemos/{booking_a}/times/'),
+    Scenario('bookings.redemo_slot_tutors', 'get', '/api/bookings/redemos/{booking_a}/slot-tutors/?date=2026-11-20&time=10:00'),
+    Scenario('bookings.redemo_close', 'post', '/api/bookings/redemos/{booking_a}/close/', {'reason': 'PARENT_DECLINED'}),
+    Scenario('bookings.redemo_reopen', 'post', '/api/bookings/redemos/{booking_a}/reopen/', {}),
+    # ... a BDE closes and reopens only their own lead's request: booking_a's lead is nobody's, and has none.
+    Scenario('bde.bookings.redemo_close', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/close/',
+             {'reason': 'PARENT_DECLINED'}),
+    Scenario('bde.bookings.redemo_reopen', 'post', '/api/bde/bookings/demo/{booking_a}/redemo/reopen/', {}),
+    # ... and reads the History of their own enquiries only (bookings.timeline): lead_a is nobody's here.
+    Scenario('bde.enquiries.history', 'get', '/api/bde/enquiries/{lead_a}/history/'),
+
+    # --- My Bookings (tutors: the bookings assigned to them) ----------------------
+    # booking_a has no tutor, so a tutor lists none and is not shown it.
+    Scenario('tutor_bookings.list', 'get', '/api/tutor/bookings/'),
+    Scenario('tutor_bookings.detail', 'get', '/api/tutor/bookings/demo/{booking_a}/'),
+    # Start Demo: booking_a has no tutor, so no one may start it.
+    Scenario('tutor_bookings.start', 'post', '/api/tutor/bookings/demo/{booking_a}/start/', {}),
+    # Staff's notes on an assigned booking's lead (bookings.notes): booking_a has no tutor, so no one reaches them.
+    Scenario('tutor_bookings.notes', 'get', '/api/tutor/bookings/demo/{booking_a}/notes/'),
+    # Its History (bookings.timeline): booking_a has no tutor, so no one reaches it.
+    Scenario('tutor_bookings.history', 'get', '/api/tutor/bookings/demo/{booking_a}/history/'),
+    # A tutor's report on an assigned booking (P6): booking_a has no tutor, so no one reaches its report.
+    Scenario('tutor_reports.read', 'get', '/api/tutor/bookings/demo/{booking_a}/report/'),
+    Scenario('tutor_reports.submit', 'post', '/api/tutor/bookings/demo/{booking_a}/report/', DEMO_REPORT),
+    Scenario('tutor_reports.edit', 'put', '/api/tutor/bookings/demo/{booking_a}/report/', {'version': 1, **DEMO_REPORT}),
+    Scenario('tutor_reports.revisions', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/'),
+    Scenario('tutor_reports.pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/pdf/'),
+    Scenario('tutor_reports.revision_pdf', 'get', '/api/tutor/bookings/demo/{booking_a}/report/revisions/1/pdf/'),
+    Scenario('tutor_reports.preview', 'post', '/api/tutor/bookings/demo/{booking_a}/report/preview/', DEMO_REPORT),
+
+    # --- Sales Management (administrators): the syllabuses on offer and the global pricing --
+    Scenario('sales.syllabi', 'get', '/api/sales/syllabi/'),
+    Scenario('sales.syllabus_create', 'post', '/api/sales/syllabi/', SALES_SYLLABUS),
+    Scenario('sales.syllabus', 'get', '/api/sales/syllabi/{syllabus_a}/'),
+    Scenario('sales.revision', 'get', '/api/sales/syllabi/{syllabus_a}/revisions/1/'),
+    # syllabus_a is published with no draft: its next draft starts; syllabus_b's draft saves and publishes.
+    Scenario('sales.draft_start', 'post', '/api/sales/syllabi/{syllabus_a}/draft/'),
+    Scenario('sales.draft_save', 'put', '/api/sales/syllabi/{syllabus_b}/draft/',
+             lambda w: {**SALES_SYLLABUS, 'updated_at': w.now.isoformat()}),
+    # syllabus_b was never published: its draft is the whole syllabus, so it is not discarded.
+    Scenario('sales.draft_discard', 'delete', '/api/sales/syllabi/{syllabus_b}/draft/', _draft_token),
+    Scenario('sales.publish', 'post', '/api/sales/syllabi/{syllabus_b}/publish/', _draft_token),
+    Scenario('sales.deactivate', 'post', '/api/sales/syllabi/{syllabus_a}/deactivate/'),
+    Scenario('sales.reactivate', 'post', '/api/sales/syllabi/{syllabus_a}/reactivate/'),
+    Scenario('sales.duplicate', 'post', '/api/sales/syllabi/{syllabus_a}/duplicate/'),
+    # The customer-facing PDF: what syllabus_a offers, one revision, and content not yet saved (the editor's preview).
+    Scenario('sales.pdf', 'get', '/api/sales/syllabi/{syllabus_a}/pdf/'),
+    Scenario('sales.revision_pdf', 'get', '/api/sales/syllabi/{syllabus_a}/revisions/1/pdf/?disposition=inline'),
+    Scenario('sales.pdf_preview', 'post', '/api/sales/syllabi/pdf-preview/?disposition=inline', SALES_SYLLABUS),
+    # A published Bridge Course's chosen days, priced and drawn (administrators, for now).
+    Scenario('sales.selection', 'post', '/api/sales/syllabi/{syllabus_a}/revisions/1/selection/', SALES_SELECTION),
+    Scenario('sales.selection_pdf', 'post', '/api/sales/syllabi/{syllabus_a}/revisions/1/selection/pdf/', SALES_SELECTION),
+    # The catalogue on sale (BDEs and administrators): syllabus_a is published and active, syllabus_b only a draft --
+    # not on sale, so absent from the list and not found; choosing days of syllabus_a (chapter-wise) is refused.
+    Scenario('sales.catalogue', 'get', '/api/sales/catalogue/'),
+    Scenario('sales.catalogue_syllabus', 'get', '/api/sales/catalogue/{syllabus_a}/'),
+    Scenario('sales.catalogue_draft', 'get', '/api/sales/catalogue/{syllabus_b}/'),
+    Scenario('sales.catalogue_pdf', 'get', '/api/sales/catalogue/{syllabus_a}/pdf/?disposition=inline'),
+    Scenario('sales.catalogue_selection', 'post', '/api/sales/catalogue/{syllabus_a}/selection/',
+             {**SALES_SELECTION, 'revision': 1}),
+    Scenario('sales.catalogue_selection_pdf', 'post', '/api/sales/catalogue/{syllabus_a}/selection/pdf/',
+             {**SALES_SELECTION, 'revision': 1}),
+    # Quotes: quote_a is admin2's (syllabus_a, Regular). Whoever quotes sees their own -- a BDE none -- and
+    # quotes; an administrator sees every one and cancels.
+    Scenario('sales.quotes', 'get', '/api/sales/quotes/'),
+    Scenario('sales.enquiry_plan', 'get', '/api/sales/enquiries/{lead_a}/plan/'),
+    Scenario('sales.quote_create', 'post', '/api/sales/quotes/',
+             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL'}),
+    Scenario('sales.quote', 'get', '/api/sales/quotes/{quote_a}/'),
+    Scenario('sales.quote_pdf', 'get', '/api/sales/quotes/{quote_a}/pdf/?disposition=inline'),
+    Scenario('sales.quote_cancel', 'post', '/api/sales/quotes/{quote_a}/cancel/', {'reason': 'Matrix'}),
+    Scenario('sales.pricing', 'get', '/api/sales/pricing/'),
+    Scenario('sales.pricing_change', 'post', '/api/sales/pricing/', {
+        'currency': 'AED', 'standard_fee': '45', 'offer_fee': '30', 'single_payment_percent': '5',
+        'single_payment_plan_types': ['REGULAR'], 'note': 'Matrix',
+    }),
+]
+
+
+# Phase 1 transports: same world/roles, no additional seeded data that could
+# change unrelated list scopes. Valid-object ownership, enrollment boundaries,
+# signed success/replay and parent tokens are covered by sales authorization tests.
+SCENARIOS += [
+    Scenario('initial_sales.read', 'get', '/api/sales/enquiries/{lead_a}/sale/'),
+    Scenario('initial_sales.foreign', 'get', '/api/sales/enquiries/{lead_b}/sale/'),
+    Scenario('initial_sales.start', 'post', '/api/sales/enquiries/{lead_a}/sale/', {'kind': 'NEW'}),
+    Scenario('initial_sales.amount', 'get', '/api/sales/enquiries/{lead_a}/sale/amount/?purpose=TUITION&classes=1&collection_mode=FULL'),
+    Scenario('initial_sales.collect', 'post', '/api/sales/enquiries/{lead_a}/sale/payments/',
+             {'request_id': str(fixed_id('payment_request')), 'purpose': 'TUITION', 'classes': '1', 'method': 'STRIPE'}),
+    Scenario('initial_sales.replacement', 'post', '/api/sales/enquiries/{lead_a}/installment-quote/', lambda w: {'quote_id': w.id('quote_a'), 'collection_mode': 'PARTIAL'}),
+    Scenario('initial_sales.replacement_preview', 'get', '/api/sales/enquiries/{lead_a}/installment-quote/?quote_id={quote_a}&collection_mode=PARTIAL'),
+    # Token Sale chosen with its plan in Plan Choosing (2026-11-16): the quote and the reservation together.
+    Scenario('initial_sales.token_sale', 'post', '/api/sales/enquiries/{lead_a}/token-sale/', lambda w: {
+        'syllabus': w.id('syllabus_a'), 'revision': 1, 'plan_type': 'REGULAR',
+        'expected_start_date': w.day(10)[0], 'balance_due_date': w.day(7)[0]}),
+    Scenario('initial_sales.proof', 'get', '/api/sales/payments/{stu_a}/proof/'),
+    Scenario('initial_sales.expire', 'post', '/api/sales/payments/{stu_a}/expire/', {}),
+    Scenario('initial_sales.student', 'get', '/api/sales/students/{stu_a}/initial-sale/'),
+    Scenario('initial_autopay.preview', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/preview/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}]}),
+    Scenario('initial_autopay.begin', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}],
+        'request_id': str(fixed_id('agreement_request')), 'review_token': 'not-signed'}),
+    Scenario('initial_autopay.restart', 'post', '/api/sales/autopay/{stu_a}/initial-checkout/', {'request_id': str(fixed_id('checkout_request'))}),
+    Scenario('initial_autopay.parent_invalid', 'get', '/api/sales/autopay/actions/invalid-proof/'),
+    Scenario('initial_sales.webhook_unsigned', 'post', '/api/sales/webhooks/stripe/', {}),
+]
+
+
+# Student financial identity: billing contact (BDE/Admin), audited identity
+# correction, Autopay cancellation and the Stripe review queue (Admin only).
+SCENARIOS += [
+    Scenario('student_accounts.billing_contact', 'put', '/api/sales/enquiries/{lead_a}/sale/billing-contact/', {'email': 'billing@matrix.test'}),
+    Scenario('student_accounts.correction', 'post', '/api/sales/accounts/{stu_a}/identity-correction/',
+             {'student_name': 'Matrix Child', 'reason': 'Matrix identity correction reason.'}),
+    Scenario('student_accounts.cancel_autopay', 'post', '/api/sales/autopay/{stu_a}/cancel/', {'reason': 'Matrix cancellation reason.'}),
+    Scenario('stripe_review.list', 'get', '/api/sales/stripe-review/'),
+    Scenario('stripe_review.resolve', 'post', '/api/sales/stripe-review/{stu_a}/resolve/', {'action': 'DISMISS', 'note': 'Matrix review note.'}),
+]
+
+
+# The Sales Dashboard: sales and collections across every student, for
+# administrators only (the same financial oversight as the review queue).
+SCENARIOS += [
+    Scenario('sales_dashboard.read', 'get', '/api/sales/dashboard/?from=2026-11-01&to=2026-11-07'),
+]
+
+
+# Additional purchases: the student's own mentor (or an administrator). The
+# matrix world's students have no student account and no additional sale, so
+# whoever gets past the permission and the mentor check is answered
+# NO_STUDENT_ACCOUNT or NOT_FOUND ({stu_a} stands in for a sale or payment ID).
+SCENARIOS += [
+    Scenario('additional_purchases.overview', 'get', '/api/sales/students/{stu_a}/purchases/'),
+    Scenario('additional_purchases.foreign', 'get', '/api/sales/students/{stu_b}/purchases/'),
+    Scenario('additional_purchases.create', 'post', '/api/sales/students/{stu_a}/purchases/', lambda w: {
+        'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL',
+        'request_id': str(fixed_id('additional_purchase_request'))}),
+    Scenario('additional_purchases.read', 'get', '/api/sales/purchases/{stu_a}/'),
+    Scenario('additional_purchases.amount', 'get', '/api/sales/purchases/{stu_a}/amount/?classes=1'),
+    Scenario('additional_purchases.collect', 'post', '/api/sales/purchases/{stu_a}/payments/',
+             {'request_id': str(fixed_id('additional_payment_request')), 'classes': '1'}),
+    Scenario('additional_purchases.expire', 'post', '/api/sales/purchases/{stu_a}/payments/{stu_a}/expire/', {}),
+]
+
+
+# Student finance after enrollment: the same audience as additional purchases
+# (the student's own mentor, or an administrator), answered the same way.
+SCENARIOS += [
+    Scenario('student_finance.overview', 'get', '/api/sales/students/{stu_a}/finance/'),
+    Scenario('student_finance.foreign', 'get', '/api/sales/students/{stu_b}/finance/'),
+    Scenario('student_finance.payments', 'get', '/api/sales/students/{stu_a}/payments/'),
+    Scenario('student_finance.proof', 'get', '/api/sales/purchases/{stu_a}/payments/{stu_a}/proof/'),
+]
+
+
+# Tutor Earnings (earnings app): every tutor's earnings, the rates, payments
+# and ledger corrections are the administrators' (and the superusers'); a
+# tutor reads their own under /me/. The matrix world has the activation (its
+# migration) but no pricing and no earning, so the rate, payment and tutor-rate
+# changes are answered PRICING_NOT_STARTED, starting pricing and an adjustment
+# go through (rolled back), and a payment or entry that does not exist is a 404.
+EARNINGS_MISSING = '00000000-0000-0000-0000-00000000e001'
+SCENARIOS += [
+    Scenario('earnings.overview', 'get', '/api/earnings/overview/'),
+    Scenario('earnings.rates', 'get', '/api/earnings/rates/'),
+    Scenario('earnings.rates_change', 'post', '/api/earnings/rates/', {'rates': {'SESSION': '410'}, 'reason': 'Matrix'}),
+    Scenario('earnings.rates_initial', 'post', '/api/earnings/rates/initial/', {
+        'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True}),
+    Scenario('earnings.review', 'get', '/api/earnings/review/'),
+    Scenario('earnings.tutor', 'get', '/api/earnings/tutors/{tutor_a}/'),
+    Scenario('earnings.tutor_entries', 'get', '/api/earnings/tutors/{tutor_a}/entries/'),
+    Scenario('earnings.tutor_rates', 'post', '/api/earnings/tutors/{tutor_a}/rates/',
+             {'rates': {'SESSION': '450'}, 'reason': 'Matrix'}),
+    Scenario('earnings.tutor_payment', 'post', '/api/earnings/tutors/{tutor_a}/payments/', lambda w: {
+        'request_id': str(fixed_id('earnings_payment_request')), 'amount': '100', 'paid_on': india_today().isoformat(),
+        'method': 'UPI', 'reference': 'UPI MATRIX 1'}),
+    Scenario('earnings.tutor_adjustment', 'post', '/api/earnings/tutors/{tutor_a}/adjustments/',
+             {'amount': '50', 'reason': 'Matrix'}),
+    Scenario('earnings.payment_void', 'post', f'/api/earnings/payments/{EARNINGS_MISSING}/void/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_reverse', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/reverse/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_keep', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/keep/', {'reason': 'Matrix'}),
+    Scenario('earnings.me', 'get', '/api/earnings/me/'),
+    Scenario('earnings.me_entries', 'get', '/api/earnings/me/entries/'),
+]
+
+
+# ------------------------------------------------------------------ running
+
+class _Placeholders(dict):
+    def __init__(self, world, caller):
+        super().__init__()
+        self.world, self.caller = world, caller
+
+    def __missing__(self, key):
+        if key == 'self':
+            return self.world.id(self.caller)
+        return self.world.id(key)
+
+
+def scenario_path(world, scenario, caller):
+    return scenario.path.format_map(_Placeholders(world, caller))
+
+
+def _mentions(world, data):
+    found = set()
+
+    def walk(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                walk(key)
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+        elif isinstance(value, str):
+            for match in UUID_RE.findall(value.lower()):
+                found.add(world.labels.get(match, 'new'))
+
+    walk(data)
+    return sorted(found)
+
+
+def _field_paths(data, prefix=''):
+    paths = set()
+    if isinstance(data, dict):
+        for key, value in data.items():
+            key = 'ID' if UUID_RE.fullmatch(str(key).lower()) else key
+            path = f'{prefix}.{key}' if prefix else str(key)
+            paths.add(path)
+            paths |= _field_paths(value, path)
+    elif isinstance(data, list):
+        for item in data:
+            paths |= _field_paths(item, f'{prefix}[]')
+    return paths
+
+
+def describe(world, response, capture=None):
+    result = {'status': response.status_code}
+    content_type = response.get('Content-Type', '')
+    if 'application/json' not in content_type:
+        result['content_type'] = content_type.split(';')[0]
+        if getattr(response, 'streaming', False):
+            # Consume it: the test client closes a streaming response once its
+            # content is read, without the request_finished handler that would
+            # close the test transaction's connection.
+            b''.join(response.streaming_content)
+        return result
+    data = response.json()
+    if isinstance(data, dict):
+        if isinstance(data.get('error'), str):
+            result['error'] = data['error']
+        if isinstance(data.get('message'), str):
+            result['message'] = UUID_RE.sub('<id>', data['message'])
+        if isinstance(data.get('detail'), str):
+            result['detail'] = data['detail']
+    result['records'] = _mentions(world, data)
+    result['fields'] = sorted(_field_paths(data))
+    if capture is not None and isinstance(data, dict):
+        result['capture'] = capture(data)
+    return result
+
+
+def run_scenario(world, scenario, caller):
+    cache.clear()  # throttles count in the cache; each request answers for itself
+    client = APIClient()
+    if caller != 'anon':
+        client.force_authenticate(user=User.objects.get(pk=world[caller].pk))
+        if caller == 'parent_a':
+            client.cookies['ep-student-id'] = world.id('stu_a')
+    path = scenario_path(world, scenario, caller)
+    body = scenario.body(world) if callable(scenario.body) else scenario.body
+    try:
+        with transaction.atomic():
+            if scenario.method == 'get':
+                response = client.get(path)
+            else:
+                response = getattr(client, scenario.method)(path, body or {}, format=scenario.fmt)
+            result = describe(world, response, scenario.capture)
+            transaction.set_rollback(True)
+    except Exception as exc:  # an unhandled server error is a result too
+        result = {'exception': type(exc).__name__}
+    return result
+
+
+def run_matrix(world, like_unknown=()):
+    """
+    Every scenario as every one of its callers: {"<scenario> @ <caller>": result}.
+    With ``like_unknown``, only the scenarios the unknown-role account is a
+    caller of, as that account and as each of these.
+    """
+    results = {}
+    with mock.patch.object(GoogleSheetsService, 'fetch_enrollment_rows', return_value=SHEET_ROWS):
+        for scenario in SCENARIOS:
+            if like_unknown:
+                callers = ('unknown', *like_unknown) if 'unknown' in scenario.callers else ()
+            else:
+                callers = scenario.callers
+            for caller in callers:
+                results[f'{scenario.sid} @ {caller}'] = run_scenario(world, scenario, caller)
+    return results
+
+
+def exercised_routes(world):
+    """The URL routes the scenarios reach, as written in the URLconf."""
+    routes = set()
+    for scenario in SCENARIOS:
+        path = scenario_path(world, scenario, scenario.callers[0]).split('?')[0]
+        routes.add(resolve(path).route)
+    return routes
+
+
+def api_url_patterns(patterns=None, prefix=''):
+    """(route, URL pattern) for every URL route under /api/, the route as written in the URLconf."""
+    for entry in get_resolver().url_patterns if patterns is None else patterns:
+        route = prefix + str(entry.pattern)
+        if isinstance(entry, URLResolver):
+            if route.startswith('api/'):
+                yield from api_url_patterns(entry.url_patterns, route)
+        elif route.startswith('api/'):
+            yield route, entry
+
+
+def api_routes():
+    """Every URL route under /api/, as written in the URLconf (with <params>)."""
+    for route, _pattern in api_url_patterns():
+        yield route

@@ -1,0 +1,107 @@
+/*
+ * The report PDFs (reports.pdf), after the Academic Report and Demo Report
+ * samples: the logo top right, an orange title with each word underlined, the
+ * details as aligned label / value rows, underlined section headings, and
+ * Calibri-like body text. The samples' sizes (18pt text, 24pt headings) are
+ * scaled down so a sample-sized report keeps its page count while still
+ * reading well on a phone. Nothing is ever clipped: long words wrap, and
+ * longer content runs onto further pages.
+ */
+
+@font-face { font-family: Carlito; src: url(fonts/Carlito-Regular.ttf); }
+@font-face { font-family: Carlito; font-weight: bold; src: url(fonts/Carlito-Bold.ttf); }
+@font-face { font-family: Arimo; font-weight: bold; src: url(fonts/Arimo-Bold.ttf); }
+
+@page {
+  size: A4;
+  margin: 14mm 18mm 18mm;
+}
+
+html {
+  font-family: Carlito, "DejaVu Sans", sans-serif;
+  font-size: 14pt;
+  line-height: 1.35;
+  color: #000;
+}
+
+body { margin: 0; }
+
+.masthead { margin-bottom: 8mm; }
+
+.logo {
+  display: block;
+  width: 45mm;
+  margin-left: auto;
+}
+
+/* The samples' title: Arial Bold in #ED7D31, each word underlined on its own. */
+.title {
+  margin: 6mm 0 0;
+  font-family: Arimo, "DejaVu Sans", sans-serif;
+  font-size: 30pt;
+  font-weight: bold;
+  line-height: 1.15;
+  color: #ED7D31;
+  text-align: center;
+}
+
+.title span { text-decoration: underline; }
+
+.details { border-collapse: collapse; }
+
+.details th,
+.details td {
+  padding: 1.3mm 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.details th {
+  width: 42mm;
+  font-weight: normal;
+}
+
+.details .colon { width: 5mm; }
+
+.details td { overflow-wrap: anywhere; }
+
+h2 {
+  margin: 7mm 0 2mm;
+  font-size: 18pt;
+  line-height: 1.2;
+  text-decoration: underline;
+  break-after: avoid;
+}
+
+h3 {
+  margin: 6mm 0 1.5mm;
+  font-size: 14pt;
+  break-after: avoid;
+}
+
+p { margin: 0; }
+
+.line + .line { margin-top: 1mm; }
+
+/* The tutor's own line breaks are kept. */
+.text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+ul {
+  margin: 0;
+  padding-left: 9mm;
+}
+
+li {
+  margin-bottom: 1mm;
+  padding-left: 1.5mm;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+}
+
+/* The Diagnostic sample's second page starts at the skills to strengthen. */
+.page-two { break-before: page; }
+
+.page-two h3 { margin-top: 0; }

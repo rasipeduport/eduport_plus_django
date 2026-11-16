@@ -12,10 +12,23 @@ class SessionAdmin(admin.ModelAdmin):
         ('Schedule', {'fields': ('start_time', 'end_time')}),
         ('Links', {'fields': ('recording_link', 'notes_link', 'homework_link')}),
         ('Feedback & Status', {'fields': ('status', 'rating', 'cancellation_reason')}),
+        ('Start & Completion', {'fields': ('started_at', 'started_by', 'completed_at', 'completed_by')}),
         ('Series Metadata', {'fields': ('series_id', 'class_number')}),
         ('Metadata', {'fields': ('created_at', 'updated_at')}),
     )
-    readonly_fields = ('created_at', 'updated_at')
+    # Who teaches a class, when, and whether it is still on are scheduling
+    # decisions: the sessions API checks them (quota, the student's and the
+    # tutor's other classes, Demo/Diagnostic bookings, an active tutor) under
+    # the scheduling lock. The admin can neither edit them nor add a class,
+    # so it cannot double-book a tutor; links, feedback and deletion stay.
+    # Its tutor's start and completion are theirs alone (sessions.lifecycle).
+    readonly_fields = (
+        'student', 'tutor', 'start_time', 'end_time', 'status', 'created_at', 'updated_at',
+        'started_at', 'started_by', 'completed_at', 'completed_by',
+    )
+
+    def has_add_permission(self, request):
+        return False
 
 admin.site.register(Session, SessionAdmin)
 

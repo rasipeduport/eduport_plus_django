@@ -1,8 +1,9 @@
-import { ArrowLeft, Video } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { PERMISSIONS, can, hasStudentActions } from '@/lib/access';
 import { getInitials } from '@/lib/utils';
 import { ActionCell } from '../action-cell';
 import { StudentStatusBadge } from './profile-primitives';
@@ -13,14 +14,16 @@ import { StudentStatusBadge } from './profile-primitives';
  * so opening a profile never means going back to the list to act.
  *
  * Tutors get the identity half only — their table row has no action menu
- * either, just a way into the student's classes.
+ * either, just a way into the student's classes. No Join here: a student has
+ * no room of their own. The Overview's Next Up joins the next class in its
+ * tutor's room and the next exam in its mentor's.
  */
-export function ProfileHeader({ student, role, onChanged }) {
+export function ProfileHeader({ student, user, onChanged }) {
   const name = student.full_name;
   const email = student.profile?.email ?? null;
-  const meetLink = (student.meet_link || '').trim();
-  // Mentors and admins share the row action menu; a tutor's row has none.
-  const canAct = role === 'admin' || role === 'mentor';
+  // The same action menu as the student's row in the table, for whoever it
+  // offers something; a tutor's row has none.
+  const canAct = can(user, PERMISSIONS.viewFullStudentRecord) && hasStudentActions(user);
   // Grades are stored as the school writes them ("10", "Grade 10", "Year 9"),
   // so the label is only added when the value does not already carry one.
   const grade = (student.grade || '').trim();
@@ -63,15 +66,7 @@ export function ProfileHeader({ student, role, onChanged }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {meetLink ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={meetLink} target="_blank" rel="noopener noreferrer">
-                <Video className="size-4" />
-                Join Meet
-              </a>
-            </Button>
-          ) : null}
-          {canAct ? <ActionCell student={student} role={role} onChanged={onChanged} showProfileLink={false} /> : null}
+          {canAct ? <ActionCell student={student} user={user} onChanged={onChanged} showProfileLink={false} /> : null}
         </div>
       </div>
     </div>

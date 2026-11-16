@@ -19,6 +19,8 @@ const sizeClass = {
  * Shared modal shell for the Hub's confirm/form dialogs. Standardizes width,
  * header, the inline error slot, and the Cancel / Confirm footer so every
  * dialog looks and behaves the same. Business logic stays in each caller.
+ * ``onCloseAutoFocus`` lets a caller that moves the focus itself once the
+ * dialog closes (to a field the API refused) stop it returning to the trigger.
  */
 export function FormDialog({
   open,
@@ -37,10 +39,11 @@ export function FormDialog({
   pending = false,
   size = 'sm',
   contentClassName,
+  onCloseAutoFocus,
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(sizeClass[size], contentClassName)}>
+      <DialogContent className={cn(sizeClass[size], contentClassName)} onCloseAutoFocus={onCloseAutoFocus}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}

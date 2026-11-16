@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ActivityList } from '@/components/activity/activity-list';
 import api from '@/lib/api';
+import { PERMISSIONS, can } from '@/lib/access';
 import { EmptyState, SectionHeading, TabSkeleton } from './profile-primitives';
 
 const PAGE_SIZE = 25;
@@ -14,7 +15,7 @@ const PAGE_SIZE = 25;
  * is the student's full history for an admin and the caller's own history for
  * everyone else, exactly as /activity is.
  */
-export function ActivityTab({ studentId, role }) {
+export function ActivityTab({ studentId, user }) {
   const [rows, setRows] = useState(null);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -56,7 +57,7 @@ export function ActivityTab({ studentId, role }) {
       <SectionHeading
         title={`${count} ${count === 1 ? 'entry' : 'entries'}`}
         description={
-          role === 'admin'
+          can(user, PERMISSIONS.viewAllActivity)
             ? 'Every change to this student, their classes, exams and homework.'
             : 'The changes you have made to this student and their classes.'
         }

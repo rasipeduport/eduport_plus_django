@@ -9,29 +9,51 @@ the profile's Overview tab reads: they are computed here rather than in the
 browser so a profile is one request, and so the numbers can never exceed what
 the caller is allowed to see -- every block goes through the same
 ``core.querysets`` scoping the list endpoints use.
+
+What a caller is shown follows their permissions, never their role:
+``accounts.view_full_student_record`` decides between the full row and the
+cut-down one, and the exam permissions decide whether exam counters appear.
 """
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from core.querysets import scope_exams_by_role
+from core.querysets import EXAM_VIEW_PERMISSIONS, scope_exams
 from sessions.models import Session, SessionStatusChoices
-from sessions.services import apply_content_filter, calculate_credits_used
+from sessions.lifecycle import ClassState
+from sessions.services import apply_content_filter, calculate_credits_used, state_q
 
 
-# A tutor's students table deliberately carries no contact details, no quota
-# and no assignment history -- "enough to identify a student and join their
-# class". Their profile is cut to the same shape, and server-side, because a
-# tutor has no write path that could be confused by the missing keys.
+# Without accounts.view_full_student_record (tutors) a student row carries no
+# contact details, no quota and no assignment history -- "enough to identify a
+# student and join their class". The list and the profile are cut to the same
+# shape, server-side, because a tutor has no write path that could be confused
+# by the missing keys (decision D2: the list used to hand tutors the full row
+# and leave the hiding to the browser).
 #
-# Mentors keep the full row the list endpoint already hands them: their
-# profile view hides email and state the way their columns do, but the payload
-# must stay complete because "Edit Profile" posts back every field it knows --
-# a redacted mentor payload would blank the columns it could not see.
+# Mentors hold the permission and keep the full row: their profile view hides
+# email and state the way their columns do, but the payload must stay complete
+# because "Edit Profile" posts back every field it knows -- a redacted mentor
+# payload would blank the columns it could not see.
 TUTOR_VISIBLE_FIELDS = (
     'id', 'student_code', 'full_name', 'status', 'status_note',
     'grade', 'syllabus', 'meet_link', 'created_at', 'timezone',
     'profile', 'mentor_profile', 'tutor_profile',
 )
+
+
+def _sees_full_record(user, request=None):
+    """
+    Whoever holds accounts.view_full_student_record gets the complete student
+    record; everyone else the tutor's cut-down view, so an account without the
+    permission gets the narrow view.
+    """
+    from accounts.authz import has_app_permission
+    return has_app_permission(user, 'accounts.view_full_student_record', request)
+
+
+def _sees_exams(user, request=None):
+    from accounts.authz import has_any_app_permission
+    return has_any_app_permission(user, EXAM_VIEW_PERMISSIONS, request)
 
 
 def _profile_brief(user):
@@ -49,7 +71,44 @@ def serialize_student(student):
     The student row as both the Hub's students table and the profile header
     read it. Shape is load-bearing for the SPA -- extend, don't rename.
     """
+    learning_plan = None
+    autopay_summary = None
+    if student.quota_source == 'PAYMENTS':
+        from sales.payment_models import Purchase
+        from sales.pricing import plain
+        from sales import quotes
+        purchase = Purchase.objects.select_related('quote__revision', 'sale').filter(
+            student=student, is_initial=True, sale__kind__in=['NEW', 'TOKEN']).first()
+        if purchase:
+            quote = purchase.quote
+            learning_plan = {'syllabus': quote.revision.title, 'revision': quote.revision.number,
+                             'plan_type': quote.plan_type, 'class_mode': quotes._class_mode(quote),
+                             'purchased_classes': plain(purchase.classes), 'paid_classes': plain(student.total_class_quota),
+                             'chapters': [{'position': row.chapter.position, 'name': row.chapter.name, 'classes': plain(row.classes)}
+                                          for row in quote.chapters.select_related('chapter').order_by('chapter__position')]}
+            from sales.autopay_models import AutopayAgreement
+            agreement = AutopayAgreement.objects.select_related('created_by').filter(purchase=purchase).first()
+            if agreement:
+                from sales.payments import received
+                future = agreement.installments.filter(position__gt=0).exclude(status='PAID')
+                if agreement.collection_engine == 'STRIPE_BILLING':
+                    future = future.filter(due_at__gt=timezone.now())
+                next_row = future.first()
+                attention = agreement.installments.filter(status__in=[
+                    'FAILED', 'REQUIRES_CUSTOMER_ACTION', 'REQUIRES_RECONCILIATION', 'UNKNOWN', 'VOID', 'UNCOLLECTIBLE']).first()
+                attention_status = attention.status if attention else None
+                if agreement.collection_engine == 'STRIPE_BILLING' and agreement.billing_status in ('REQUIRES_REVIEW', 'ERROR', 'UNKNOWN'):
+                    attention_status = agreement.billing_status
+                autopay_summary = {'id': str(agreement.pk), 'status': agreement.status, 'setup_status': agreement.setup_status,
+                    'billing_timezone': agreement.billing_timezone, 'next_collection_at': next_row.due_at.isoformat() if next_row else None,
+                    'remaining_amount': plain(purchase.amount - received(purchase.sale)['amount']),
+                    'creator': agreement.created_by.full_name or agreement.created_by.username, 'creator_role': agreement.creator_role, 'source': agreement.source,
+                    'attention_status': attention_status,
+                    'collection_engine': agreement.collection_engine, 'billing_status': agreement.billing_status,
+                    'stripe_subscription_id': agreement.stripe_subscription_id, 'stripe_subscription_status': agreement.stripe_subscription_status}
     return {
+        **({'learning_plan': learning_plan} if learning_plan else {}),
+        **({'autopay': autopay_summary} if autopay_summary else {}),
         "id": str(student.id),
         "student_code": student.student_code,
         "full_name": student.full_name,
@@ -63,6 +122,7 @@ def serialize_student(student):
         "created_at": student.created_at.isoformat(),
         "meet_link": student.meet_link or "",
         "total_class_quota": student.total_class_quota,
+        "quota_source": student.quota_source,
         "remarks_for_mentor": student.remarks_for_mentor or "",
         "status": student.status.lower(),
         "status_note": student.status_note or "",
@@ -78,14 +138,16 @@ def serialize_student(student):
     }
 
 
-def redact_student_for_role(data, user):
+def redact_student(data, user, request=None):
     """
-    Cut the student row down to what this caller's students table already
-    shows them. Keys are removed rather than blanked so the SPA can tell "not
-    visible to you" from "empty on the student".
+    Cut the student row down to what this caller may see of it. Keys are
+    removed rather than blanked so the SPA can tell "not visible to you" from
+    "empty on the student".
     """
-    role = getattr(user, 'role', None)
-    if role == 'TUTOR' and not user.is_superuser:
+    from accounts.authz import has_app_permission
+    if not (has_app_permission(user, 'accounts.view_all_students', request) and has_app_permission(user, 'accounts.manage_initial_sales', request)):
+        data.pop('autopay', None)
+    if not _sees_full_record(user, request):
         kept = {key: value for key, value in data.items() if key in TUTOR_VISIBLE_FIELDS}
         if kept.get('profile'):
             # The tutor's column set carries the avatar but no contact details.
@@ -114,6 +176,14 @@ def _session_stats(student):
     counts['pending'] = apply_content_filter(
         Session.objects.filter(student=student), 'missing_content'
     ).count()
+    # Where the classes stand (sessions.lifecycle.class_state): recorded as
+    # not conducted, and ended with their notes due or never started.
+    now = timezone.now()
+    counts.update(Session.objects.filter(student=student).aggregate(
+        not_conducted=Count('id', filter=state_q(ClassState.NOT_CONDUCTED, now)),
+        notes_due=Count('id', filter=state_q(ClassState.NOTES_DUE, now)),
+        not_started=Count('id', filter=state_q(ClassState.NOT_STARTED, now)),
+    ))
     return counts
 
 
@@ -138,7 +208,7 @@ def quota_stats(student):
     return _quota_stats(student)
 
 
-def _exam_stats(student, user):
+def _exam_stats(student, user, request=None):
     """
     Chapter + additional exam counters, or ``None`` for a caller with no exam
     access at all (tutors). Scoped through the same helper the exams endpoints
@@ -151,13 +221,13 @@ def _exam_stats(student, user):
         ExamStatusChoices,
     )
 
-    if getattr(user, 'role', None) == 'TUTOR' and not user.is_superuser:
+    if not _sees_exams(user, request):
         # Tutors are scoped to no exams at all, and "0 exams" would read as a
         # fact about the student rather than about the caller's access.
         return None
 
-    exams = scope_exams_by_role(Exam.objects.filter(student=student), user)
-    additional = scope_exams_by_role(AdditionalExam.objects.filter(student=student), user)
+    exams = scope_exams(Exam.objects.filter(student=student), user, request)
+    additional = scope_exams(AdditionalExam.objects.filter(student=student), user, request)
 
     chapter = exams.aggregate(
         total=Count('id'),
@@ -200,7 +270,7 @@ def _homework_stats(student):
     )
 
 
-def build_profile_stats(student, user):
+def build_profile_stats(student, user, request=None):
     """
     The Overview tab's numbers in one pass. ``exams`` is ``None`` when the
     caller has no exam access (tutor), which is how the SPA decides whether to
@@ -210,15 +280,15 @@ def build_profile_stats(student, user):
         "quota": _quota_stats(student),
         "sessions": _session_stats(student),
         "homework": _homework_stats(student),
-        "exams": _exam_stats(student, user),
+        "exams": _exam_stats(student, user, request),
     }
-    if getattr(user, 'role', None) == 'TUTOR' and not user.is_superuser:
+    if not _sees_full_record(user, request):
         # The tutor's students table deliberately omits quota.
         stats.pop('quota')
     return stats
 
 
-def profile_highlights(student, user):
+def profile_highlights(student, user, request=None):
     """
     The "Next up" strip: the next scheduled class, the last attended one and
     the next scheduled exam. Serialized with the same serializers the list
@@ -245,10 +315,10 @@ def profile_highlights(student, user):
 
     from exams.models import Exam, ExamStatusChoices
     from exams.serializers import ExamSerializer
-    next_exam = scope_exams_by_role(
+    next_exam = scope_exams(
         Exam.objects.filter(
             student=student, status=ExamStatusChoices.SCHEDULED, start_time__gte=now
-        ), user
+        ), user, request
     ).select_related('student', 'student__profile', 'mentor').prefetch_related('files').order_by('start_time').first()
     if next_exam:
         out['next_exam'] = ExamSerializer(next_exam).data

@@ -1,21 +1,26 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, BookOpen, CheckCircle2, ClipboardList, Mail, Video } from 'lucide-react';
+import { AlertTriangle, BookOpen, CalendarX, CheckCircle2, ClipboardList, FileText, Mail, Video } from 'lucide-react';
 
+import { classState } from '@/lib/session-lifecycle';
 import { cn } from '@/lib/utils';
 import { Panel } from './dashboard-primitives';
 
 /**
  * Items that need a staff member's hand, each counted from a list the Hub
- * already serves this role:
+ * already serves this account:
  *   - homework with status "submitted" (the tutor has not scored it yet)
  *   - attended classes whose notes / recording / homework are not all in
  *     (the API's derived display_status "pending")
- *   - pending invitations (the stats endpoint's count; admins act on them)
+ *   - ended classes nobody started, whose outcome is still to be recorded,
+ *     and classes whose tutor's notes are due (lib/session-lifecycle classState)
+ *   - pending invitations (the stats endpoint's count), for whoever may view invitations
  *   - additional exams with a submitted answer sheet and no score yet
  *     (tutors are not served the exam endpoints, so the row is left out)
- * Returns rows with a count, a hint and where to go to act on them.
+ * Returns rows with a count, a hint and where to go to act on them; the rows
+ * counted from the sessions list say so (`source: 'sessions'`).
  */
-export function attentionItems({ homework, sessions, additionalExams, stats, role }) {
+export function attentionItems({ homework, sessions, additionalExams, stats, canSeeInvitations, now = new Date() }) {
+  const states = sessions.map((s) => [s, classState(s, now)]);
   const items = [
     {
       key: 'homework',
@@ -26,13 +31,30 @@ export function attentionItems({ homework, sessions, additionalExams, stats, rol
     },
     {
       key: 'content',
+      source: 'sessions',
       icon: Video,
       label: 'Sessions missing content',
       count: sessions.filter((s) => (s.display_status || '').toLowerCase() === 'pending').length,
       to: '/sessions',
     },
+    {
+      key: 'not_started',
+      source: 'sessions',
+      icon: CalendarX,
+      label: 'Classes not started',
+      count: states.filter(([, state]) => state === 'not_started').length,
+      to: '/sessions?tab=needs_action',
+    },
+    {
+      key: 'notes_due',
+      source: 'sessions',
+      icon: FileText,
+      label: 'Session notes due',
+      count: states.filter(([, state]) => state === 'notes_due').length,
+      to: '/sessions?tab=needs_action',
+    },
   ];
-  if (role === 'ADMIN') {
+  if (canSeeInvitations) {
     items.push({
       key: 'invitations',
       icon: Mail,

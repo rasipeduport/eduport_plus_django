@@ -1,16 +1,33 @@
-# React + Vite
+# Eduport Plus Hub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The staff app: a React + Vite single-page app on top of the Django API (`backend/`), signed in with a
+username and password and Django session cookies.
 
-Currently, two official plugins are available:
+## Running it
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```
+cp .env.example .env     # VITE_API_URL and VITE_LEARN_URL; every VITE_* value is public
+npm install
+npm run dev              # http://localhost:3000
+```
 
-## React Compiler
+| Script | What it does |
+|---|---|
+| `npm run build` | Production bundle in `dist/` (the Docker image serves it with nginx) |
+| `npm run lint` | ESLint (`eslint.config.js`) |
+| `npm run test:access` | Access tests: what each kind of account is offered on every page |
+| `npm run format` / `format:check` | Prettier (not enforced: no shared config yet) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Who sees what
 
-## Expanding the ESLint configuration
+Everything the Hub offers follows the permissions `/api/auth/me/` reports for the signed-in account:
+`src/lib/access.js` maps each page to the permissions that open it and names the permissions behind
+in-page actions. An account that can open no page gets the No Access screen. The API enforces the same
+permissions on every request; the Hub only decides what to offer.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Access tests
+
+`tests/access/` renders the real app in jsdom for each kind of account, with the API answered from
+`fixtures.json` (real responses recorded from the backend's authorization-matrix world), and compares what
+each is offered with `baseline.json`. Any intended difference is listed, with the decision behind it, in
+`approved-changes.json`. `ACCESS_RECORD=1 npm run test:access` re-records the baseline.

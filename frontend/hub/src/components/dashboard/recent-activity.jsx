@@ -20,12 +20,13 @@ const ENTITY_ICON = {
 /**
  * The latest entries of the activity log, as /activity shows them: an admin
  * sees everyone's, a mentor or tutor their own (the API scopes the rows).
+ * `title` and `actionTo` (where View all opens) default to the log's own.
  */
-export function RecentActivity({ rows }) {
+export function RecentActivity({ rows, title = 'Recent Activity', actionTo = '/activity' }) {
   // Newest first, whatever order the page arrived in.
   const sorted = [...rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   return (
-    <Panel icon={History} title="Recent Activity" actionTo="/activity">
+    <Panel icon={History} title={title} actionTo={actionTo}>
       {rows.length === 0 ? (
         <PanelEmpty icon={History} message="No activity recorded yet." />
       ) : (

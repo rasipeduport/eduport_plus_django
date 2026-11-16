@@ -1,8 +1,9 @@
 """
 Celery application for the EduPlus backend.
 
-There is exactly one scheduled job (the enrolment-sheet quota sync), so this
-is kept as small as Celery allows: settings come from Django under the
+There are only a few scheduled jobs (the enrolment-sheet quota sync, the
+session purge, parent WhatsApp messages), so this is kept as small as
+Celery allows: settings come from Django under the
 ``CELERY_`` namespace, the schedule lives in ``settings.CELERY_BEAT_SCHEDULE``
 (a static dict -- no django-celery-beat, no extra tables, no migrations), and
 tasks are autodiscovered from each app's ``tasks.py``.

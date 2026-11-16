@@ -33,7 +33,7 @@ export default function AuthProvider({ children }) {
       if (location.pathname === '/login') {
         navigate('/dashboard');
       }
-    } catch (error) {
+    } catch {
       setUser(null);
       if (location.pathname !== '/login') {
         navigate('/login');

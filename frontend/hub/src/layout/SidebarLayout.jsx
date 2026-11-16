@@ -1,8 +1,10 @@
+import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import AppHeader from '@/components/app-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { REFRESH_ATTRIBUTE_VALUE, refreshedAt } from '@/lib/design';
 import { getInitials } from '@/lib/utils';
 
 // Routes already migrated to the shadcn design system. Everything else still
@@ -11,12 +13,37 @@ import { getInitials } from '@/lib/utils';
 // set's complement — i.e. add it here — as each page is ported.
 const PORTED_PATHS = new Set([
   '/dashboard',
+  // The staff dashboard under its Admin Hub and Tutor Hub name.
+  '/academics-dashboard',
+  // A tutor's Admissions Dashboard.
+  '/admissions-dashboard',
   '/students',
-  '/admins',
-  '/mentors',
-  '/tutors',
   '/invitations',
   '/activity',
+  '/team',
+  '/booking-slots',
+  '/bookings',
+  '/my-bookings',
+  '/enquiries',
+  '/leads',
+  // The Admin Hub redesign's new pages, built on the design tokens from the start.
+  '/admissions',
+  '/sales-dashboard',
+  '/sales-module',
+  '/sales-punching',
+  '/sales-syllabus',
+  '/sales-pricing',
+  '/tutor-earnings',
+  // The Tutor Hub's My Earnings, built on the design tokens from the start.
+  '/my-earnings',
+  // The BDE workspace's pages, built on the design tokens from the start.
+  '/demo-bookings',
+  '/diagnostic-bookings',
+  '/follow-ups',
+  '/sales',
+  '/plans',
+  // Quotes, the BDE's and the Admin Hub's alike.
+  '/quotes',
 ]);
 
 // Below the lg breakpoint (tablets) the sidebar starts collapsed to its icon
@@ -24,9 +51,27 @@ const PORTED_PATHS = new Set([
 // keeps the full sidebar. Phones use the sheet and ignore this value.
 const defaultSidebarOpen = () => (typeof window === 'undefined' ? true : window.innerWidth >= 1024);
 
+/**
+ * Mark the page for the refreshed design while `refreshed` (lib/design.js),
+ * before the browser paints, so neither the page nor a dialog portalled to
+ * <body> flashes the old colours; signing out, another account or a page kept
+ * in the current look clears it.
+ */
+function useDesign(refreshed) {
+  useLayoutEffect(() => {
+    if (!refreshed) return undefined;
+    const root = document.documentElement;
+    root.dataset.design = REFRESH_ATTRIBUTE_VALUE;
+    return () => {
+      delete root.dataset.design;
+    };
+  }, [refreshed]);
+}
+
 // Protected layout: collapsible sidebar + breadcrumb header.
 export default function SidebarLayout({ user, logout, children }) {
   const { pathname } = useLocation();
+  useDesign(refreshedAt(user, pathname));
 
   const userData = {
     name: user?.full_name ?? '',
@@ -34,11 +79,29 @@ export default function SidebarLayout({ user, logout, children }) {
     avatar: user?.avatar_url || '',
     initials: getInitials(user?.full_name, user?.email),
     role: user?.role ?? null,
+    // What the sidebar offers follows these (lib/access canOpenPage).
+    permissions: user?.permissions ?? [],
   };
 
-  // The student profile (/students/<id>) is built on the design tokens like
-  // the students list it opens from, so it takes the raw layout too.
-  const isPorted = PORTED_PATHS.has(pathname) || pathname.startsWith('/students/');
+  // The student profile (/students/<id>), a staff member's page (/team/<id>),
+  // an enquiry (/enquiries/<id>), a lead (/leads/<id>), the Demo and Diagnostic
+  // bookings (/bookings/<type>), a tutor's (/my-bookings/<type>, each
+  // booking's workspace and its report under it), a syllabus (new, its
+  // page and its draft's editor under /sales-syllabus/) and a plan on sale
+  // (/plans/<id>) are built on the design tokens like the lists they open
+  // from, so they take the raw layout too.
+  const isPorted =
+    PORTED_PATHS.has(pathname) ||
+    pathname.startsWith('/sales-syllabus/') ||
+    pathname.startsWith('/plans/') ||
+    pathname.startsWith('/quotes/') ||
+    pathname.startsWith('/tutor-earnings/') ||
+    pathname.startsWith('/students/') ||
+    pathname.startsWith('/team/') ||
+    pathname.startsWith('/enquiries/') ||
+    pathname.startsWith('/leads/') ||
+    pathname.startsWith('/bookings/') ||
+    pathname.startsWith('/my-bookings/');
 
   return (
     <SidebarProvider defaultOpen={defaultSidebarOpen()}>

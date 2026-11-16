@@ -1,8 +1,7 @@
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from django.test import override_settings
 from django.utils import timezone
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch
 from datetime import timedelta
@@ -14,220 +13,12 @@ from activity.models import ActivityLog
 User = get_user_model()
 
 
-@override_settings(ALLOW_MOCK_AUTH=True)
-class GoogleAuthenticationTests(APITestCase):
-    def setUp(self):
-        self.login_url = reverse('accounts:google-login')
-        self.logout_url = reverse('accounts:logout')
-        self.me_url = reverse('accounts:me')
+class RetiredGoogleAuthenticationTests(APITestCase):
+    """No Google token, invitation or existing parent can provision a Learn login."""
+    def test_google_login_is_not_available(self):
+        self.assertEqual(self.client.post('/api/auth/google/', {'credential': 'token'}).status_code, 404)
+        self.assertEqual(User.objects.count(), 0)
 
-        # Define email whitelist details
-        self.student_email = "student.jane@gmail.com"
-        self.student_code = "EDP00123"
-
-        # Create Mentor and Tutor for Student link tests
-        self.test_mentor = User.objects.create_user(
-            email="test_mentor@eduport.com",
-            password="password123",
-            full_name="Test Mentor",
-            role="MENTOR"
-        )
-        self.test_tutor = User.objects.create_user(
-            email="test_tutor@eduport.com",
-            password="password123",
-            full_name="Test Tutor",
-            role="TUTOR"
-        )
-
-        # Create a pending student invitation
-        self.student_invitation = Invitation.objects.create(
-            email=self.student_email,
-            role=InvitationRoleChoices.STUDENT,
-            status=InvitationStatusChoices.PENDING,
-            extra_data={
-                "student_code": self.student_code,
-                "full_name": "Jane Student",
-                "mobile_number": "+919999999999",
-                "grade": "11",
-                "syllabus": "ICSE",
-                "school_name": "St. Xavier School",
-                "country": "India",
-                "state": "Maharashtra",
-                "admission_date": "2026-06-19",
-                "total_class_quota": 10,
-                "mentor_id": str(self.test_mentor.id),
-                "tutor_id": str(self.test_tutor.id),
-                "meet_link": "https://meet.google.com/abc-defg-hij"
-            }
-        )
-
-        # Create a pending mentor invitation
-        self.mentor_email = "mentor.mark@eduport.com"
-        self.mentor_invitation = Invitation.objects.create(
-            email=self.mentor_email,
-            role=InvitationRoleChoices.MENTOR,
-            status=InvitationStatusChoices.PENDING,
-            extra_data={"full_name": "Mark Mentor"}
-        )
-
-    def test_login_missing_token_returns_400(self):
-        response = self.client.post(self.login_url, {})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["error"], "INVALID_INPUT")
-
-    def test_login_uninvited_email_returns_403(self):
-        # Use mock token fallback for uninvited email
-        mock_token = "mock:uninvited@gmail.com:Uninvited User:https://example.com/pic.png"
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["error"], "ACCESS_RESTRICTED")
-        
-        # Verify no User profile was created
-        self.assertFalse(User.objects.filter(email="uninvited@gmail.com").exists())
-
-    def test_login_uninvited_but_in_google_sheet_remains_restricted(self):
-        email = "sheets_student@gmail.com"
-        mock_token = f"mock:{email}:Jane Google Profile:https://lh3.googleusercontent.com/a"
-        
-        # Verify no invitation exists beforehand
-        self.assertFalse(Invitation.objects.filter(email=email).exists())
-        
-        # Perform login
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["error"], "ACCESS_RESTRICTED")
-        
-        # Verify no User profile was created
-        self.assertFalse(User.objects.filter(email=email).exists())
-
-
-    def test_login_first_time_student_onboards_and_creates_records(self):
-        # 1. Login with whitelisted student email
-        mock_token = f"mock:{self.student_email}:Jane Google Profile:https://lh3.googleusercontent.com/a"
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["status"], "onboarded")
-        self.assertTrue(response.data["is_new_user"])
-        
-        # 2. Verify User profile created
-        user = User.objects.filter(email=self.student_email).first()
-        self.assertIsNotNone(user)
-        self.assertEqual(user.role, 'STUDENT')
-        self.assertEqual(user.full_name, "Jane Google Profile") # Google profile name prioritized
-        self.assertEqual(user.avatar_url, "https://lh3.googleusercontent.com/a")
-        
-        # 3. Verify Student record created with same code
-        student = Student.objects.filter(profile=user).first()
-        self.assertIsNotNone(student)
-        self.assertEqual(student.student_code, self.student_code)
-        self.assertEqual(student.grade, "11")
-        self.assertEqual(student.school_name, "St. Xavier School")
-        self.assertEqual(str(student.admission_date), "2026-06-19")
-        self.assertEqual(student.total_class_quota, 10)
-        self.assertEqual(student.mentor, self.test_mentor)
-        self.assertEqual(student.tutor, self.test_tutor)
-        self.assertEqual(student.meet_link, "https://meet.google.com/abc-defg-hij")
-        
-        # 4. Verify Invitation marked ACCEPTED
-        self.student_invitation.refresh_from_db()
-        self.assertEqual(self.student_invitation.status, InvitationStatusChoices.ACCEPTED)
-
-        # 5. Verify Activity Log
-        log = ActivityLog.objects.filter(actor=user, action="user.onboarded").first()
-        self.assertIsNotNone(log)
-        self.assertEqual(log.entity_type, "profile")
-        self.assertEqual(log.entity_id, str(user.id))
-        self.assertEqual(log.student, student)
-
-    def test_login_first_time_mentor_onboards_without_student_record(self):
-        mock_token = f"mock:{self.mentor_email}:Mark Mentor:https://lh3.googleusercontent.com/b"
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["status"], "onboarded")
-        
-        # Verify User created
-        user = User.objects.filter(email=self.mentor_email).first()
-        self.assertIsNotNone(user)
-        self.assertEqual(user.role, 'MENTOR')
-        
-        # Verify NO student record was created
-        self.assertFalse(Student.objects.filter(profile=user).exists())
-
-    def test_subsequent_login_direct_session(self):
-        # Onboard first
-        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
-        
-        # Clear client session
-        self.client.logout()
-
-        # Login again
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "authenticated")
-        self.assertFalse(response.data["is_new_user"])
-
-        # Check ActivityLog for second login
-        user = User.objects.get(email=self.student_email)
-        login_log = ActivityLog.objects.filter(actor=user, action="user.sign_in").first()
-        self.assertIsNotNone(login_log)
-
-    def test_disabled_user_login_rejected(self):
-        # Onboard first
-        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
-        
-        # Disable user
-        user = User.objects.get(email=self.student_email)
-        user.is_active = False
-        user.save()
-
-        # Attempt login again
-        response = self.client.post(self.login_url, {"credential": mock_token})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data["error"], "USER_DISABLED")
-
-    def test_logout_clears_session(self):
-        # Login student
-        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        login_res = self.client.post(self.login_url, {"credential": mock_token})
-        
-        # Request me (should work)
-        me_res = self.client.get(self.me_url)
-        self.assertEqual(me_res.status_code, status.HTTP_200_OK)
-
-        # Logout
-        logout_res = self.client.post(self.logout_url)
-        self.assertEqual(logout_res.status_code, status.HTTP_200_OK)
-
-        # Request me again (should fail)
-        me_res2 = self.client.get(self.me_url)
-        self.assertEqual(me_res2.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_me_returns_profile_details(self):
-        # Onboard and login
-        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
-
-        response = self.client.get(self.me_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["user"]["email"], self.student_email)
-        self.assertEqual(response.data["student_profile"]["student_code"], self.student_code)
-        # Learn renders session times in the student's zone, so /me must carry it.
-        self.assertIn("timezone", response.data["student_profile"])
-
-    def test_me_carries_the_student_timezone(self):
-        mock_token = f"mock:{self.student_email}:Jane Google:https://lh3.googleusercontent.com/a"
-        self.client.post(self.login_url, {"credential": mock_token})
-        Student.objects.filter(student_code=self.student_code).update(timezone='Asia/Dubai')
-
-        response = self.client.get(self.me_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["student_profile"]["timezone"], 'Asia/Dubai')
-        self.assertEqual(response.data["student_profiles"][0]["timezone"], 'Asia/Dubai')
 
 class StaffManagementTests(APITestCase):
     def setUp(self):
@@ -273,52 +64,44 @@ class StaffManagementTests(APITestCase):
 
         self.client.force_authenticate(user=self.admin)
 
-    def test_admin_list_includes_pending_invitations_as_ghosts(self):
-        """Hub parity: the staff tables list pending invites above the accounts."""
-        response = self.client.get('/api/admins/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        admins = response.data.get("admins", [])
+    # --- retired (D3): Team replaced the full staff records, the details edit
+    # and the status endpoint. They answer 410 and log who called.
 
-        emails = [a["email"] for a in admins]
-        self.assertIn("admin@eduport.com", emails)
-        self.assertIn("ghost_admin@eduport.com", emails)
+    RETIRED_CALLS = (
+        ('get', '/api/admins/', None),
+        ('get', '/api/mentors/?all=true', None),
+        ('get', '/api/tutors/?all=true', None),
+        ('patch', '/api/users/{mentor}/', {'full_name': 'Renamed Mentor'}),
+        ('post', '/api/users/{tutor}/status/', {'action': 'deactivate'}),
+    )
 
-        active_admin = next(a for a in admins if a["email"] == "admin@eduport.com")
-        self.assertEqual(active_admin["kind"], "active")
+    def call_retired(self, method, url, body):
+        url = url.format(mentor=self.mentor.id, tutor=self.tutor.id)
+        if method == 'get':
+            return url, self.client.get(url)
+        return url, getattr(self.client, method)(url, body, format='json')
 
-        ghost_admin = next(a for a in admins if a["email"] == "ghost_admin@eduport.com")
-        self.assertEqual(ghost_admin["kind"], "ghost")
-        self.assertEqual(ghost_admin["role"], "admin")
-        self.assertEqual(str(self.ghost_admin.id), ghost_admin["id"])
+    def test_retired_staff_endpoints_answer_410_and_log_the_caller(self):
+        for caller in (self.admin, self.mentor):
+            self.client.force_authenticate(user=caller)
+            for method, url, body in self.RETIRED_CALLS:
+                with self.subTest(caller=caller.role, url=url):
+                    with self.assertLogs('accounts.retired_endpoints', 'WARNING') as logs:
+                        path, response = self.call_retired(method, url, body)
+                    self.assertEqual(response.status_code, status.HTTP_410_GONE)
+                    self.assertEqual(response.data['error'], 'ENDPOINT_RETIRED')
+                    self.assertIn(path.split('?')[0], logs.output[0])
+                    self.assertIn(str(caller.id), logs.output[0])
 
-        # Ghosts sort ahead of the real accounts.
-        self.assertLess(emails.index("ghost_admin@eduport.com"), emails.index("admin@eduport.com"))
-
-    def test_staff_list_excludes_accepted_invitations(self):
-        """An accepted invite is already represented by the account it created."""
-        self.ghost_admin.status = InvitationStatusChoices.ACCEPTED
-        self.ghost_admin.save(update_fields=["status"])
-
-        response = self.client.get('/api/admins/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        emails = [a["email"] for a in response.data.get("admins", [])]
-        self.assertNotIn("ghost_admin@eduport.com", emails)
-
-    def test_staff_list_ghosts_are_scoped_to_their_role(self):
-        response = self.client.get('/api/mentors/?all=true')
-        emails = [m["email"] for m in response.data.get("mentors", [])]
-        self.assertIn("ghost_mentor@eduport.com", emails)
-        self.assertNotIn("ghost_admin@eduport.com", emails)
-        self.assertNotIn("ghost_tutor@eduport.com", emails)
-
-    def test_mentor_list_all_includes_pending_invitations_as_ghosts(self):
-        response = self.client.get('/api/mentors/?all=true')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mentors = response.data.get("mentors", [])
-
-        emails = [m["email"] for m in mentors]
-        self.assertIn("mentor@eduport.com", emails)
-        self.assertIn("ghost_mentor@eduport.com", emails)
+    def test_retired_endpoints_change_nothing(self):
+        for method, url, body in self.RETIRED_CALLS:
+            self.call_retired(method, url, body)
+        self.mentor.refresh_from_db()
+        self.tutor.refresh_from_db()
+        self.assertEqual(self.mentor.full_name, 'Active Mentor')
+        self.assertTrue(self.tutor.is_active)
+        self.assertIsNone(self.tutor.deactivated_at)
+        self.assertFalse(ActivityLog.objects.filter(action__in=('user.update_details', 'user.deactivate')).exists())
 
     def test_mentor_list_default_returns_only_active_retains_compat(self):
         response = self.client.get('/api/mentors/')
@@ -328,65 +111,6 @@ class StaffManagementTests(APITestCase):
         emails = [m["email"] for m in mentors]
         self.assertIn("mentor@eduport.com", emails)
         self.assertNotIn("ghost_mentor@eduport.com", emails)
-
-    def test_edit_user_details(self):
-        url = f'/api/users/{self.mentor.id}/'
-        payload = {"full_name": "Updated Mentor Name", "mobile_number": "+919000000000"}
-        response = self.client.patch(url, payload)
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.mentor.refresh_from_db()
-        self.assertEqual(self.mentor.full_name, "Updated Mentor Name")
-        self.assertEqual(self.mentor.mobile_number, "+919000000000")
-
-    def test_edit_user_details_logs_expandable_old_new_diff(self):
-        """
-        The activity feed expands a row from `changes`, so a details edit has
-        to record a real {field: {old, new}} diff there -- not a summary of the
-        new values tucked into `context`.
-        """
-        before_name = self.mentor.full_name
-        url = f'/api/users/{self.mentor.id}/'
-        response = self.client.patch(
-            url,
-            {"full_name": "Renamed Mentor", "mobile_number": "+919000000000"},
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        log = ActivityLog.objects.filter(
-            action='user.update_details', entity_id=str(self.mentor.id)
-        ).first()
-        self.assertIsNotNone(log)
-        self.assertEqual(log.entity_type, 'profile')
-
-        self.assertEqual(log.changes["full_name"], {"old": before_name, "new": "Renamed Mentor"})
-        self.assertEqual(log.changes["mobile_number"], {"old": None, "new": "+919000000000"})
-        # The diff must not linger in context, where nothing renders it.
-        self.assertNotIn("changes", log.context or {})
-
-    def test_edit_user_details_omits_unchanged_fields_from_diff(self):
-        url = f'/api/users/{self.mentor.id}/'
-        # Re-send the name it already has, and change only the phone number.
-        response = self.client.patch(
-            url,
-            {"full_name": self.mentor.full_name, "mobile_number": "+919111111111"},
-            format='json'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        log = ActivityLog.objects.filter(
-            action='user.update_details', entity_id=str(self.mentor.id)
-        ).first()
-        self.assertIsNotNone(log)
-        self.assertIn("mobile_number", log.changes)
-        self.assertNotIn("full_name", log.changes)
-
-    def test_edit_user_details_empty_name_fails(self):
-        url = f'/api/users/{self.mentor.id}/'
-        payload = {"full_name": "  "}
-        response = self.client.patch(url, payload)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_user_delete_endpoint_removed(self):
         """
@@ -403,9 +127,10 @@ class StaffManagementTests(APITestCase):
 
 class StaffDirectoryAuthorizationTests(APITestCase):
     """
-    Role-based access control for the staff directory endpoints. These list
-    colleagues, so students must not reach them at all, and the full record
-    (email, mobile, inviter) is admin-only.
+    The staff directory endpoints need accounts.view_staff_directory (every
+    class-running staff role). They list colleagues, so students and roles
+    without the permission do not reach them at all. The full-record mode is
+    retired (D3): Team lists staff records.
     """
 
     MENTORS_URL = '/api/mentors/'
@@ -506,48 +231,15 @@ class StaffDirectoryAuthorizationTests(APITestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    # --- /api/admins/ : admins only -----------------------------------------
-
-    def test_admin_directory_allowed_for_admin(self):
-        self.client.force_authenticate(user=self.admin)
-        response = self.client.get(self.ADMINS_URL)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("dir_admin@eduport.com", self.emails(response, "admins"))
-
-    def test_admin_directory_forbidden_for_other_roles(self):
-        for user in (self.mentor, self.tutor, self.student_user):
-            with self.subTest(role=user.role):
-                self.client.force_authenticate(user=user)
-                response = self.client.get(self.ADMINS_URL)
-                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-                self.assertNotIn("admins", response.data)
-
-    # --- ?all=true : admins only --------------------------------------------
-
-    def test_all_true_allowed_for_admin(self):
-        self.client.force_authenticate(user=self.admin)
-        for url, key in ((self.MENTORS_URL, "mentors"), (self.TUTORS_URL, "tutors")):
-            with self.subTest(url=url):
-                response = self.client.get(url, {"all": "true"})
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(response.data[key])
-                self.assertIn("mobile_number", response.data[key][0])
-
-    def test_all_true_forbidden_for_non_admins(self):
-        for user in (self.mentor, self.tutor, self.student_user):
+    def test_roles_without_the_permission_cannot_read_directories(self):
+        for role in ('BDE', 'SALES_TL'):
+            account = User.objects.create_user(
+                email=f"dir_{role.lower()}@eduport.com", password="password123", full_name=role, role=role
+            )
+            self.client.force_authenticate(user=account)
             for url in (self.MENTORS_URL, self.TUTORS_URL):
-                with self.subTest(role=user.role, url=url):
-                    self.client.force_authenticate(user=user)
-                    response = self.client.get(url, {"all": "true"})
-                    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_all_true_is_not_downgraded_to_slim_response(self):
-        """A refused ?all=true must fail loudly, not return the slim payload."""
-        self.client.force_authenticate(user=self.mentor)
-        response = self.client.get(self.MENTORS_URL, {"all": "true"})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertNotIn("mentors", response.data)
-        self.assertEqual(response.data.get("error"), "FORBIDDEN")
+                with self.subTest(role=role, url=url):
+                    self.assertEqual(self.client.get(url).status_code, status.HTTP_403_FORBIDDEN)
 
     # --- payload shape -------------------------------------------------------
 
@@ -586,41 +278,14 @@ class StaffDirectoryAuthorizationTests(APITestCase):
         response = self.client.get(self.MENTORS_URL)
         self.assertNotIn("desynced_mentor@eduport.com", self.emails(response, "mentors"))
 
-    def test_deactivated_staff_included_in_full_directory_with_badge_field(self):
-        """
-        Parity with the Hub staff pages: the admin's full records include
-        deactivated staff (marked via deactivated_at) so they can be shown
-        with a badge and reactivated — only the assignable dropdowns hide them.
-        """
-        self.client.force_authenticate(user=self.admin)
-        for url, key, active, inactive in (
-            (self.MENTORS_URL, "mentors", "dir_mentor@eduport.com", "inactive_mentor@eduport.com"),
-            (self.TUTORS_URL, "tutors", "dir_tutor@eduport.com", "inactive_tutor@eduport.com"),
-        ):
-            with self.subTest(url=url):
-                response = self.client.get(url, {"all": "true"})
-                rows = {row["email"]: row for row in response.data.get(key, [])}
-                self.assertIn(active, rows)
-                self.assertIsNone(rows[active]["deactivated_at"])
-                self.assertIn(inactive, rows)
-                self.assertIsNotNone(rows[inactive]["deactivated_at"])
-
-    def test_deactivated_admin_included_in_admin_directory_with_badge_field(self):
-        self.client.force_authenticate(user=self.admin)
-        response = self.client.get(self.ADMINS_URL)
-        rows = {row["email"]: row for row in response.data.get("admins", [])}
-        self.assertIn("dir_admin@eduport.com", rows)
-        self.assertIsNone(rows["dir_admin@eduport.com"]["deactivated_at"])
-        self.assertIn("inactive_admin@eduport.com", rows)
-        self.assertIsNotNone(rows["inactive_admin@eduport.com"]["deactivated_at"])
-
 
 class StaffLifecycleTests(APITestCase):
     """
-    Soft-deactivation lifecycle (parity with the Hub's user-exit flow):
-    admin-only status endpoint, mentors/tutors only (admins are peers),
-    handover guard on ACTIVE students, bulk reassign that re-points open
-    scheduled sessions, session lockout, and reactivation.
+    The staff-exit handover (parity with the Hub's user-exit flow): the bulk
+    reassign that re-points a departing mentor's or tutor's ACTIVE students and
+    their open scheduled sessions, and what deactivation then does to the
+    assignment dropdowns. Deactivation and reactivation themselves are Team's
+    endpoints, tested in accounts.tests_team.TeamStatusTests.
     """
 
     def setUp(self):
@@ -689,121 +354,11 @@ class StaffLifecycleTests(APITestCase):
 
         self.client.force_authenticate(user=self.admin)
 
-    def status_url(self, user):
-        return f'/api/users/{user.id}/status/'
+    def deactivate(self, user, **body):
+        return self.client.post(f'/api/team/{user.id}/deactivate/', body, format='json')
 
     def reassign_url(self, user):
         return f'/api/users/{user.id}/reassign/'
-
-    # --- deactivate ----------------------------------------------------------
-
-    def test_deactivate_blocked_while_active_students_assigned(self):
-        res = self.client.post(self.status_url(self.mentor), {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
-        self.mentor.refresh_from_db()
-        self.assertIsNone(self.mentor.deactivated_at)
-        self.assertTrue(self.mentor.is_active)
-
-    def test_inactive_and_expired_assignments_do_not_block_deactivation(self):
-        """The handover guard counts ACTIVE students only (Hub parity)."""
-        self.active_student.mentor = self.mentor2
-        self.active_student.tutor = self.tutor2
-        self.active_student.save()
-        # mentor/tutor now hold only INACTIVE and EXPIRED students.
-        for target in (self.mentor, self.tutor):
-            with self.subTest(role=target.role):
-                res = self.client.post(self.status_url(target), {"action": "deactivate"}, format='json')
-                self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-    def test_deactivate_sets_lifecycle_fields_and_logs(self):
-        res = self.client.post(
-            self.status_url(self.tutor2),
-            {"action": "deactivate", "reason": "  Left the company  "},
-            format='json'
-        )
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tutor2.refresh_from_db()
-        self.assertIsNotNone(self.tutor2.deactivated_at)
-        self.assertEqual(self.tutor2.deactivated_by, self.admin)
-        self.assertEqual(self.tutor2.deactivation_reason, "Left the company")
-        self.assertFalse(self.tutor2.is_active)
-        # Role is kept for historical attribution.
-        self.assertEqual(self.tutor2.role, "TUTOR")
-
-        log = ActivityLog.objects.filter(action='user.deactivate', entity_id=str(self.tutor2.id)).first()
-        self.assertIsNotNone(log)
-        # Normalised entity vocabulary: new rows must not reintroduce 'USER'.
-        self.assertEqual(log.entity_type, 'profile')
-        self.assertEqual(log.changes["status"], {"old": "active", "new": "deactivated"})
-        self.assertEqual(log.context.get("reason"), "Left the company")
-
-    def test_deactivated_staff_session_is_locked_out(self):
-        """
-        A deactivated user's still-live session must die on their next request
-        (is_active=False makes ModelBackend.get_user return None).
-        """
-        live = APIClient()
-        self.assertTrue(live.login(email="lc_tutor2@eduport.com", password="password123"))
-        self.assertEqual(live.get('/api/auth/me/').status_code, status.HTTP_200_OK)
-
-        res = self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        blocked = live.get('/api/auth/me/')
-        self.assertIn(blocked.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
-
-    # --- reactivate ----------------------------------------------------------
-
-    def test_reactivate_clears_lifecycle_fields_and_logs(self):
-        self.client.post(self.status_url(self.tutor2), {"action": "deactivate", "reason": "x"}, format='json')
-        res = self.client.post(self.status_url(self.tutor2), {"action": "reactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tutor2.refresh_from_db()
-        self.assertIsNone(self.tutor2.deactivated_at)
-        self.assertIsNone(self.tutor2.deactivated_by)
-        self.assertIsNone(self.tutor2.deactivation_reason)
-        self.assertTrue(self.tutor2.is_active)
-
-        log = ActivityLog.objects.filter(action='user.reactivate', entity_id=str(self.tutor2.id)).first()
-        self.assertIsNotNone(log)
-        self.assertEqual(log.entity_type, 'profile')
-        self.assertEqual(log.changes["status"], {"old": "deactivated", "new": "active"})
-
-    # --- guards --------------------------------------------------------------
-
-    def test_admin_target_is_refused(self):
-        """Admins are peers: one admin never deactivates another (Hub parity)."""
-        res = self.client.post(self.status_url(self.other_admin), {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        self.other_admin.refresh_from_db()
-        self.assertIsNone(self.other_admin.deactivated_at)
-
-    def test_student_target_is_refused(self):
-        res = self.client.post(self.status_url(self.student_user), {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_non_admin_caller_is_refused(self):
-        for caller in (self.mentor, self.tutor, self.student_user):
-            with self.subTest(role=caller.role):
-                self.client.force_authenticate(user=caller)
-                res = self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
-                self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_unknown_target_is_404(self):
-        import uuid as uuid_mod
-        res = self.client.post(f'/api/users/{uuid_mod.uuid4()}/status/', {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_invalid_action_and_reason_are_rejected(self):
-        res = self.client.post(self.status_url(self.tutor2), {"action": "obliterate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        res = self.client.post(
-            self.status_url(self.tutor2),
-            {"action": "deactivate", "reason": "x" * 501},
-            format='json'
-        )
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     # --- reassign ------------------------------------------------------------
 
@@ -832,7 +387,7 @@ class StaffLifecycleTests(APITestCase):
         self.assertEqual(self.inactive_student_session.tutor, self.tutor)
 
         # The handover unblocks deactivation.
-        res = self.client.post(self.status_url(self.tutor), {"action": "deactivate"}, format='json')
+        res = self.deactivate(self.tutor)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         log = ActivityLog.objects.filter(action='staff.reassign_all', entity_id=str(self.tutor.id)).first()
@@ -889,26 +444,17 @@ class StaffLifecycleTests(APITestCase):
 
     # --- directory integration ----------------------------------------------
 
-    def test_deactivated_tutor_hidden_from_dropdown_but_in_full_records(self):
-        self.client.post(self.status_url(self.tutor2), {"action": "deactivate"}, format='json')
+    def test_deactivated_tutor_hidden_from_dropdown_but_in_team_records(self):
+        self.deactivate(self.tutor2)
 
         slim = self.client.get('/api/tutors/')
         slim_emails = [t["email"] for t in slim.data["tutors"]]
         self.assertNotIn("lc_tutor2@eduport.com", slim_emails)
 
-        full = self.client.get('/api/tutors/', {"all": "true"})
-        rows = {t["email"]: t for t in full.data["tutors"]}
+        team = self.client.get('/api/team/', {"role": "TUTOR"})
+        rows = {t["email"]: t for t in team.data}
         self.assertIn("lc_tutor2@eduport.com", rows)
         self.assertIsNotNone(rows["lc_tutor2@eduport.com"]["deactivated_at"])
-
-    def test_deactivate_blocked_for_tutor_with_active_students(self):
-        """The handover guard applies to tutors exactly as to mentors."""
-        res = self.client.post(self.status_url(self.tutor), {"action": "deactivate"}, format='json')
-        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(res.data.get("error"), "HANDOVER_REQUIRED")
-        self.tutor.refresh_from_db()
-        self.assertIsNone(self.tutor.deactivated_at)
-        self.assertTrue(self.tutor.is_active)
 
     def test_reassign_rejects_malformed_replacement_id(self):
         """A malformed body id must 400 (Hub parity: zod uuid), never 500."""
