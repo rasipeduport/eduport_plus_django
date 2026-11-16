@@ -261,7 +261,7 @@ export default function EnquiryPage({ user }) {
           ) : null}
           {canChoosePlan ? (
             <TabsContent value="plan-choosing">
-              <EnquiryPlanChoosing key={enquiry.id} enquiry={enquiry} />
+              <EnquiryPlanChoosing key={enquiry.id} enquiry={enquiry} user={user} />
             </TabsContent>
           ) : null}
           <TabsContent value="sales">

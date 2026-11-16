@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { CopyIcon, DownloadIcon, MessageCircleIcon, RefreshCwIcon, WalletIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
 import { whatsAppUrl } from '@/lib/enquiries';
 import { quotePlanLabel, salesError, quoteCollectionLabel } from '@/lib/sales';
-import { collectionCompatibility, collectPaymentUrl, expirePaymentUrl, PAYMENT_METHODS, paymentToday, saleAmountUrl, saleUrl, wholeAed } from '@/lib/payments';
+import { collectionCompatibility, collectPaymentUrl, expirePaymentUrl, PAYMENT_METHODS, paymentToday, saleAmountUrl, saleUrl, tokenStatusLabel, tokenWithoutPlan, wholeAed } from '@/lib/payments';
 import { useLinkCopy } from '@/hooks/use-link-copy';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -186,9 +186,23 @@ function CollectPayment({ enquiryId, state, onChanged }) {
           <div><dt className="text-muted-foreground">Remaining after this payment</dt><dd className="font-medium">{preview?.remaining_amount != null ? wholeAed(preview.remaining_amount) : '—'}</dd></div>
         </dl>
       </FormDialog>
-      <CollectionReplacementDialog open={replacing} onOpenChange={setReplacing} enquiryId={enquiryId} quote={state.quote} tokenSale={state.sale.kind === 'TOKEN'} onChanged={onChanged} />
+      {/* A token reservation can have no quote yet: then there is no intention to replace. */}
+      {state.quote ? <CollectionReplacementDialog open={replacing} onOpenChange={setReplacing} enquiryId={enquiryId} quote={state.quote} tokenSale={state.sale.kind === 'TOKEN'} onChanged={onChanged} /> : null}
     </WorkspaceCard>
   );
+}
+
+/** A received token with no tuition plan yet: the plan is chosen in Plan Choosing, its tuition collected here. */
+function ChooseTuitionPlan({ sale, canChoosePlan }) {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const next = new URLSearchParams(searchParams);
+  next.set('tab', 'plan-choosing');
+  return <WorkspaceCard icon={WalletIcon} title="Choose the tuition plan">
+    <p className="text-sm">The {wholeAed(sale.token_paid)} token is received. Choose the tuition plan next: the {wholeAed(sale.token_paid)} is credited against its package and reduces the first tuition payment, which is collected here.</p>
+    <p className="text-muted-foreground text-sm">The token alone does not enroll the student or add class quota.</p>
+    {canChoosePlan ? <div><Button asChild><Link to={{ search: `?${next}` }} state={location.state} replace>Choose tuition plan</Link></Button></div> : null}
+  </WorkspaceCard>;
 }
 
 export function PendingPayment({ payment, enquiry, onChanged, expireUrl = expirePaymentUrl(payment.id) }) {
@@ -250,20 +264,25 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
   if (!data) return <Skeleton className="h-48 w-full" aria-busy="true" />;
   const enrolled = Boolean(data.sale?.student);
   const compatibilityIssue = collectionCompatibility(data);
+  const noPlan = tokenWithoutPlan(data);
+  // A token reservation without a tuition plan has no tuition to total; a refund still shows.
+  const totals = [
+    ...(noPlan ? [] : [["Purchased classes", data.totals.purchased_classes], ["Paid classes", data.totals.paid_classes], ["Unpaid classes", data.totals.unpaid_classes], ["Used classes", data.totals.used_classes], ["Available quota", data.totals.available_quota], ["Amount received", wholeAed(data.totals.paid_amount)], ["Outstanding balance", wholeAed(data.totals.outstanding_amount ?? data.totals.remaining_amount)],
+      ...(Number(data.totals.classes_not_credited) > 0 ? [["Class quota", data.totals.class_quota], ["Paid, not added to quota", data.totals.classes_not_credited]] : [])]),
+    ...(Number(data.totals.refunded_amount) > 0 ? [["Refunded (classes unchanged)", `AED ${data.totals.refunded_amount}`], ["Net collected", `AED ${data.totals.net_collected}`]] : []),
+  ];
   return <div className="flex min-w-0 flex-col gap-4">
     <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Sales &amp; Payment</h2><Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button></div>
     {error ? <ErrorState message={error.message} onRetry={() => refresh()} /> : null}
-    {data.quote ? <QuoteSummary quote={data.quote} /> : <Notice>Choose a plan and issue a quote before collecting tuition. A token reservation can be started before a package is chosen.</Notice>}
+    {data.quote ? <QuoteSummary quote={data.quote} /> : <Notice>{data.sale?.kind === 'TOKEN' ? 'No tuition plan yet. The token reservation needs none: the AED 100 token is credited against the tuition plan chosen later in Plan Choosing.' : 'Choose a plan and issue a quote before collecting tuition. A token reservation can be started before a package is chosen.'}</Notice>}
     {data.sale && data.account ? <StudentAccountCard enquiryId={enquiryId} account={data.account} onChanged={refresh} /> : null}
     {data.sale ? <WorkspaceCard icon={WalletIcon} title={data.sale.kind === 'TOKEN' ? 'Token reservation' : 'New Sale'} action={enrolled ? <Badge variant="success">Enrolled</Badge> : null}>
-      {data.sale.kind === 'TOKEN' ? <p className="text-sm">{data.sale.reservation_reference} · Expected start: {data.sale.expected_start_date} · {data.sale.token_status} · Token paid: {wholeAed(data.sale.token_paid)}</p> : null}
-      <SaleFields rows={[["Purchased classes", data.totals.purchased_classes], ["Paid classes", data.totals.paid_classes], ["Unpaid classes", data.totals.unpaid_classes], ["Used classes", data.totals.used_classes], ["Available quota", data.totals.available_quota], ["Amount received", wholeAed(data.totals.paid_amount)], ["Outstanding balance", wholeAed(data.totals.outstanding_amount ?? data.totals.remaining_amount)],
-        ...(Number(data.totals.classes_not_credited) > 0 ? [["Class quota", data.totals.class_quota], ["Paid, not added to quota", data.totals.classes_not_credited]] : []),
-        ...(Number(data.totals.refunded_amount) > 0 ? [["Refunded (classes unchanged)", `AED ${data.totals.refunded_amount}`], ["Net collected", `AED ${data.totals.net_collected}`]] : [])]} />
+      {data.sale.kind === 'TOKEN' ? <p className="text-sm"><strong>{data.sale.reservation_reference}</strong> · Expected start: {data.sale.expected_start_date} · {tokenStatusLabel(data.sale, data.payments)} · Token paid: {wholeAed(data.sale.token_paid)}</p> : null}
+      {totals.length ? <SaleFields rows={totals} /> : null}
       {enrolled ? <p className="text-sm"><strong>{data.sale.student.student_code}</strong> · Enrollment complete. Payment records remain available here; further payments are collected by the student’s mentor or an administrator from the student’s Finance tab. {can(user, PERMISSIONS.viewAllStudents) ? <Link className="text-primary underline" to={`/students/${data.sale.student.id}`}>Open student and assign mentor</Link> : null}</p> : null}
     </WorkspaceCard> : <StartSale enquiryId={enquiryId} enquiry={enquiry} state={data} onChanged={refresh} />}
     {data.autopay ? <AutopaySummary agreement={data.autopay} action={data.can_cancel_autopay ? <CancelAutopay agreement={data.autopay} onChanged={refresh} /> : null} /> : null}
-    {data.sale && !enrolled ? pendingPayment ? <PendingPayment payment={pendingPayment} enquiry={enquiry} onChanged={refresh} /> : data.autopay ? <RestartAutopay agreement={data.autopay} onChanged={refresh} /> : compatibilityIssue ? <WorkspaceCard title="Replacement quote required"><QuoteCompatibilityNotice enquiryId={enquiryId} state={data} issue={compatibilityIssue} tokenSale={data.sale.kind === 'TOKEN'} onChanged={refresh} /></WorkspaceCard> : <CollectPayment key={`${data.sale.id}:${data.purchase?.id}:${data.quote?.id}:${data.sale.token_paid}:${data.totals.paid_classes}`} enquiryId={enquiryId} state={data} onChanged={refresh} /> : null}
+    {data.sale && !enrolled ? pendingPayment ? <PendingPayment payment={pendingPayment} enquiry={enquiry} onChanged={refresh} /> : data.autopay ? <RestartAutopay agreement={data.autopay} onChanged={refresh} /> : compatibilityIssue ? <WorkspaceCard title="Replacement quote required"><QuoteCompatibilityNotice enquiryId={enquiryId} state={data} issue={compatibilityIssue} tokenSale={data.sale.kind === 'TOKEN'} onChanged={refresh} /></WorkspaceCard> : noPlan && Number(data.sale.token_paid) > 0 ? <ChooseTuitionPlan sale={data.sale} canChoosePlan={can(user, PERMISSIONS.viewSalesCatalogue) && can(user, PERMISSIONS.createSalesQuotes)} /> : <CollectPayment key={`${data.sale.id}:${data.purchase?.id}:${data.quote?.id}:${data.sale.token_paid}:${data.totals.paid_classes}`} enquiryId={enquiryId} state={data} onChanged={refresh} /> : null}
     {data.payments.length ? <PaymentHistory rows={data.payments} /> : null}
   </div>;
 }

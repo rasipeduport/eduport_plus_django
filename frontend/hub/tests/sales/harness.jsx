@@ -3,8 +3,9 @@
 // /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit), Global
 // Pricing (/sales-pricing), the BDE's Plans & Pricing (/plans,
 // /plans/:syllabusId), Quotes (/quotes, /quotes/:quoteId), the Sales Dashboard
-// (/sales-dashboard) and a student's profile (/students/:studentId, for its
-// Purchases tab) -- with only the API a stand-in (api-stub.js).
+// (/sales-dashboard), a student's profile (/students/:studentId, for its
+// Purchases tab) and an administrator's lead (/leads/:leadId, for its Plan
+// Choosing and Sales & Payment tabs) -- with only the API a stand-in (api-stub.js).
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -12,6 +13,7 @@ import PlanPage from '@/pages/PlanPage';
 import PlansPage from '@/pages/PlansPage';
 import AutopayActionPage from '@/pages/AutopayActionPage';
 import EnquiryPage from '@/pages/EnquiryPage';
+import LeadPage from '@/pages/LeadPage';
 import QuotePage from '@/pages/QuotePage';
 import QuotesPage from '@/pages/QuotesPage';
 import SalesDashboardPage from '@/pages/SalesDashboardPage';
@@ -46,6 +48,7 @@ export async function mount(path, user, { layout = false } = {}) {
       { path: '/autopay/confirm/:token', element: <AutopayActionPage /> },
       { path: '/plans/:syllabusId', element: inLayout(<PlanPage user={user} />) },
       { path: '/enquiries/:enquiryId', element: inLayout(<EnquiryPage user={user} />) },
+      { path: '/leads/:leadId', element: inLayout(<LeadPage user={user} />) },
       { path: '/quotes', element: inLayout(<QuotesPage user={user} />) },
       { path: '/quotes/:quoteId', element: inLayout(<QuotePage user={user} />) },
       { path: '/students/:studentId', element: inLayout(<StudentProfilePage user={user} />) },

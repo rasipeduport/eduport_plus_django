@@ -330,7 +330,7 @@ export default function LeadPage({ user }) {
         <Tabs value={['overview', 'plan-choosing', 'sales'].includes(params.get('tab')) ? params.get('tab') : 'overview'} onValueChange={(tab) => { const next = new URLSearchParams(params); next.set('tab', tab); setParams(next); }}>
           <TabsList variant="line"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="plan-choosing">Plan Choosing</TabsTrigger><TabsTrigger value="sales">Sales &amp; Payment</TabsTrigger></TabsList>
           <TabsContent value="overview">{content}</TabsContent>
-          <TabsContent value="plan-choosing"><p className="mb-4 font-medium">{lead.student_name} · Parent: {lead.parent_name}</p><EnquiryPlanChoosing enquiry={lead} /></TabsContent>
+          <TabsContent value="plan-choosing"><p className="mb-4 font-medium">{lead.student_name} · Parent: {lead.parent_name}</p><EnquiryPlanChoosing enquiry={lead} user={user} /></TabsContent>
           <TabsContent value="sales"><p className="mb-4 font-medium">{lead.student_name} · Parent: {lead.parent_name}</p><EnquirySalesPayment enquiryId={lead.id} enquiry={lead} user={user} /></TabsContent>
         </Tabs>
       ) : content}

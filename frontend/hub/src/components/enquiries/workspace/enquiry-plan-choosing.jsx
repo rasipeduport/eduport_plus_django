@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeftIcon, FileTextIcon, ReceiptTextIcon } from 'lucide-react';
+import { ArrowLeftIcon, FileTextIcon, ReceiptTextIcon, TicketIcon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { catalogueUrl, chapterPlanError, enquiryPlanUrl, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
+import { can, PERMISSIONS } from '@/lib/access';
+import { saleUrl, tokenStatusLabel } from '@/lib/payments';
+import { catalogueUrl, chapterPlanError, enquiryPlanUrl, QUOTE_COLLECTION_MODES, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +18,27 @@ import { QuoteChapters, QuoteFigures, QuoteStatusBadge } from '@/components/sale
 import { SyllabusActions } from '@/components/sales/syllabus-actions';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import PlansPage from '@/pages/PlansPage';
+
+// A Token Sale's tuition quote is Single / Complete or Partial: never AutoPay (sales.payments require_token_quote).
+const TOKEN_SALE_MODES = QUOTE_COLLECTION_MODES.filter((option) => option.value !== 'AUTOPAY');
+
+/** The enquiry's token reservation (its sale state): the tuition plan chosen here is what the token is credited against. */
+function TokenReservation({ state }) {
+  const { sale } = state;
+  return (
+    <WorkspaceCard icon={TicketIcon} title="Token reservation">
+      <Fields>
+        <Field label="Reservation">{sale.reservation_reference}</Field>
+        <Field label="Expected start">{sale.expected_start_date}</Field>
+        <Field label="Token (AED 100)">{tokenStatusLabel(sale, state.payments)}</Field>
+      </Fields>
+      <p className="text-muted-foreground text-sm">
+        The quote chosen here is the tuition package: it must be worth more than AED 100, and the AED 100 token is credited against it. A
+        Token Sale is quoted with Single / Complete Payment or Partial Payment; AutoPay is not available.
+      </p>
+    </WorkspaceCard>
+  );
+}
 
 function SavedPlan({ quote, locked, onEdit }) {
   const pdf = useSyllabusPdf({ snapshot: true });
@@ -58,7 +81,7 @@ function SavedPlan({ quote, locked, onEdit }) {
 }
 
 /** One selected syllabus only; all selection and pricing helpers are shared with Sales. */
-function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked, onBack, onIssued, onConflict }) {
+function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked, tokenSale = false, onBack, onIssued, onConflict }) {
   const [detail, setDetail] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -118,7 +141,9 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const partial = plan === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
   const ids = partial ? chapterIds : [];
   const selectionError = plan === 'CHAPTER_PLAN' ? chapterPlanError(detail.chapters, ids, classMode) : null;
-  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode, collectionMode) : null;
+  // A restored or earlier AutoPay choice is no choice for a Token Sale.
+  const mode = tokenSale && collectionMode === 'AUTOPAY' ? null : collectionMode;
+  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode, mode) : null;
   const disabled = locked || Boolean(refusal);
 
   return (
@@ -159,8 +184,9 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         onBridgeMode={setBridgeMode}
         chapterIds={chapterIds}
         onChapterIds={setChapterIds}
-        collectionMode={collectionMode}
+        collectionMode={mode}
         onCollectionMode={setCollectionMode}
+        collectionModes={tokenSale ? TOKEN_SALE_MODES : undefined}
         classMode={classMode}
         onClassMode={setClassMode}
         selectionError={selectionError}
@@ -174,7 +200,7 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         syllabusId={syllabusId}
         detail={detail}
         planType={plan}
-        collectionMode={collectionMode}
+        collectionMode={mode}
         classMode={classMode}
         chapterIds={ids}
         preview={preview}
@@ -191,13 +217,16 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   );
 }
 
-export function EnquiryPlanChoosing({ enquiry }) {
+export function EnquiryPlanChoosing({ enquiry, user }) {
   const [saved, setSaved] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [view, setView] = useState('saved');
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState(null);
+  // The enquiry's sale as Sales & Payment reads it, kept with the enquiry it was read for.
+  const [sale, setSale] = useState(null);
+  const readsSale = can(user, PERMISSIONS.manageInitialSales);
   const reload = () => {
     setSaved(null);
     setView('saved');
@@ -222,14 +251,36 @@ export function EnquiryPlanChoosing({ enquiry }) {
     };
   }, [enquiry.id, reloadKey]);
 
+  // For a Token Sale's reservation. Without it (no access, not read yet, or refused) the plan is chosen as
+  // before; the API refuses an AutoPay quote for a token either way.
+  useEffect(() => {
+    if (!readsSale) return undefined;
+    let active = true;
+    api
+      .get(saleUrl(enquiry.id))
+      .then(({ data }) => {
+        if (active) setSale({ enquiryId: enquiry.id, state: data });
+      })
+      .catch(() => {
+        if (active) setSale({ enquiryId: enquiry.id, state: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, [enquiry.id, readsSale, reloadKey]);
+
   if (failure) return <ErrorState message={failure.message} onRetry={reload} />;
   if (!saved) return <Skeleton className="h-64 w-full" aria-busy="true" />;
   const configuring = view === 'configure';
   const browsing = view === 'catalogue' || (view === 'saved' && !saved.current);
+  // Never another enquiry's sale: the admin's LeadPage keeps this mounted from one lead to the next.
+  const saleState = readsSale && sale?.enquiryId === enquiry.id ? sale.state : null;
+  const tokenSale = saleState?.sale?.kind === 'TOKEN';
 
   return (
     <div className="flex flex-col gap-5">
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
+      {tokenSale && !saleState.sale.student ? <TokenReservation state={saleState} /> : null}
       {saved.locked ? (
         <p role="status" className="text-muted-foreground rounded-lg border p-3 text-sm">
           This enquiry is locked against plan changes. Its saved quote remains available.
@@ -271,6 +322,7 @@ export function EnquiryPlanChoosing({ enquiry }) {
             initialQuote={saved.current}
             replaces={saved.latest_quote}
             locked={saved.locked}
+            tokenSale={tokenSale}
             onBack={() => setView('catalogue')}
             onConflict={reload}
             onIssued={(quote) => {
