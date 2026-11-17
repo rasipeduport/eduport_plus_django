@@ -11,6 +11,9 @@ __pycache__/
 # ...but the template carries no secrets and must be committed,
 # otherwise nobody cloning knows which variables the project needs.
 !.env.example
+!.env.dev.example
+!.env.prod.example
+
 # Local Stripe CLI credentials; never include these in an image or commit.
 /.local/stripe/
 

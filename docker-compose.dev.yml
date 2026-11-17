@@ -1,0 +1,197 @@
+# Eduport DEV -- Dokploy Compose stack (branch: dev).
+# Services: db, redis, backend (gunicorn), worker, beat.
+#
+# Same shape as docker-compose.prod.yml; only what keeps DEV apart from
+# production differs. docker-compose.yml is the local developer stack and is
+# not used here. Hub and Learn are separate Dokploy applications.
+# WhiteNoise serves static files and uploads go through an authenticated view,
+# so no reverse proxy belongs in this stack.
+#
+# Environment comes from Dokploy's Environment tab, which Dokploy writes to
+# .env beside this file. `env_file: .env` hands all of it to Django, and the
+# values pinned in x-django-env override it (`environment:` always wins over
+# `env_file:`), so nothing typed in Dokploy -- not even a pasted copy of the
+# production environment -- can point this stack at production's database or
+# Redis, live Stripe, real email or WhatsApp. See backend/.env.dev.example.
+#
+# Dokploy: Domains -> service `backend`, port 8000, HTTPS on. Turn on
+# Advanced -> Isolated Deployments, and leave Randomize off -- it renames the
+# `default` network every service below relies on.
+
+x-django-env: &django-env
+  DEBUG: "False"
+  SECRET_KEY: ${SECRET_KEY:?DEV-only key, 50+ chars, must not be the production key}
+  # Must include `localhost` for the backend healthcheck: under DEBUG=False any
+  # other Host is a 400, which would leave worker and beat waiting forever for
+  # a healthy backend.
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:?comma-separated hostnames, must include localhost}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?https origins of the DEV Hub and Learn}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?https origins of the DEV Hub and Learn}
+  HUB_URL: ${HUB_URL:?https URL of the DEV Hub}
+  LEARN_URL: ${LEARN_URL:?https URL of the DEV Learn}
+  # Enrolment, payment collection and credential resets answer 503 without it.
+  LEARN_INVITATION_KEYS: ${LEARN_INVITATION_KEYS:?DEV-only Fernet key, never the production one}
+  # BDE booking links point here. Required because the settings default is
+  # the live site, where a tester's booking would become a real lead.
+  MARKETING_SITE_URL: ${MARKETING_SITE_URL:?a non-production marketing site URL}
+
+  # This stack's own Postgres and Redis, under hostnames no other stack uses,
+  # so a lookup can never land on production's `db` or `redis`.
+  # entrypoint.sh migrates on every boot against exactly this database.
+  DB_HOST: eduplus-dev-db
+  DB_PORT: "5432"
+  DB_NAME: eduplus_dev
+  DB_USER: eduplus_dev
+  DB_PASSWORD: ${DB_PASSWORD:?DEV database password, never the production one}
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?DEV Redis password, URL-safe, never the production one}@eduplus-dev-redis:6379/0
+  MEDIA_ROOT: /app/media
+
+  # HTTPS only: Traefik terminates TLS and sets X-Forwarded-Proto itself.
+  SESSION_COOKIE_SECURE: "True"
+  CSRF_COOKIE_SECURE: "True"
+  TRUST_PROXY_SSL_HEADER: "True"
+  SECURE_HSTS_SECONDS: "0"         # never HSTS a development hostname
+  # Traefik appends X-Forwarded-For. 2 if a CDN proxy also sits in front.
+  NUM_PROXIES: ${NUM_PROXIES:-1}
+
+  # Test-mode Stripe only. Keys come from STRIPE_TEST_* so a pasted copy of
+  # production's STRIPE_LIVE_* never reaches DEV, and in test mode a live key
+  # is refused (sales.payments.stripe_configured).
+  STRIPE_LIVE_MODE: "False"
+  STRIPE_SECRET_KEY: ${STRIPE_TEST_SECRET_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_TEST_WEBHOOK_SECRET:-}
+  STRIPE_PUBLISHABLE_KEY: ${STRIPE_TEST_PUBLISHABLE_KEY:-}
+
+  # A blank EMAIL_HOST_USER selects Django's console backend, so mail is
+  # written to the log and never reaches a real inbox.
+  EMAIL_HOST_USER: ""
+  EMAIL_HOST_PASSWORD: ""
+  # WhatsApp stays off whatever the Environment tab says.
+  COMMUNICATIONS_SENDING_ENABLED: "False"
+  COMMUNICATIONS_ALLOW_ALL_RECIPIENTS: "False"
+
+  QUOTA_SYNC_CRON_HOUR: ${QUOTA_SYNC_CRON_HOUR:-3}   # daily on DEV; "*" for hourly
+
+# No source bind mount: the image already contains the code, and mounting the
+# repo over /app would hide /app/staticfiles and break its uid-1000 ownership.
+# Every service names `default` explicitly: Dokploy appends its own network to
+# a service's list, but a service with no list would lose `default` -- and the
+# eduplus-dev-* hostnames with it.
+x-backend: &backend
+  build:
+    context: ./backend
+  env_file: .env
+  environment: *django-env
+  networks:
+    - default
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eduplus_dev
+      POSTGRES_USER: eduplus_dev
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DEV database password, never the production one}
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases:
+          - eduplus-dev-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Celery broker only. Password-protected, so a client from another stack
+  # is refused even if it could reach this host.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?DEV Redis password, URL-safe, never the production one}"]
+    environment:
+      # Lets the healthcheck's redis-cli authenticate.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?DEV Redis password, URL-safe, never the production one}
+    volumes:
+      - redis_dev:/data
+    networks:
+      default:
+        aliases:
+          - eduplus-dev-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    <<: *backend
+    # Replaces only the image's gunicorn line; its entrypoint (check, wait for
+    # Postgres, migrate, collectstatic) still runs. --forwarded-allow-ips is
+    # needed because Traefik is not 127.0.0.1.
+    command:
+      - gunicorn
+      - config.wsgi:application
+      - --bind=0.0.0.0:8000
+      - --workers=${GUNICORN_WORKERS:-2}
+      - --timeout=300
+      - --access-logfile=-
+      - --forwarded-allow-ips=*
+    expose:
+      - "8000"
+    volumes:
+      - media_dev:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/admin/login/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    # Routing is owned by Dokploy's Domains UI. Do not add Traefik labels
+    # here -- two sources would define the same router twice.
+
+  # entrypoint: [] -- migrations and collectstatic are the backend's job alone.
+  worker:
+    <<: *backend
+    entrypoint: []
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - --loglevel=info
+      - --concurrency=${CELERY_CONCURRENCY:-2}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # Exactly one beat -- a second would double every scheduled job. Do not scale.
+  beat:
+    <<: *backend
+    entrypoint: []
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - --loglevel=info
+      - --schedule
+      - /tmp/celerybeat-schedule
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata_dev:
+  media_dev:
+  redis_dev:
