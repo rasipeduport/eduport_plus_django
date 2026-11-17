@@ -12,6 +12,7 @@ __pycache__/
 # otherwise nobody cloning knows which variables the project needs.
 !.env.example
 !.env.dev.example
+!.env.prod.example
 
 # Local Stripe CLI credentials; never include these in an image or commit.
 /.local/stripe/
