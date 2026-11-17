@@ -3,8 +3,9 @@ The authorization matrix (core.authz_matrix) against its recorded baseline.
 
 The baseline (authz_matrix_data/baseline.json) was recorded from the Phase 1
 code, commit 3d56003, before authorization moved to permissions. Every result
-must still match it, except the changes listed -- with the decision that
-approved each -- in authz_matrix_data/approved_changes.json.
+must still match it, except the recorded decisions in
+authz_matrix_data/approved_changes.json and the narrowly defined Phase 1
+deltas in core.phase1_authz_expectations. The original baseline is retained.
 
     AUTHZ_MATRIX_RECORD=1 manage.py test core.tests_authz_matrix
         writes a new baseline.json from the code under test (only ever from
@@ -19,8 +20,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
+from core.phase1_authz_expectations import BDE_TRANSPORTS, apply_reviewed_changes
 from core.authz_matrix import NEW_ROLES, add_new_role_accounts, api_routes, build_world, exercised_routes, run_matrix
 
 DATA_DIR = Path(__file__).resolve().parent / 'authz_matrix_data'
@@ -39,6 +41,7 @@ BDE_PERMISSIONS = [
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',
     'accounts.create_sales_quotes',
+    'accounts.manage_initial_sales',
     'accounts.manage_own_conversion',
     'accounts.record_parent_confirmation',
     'accounts.send_lead_communications',
@@ -221,13 +224,59 @@ BDE_WORKSPACE = {
 
 # New quote metadata identifies the current selection; the chapter counts are
 # still read from the quote's immutable published revision.
+BDE_WORKSPACE.update(BDE_TRANSPORTS)
+# Its own enquiry's billing contact (no sale yet in this world); identity
+# correction, Autopay cancellation and the Stripe review queue are Admin-only.
+BDE_WORKSPACE['student_accounts.billing_contact'] = {'status': 400, 'error': 'SALE_REQUIRED', 'message': 'Start the sale first.',
+                                                     'records': [], 'fields': ['error', 'message']}
+
+# Token Sale chosen with its plan (2026-11-16): on its own enquiry the BDE issues the Token Sale quote and
+# its reservation together (rolled back with the scenario), answered as the quote and the sale as it stands.
+TOKEN_SALE_QUOTE_FIELDS = [
+    'cancel_reason', 'cancelled_at', 'cancelled_by', 'chapters', 'chapters[].classes', 'chapters[].id',
+    'chapters[].name', 'chapters[].position', 'chapters[].regular_classes', 'class_mode', 'classes',
+    'collection_amount', 'collection_discount', 'collection_intention_confirmed', 'collection_mode',
+    'collection_subtotal', 'created_at', 'created_by', 'created_by.id', 'created_by.name', 'currency', 'full_course',
+    'id', 'is_current', 'lead', 'lead.id', 'lead.parent_name', 'lead.student_name', 'lines', 'lines[].classes',
+    'lines[].fee_per_class', 'lines[].plan_type', 'lines[].single_payment', 'lines[].title', 'lines[].total',
+    'offer_fee', 'payable_amount', 'plan_type', 'pricing_version', 'reference', 'revision', 'selection_status',
+    'single_payment_percent', 'single_payment_saving', 'standard_fee', 'status', 'supersedes', 'syllabus',
+    'syllabus.board', 'syllabus.grade', 'syllabus.id', 'syllabus.structure', 'syllabus.syllabus_version',
+    'syllabus.title', 'total_fee',
+]
+TOKEN_SALE_STATE_FIELDS = [
+    'account', 'account.billing_contact', 'account.billing_contact.email', 'account.billing_contact.full_name',
+    'account.billing_contact.guardian_id', 'account.billing_contact.phone', 'account.billing_contact.relationship',
+    'account.can_correct_identity', 'account.corrections', 'account.guardians', 'account.guardians[].basis',
+    'account.guardians[].full_name', 'account.guardians[].guardian_id', 'account.guardians[].is_billing_contact',
+    'account.guardians[].relationship', 'account.id', 'account.identity_locked', 'account.reference',
+    'account.stripe_customers', 'account.student', 'account.student_name', 'autopay', 'autopay_configured',
+    'billing_timezone', 'can_cancel_autopay', 'can_collect', 'enquiry_id', 'family_candidates', 'parent_email',
+    'payments', 'purchase', 'sale', 'sale.balance_due_date', 'sale.deadline_status', 'sale.expected_start_date',
+    'sale.id', 'sale.kind', 'sale.original_bde', 'sale.original_bde.id', 'sale.original_bde.name',
+    'sale.original_quote_id', 'sale.parent_email', 'sale.reservation_reference', 'sale.student', 'sale.token_paid',
+    'sale.token_status', 'stripe_configured', 'totals', 'totals.available_quota', 'totals.class_quota',
+    'totals.classes_not_credited', 'totals.fully_paid', 'totals.net_collected', 'totals.outstanding_amount',
+    'totals.package_amount', 'totals.paid_amount', 'totals.paid_classes', 'totals.purchased_classes',
+    'totals.refunded_amount', 'totals.remaining_amount', 'totals.unpaid_classes', 'totals.used_classes',
+]
+BDE_WORKSPACE['initial_sales.token_sale'] = {
+    'status': 201, 'records': ['<caller>', 'lead_a', 'new', 'syllabus_a'],
+    'fields': sorted(['quote', 'state', 'state.quote', *(f'quote.{field}' for field in TOKEN_SALE_QUOTE_FIELDS),
+                      *(f'state.quote.{field}' for field in TOKEN_SALE_QUOTE_FIELDS),
+                      *(f'state.{field}' for field in TOKEN_SALE_STATE_FIELDS)]),
+}
+
 BDE_WORKSPACE['sales.catalogue']['fields'] = sorted([*BDE_WORKSPACE['sales.catalogue']['fields'], 'results[].subtitle'])
 BDE_WORKSPACE['sales.quote_create']['fields'] = sorted([
     *BDE_WORKSPACE['sales.quote_create']['fields'], 'chapters[].regular_classes',
-    'is_current', 'selection_status', 'supersedes',
+    'is_current', 'selection_status', 'supersedes', 'class_mode', 'collection_amount',
+    'collection_discount', 'collection_mode', 'collection_subtotal', 'collection_intention_confirmed',
 ])
 
 
+@override_settings(STRIPE_WEBHOOK_SECRET='whsec_matrix_only')
+@override_settings(LEARN_INVITATION_KEYS=['MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='])
 class AuthorizationMatrixTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -312,6 +361,8 @@ class AuthorizationMatrixTests(TestCase):
         for key, change in approved.items():
             expected[key] = change.get('result')
 
+        expected = apply_reviewed_changes(expected)
+
         differences = {
             key: {'expected': expected.get(key), 'actual': results.get(key)}
             for key in sorted(set(expected) | set(results))
@@ -326,3 +377,31 @@ class AuthorizationMatrixTests(TestCase):
                 [f'{key}\n  expected: {json.dumps(d["expected"], sort_keys=True)}\n  actual:   {json.dumps(d["actual"], sort_keys=True)}'
                  for key, d in differences.items()]
             ))
+
+
+class ReviewedPhase1DeltaTests(SimpleTestCase):
+    def test_review_changes_only_the_named_old_surfaces_and_explicit_new_routes(self):
+        baseline = json.loads(BASELINE.read_text())
+        self.assertEqual(baseline['source'], '3d56003')
+        before = dict(baseline['results'])
+        for key, change in json.loads(APPROVED.read_text())['changes'].items():
+            before[key] = change.get('result')
+        after = apply_reviewed_changes(before)
+        changed_old = {key for key in before if before[key] != after[key]}
+        self.assertEqual(len(changed_old), 58)
+        added_notes = {key for key in set(after) - set(before) if key.split(' @ ')[0] in
+                       {'leads.notes', 'bde.enquiries.notes', 'tutor_bookings.notes'}}
+        self.assertEqual(len(added_notes), 33)
+        added_transports = set(after) - set(before) - added_notes
+        self.assertEqual(len(added_transports), 165)
+        self.assertTrue(all(key.startswith(('initial_sales.', 'initial_autopay.')) for key in added_transports))
+        for key in changed_old:
+            old, new = before[key], after[key]
+            self.assertEqual(old['status'], new['status'], key)
+            self.assertEqual(old['records'], new['records'], key)
+            if key.startswith('auth.me @ '):
+                self.assertEqual(set(new['capture']['permissions']) - set(old['capture']['permissions']),
+                                 {'accounts.manage_initial_sales'})
+                self.assertFalse(set(old['capture']['permissions']) - set(new['capture']['permissions']))
+            else:
+                self.assertFalse(set(old['fields']) - set(new['fields']), key)

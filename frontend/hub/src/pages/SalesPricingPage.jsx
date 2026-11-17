@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgePercentIcon, HistoryIcon, PencilIcon } from 'lucide-react';
+import { ArrowLeftIcon, BadgePercentIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { formatDay } from '@/lib/enquiries';
@@ -145,15 +145,18 @@ export default function SalesPricingPage() {
 
   return (
     <Page className="max-w-5xl">
-      <PageHeader
-        title="Global Pricing"
-        description="One per-class rate for every plan. Each change is a new version, in effect at once; earlier versions keep their prices."
-        actions={
-          <Button variant="outline" asChild>
-            <Link to="/sales-syllabus">Syllabus & Plans</Link>
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-2">
+        <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2 self-start" asChild>
+          <Link to="/sales-syllabus">
+            <ArrowLeftIcon className="size-4" />
+            Back to Syllabus & Plans
+          </Link>
+        </Button>
+        <PageHeader
+          title="Global Pricing"
+          description="One per-class rate for every plan. Each change is a new version, in effect at once; earlier versions keep their prices."
+        />
+      </div>
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
       {content}
       <PricingDialog

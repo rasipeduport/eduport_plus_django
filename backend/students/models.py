@@ -52,7 +52,8 @@ class Student(models.Model):
         null=True,
         help_text="IANA time zone identifier (e.g. Asia/Dubai) used to schedule and display this student's sessions. Blank means unset; callers fall back to Asia/Kolkata.",
     )
-    total_class_quota = models.IntegerField(default=0)
+    total_class_quota = models.DecimalField(max_digits=9, decimal_places=1, default=0)
+    quota_source = models.CharField(max_length=10, choices=[('SHEET', 'Sheet'), ('PAYMENTS', 'Payments')], default='SHEET')
     remarks_for_mentor = models.TextField(blank=True, null=True)
     status = models.CharField(
         max_length=20,

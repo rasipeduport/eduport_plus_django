@@ -28,7 +28,7 @@ class StudentPlanTests(QuoteTestCase, APITestCase):
 
     def create(self, **extra):
         return self.client.post(QUOTES, {
-            'syllabus': str(self.grade6.pk), 'revision': 1, 'plan_type': 'REGULAR',
+            'syllabus': str(self.grade6.pk), 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'REGULAR',
             'lead': str(self.lead.pk), 'pricing_version': 1, **extra,
         }, format='json')
 
@@ -196,7 +196,7 @@ class StudentPlanIntegrityTests(QuoteTestCase, TransactionTestCase):
         self.lead = lead_of(self.bde, 'Concurrent Student', '509200003')
 
     def payload(self, **extra):
-        return {'syllabus': self.grade6.pk, 'revision': 1, 'plan_type': 'REGULAR', 'lead': self.lead.pk, **extra}
+        return {'syllabus': self.grade6.pk, 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'REGULAR', 'lead': self.lead.pk, **extra}
 
     def test_two_simultaneous_choices_issue_only_one_current_quote(self):
         barrier = Barrier(2)
@@ -216,7 +216,7 @@ class StudentPlanIntegrityTests(QuoteTestCase, TransactionTestCase):
 
     def test_database_refuses_replacement_bypass_and_clearing_the_lock(self):
         first = quotes.create_quote(self.bde, self.payload())
-        snapshot = quotes.quote_snapshot(self.bde, syllabus_id=self.grade6.pk, revision=1, plan_type='REVISION', lead_id=self.lead.pk)
+        snapshot = quotes.quote_snapshot(self.bde, collection_mode='FULL', syllabus_id=self.grade6.pk, revision=1, plan_type='REVISION', lead_id=self.lead.pk)
         with self.assertRaises(DatabaseError), transaction.atomic():
             quotes.issue(snapshot)  # Missing latest quote; even internal/raw writes must keep the chain.
         Lead.objects.filter(pk=self.lead.pk).update(plan_changes_locked_at=timezone.now())

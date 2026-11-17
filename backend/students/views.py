@@ -27,8 +27,11 @@ from students.quota_sync import (
 )
 from invitations.models import Invitation, InvitationStatusChoices
 from sessions.models import Session, SessionStatusChoices
-from sessions.serializers import SessionSerializer
-from sessions.services import find_handover_conflict, handover_conflict_response_data, lock_scheduling
+from sessions.serializers import SessionSerializer, for_student
+from sessions.lifecycle import ClassState
+from sessions.services import (
+    find_handover_conflict, handover_conflict_response_data, lock_scheduling, state_q, transferable_sessions,
+)
 from activity.utils import log_activity
 from accounts.authz import has_app_permission
 from core.permissions import ByMethod, HasAnyAppPermission, HasAppPermission, IsStudentUser
@@ -172,8 +175,12 @@ class StudentDashboardView(APIView):
 
         now = timezone.now()
 
-        # Count of scheduled and attended sessions
-        scheduled_count = Session.objects.filter(student=student, status=SessionStatusChoices.SCHEDULED).count()
+        # Count of scheduled and attended sessions. Scheduled = still to come
+        # or under way (sessions.lifecycle): a class over with nothing
+        # recorded yet is no longer "scheduled" for the student.
+        scheduled_count = Session.objects.filter(
+            state_q(ClassState.UPCOMING, now) | state_q(ClassState.IN_PROGRESS, now), student=student,
+        ).count()
         attended_count = Session.objects.filter(student=student, status=SessionStatusChoices.ATTENDED).count()
 
         # Next upcoming class (scheduled, start time in the future)
@@ -210,8 +217,8 @@ class StudentDashboardView(APIView):
             "meet_link": student.meet_link or "",
             "scheduled_count": scheduled_count,
             "attended_count": attended_count,
-            "next_session": SessionSerializer(next_sess).data if next_sess else None,
-            "last_session": SessionSerializer(last_sess).data if last_sess else None,
+            "next_session": for_student(SessionSerializer(next_sess).data) if next_sess else None,
+            "last_session": for_student(SessionSerializer(last_sess).data) if last_sess else None,
             "next_exam": ExamSerializer(next_exam, context={'request': request}).data if next_exam else None,
             "last_exam": ExamSerializer(last_exam, context={'request': request}).data if last_exam else None,
         }, status=status.HTTP_200_OK)
@@ -358,6 +365,14 @@ class StudentListView(APIView):
                         {"error": "INVALID_INPUT", "message": "Name cannot be empty."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+                student_account = getattr(student, 'account', None)
+                if value != student.full_name and student_account is not None and student_account.identity_locked_at:
+                    return Response(
+                        {"error": "IDENTITY_LOCKED", "account_reference": student_account.reference,
+                         "message": "This student's name is protected by their payment records. An administrator can "
+                                    "correct it with a reason through the audited identity correction."},
+                        status=status.HTTP_409_CONFLICT
+                    )
             else:
                 value = value or None
             old = getattr(student, field) or None
@@ -449,8 +464,10 @@ class StudentReassignView(APIView):
     Needs accounts.reassign_student_staff (admins), mirroring the Hub's
     reassign_student_staff RPC: the client
     always sends both desired final values (null = unassign). Completed and
-    cancelled sessions keep their tutor snapshot for attribution; only open
-    (SCHEDULED) sessions are handed over to the new tutor. Replacements must
+    cancelled sessions keep their tutor snapshot for attribution, and so do
+    classes already started or whose time has passed; only classes still to
+    come that nobody started (sessions.services.transferable_sessions) are
+    handed over to the new tutor. Replacements must
     be assignable (right role, not deactivated) — the same rule the slim
     /api/mentors and /api/tutors dropdown lists apply. The bulk staff-exit
     handover is a different flow: accounts.StaffReassignView.
@@ -526,7 +543,7 @@ class StudentReassignView(APIView):
             # The open classes the new tutor takes over must fit their
             # schedule: one student at a time, classes and Demo/Diagnostic
             # bookings alike. Checked before anything moves.
-            open_sessions = Session.objects.filter(student=student, status=SessionStatusChoices.SCHEDULED)
+            open_sessions = transferable_sessions(Session.objects.filter(student=student))
             if new_tutor is not None:
                 clash = find_handover_conflict(open_sessions, new_tutor)
                 if clash is not None:
@@ -637,6 +654,10 @@ class StudentDetailView(APIView):
 
         from exams.services import exam_history_exists
         from homework.services import homework_history_exists
+        if hasattr(student, 'learn_invitation'):
+            return Response({'error': 'HAS_HISTORY',
+                             'message': 'This student has retained enrollment credentials. Set their status to "expired" instead.'},
+                            status=status.HTTP_409_CONFLICT)
         if (Session.objects.filter(student=student).exists() or exam_history_exists(student)
                 or homework_history_exists(student)):
             return Response(
@@ -755,6 +776,8 @@ class StudentQuotaSyncView(APIView):
         if not student:
             return _not_found()
 
+        if student.quota_source == 'PAYMENTS':
+            return Response({'error': 'PAYMENT_MANAGED_QUOTA', 'message': 'This student’s quota comes from verified payments and cannot be overwritten by the sheet.'}, status=409)
         outcome = sync_one_student_quota(student.student_code)
 
         if outcome == TARGETED_FAILED:

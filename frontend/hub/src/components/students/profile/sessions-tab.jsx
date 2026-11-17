@@ -6,13 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { HOMEWORK_STATUS_VARIANT, homeworkBadgeLabel } from '@/lib/homework-status';
-import {
-  SESSION_CONTENT_LABEL,
-  sessionHours,
-  sessionStatusKey,
-  sessionStatusLabel,
-  sessionStatusVariant,
-} from '@/lib/session-status';
+import { classState, outcomeReasonLabel } from '@/lib/session-lifecycle';
+import { CLASS_STATE_VARIANT, SESSION_CONTENT_LABEL, classStateLabel, sessionHours, sessionStatusKey } from '@/lib/session-status';
 import { EMPTY, EmptyState, ProfileTable, SectionHeading, Td } from './profile-primitives';
 
 const COLUMNS = [
@@ -25,13 +20,18 @@ const COLUMNS = [
   { key: 'rating', label: 'Rating' },
 ];
 
+// Where the class stands (lib/session-lifecycle classState), with why it was
+// cancelled or not conducted, or what an attended class's material still
+// lacks on hover.
 function StatusCell({ session }) {
-  const key = sessionStatusKey(session);
-  const badge = <Badge variant={sessionStatusVariant(session)}>{sessionStatusLabel(session)}</Badge>;
+  const state = classState(session, new Date());
+  const badge = <Badge variant={CLASS_STATE_VARIANT[state] || 'secondary'}>{classStateLabel(state, session)}</Badge>;
   let hint = null;
-  if (key === 'cancelled' && session.cancellation_reason) {
+  if (state === 'cancelled' && session.cancellation_reason) {
     hint = session.cancellation_reason;
-  } else if (key === 'pending' && session.missing_content?.length) {
+  } else if (state === 'not_conducted' && session.outcome_reason) {
+    hint = [outcomeReasonLabel(session.outcome_reason), session.outcome_note].filter(Boolean).join(': ');
+  } else if (sessionStatusKey(session) === 'pending' && session.missing_content?.length) {
     hint = `Still missing: ${session.missing_content.map((item) => SESSION_CONTENT_LABEL[item] || item).join(', ')}`;
   }
   if (!hint) return badge;

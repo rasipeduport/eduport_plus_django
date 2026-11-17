@@ -111,7 +111,7 @@ function AccountSummary({ member }) {
 
 /**
  * The Details & Permissions tab of /team/:memberId. Saving sends only what
- * changed, in order: details (PATCH), a tutor's permanent Meet link (PUT, its
+ * changed, in order: details (PATCH), a tutor's or mentor's permanent Meet link (PUT, its
  * own endpoint), permissions (PUT), then the optional password reset. Each call is checked by the API; if one is refused, the ones
  * before it stay saved, the form keeps the rest of the edits, and the refusal
  * is shown at the field it concerns. `restriction` (the viewer's own account,
@@ -338,9 +338,12 @@ export function MemberDetailsForm({ member, viewer, catalogue, restriction, onSa
             hint={
               readOnly
                 ? null
-                : "The tutor's permanent room for their Demo and Diagnostic bookings. Bookings the tutor has not " +
-                  'started yet use a new link; started and past bookings keep the one they had. Leave blank if not ' +
-                  'set up yet.'
+                : baseline.role === 'MENTOR'
+                  ? "The mentor's permanent room for their students' chapter exams. Every exam assigned to this mentor " +
+                    'joins it, and exams handed to another mentor join theirs. Leave blank if not set up yet.'
+                  : "The tutor's permanent room for their Demo and Diagnostic bookings and their classes. Bookings the " +
+                    'tutor has not started yet use a new link; started and past bookings keep the one they had. Every ' +
+                    'class assigned to this tutor joins it. Leave blank if not set up yet.'
             }
             error={errors.meet_link}
           >

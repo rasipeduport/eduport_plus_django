@@ -69,6 +69,10 @@ api.interceptors.response.use(
       return api(config);
     }
 
+    if (response?.data?.error === 'PASSWORD_CHANGE_REQUIRED' && window.location.pathname !== '/change-password') {
+      window.location.replace('/change-password');
+    }
+
     // Not logged in (or the session expired): back to the login page.
     if (response && response.status === 401 && !window.location.pathname.endsWith('/login')) {
       window.location.href = '/login';

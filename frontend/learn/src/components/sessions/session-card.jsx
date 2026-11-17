@@ -7,10 +7,20 @@ import { cn } from '../../lib/utils';
 import { formatSessionDateTime } from '../../lib/formatting';
 import { useStudentZone } from '../student/student-context';
 import { useSessionRating } from '../../hooks/useSessionRating';
+import { sessionBadge } from '../../lib/session-state';
+
+// The badge's colours by its tone (lib/session-state sessionBadge).
+const BADGE_TONE = {
+  danger: 'border-danger/15 bg-danger-subtle text-danger',
+  primary: 'border-primary/15 bg-primary-subtle text-primary-hover',
+  warning: 'border-warning/15 bg-warning-subtle text-warning',
+  info: 'border-info/15 bg-info-subtle text-info',
+};
 
 export function SessionCard({ session, isExpanded, onToggle }) {
   const zone = useStudentZone();
   const attended = session.status === 'attended';
+  const badge = sessionBadge(session);
   const { dateLabel, timeLabel } = formatSessionDateTime(
     session.start_time,
     session.end_time,
@@ -124,14 +134,10 @@ export function SessionCard({ session, isExpanded, onToggle }) {
               <span
                 className={cn(
                   'shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap',
-                  session.status === 'cancelled'
-                    ? 'border-danger/15 bg-danger-subtle text-danger'
-                    : attended
-                    ? 'border-primary/15 bg-primary-subtle text-primary-hover'
-                    : 'border-info/15 bg-info-subtle text-info'
+                  BADGE_TONE[badge.tone] || BADGE_TONE.info
                 )}
               >
-                {session.status === 'cancelled' ? 'Cancelled' : attended ? 'Attended' : 'Scheduled'}
+                {badge.label}
               </span>
               {attended && (
                 <button

@@ -4,6 +4,8 @@ import api from '@/lib/api';
 import { BOARDS, CATALOGUE_URL, GRADES, STRUCTURES, salesError } from '@/lib/sales';
 import { useListParams } from '@/hooks/use-list-params';
 import { TableSkeleton } from '@/components/table-skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Page, PageHeader } from '@/components/page/page';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 import { CatalogueFilters, CatalogueList } from '@/components/sales/catalogue-list';
@@ -67,7 +69,12 @@ export default function PlansPage({ onSelect, enquiry }) {
   } else {
     let list;
     if (!data && !failure) {
-      list = <TableSkeleton toolbar={false} />;
+      list = onSelect ? (
+        <div className="flex flex-col gap-4" aria-label="Loading syllabuses" aria-busy="true">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+      ) : <TableSkeleton toolbar={false} />;
     } else if (!data) {
       list = <ErrorState message={failure.message} onRetry={retry} pending={pending} />;
     } else {
@@ -91,7 +98,7 @@ export default function PlansPage({ onSelect, enquiry }) {
     }
     content = (
       <div className="flex flex-col gap-4">
-        <CatalogueFilters filters={filters} onChange={update} onClear={clear} />
+        <CatalogueFilters filters={filters} onChange={update} onClear={clear} selecting={Boolean(onSelect)} />
         {list}
       </div>
     );
@@ -99,9 +106,14 @@ export default function PlansPage({ onSelect, enquiry }) {
 
   const Frame = onSelect ? 'div' : Page;
   return (
-    <Frame className={onSelect ? 'flex flex-col gap-4' : undefined}>
+    <Frame className={onSelect ? 'flex min-w-0 flex-col gap-6' : undefined}>
       <PageHeader
-        title={onSelect ? '1. Select a syllabus' : 'Plans & Pricing'}
+        title={onSelect ? (
+          <span className="inline-flex flex-wrap items-center gap-x-4 gap-y-2">
+            1. Select a syllabus
+            {data && !failure ? <Badge variant="demo" className="text-sm font-medium tracking-normal">{data.count ?? 0} available</Badge> : null}
+          </span>
+        ) : 'Plans & Pricing'}
         description={
           onSelect
             ? `Choose the syllabus for ${enquiry.student_name}. Its published revision determines the available plans and chapters.`

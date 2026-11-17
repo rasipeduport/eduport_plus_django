@@ -78,6 +78,8 @@ export function historyDetails(entry) {
   const d = entry.details ?? {};
   const lines = [];
   if (entry.kind === 'CREATED' && d.slot) lines.push(`Slot: ${slotLabel(d.slot)}`);
+  // A Demo booked after the student's Diagnostic starts with that Diagnostic's tutor (backend booking_service).
+  if (entry.kind === 'TUTOR_ASSIGNED' && d.via === 'diagnostic') lines.push("From the student's completed Diagnostic");
   if (entry.kind === 'RESCHEDULED') {
     lines.push(`From ${d.old_slot ? slotLabel(d.old_slot) : '—'} to ${d.new_slot ? slotLabel(d.new_slot) : '—'}`);
   }

@@ -22,6 +22,7 @@ DATA_KEYS = frozenset({
     # REDEMO_REQUESTED, and CREATED as a scheduled Re-Demo (bookings.redemos): the request -- never its reason
     'redemo_request_id',
     'old_tutor_id', 'new_tutor_id',  # TUTOR_ASSIGNED / TUTOR_UNASSIGNED
+    'diagnostic_booking_id',  # TUTOR_ASSIGNED to a new Demo from the child's completed Diagnostic (via diagnostic)
     'from_status', 'to_status',  # a change of status
     # CANCELLED / RESCHEDULED / PARENT_NOT_CONFIRMED: a CancelReason, RescheduleReason or NotConfirmedReason, never text
     'reason_code',

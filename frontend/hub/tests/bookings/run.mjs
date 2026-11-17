@@ -1893,9 +1893,10 @@ test("Team: a team manager sets a tutor's permanent Meet link with its own PUT, 
 });
 
 test('Team: no Meet link field for another role, or for a directory reader', async () => {
-  serve({ [`GET ${MEMBER_URL}`]: member({ role: 'MENTOR' }), 'GET /api/team/permissions/': [] });
+  // A mentor has one of their own now (mentor_meet_link, tests/meet-links); a BDE has none.
+  serve({ [`GET ${MEMBER_URL}`]: member({ role: 'BDE' }), 'GET /api/team/permissions/': [] });
   const page = await open('/team/t-a', MANAGER);
-  assert.ok(!meetInput(), 'a mentor has none');
+  assert.ok(!meetInput(), 'a BDE has none');
   await page.unmount();
   // A directory reader (accounts.view_team) is sent no Meet link at all, so is offered none.
   const { tutor_meet_link: _hidden, permissions: _p, ...readable } = member({ tutor_meet_link: MEET });
@@ -3316,6 +3317,34 @@ test('Re-Demo: the booking it scheduled is marked Re-Demo, names the Demo it tea
   assert.match(items()[1], /^Re-Demo requested.*By Bde One \(BDE\).*Status: Completed → Re-Demo required/);
 });
 
+test('History: a Demo booked after the Diagnostic starts with the Diagnostic’s tutor, assigned by the system', async () => {
+  const AFTER_DX = { ...RIYA, id: 'b-after-dx', tutor: { id: 't-j', full_name: 'Jack Sabatti' } };
+  const booking = { id: AFTER_DX.id, booking_type: 'DEMO', slot: AFTER_DX.slot, redemo: false };
+  const entry = (id, kind, by, details) => ({
+    id, at: '2026-11-02T09:00:00+00:00', kind, kind_label: kind, booking, by, actor: null, details });
+  serve({
+    // Assigned by nobody: the backend leaves tutor_assigned_by empty for the system's assignment.
+    [`GET ${at(AFTER_DX)}`]: detail(AFTER_DX, { channel: 'BDE_HANDOFF', referral_status: null, tutor_assigned_by: null,
+      created_by: { id: 'bde-1', full_name: 'Bde One' }, invited_from: { id: ALI_DONE.id, status: 'COMPLETED', slot: ALI.slot },
+      redemo_request: null, redemo_from: null }),
+    [`GET ${at(AFTER_DX, 'history/')}?scope=student`]: { timezone: 'Asia/Kolkata', student_timezone: null,
+      booking_id: AFTER_DX.id, chain_ids: [AFTER_DX.id], bookings: [{ ...booking, status: 'BOOKED' }],
+      entries: [
+        entry('e1', 'CREATED', 'PARENT', { slot: AFTER_DX.slot, via: 'demo_invite' }),
+        entry('e2', 'TUTOR_ASSIGNED', 'SYSTEM', { old_tutor: null, new_tutor: { full_name: 'Jack Sabatti' }, via: 'diagnostic' }),
+      ] },
+  });
+  await open(`/bookings/demo/${AFTER_DX.id}`, ADMIN);
+  assert.match(bodyText(), /Tutor: Jack Sabatti/);
+  assert.ok(!/Needs a tutor/.test(bodyText()));
+  await mouseDown(tab('History'));
+  const items = [...document.querySelectorAll('[aria-label="History"] > li')].map((li) => clean(li.textContent));
+  assert.equal(items.length, 2);
+  assert.match(items[1], /^Tutor assigned: Jack Sabatti.*By the system.*From the student's completed Diagnostic$/);
+  // Any other assignment says nothing of the kind.
+  assert.ok(!items[0].includes('Diagnostic'));
+});
+
 test('My Bookings: a Re-Demo’s workspace says why, the remarks and the Demo it follows, with that Demo’s report to read', async () => {
   const report = { id: 'r-1', booking_id: 'b-orig', booking_type: 'DEMO', version: 2,
     fields: { assessment_review: 'Quick with mental arithmetic.', class_observation_review: 'Asked good questions.',
@@ -3607,9 +3636,9 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
     },
   });
   await open('/follow-ups', FOLLOW_UP_BDE);
-  // Nothing is ever overdue: a reminder leaves once its time is up.
+  // Booking reminders expire; paid token reservations can remain overdue.
   assert.deepEqual([...document.querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
-    ['All open5', 'Due today3', 'Upcoming2']);
+    ['All open5', 'Due today3', 'Upcoming2', 'Overdue']);
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
     'Call new enquiryDue todayCall the parent and guide them to book a Demo or Diagnostic.',
     'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',

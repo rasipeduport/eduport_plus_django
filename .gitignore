@@ -11,6 +11,8 @@ __pycache__/
 # ...but the template carries no secrets and must be committed,
 # otherwise nobody cloning knows which variables the project needs.
 !.env.example
+# Local Stripe CLI credentials; never include these in an image or commit.
+/.local/stripe/
 
 # React
 frontend/hub/node_modules/

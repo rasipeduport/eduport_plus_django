@@ -360,20 +360,28 @@ export function bridgeSelection(days, selectedIds, pricing) {
   return { days: picked, fullCourse, classes: fromHalves(halves), package: pricedPackage };
 }
 
-/**
- * A Chapter Plan, priced as the API prices a quote of one (backend
- * sales.quotes): the `chapters` whose ids are in `selectedIds`, in the
- * course's order, their Regular classes at `pricing`'s offer fee (null without
- * one). No single-payment privilege names a Chapter Plan.
- */
-export function chapterPlanSelection(chapters, selectedIds, pricing) {
+/** Refuse unknown chapters, modes or missing class counts; never substitute another column. */
+export function chapterPlanError(chapters, selectedIds, classMode = 'REGULAR') {
+  if (!['REGULAR', 'REVISION'].includes(classMode)) return 'Choose Regular or Revision classes.';
   const chosen = new Set(selectedIds);
   const picked = chapters.filter((chapter) => chosen.has(chapter.id));
-  const halves = picked.reduce((sum, chapter) => sum + (toHalves(chapter.regular_classes) ?? 0n), 0n);
+  if (chosen.size !== selectedIds.length || picked.length !== chosen.size) return 'Choose chapters from this published revision.';
+  const missing = picked.filter((chapter) => toHalves(chapter[`${classMode.toLowerCase()}_classes`]) === null);
+  return missing.length
+    ? `${classMode === 'REVISION' ? 'Revision' : 'Regular'} is unavailable for ${missing.map((chapter) => chapter.name).join(', ')}. Choose chapters with valid class counts.`
+    : null;
+}
+
+/** A Chapter Plan's chosen count column at the existing global offer rate, without a single-payment privilege. */
+export function chapterPlanSelection(chapters, selectedIds, pricing, classMode = 'REGULAR') {
+  const chosen = new Set(selectedIds);
+  const picked = chapters.filter((chapter) => chosen.has(chapter.id));
+  const error = chapterPlanError(chapters, selectedIds, classMode);
+  const halves = error ? null : picked.reduce((sum, chapter) => sum + toHalves(chapter[`${classMode.toLowerCase()}_classes`]), 0n);
   const fee = toCents(pricing?.offer_fee);
   const pricedPackage =
-    fee === null ? null : pricedCard('CHAPTER_PLAN', CHAPTER_PLAN_TITLE, halves, fee, toCents(pricing.single_payment_percent) ?? 0n, pricing);
-  return { days: picked, fullCourse: chapters.length > 0 && picked.length === chapters.length, classes: fromHalves(halves), package: pricedPackage };
+    fee === null || error ? null : pricedCard('CHAPTER_PLAN', CHAPTER_PLAN_TITLE, halves, fee, toCents(pricing.single_payment_percent) ?? 0n, pricing);
+  return { days: picked, fullCourse: chapters.length > 0 && picked.length === chapters.length, classes: halves === null ? null : fromHalves(halves), package: pricedPackage };
 }
 
 /** An exact amount ("122.5") in thousandths (122500n): a fee with cents times half classes has at most three places. */
@@ -394,12 +402,25 @@ function fromThousandths(n) {
  * `selectedIds` are a Chapter Plan's chapters or a Bridge Course's days (none,
  * or every day: the whole course). Null without pricing.
  */
-export function quotePreview(planType, chapters, selectedIds, pricing) {
+export const QUOTE_COLLECTION_MODES = [
+  { value: 'FULL', label: 'Single / Complete Payment', hint: 'Apply the configured single-payment discount, where available.' },
+  { value: 'PARTIAL', label: 'Partial Payment', hint: 'No single-payment discount.' },
+  { value: 'AUTOPAY', label: 'Autopay', hint: 'No single-payment discount. Set the schedule in Sales & Payment.' },
+];
+
+// A Token Sale's quote: never an intention to choose, it is issued with its token reservation (backend sales.token_sales).
+const TOKEN_SALE_LABEL = 'Token Sale';
+export const quoteCollectionLabel = (mode) =>
+  mode === 'TOKEN' ? TOKEN_SALE_LABEL : QUOTE_COLLECTION_MODES.find((option) => option.value === mode)?.label || 'Not selected';
+
+export function quotePreview(planType, chapters, selectedIds, pricing, classMode = 'REGULAR', collectionMode = null) {
   if (toCents(pricing?.offer_fee) === null) return null;
   let lines;
   let fullCourse = true;
   if (planType === 'CHAPTER_PLAN') {
-    lines = [chapterPlanSelection(chapters, selectedIds, pricing).package];
+    const selection = chapterPlanSelection(chapters, selectedIds, pricing, classMode);
+    if (!selection.package) return null;
+    lines = [selection.package];
     fullCourse = chapters.length > 0 && selectedIds.length === chapters.length;
   } else if (planType === 'BRIDGE_COURSE') {
     const picked = bridgeSelection(chapters, selectedIds.length ? selectedIds : chapters.map((chapter) => chapter.id), pricing);
@@ -408,6 +429,7 @@ export function quotePreview(planType, chapters, selectedIds, pricing) {
   } else {
     lines = packagePrices([planType], chapters, pricing);
   }
+  if (collectionMode !== 'FULL') lines = lines.map((line) => ({ ...line, single_payment: null }));
   const total = lines.reduce((sum, line) => sum + toThousandths(line.total), 0n);
   const saving = lines.reduce((sum, line) => sum + (line.single_payment ? toThousandths(line.single_payment.saving) : 0n), 0n);
   // A package's classes may pass 99.5 (a whole course): read them whole, not as a chapter's count.
@@ -418,10 +440,14 @@ export function quotePreview(planType, chapters, selectedIds, pricing) {
   return {
     lines,
     fullCourse,
+    collection_mode: collectionMode,
     classes: fromHalves(halves),
     total_fee: fromThousandths(total),
     single_payment_saving: fromThousandths(saving),
     payable_amount: fromThousandths(total - saving),
+    collection_amount: ((total - saving + 500n) / 1000n).toString(),
+    collection_subtotal: ((total + 500n) / 1000n).toString(),
+    collection_discount: (((total + 500n) / 1000n) - ((total - saving + 500n) / 1000n)).toString(),
   };
 }
 
@@ -429,7 +455,23 @@ export function quotePreview(planType, chapters, selectedIds, pricing) {
 export function quotePlanLabel(quote) {
   const label = planTypeLabel(quote.plan_type);
   if (quote.plan_type === 'BRIDGE_COURSE') return quote.full_course ? 'Full Bridge Course' : 'Bridge Course · Selected Chapters';
+  if (quote.plan_type === 'CHAPTER_PLAN') return `${label} · ${quote.class_mode === 'REVISION' ? 'Revision' : 'Regular'} classes`;
   return label;
+}
+
+/** Display-only whole-AED allocation. The backend independently validates collection. */
+export function wholeQuoteLineAmounts(figures) {
+  const total = toThousandths(figures.total_fee);
+  const rounded = BigInt(figures.collection_subtotal);
+  let cumulative = 0n;
+  let previous = 0n;
+  return figures.lines.map((line) => {
+    cumulative += toThousandths(line.total);
+    const target = total ? (2n * rounded * cumulative + total) / (2n * total) : 0n;
+    const allocated = (target - previous).toString();
+    previous = target;
+    return allocated;
+  });
 }
 
 /** "Riya Nair (parent of Arjun)": the enquiry a quote answers ('' for none). */

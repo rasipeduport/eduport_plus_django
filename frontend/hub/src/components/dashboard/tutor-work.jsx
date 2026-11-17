@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { indianToday } from '@/lib/bde-booking-filters';
 import { isJoinable } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel, slotParts } from '@/lib/enquiries';
-import { isHttpsUrl } from '@/lib/exam-status';
+import { classMeetLink, classMeetMissing } from '@/lib/meet-rooms';
 import { sessionHours } from '@/lib/session-status';
 import { AHEAD_ROWS, bookingPath, deviceKeepsIst } from '@/lib/tutor-dashboards';
 import { cn } from '@/lib/utils';
@@ -91,12 +91,11 @@ function bookingEntry(booking, from) {
   };
 }
 
-/** A regular class on today's timeline: its local time, student and title, and the student's Meet room until it ends. */
+/** A regular class on today's timeline: its local time, student and title, and its tutor's Meet room until it ends. */
 function classEntry(session, now) {
   const start = new Date(session.start_time);
   const ended = new Date(session.end_time) < now;
   const live = !ended && start <= now;
-  const meetLink = (session.students?.meet_link || '').trim();
   return {
     key: `class-${session.id}`,
     at: start.getTime(),
@@ -107,10 +106,13 @@ function classEntry(session, now) {
     to: classesPath(session),
     badge: live ? <Badge variant="info">In progress</Badge> : ended ? <Badge variant="secondary">Ended</Badge> : null,
     meta: [session.title, `${Math.round(sessionHours(session) * 60)} mins`].filter(Boolean).join(' · '),
-    action:
-      !ended && isHttpsUrl(meetLink) ? (
-        <JoinMeetButton link={meetLink} label={`Join the class with ${studentName(session)}`} />
-      ) : null,
+    action: !ended ? (
+      <JoinMeetButton
+        link={classMeetLink(session)}
+        missingLabel={classMeetMissing(session)}
+        label={`Join the class with ${studentName(session)}`}
+      />
+    ) : null,
   };
 }
 

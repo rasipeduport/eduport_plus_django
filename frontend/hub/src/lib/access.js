@@ -4,8 +4,8 @@
 // gate, the route guards, the sidebar and every in-page action, so they can
 // never disagree. The API enforces the same permissions on every request; this
 // only decides what the Hub offers. Only the BDE workspace, a tutor's Demo
-// and Diagnostic bookings and Hourly Earnings, and the Admin Hub's modules
-// still to come read the role as well (see canOpenPage, isBde, isTutor and
+// and Diagnostic bookings and My Earnings, and the Admin Hub's modules
+// read the role as well (see canOpenPage, isBde, isTutor and
 // isAdmin): an account holding no permission gets no pages at all, whatever
 // its role.
 // What the sidebar lists is lib/navigation's, filtered through canOpenPage.
@@ -31,6 +31,7 @@ export const PERMISSIONS = {
   manageSession: 'accounts.manage_session',
   cancelSession: 'accounts.cancel_session',
   editSessionNotes: 'accounts.edit_session_notes',
+  correctSessionOutcome: 'accounts.correct_session_outcome',
 
   viewAllExams: 'accounts.view_all_exams',
   viewMentoredExams: 'accounts.view_mentored_exams',
@@ -49,7 +50,6 @@ export const PERMISSIONS = {
   viewActivityActors: 'accounts.view_activity_actors',
 
   viewInvitations: 'accounts.view_invitations',
-  createInvitation: 'accounts.create_invitation',
   changeInvitation: 'accounts.change_invitation',
   withdrawInvitation: 'accounts.withdraw_invitation',
 
@@ -85,6 +85,19 @@ export const PERMISSIONS = {
   // everyone's and cancelling them (the Admin's alone).
   createSalesQuotes: 'accounts.create_sales_quotes',
   manageSalesQuotes: 'accounts.manage_sales_quotes',
+  manageInitialSales: 'accounts.manage_initial_sales',
+  // A further purchase for an enrolled student (backend accounts.0026): the student's own
+  // mentor, or an administrator. The API checks the mentor on every request.
+  createAdditionalPurchases: 'accounts.create_additional_purchases',
+
+  // Tutor Earnings (backend accounts.0030): every tutor's earnings, the rates, payments to
+  // tutors and corrections to the ledger -- the administrators' alone, each on its own;
+  // and a tutor's own earnings (My Earnings). The API answers a tutor for themselves only.
+  viewTutorEarnings: 'accounts.view_tutor_earnings',
+  manageTutorRates: 'accounts.manage_tutor_rates',
+  manageTutorPayments: 'accounts.manage_tutor_payments',
+  correctTutorEarnings: 'accounts.correct_tutor_earnings',
+  viewOwnEarnings: 'accounts.view_own_earnings',
 };
 
 const P = PERMISSIONS;
@@ -142,8 +155,8 @@ export const PAGE_PERMISSIONS = {
   '/my-bookings/diagnostic': [P.viewAssignedBookings],
   // A tutor's Admissions Dashboard: those bookings at a glance.
   '/admissions-dashboard': [P.viewAssignedBookings],
-  // A tutor's Hourly Earnings, still to come: a Coming Soon page with nothing behind it yet.
-  '/hourly-earnings': [P.viewStaffDashboard],
+  // A tutor's own earnings and the payments recorded for them (Tutor Hub, My Earnings).
+  '/my-earnings': [P.viewOwnEarnings],
   // The BDE workspace. Last, so its pages are the home page only of whoever has no other page.
   // My Enquiries, then the Demo and Diagnostic bookings made for those enquiries, what to
   // follow up, and the two modules still to come (My Sales, Plans & Pricing). The
@@ -158,25 +171,32 @@ export const PAGE_PERMISSIONS = {
   '/plans': [P.viewSalesCatalogue],
   // Quotes, BDE and Admin alike: a BDE's own (My Quotes), every one for whoever manages them.
   '/quotes': [P.createSalesQuotes, P.manageSalesQuotes],
-  // The Admin Hub's Sales & Finance modules. Syllabus & Plans and Global Pricing
-  // open on their own permissions (backend sales.views); the rest are still to
-  // come -- each a Coming Soon page with nothing behind it yet, for whoever
-  // holds the staff dashboard.
-  '/sales-dashboard': [P.viewStaffDashboard],
+  // The Admin Hub's Sales & Finance modules. The Sales Dashboard reads every
+  // student's sales and payments, so it needs both permissions of the API's
+  // financial oversight (backend sales.account_views ADMIN_ONLY; see
+  // EVERY_PERMISSION_PAGES). Syllabus & Plans and Global Pricing open on their
+  // own permissions (backend sales.views); the rest are still to come -- each a
+  // Coming Soon page with nothing behind it yet, for whoever holds the staff
+  // dashboard. Sales Module and Sales Punching keep their pages but are no
+  // longer in the sidebar (lib/navigation). Tutor Earnings opens on its own
+  // permission (backend earnings.views).
+  '/sales-dashboard': [P.manageInitialSales, P.manageSalesQuotes],
   '/sales-module': [P.viewStaffDashboard],
   '/sales-punching': [P.viewStaffDashboard],
   '/sales-syllabus': [P.manageSalesSyllabi],
   '/sales-pricing': [P.manageSalesPricing],
-  '/tutor-earnings': [P.viewStaffDashboard],
+  '/tutor-earnings': [P.viewTutorEarnings],
 };
 
 // Pages for BDE accounts only. A superuser holds their permissions too (D1)
 // but owns no links or enquiries, so these pages read the role as well.
 const BDE_PAGES = new Set(['/enquiries', '/demo-bookings', '/diagnostic-bookings', '/follow-ups', '/sales', '/plans']);
 
-// Pages for administrators only: the Admin Hub's modules still to come. A
-// mentor or tutor holds view_staff_dashboard too, so these read the role as well.
-// (Syllabus & Plans and Global Pricing need permissions only administrators hold.)
+// Pages for administrators only: the Sales Dashboard, Tutor Earnings and the
+// Admin Hub's modules still to come. A mentor or tutor holds
+// view_staff_dashboard too, a BDE manage_initial_sales, and a superuser every
+// permission, so these read the role as well. (Syllabus & Plans and
+// Global Pricing need permissions only administrators hold.)
 const ADMIN_PAGES = new Set([
   '/sales-dashboard',
   '/sales-module',
@@ -184,17 +204,21 @@ const ADMIN_PAGES = new Set([
   '/tutor-earnings',
 ]);
 
+// Pages that need every one of their permissions, not just any one: the Sales
+// Dashboard (a BDE holds manage_initial_sales too, for their own enquiries).
+const EVERY_PERMISSION_PAGES = new Set(['/sales-dashboard']);
+
 // Pages for tutors only. A superuser holds accounts.view_assigned_bookings too
 // (D1) but is assigned no booking unless they are a tutor, so a tutor's
 // bookings read the role as well; the API lists only the caller's own
-// bookings either way. A mentor holds view_staff_dashboard too, so Hourly
-// Earnings reads it as well.
+// bookings either way. A superuser holds view_own_earnings too, so My Earnings
+// reads it as well.
 const TUTOR_PAGES = new Set([
   '/my-bookings',
   '/my-bookings/demo',
   '/my-bookings/diagnostic',
   '/admissions-dashboard',
-  '/hourly-earnings',
+  '/my-earnings',
 ]);
 
 // Pages for administrators and tutors only: the Academics Dashboard (the staff
@@ -228,7 +252,8 @@ export function canOpenPage(user, path) {
   if (ADMIN_PAGES.has(path) && !isAdmin(user)) return false;
   if (ADMIN_AND_TUTOR_PAGES.has(path) && !isAdmin(user) && !isTutor(user)) return false;
   const permissions = PAGE_PERMISSIONS[path];
-  return Boolean(permissions) && canAny(user, permissions);
+  if (!permissions) return false;
+  return EVERY_PERMISSION_PAGES.has(path) ? permissions.every((permission) => can(user, permission)) : canAny(user, permissions);
 }
 
 /** The first page `user` may open -- where the guards send them -- or null when there is none. */

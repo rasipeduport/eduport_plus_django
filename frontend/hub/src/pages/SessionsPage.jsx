@@ -11,6 +11,22 @@ import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
+import { StartSessionButton } from '../components/sessions/start-session-button';
+import { CorrectOutcomeDialog, RecordOutcomeDialog } from '../components/sessions/session-outcome-dialogs';
+import {
+  bookedLength,
+  classState,
+  hasEnded,
+  isAssignedTutor,
+  mayCancel,
+  mayRecordOutcome,
+  notesMode,
+  outcomeReasonLabel,
+  startOpensAt,
+  startState,
+} from '../lib/session-lifecycle';
+import { CLASS_STATE_VARIANT, classStateLabel } from '../lib/session-status';
+import { classMeetLink, classMeetMissing } from '../lib/meet-rooms';
 import { SchedulingError } from '../components/sessions/scheduling-error';
 import { StudentSectionTabs } from '../components/students/section-tabs';
 import { HomeworkGradeSheet } from '../components/homework/homework-grade-sheet';
@@ -43,18 +59,27 @@ const ALLOWED_DURATIONS = [
 
 const MEET_PREFIX = 'https://meet.google.com/';
 
-const isHttpsUrl = (value) => /^https:\/\/\S+$/i.test((value || '').trim());
-
 // Hub-style table formats. Times stay browser-local, as this table always was.
 // Staff read every session in IST (MENTOR_TIMEZONE), not the device's zone.
 const DATE_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', year: 'numeric' });
 const TIME_FORMAT = mentorZoneFormatter({ hour: 'numeric', minute: '2-digit', hour12: true });
+// When a tutor started or completed a class (it may be days after the class).
+const STAMP_FORMAT = mentorZoneFormatter({ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+const stamp = (iso) => STAMP_FORMAT.format(new Date(iso));
+const personName = (profile) => profile?.full_name || profile?.email || 'the tutor';
 
-// `display_status` from the API: the attendance status, except that an
-// attended class whose notes/recording/homework are not all in reads as
-// "pending" until the last one lands (derived server-side, never stored).
-const STATUS_LABEL = { scheduled: 'Scheduled', pending: 'Pending', attended: 'Attended', cancelled: 'Cancelled' };
-const STATUS_VARIANT = { scheduled: 'secondary', pending: 'warning', attended: 'success', cancelled: 'destructive' };
+// The status tabs: each lists the classes in those states (lib/session-lifecycle
+// classState, the backend's class_state). Needs Action holds what an ended class
+// still waits for -- its tutor's notes, or its outcome.
+const TABS = [
+  { id: 'upcoming', label: 'Upcoming', states: ['upcoming', 'in_progress'] },
+  { id: 'needs_action', label: 'Needs Action', states: ['notes_due', 'not_started'] },
+  { id: 'completed', label: 'Completed', states: ['completed'] },
+  { id: 'not_conducted', label: 'No-show / Not Conducted', states: ['not_conducted'] },
+  { id: 'cancelled', label: 'Cancelled', states: ['cancelled'] },
+];
+const TAB_IDS = TABS.map((tab) => tab.id);
+const inTab = (tabId, state) => (TABS.find((tab) => tab.id === tabId)?.states || []).includes(state);
 
 const CONTENT_LABEL = { notes: 'Notes', recording: 'Recording', homework: 'Homework' };
 
@@ -77,28 +102,92 @@ const isContentMissing = (s, key) => {
   return !(s[`${key}_link`] || '').trim();
 };
 
-// Status badge as the Hub renders it. A cancelled session shows its reason
-// on hover; a pending one lists what is still missing.
-function StatusBadge({ session }) {
-  const key = session.display_status || (session.status || '').toLowerCase();
-  const badge = <Badge variant={STATUS_VARIANT[key] || 'secondary'}>{STATUS_LABEL[key] || 'Scheduled'}</Badge>;
+// The row's badge: where the class stands. A cancelled class shows its reason
+// on hover, one not conducted its note; an attended class whose material is
+// incomplete also gets a Content missing chip listing what it lacks.
+function StatusBadge({ session, now }) {
+  const state = classState(session, now);
+  const badge = <Badge variant={CLASS_STATE_VARIANT[state] || 'secondary'}>{classStateLabel(state, session)}</Badge>;
   let hint = null;
-  if (key === 'cancelled' && session.cancellation_reason) {
-    hint = session.cancellation_reason;
-  } else if (key === 'pending') {
-    const missing = (session.missing_content || []).map((k) => CONTENT_LABEL[k] || k);
-    hint = missing.length ? `Missing: ${missing.join(', ')}` : 'Post-session content incomplete';
-  }
-  if (!hint) return badge;
+  if (state === 'cancelled' && session.cancellation_reason) hint = session.cancellation_reason;
+  else if (state === 'not_conducted' && session.outcome_note) hint = session.outcome_note;
+  const missing = session.display_status === 'pending' ? (session.missing_content || []).map((k) => CONTENT_LABEL[k] || k) : [];
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="cursor-help">{badge}</span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p className="max-w-xs">{hint}</p>
-      </TooltipContent>
-    </Tooltip>
+    <span className="flex flex-wrap items-center gap-1">
+      {hint ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-help">{badge}</span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">{hint}</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        badge
+      )}
+      {missing.length > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-help">
+              <Badge variant="outline">Content missing</Badge>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">Missing: {missing.join(', ')}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </span>
+  );
+}
+
+// Under the badge: who started the class (its tutor, the student's mentor or an
+// administrator), that its tutor's notes are due (whenever they come in, they
+// complete it), that nobody started it, who recorded its outcome, or the
+// completion the tutor's own notes made (backend sessions.lifecycle).
+// Staff attendance is noted too -- it records attendance, never the tutor's
+// completion.
+function ClassProgress({ session, now }) {
+  const state = classState(session, now);
+  const started = session.started_at ? `${stamp(session.started_at)} by ${personName(session.started_by_profile)}` : null;
+  const staffAttended = (session.status || '').toLowerCase() === 'attended' && !session.completed_at;
+  const parts = [];
+  let hint = null;
+  if (state === 'upcoming') {
+    if (now.getTime() >= new Date(session.start_time).getTime()) parts.push('Not started yet');
+  } else if (state === 'in_progress') {
+    parts.push(`Started ${started}`);
+  } else if (state === 'notes_due') {
+    parts.push("Awaiting the tutor's notes");
+    if (staffAttended) parts.push('Marked attended by staff');
+    hint = `Started ${started}`;
+  } else if (state === 'not_started') {
+    parts.push('Nobody started this class');
+    if (staffAttended) parts.push('Marked attended by staff');
+    hint = "Its tutor's notes cannot complete it; its outcome can be recorded.";
+  } else if (state === 'completed') {
+    parts.push(`Completed by tutor · ${stamp(session.completed_at)}`);
+    hint = [
+      started ? `Started ${started}` : 'Not started in the Hub',
+      `completed by ${personName(session.completed_by_profile)}'s notes`,
+      `${bookedLength(session)} as booked`,
+    ].filter(Boolean).join(' · ');
+  } else if (state === 'not_conducted') {
+    if (session.outcome_reason) parts.push(outcomeReasonLabel(session.outcome_reason));
+    if (session.outcome_recorded_at) parts.push(`recorded ${stamp(session.outcome_recorded_at)}`);
+    hint = [
+      session.outcome_recorded_by_profile ? `Recorded by ${personName(session.outcome_recorded_by_profile)}` : null,
+      session.outcome_corrected_at
+        ? `corrected by ${personName(session.outcome_corrected_by_profile)} ${stamp(session.outcome_corrected_at)}`
+        : null,
+    ].filter(Boolean).join(' · ') || null;
+  }
+  if (parts.length === 0) return null;
+  return (
+    <span className="text-[11px] text-zinc-500 whitespace-nowrap" title={hint || undefined}>
+      {parts.join(' · ')}
+    </span>
   );
 }
 
@@ -155,8 +244,9 @@ export default function SessionsPage({ user }) {
   const [dateRange, setDateRange] = useState(undefined); // { from, to } with `to` at end of day
   const [tutorFilter, setTutorFilter] = useState([]); // tutor profile ids
   const [columnVisibility, setColumnVisibility] = useState({}); // { [columnId]: false } hides
-  const [activeTab, setActiveTab] = useState('scheduled'); // 'scheduled' | 'attended' | 'cancelled'
-  // Post-session content filter (Attended tab only). The API does the
+  // One of TAB_IDS; ?tab= opens another (the dashboards link to Needs Action).
+  const [activeTab, setActiveTab] = useState(() => (TAB_IDS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'upcoming'));
+  // Post-session content filter (Completed tab only). The API does the
   // filtering; `contentSessions` holds its result while a filter is active.
   const [contentFilter, setContentFilter] = useState('all');
   const [contentSessions, setContentSessions] = useState(null);
@@ -168,13 +258,16 @@ export default function SessionsPage({ user }) {
   const canManage = can(user, PERMISSIONS.manageSession);
   const canCancel = can(user, PERMISSIONS.cancelSession);
   const canEditNotes = can(user, PERMISSIONS.editSessionNotes);
+  // Correcting or removing a recorded outcome: administrators only.
+  const canCorrectOutcome = can(user, PERMISSIONS.correctSessionOutcome);
   // Whoever oversees every session (admins) can complete every post-session
   // item themselves; mentors and tutors keep their split (recording +
   // homework vs. notes).
   const isAdmin = can(user, PERMISSIONS.viewAllSessions);
 
   // Modals active state
-  const [modalType, setModalType] = useState(null); // 'attend' | 'reschedule' | 'links' | 'cancel'
+  // 'attend' | 'notes' | 'reschedule' | 'links' | 'cancel' | 'outcome' | 'correct'
+  const [modalType, setModalType] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
 
   const [saving, setSaving] = useState(false);
@@ -195,6 +288,15 @@ export default function SessionsPage({ user }) {
   const [needMakeup, setNeedMakeup] = useState(false);
   const [makeupTime, setMakeupTime] = useState('');
   const [makeupDuration, setMakeupDuration] = useState(1.0);
+
+  // The clock the tutor's actions follow, so they open on their own: Start
+  // Session 5 minutes before a class, completing notes once it ends. The
+  // server checks both again by its own clock.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchStudents();
@@ -254,11 +356,11 @@ export default function SessionsPage({ user }) {
     }
   };
 
-  // The Content filter only means something on the Attended tab; leaving the
+  // The Content filter only means something on the Completed tab; leaving the
   // tab drops it so the other tabs always show their full lists.
   const switchTab = (tab) => {
     setActiveTab(tab);
-    if (tab !== 'attended' && contentFilter !== 'all') {
+    if (tab !== 'completed' && contentFilter !== 'all') {
       setContentFilter('all');
       setContentSessions(null);
     }
@@ -283,6 +385,10 @@ export default function SessionsPage({ user }) {
       setMakeupDuration(1.0);
     }
   };
+
+  // What the notes dialog open now does (lib/session-lifecycle notesMode): complete the class, or save an edit.
+  const dialogNotesMode = modalType === 'notes' && activeSession ? notesMode(activeSession, now) : null;
+  const completingNotes = dialogNotesMode === 'complete';
 
   const closeModal = () => {
     setModalType(null);
@@ -403,16 +509,22 @@ export default function SessionsPage({ user }) {
   };
 
   // Tutor's post-session responsibility: the notes link, and only that. The
-  // API refuses anything else from a tutor.
+  // API refuses anything else from a tutor. For a class someone started that
+  // has ended, submitting the notes completes it, however long after the class
+  // -- a new upload does so itself; notes kept as they were are sent again so
+  // the submission still counts.
   const handleSaveNotes = async (e) => {
     e.preventDefault();
     setSaving(true);
     setModalError('');
 
     try {
+      const kept = contentPayload(content.notes).kind === 'keep';
       const body = await submitContent(['notes'], { required: ['notes'] });
       if ('notes_link' in body) {
         await api.put('/api/sessions/', { id: activeSession.id, notes_link: body.notes_link });
+      } else if (kept && notesMode(activeSession, new Date()) === 'complete') {
+        await api.put('/api/sessions/', { id: activeSession.id, notes_link: activeSession.notes_link });
       }
       fetchSessions();
       closeModal();
@@ -423,6 +535,67 @@ export default function SessionsPage({ user }) {
     }
   };
 
+  // The tutor's one row action. Their notes complete the class, so they wait
+  // for someone's Start and its scheduled end -- then they complete it whenever
+  // they come in; once completed, they are edits. None on a class cancelled or
+  // recorded as not conducted.
+  const tutorNotesItem = (session) => {
+    const mode = notesMode(session, now);
+    const open = () => openModal('notes', session);
+    if (mode === 'complete') return { label: 'Submit Notes', onClick: open };
+    if (mode === 'save') return { label: 'Update Notes', onClick: open };
+    if (mode === 'wait') {
+      return {
+        label: 'Submit Notes',
+        disabled: true,
+        title: `Opens when the class ends at ${TIME_FORMAT.format(new Date(session.end_time))}`,
+        onClick: () => {},
+      };
+    }
+    if (mode === 'not_started') {
+      return {
+        label: 'Submit Notes',
+        disabled: true,
+        title: hasEnded(session, now)
+          ? 'Nobody started this class, so it takes no notes'
+          : 'Opens once the class has been started and has ended',
+        onClick: () => {},
+      };
+    }
+    return null;
+  };
+
+  // What an administrator or the student's mentor may do with a row. Mark
+  // Attended (operational only) once the class has ended; Reschedule while
+  // nobody started it; Record Outcome once it ended without its tutor's
+  // completion; Correct Outcome (administrators) once one is recorded; Cancel
+  // until the scheduled end. The API checks every one again.
+  const staffItems = (session) => {
+    const status = (session.status || '').toLowerCase();
+    const state = classState(session, now);
+    return [
+      ...(status === 'scheduled' ? [
+        {
+          label: 'Mark Attended',
+          onClick: () => openModal('attend', session),
+          disabled: !hasEnded(session, now),
+          title: hasEnded(session, now) ? undefined : 'Available once the class has ended',
+        },
+        ...(session.started_at ? [] : [{ label: 'Reschedule', onClick: () => openModal('reschedule', session) }]),
+      ] : []),
+      ...(mayRecordOutcome(session, now)
+        ? [{ label: 'Record Outcome', onClick: () => openModal('outcome', session) }]
+        : []),
+      ...(state === 'not_conducted' && canCorrectOutcome
+        ? [{ label: 'Correct Outcome', onClick: () => openModal('correct', session) }]
+        : []),
+      ...(state !== 'not_conducted' ? [{ label: 'Edit Resource Links', onClick: () => openModal('links', session) }] : []),
+      ...(canCancel && mayCancel(session, now)
+        ? [{ label: 'Cancel Session', onClick: () => openModal('cancel', session), danger: true }]
+        : []),
+    ];
+  };
+
   const clearStudentFilter = () => {
     setSelectedStudentId('');
     setSearchParams({});
@@ -431,9 +604,11 @@ export default function SessionsPage({ user }) {
   // Filter sessions. With a Content filter active the rows come from the API's
   // filtered result (attended only); the title/date/tutor filters still apply.
   const tableSource = contentFilter !== 'all' && contentSessions ? contentSessions : sessions;
+  const studentRow = (session) =>
+    selectedStudentId ? (session.student_id === selectedStudentId || session.student?.id === selectedStudentId) : true;
   const filteredSessions = tableSource.filter(session => {
-    const studentMatch = selectedStudentId ? (session.student_id === selectedStudentId || session.student?.id === selectedStudentId) : true;
-    const tabMatch = session.status?.toLowerCase() === activeTab;
+    const studentMatch = studentRow(session);
+    const tabMatch = inTab(activeTab, classState(session, now));
     // The search box matches the session title or the student's name.
     const term = searchTerm.trim().toLowerCase();
     const studentName = session.students?.full_name || session.student_profile?.full_name || session.student?.full_name || '';
@@ -502,8 +677,9 @@ export default function SessionsPage({ user }) {
 
   // Table columns in Hub order. Every one but Actions can be hidden from the
   // Columns menu, where `id` doubles as the label (underscores become spaces).
-  // `tabs` limits a column to those status tabs: recording, notes, homework
-  // and rating only exist once a class was attended, and the Meet room is
+  // `tabs` limits a column to those tabs: recording, notes and homework only
+  // exist once a class has ended (Needs Action shows what is in so far), the
+  // homework status and rating once it is completed, and the Meet room is
   // only worth joining for a class that has not happened yet.
   const columns = [
     {
@@ -527,7 +703,16 @@ export default function SessionsPage({ user }) {
       cellClass: 'text-sm text-zinc-300 whitespace-nowrap',
       cell: (s) => `${TIME_FORMAT.format(new Date(s.start_time))} - ${TIME_FORMAT.format(new Date(s.end_time))}`,
     },
-    { id: 'status', label: 'Status', cell: (s) => <StatusBadge session={s} /> },
+    {
+      id: 'status',
+      label: 'Status',
+      cell: (s) => (
+        <div className="flex flex-col items-start gap-1">
+          <StatusBadge session={s} now={now} />
+          <ClassProgress session={s} now={now} />
+        </div>
+      ),
+    },
     {
       id: 'student',
       label: 'Student',
@@ -552,12 +737,34 @@ export default function SessionsPage({ user }) {
     {
       id: 'meeting',
       label: 'Meeting',
-      tabs: ['scheduled', 'cancelled'],
-      // The student's own Meet room (students.meet_link), nested by the
-      // Sessions API. Only a real https URL gets a Join button.
+      tabs: ['upcoming', 'cancelled'],
+      // The class's room: the Meet link of the tutor it is assigned to
+      // (`tutor_meet_link`), never the student's; without one the cell says
+      // why. Only a real https URL gets a Join button. From 5
+      // minutes before a class until it ends, whoever may start it -- its
+      // tutor, the student's mentor or an administrator -- gets Start Session
+      // instead (backend sessions.lifecycle); once started, Join Meet. The
+      // tutor also sees when Start opens; staff keep Join Meet otherwise.
       cell: (s) => {
-        const meetLink = (s.students?.meet_link || '').trim();
-        return isHttpsUrl(meetLink) ? (
+        const ownClass = isAssignedTutor(s, user);
+        const start = ownClass || canManage ? startState(s, now) : null;
+        if (start === 'ready') {
+          return (
+            <StartSessionButton session={s} asTutor={ownClass} onStarted={() => fetchSessions()} onRefresh={() => fetchSessions()} />
+          );
+        }
+        if (ownClass && start === 'upcoming') {
+          return (
+            <span className="text-xs text-zinc-500 whitespace-nowrap">
+              Start opens {TIME_FORMAT.format(startOpensAt(s))}
+            </span>
+          );
+        }
+        if (ownClass && start === 'closed') {
+          return <span className="text-xs text-zinc-500 italic whitespace-nowrap">Class ended</span>;
+        }
+        const meetLink = classMeetLink(s);
+        return meetLink ? (
           <a
             href={meetLink}
             target="_blank"
@@ -570,21 +777,21 @@ export default function SessionsPage({ user }) {
             <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
           </a>
         ) : (
-          <span className="text-xs text-zinc-500 italic whitespace-nowrap">No meet link</span>
+          <span className="text-xs text-zinc-500 italic whitespace-nowrap">{classMeetMissing(s)}</span>
         );
       },
     },
     // Attended-only columns. Each required item that is still absent gets the
     // Missing badge; rating is optional and stays "—" when unset.
-    { id: 'recording', label: 'Recording', tabs: ['attended'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} file={s.content_files?.recording} /> },
-    { id: 'notes', label: 'Notes', tabs: ['attended'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} file={s.content_files?.notes} /> },
-    { id: 'homework', label: 'Homework', tabs: ['attended'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} file={s.content_files?.homework} /> },
+    { id: 'recording', label: 'Recording', tabs: ['needs_action', 'completed'], cell: (s) => <ResourceLink href={s.recording_link} icon={Video} label="Open recording" missing={isContentMissing(s, 'recording')} file={s.content_files?.recording} /> },
+    { id: 'notes', label: 'Notes', tabs: ['needs_action', 'completed'], cell: (s) => <ResourceLink href={s.notes_link} icon={FileText} label="Open notes" missing={isContentMissing(s, 'notes')} file={s.content_files?.notes} /> },
+    { id: 'homework', label: 'Homework', tabs: ['needs_action', 'completed'], cell: (s) => <ResourceLink href={s.homework_link} icon={BookOpen} label="Open homework" missing={isContentMissing(s, 'homework')} file={s.content_files?.homework} /> },
     // The homework lifecycle behind the link (assigned -> submitted -> scored);
     // the badge opens the same review sheet as the /homework page.
     {
       id: 'homework_status',
       label: 'HW Status',
-      tabs: ['attended'],
+      tabs: ['completed'],
       cell: (s) =>
         s.homework ? (
           <button type="button" onClick={() => setGradeHomeworkId(s.homework.id)} className="cursor-pointer" title="Open homework review">
@@ -597,7 +804,7 @@ export default function SessionsPage({ user }) {
     {
       id: 'rating',
       label: 'Rating',
-      tabs: ['attended'],
+      tabs: ['completed'],
       cellClass: 'text-sm whitespace-nowrap',
       cell: (s) => (s.rating != null ? <span className="text-zinc-300">{s.rating}/5</span> : <span className="text-zinc-500">—</span>),
     },
@@ -611,12 +818,15 @@ export default function SessionsPage({ user }) {
   };
 
   // Drawer inputs: the student behind the filter and their live quota usage.
-  // Credits used mirrors the API's calculate_credits_used (hours of every
-  // non-cancelled session) over the same list the table renders.
+  // Credits used mirrors the API's calculate_credits_used over the same list
+  // the table renders: each class's `consumes_credit` -- every class but a
+  // cancelled one, or one not conducted for a reason other than the student's
+  // no-show.
   const selectedStudent = students.find(s => s.id === selectedStudentId) || null;
+  const usesCredit = (s) => (typeof s.consumes_credit === 'boolean' ? s.consumes_credit : s.status?.toLowerCase() !== 'cancelled');
   const creditsUsed = selectedStudent
     ? sessions
-        .filter(s => s.student_id === selectedStudent.id && s.status?.toLowerCase() !== 'cancelled')
+        .filter(s => s.student_id === selectedStudent.id && usesCredit(s))
         .reduce((sum, s) => sum + Math.max(0, (new Date(s.end_time) - new Date(s.start_time)) / 3600000), 0)
     : 0;
 
@@ -695,7 +905,7 @@ export default function SessionsPage({ user }) {
           </DropdownMenu>
         )}
 
-        {activeTab === 'attended' && (
+        {activeTab === 'completed' && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -765,21 +975,33 @@ export default function SessionsPage({ user }) {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs, by where each class stands. Needs Action counts what waits there. */}
       <div className="flex gap-4 overflow-x-auto border-b border-zinc-200 dark:border-[rgba(255,255,255,0.08)] sm:gap-6">
-        {['scheduled', 'attended', 'cancelled'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => switchTab(tab)}
-            className={`shrink-0 whitespace-nowrap pb-3 text-sm font-medium transition-colors relative capitalize cursor-pointer ${
-              activeTab === tab 
-                ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white' 
-                : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          const waiting = tab.id === 'needs_action'
+            ? sessions.filter((session) => studentRow(session) && inTab(tab.id, classState(session, now))).length
+            : 0;
+          // The count sits beside the tab, so the tab keeps its name whatever it counts.
+          return (
+            <div key={tab.id} className="flex shrink-0 items-start gap-1.5">
+              <button
+                onClick={() => switchTab(tab.id)}
+                className={`shrink-0 whitespace-nowrap pb-3 text-sm font-medium transition-colors relative cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white'
+                    : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+              {waiting > 0 ? (
+                <span className="rounded-full bg-warning/15 px-1.5 text-xs text-warning" aria-label={`${waiting} need action`}>
+                  {waiting}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       {/* Sessions Table */}
@@ -816,28 +1038,13 @@ export default function SessionsPage({ user }) {
                     <td className="py-2 px-4 align-middle text-right sticky right-0 bg-[#0a0a0a] group-hover:bg-[#111] border-l border-[rgba(255,255,255,0.08)] transition-colors z-10">
                       {!canManage ? (
                         // With only edit_session_notes (tutors), the notes
-                        // link is all there is; a cancelled class has no
-                        // notes to add.
-                        canEditNotes && activeTab !== 'cancelled' && (
-                          <StaffActionsDropdown
-                            items={[
-                              { label: session.notes_link ? 'Update Notes' : 'Add Notes', onClick: () => openModal('notes', session) },
-                            ]}
-                          />
+                        // link of their own classes is all there is; a
+                        // class cancelled or not conducted takes none.
+                        canEditNotes && isAssignedTutor(session, user) && tutorNotesItem(session) && (
+                          <StaffActionsDropdown items={[tutorNotesItem(session)]} />
                         )
                       ) : (
-                        <StaffActionsDropdown
-                          items={[
-                            ...(activeTab === 'scheduled' ? [
-                              { label: 'Mark Attended', onClick: () => openModal('attend', session) },
-                              { label: 'Reschedule', onClick: () => openModal('reschedule', session) },
-                            ] : []),
-                            { label: 'Edit Resource Links', onClick: () => openModal('links', session) },
-                            ...(activeTab === 'scheduled' && canCancel ? [
-                              { label: 'Cancel Session', onClick: () => openModal('cancel', session), danger: true },
-                            ] : []),
-                          ]}
-                        />
+                        <StaffActionsDropdown items={staffItems(session)} />
                       )}
                     </td>
                   </tr>
@@ -847,9 +1054,9 @@ export default function SessionsPage({ user }) {
           )}
       </div>
 
-      {/* Modals & Sheets Overlay. Reschedule is a design-system dialog below,
-          so it is left out of this legacy overlay. */}
-      {modalType && modalType !== 'reschedule' && (
+      {/* Modals & Sheets Overlay. Reschedule and the outcome dialogs are
+          design-system dialogs below, so they are left out of this legacy overlay. */}
+      {['attend', 'notes', 'links', 'cancel'].includes(modalType) && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-4">
           
           {/* Mark Attended Modal — captures required resource links */}
@@ -865,7 +1072,13 @@ export default function SessionsPage({ user }) {
                   {isAdmin
                     ? 'Recording, notes and homework can each be added now or later. '
                     : 'Recording and homework can be added now or later; the tutor adds the notes. '}
-                  The class shows as <span className="text-amber-400">Pending</span> until all three are available.
+                  The class shows <span className="text-amber-400">Content missing</span> until all three are available.
+                </p>
+
+                <p className="text-[11px] text-zinc-500 m-0">
+                  {activeSession?.started_at
+                    ? `Started ${stamp(activeSession.started_at)} by ${personName(activeSession.started_by_profile)}. Marking it attended records attendance only; the tutor's own notes complete it, whenever they come in.`
+                    : "Nobody started this class, so its tutor's notes cannot complete it. Marking it attended records attendance only and never counts toward Tutor Earnings."}
                 </p>
 
                 <ContentInput
@@ -931,14 +1144,18 @@ export default function SessionsPage({ user }) {
           {/* Tutor: Add / Update Notes Link */}
           {modalType === 'notes' && (
             <div className="w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-2xl p-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] overflow-y-auto sm:p-6">
-              <h3 className="text-base font-semibold text-white m-0">{activeSession?.notes_link ? 'Update Notes Link' : 'Add Notes Link'}</h3>
+              <h3 className="text-base font-semibold text-white m-0">
+                {completingNotes ? 'Submit Notes' : 'Update Notes'}
+              </h3>
               <p className="text-xs text-zinc-400 mt-1 mb-6">{activeSession?.title}</p>
 
               <form onSubmit={handleSaveNotes} className="space-y-4">
                 <SchedulingError error={modalError} legacy />
 
                 <p className="text-[11px] text-zinc-500 m-0">
-                  Paste a link to your notes or upload the file (PDF, image, or video). Once the recording and homework are in as well, the class shows as Attended.
+                  {completingNotes
+                    ? `Paste a link to your notes or upload the file (PDF, image, or video). Submitting them completes this class: ${bookedLength(activeSession)} as booked.`
+                    : 'Paste a link to your notes or upload the file (PDF, image, or video). This updates the notes of a completed class.'}
                 </p>
 
                 <ContentInput
@@ -964,7 +1181,7 @@ export default function SessionsPage({ user }) {
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                    Save Notes
+                    {completingNotes ? 'Submit & Complete' : 'Save Notes'}
                   </button>
                 </div>
               </form>
@@ -1126,6 +1343,20 @@ export default function SessionsPage({ user }) {
 
         </div>
       )}
+
+      {/* No-show / Not Conducted and an administrator's correction. */}
+      <RecordOutcomeDialog
+        session={modalType === 'outcome' ? activeSession : null}
+        open={modalType === 'outcome'}
+        onOpenChange={(v) => !v && closeModal()}
+        onSaved={() => fetchSessions()}
+      />
+      <CorrectOutcomeDialog
+        session={modalType === 'correct' ? activeSession : null}
+        open={modalType === 'correct'}
+        onOpenChange={(v) => !v && closeModal()}
+        onSaved={() => fetchSessions()}
+      />
 
       <HomeworkGradeSheet
         homeworkId={gradeHomeworkId}

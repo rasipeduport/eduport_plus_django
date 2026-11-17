@@ -2,14 +2,12 @@ import {
   BadgePercent,
   BookMarked,
   BookOpen,
-  Briefcase,
   CalendarCheck,
   CalendarCheck2,
   CalendarClock,
   ChartColumn,
   ClipboardCheck,
   ClipboardList,
-  ClipboardPen,
   GraduationCap,
   History,
   Inbox,
@@ -31,7 +29,9 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 // under the logo and lists its sections: an optional `label`, and items of
 // `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon") and
 // `nested` (the item stays highlighted on the pages under its address, such as
-// one enquiry under My Enquiries). An item may instead hold `children` (items
+// one enquiry under My Enquiries) and `alsoOn` (other pages it stays
+// highlighted on, such as Global Pricing, opened from Syllabus & Plans and
+// with no item of its own). An item may instead hold `children` (items
 // of `title` and `url`), shown as a submenu that opens and closes under it,
 // such as Bookings' Demo and Diagnostic. A `collapsible` workspace lets each
 // labelled section fold away under its heading. The sidebar shows exactly the
@@ -100,9 +100,11 @@ const STAFF_WORKSPACE = {
 
 // The Admin Hub: its common Dashboard (still to come) on top, then the
 // admissions pipeline (its dashboard, every lead, the Demo and Diagnostic
-// bookings and their slots), the Sales & Finance modules still to come, the
-// academic modules with their dashboard, the staff and invitations, and the
-// activity log.
+// bookings and their slots), Sales & Finance (the Sales Dashboard, the
+// syllabuses and plans on offer, every quote, and Tutor Earnings -- every
+// tutor's, each one's on its own page), the academic modules with their dashboard, the staff and
+// invitations, and the activity log. Sales Module and Sales Punching keep
+// their pages (lib/access, App.jsx) but have no item here.
 const ADMIN_WORKSPACE = {
   name: 'Admin Hub',
   collapsible: true,
@@ -130,13 +132,10 @@ const ADMIN_WORKSPACE = {
     {
       label: 'Sales & Finance',
       items: [
-        { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn, badge: COMING_SOON },
-        { title: 'Sales Module', url: '/sales-module', icon: Briefcase, badge: COMING_SOON },
-        { title: 'Sales Punching', url: '/sales-punching', icon: ClipboardPen, badge: COMING_SOON },
-        { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true },
-        { title: 'Global Pricing', url: '/sales-pricing', icon: BadgePercent },
+        { title: 'Sales Dashboard', url: '/sales-dashboard', icon: ChartColumn },
+        { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true, alsoOn: ['/sales-pricing'] },
         { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
-        { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, badge: COMING_SOON },
+        { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, nested: true },
       ],
     },
     {
@@ -165,8 +164,8 @@ const ADMIN_WORKSPACE = {
 
 // The Tutor Hub: its Main Dashboard on top, then the admissions work (its
 // dashboard and the Demo and Diagnostic bookings they are assigned to teach),
-// their regular teaching with its dashboard (Academics & Learning), their
-// earnings still to come, and their own activity.
+// their regular teaching with its dashboard (Academics & Learning), their own
+// earnings (My Earnings), and their own activity.
 const TUTOR_WORKSPACE = {
   name: 'Tutor Hub',
   collapsible: true,
@@ -202,7 +201,7 @@ const TUTOR_WORKSPACE = {
     },
     {
       label: 'Earnings',
-      items: [{ title: 'Hourly Earnings', url: '/hourly-earnings', icon: Wallet, badge: COMING_SOON }],
+      items: [{ title: 'My Earnings', url: '/my-earnings', icon: Wallet }],
     },
     {
       label: 'Monitoring',
@@ -235,14 +234,16 @@ export function workspaceFor(user) {
 
 /**
  * Whether `item` is the page at `pathname` -- or, for a `nested` item, a page
- * under it; for an item with children, whether one of them is. A page opened
- * from another page (`fromPath`, the way back a link passed: an enquiry opened
- * from Demo Bookings, say, or a tutor's report opened from its booking) keeps
- * the item of that page current.
+ * under it, or one of its `alsoOn` pages; for an item with children, whether
+ * one of them is. A page opened from another page (`fromPath`, the way back a
+ * link passed: an enquiry opened from Demo Bookings, say, or a tutor's report
+ * opened from its booking) keeps the item of that page current.
  */
 export function isCurrentItem(item, pathname, fromPath = null) {
   if (item.children) return item.children.some((child) => isCurrentItem(child, pathname, fromPath));
   const origin = fromPath ? fromPath.split('?')[0] : null;
   const here = origin && origin !== pathname ? origin : pathname;
-  return here === item.url || (Boolean(item.nested) && here.startsWith(`${item.url}/`));
+  return (
+    here === item.url || Boolean(item.alsoOn?.includes(here)) || (Boolean(item.nested) && here.startsWith(`${item.url}/`))
+  );
 }

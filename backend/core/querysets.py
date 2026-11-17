@@ -58,7 +58,7 @@ def _held(user, request):
     return effective_permissions(user, request)
 
 
-def _scope(module, qs, user, request, prefix='', tutored=None):
+def _scope(module, qs, user, request, prefix='', tutored=None, also_tutor=None):
     view_all, narrower = SCOPES[module]
     held = _held(user, request)
     if view_all in held:
@@ -68,6 +68,9 @@ def _scope(module, qs, user, request, prefix='', tutored=None):
         if perm in held:
             extra = tutored if field == 'tutor' and tutored else {}
             condition |= Q(**{f'{prefix}{field}': user}, **{f'{prefix}{k}': v for k, v in extra.items()})
+            # Rows the tutor scope reaches through the row itself, not the student.
+            if field == 'tutor' and also_tutor is not None:
+                condition |= also_tutor
     return qs.filter(condition)
 
 
@@ -83,8 +86,16 @@ def scope_students(qs, user, request=None, current_only=True):
 
 
 def scope_sessions(qs, user, request=None):
-    """Restrict a ``Session`` queryset to those of the students ``user`` may see sessions of."""
-    return _scope('sessions', qs, user, request, prefix='student__')
+    """
+    Restrict a ``Session`` queryset to those of the students ``user`` may see
+    sessions of. A tutor also sees every class assigned to them that was not
+    cancelled, whoever tutors the student now. A change of tutor never takes
+    a started or past class from them (sessions.services.transferable_sessions),
+    even one staff already marked attended, and its notes, which complete it,
+    are still theirs to submit.
+    """
+    assigned = Q(tutor=user) & ~Q(status='CANCELLED')
+    return _scope('sessions', qs, user, request, prefix='student__', also_tutor=assigned)
 
 
 def scope_exams(qs, user, request=None):

@@ -73,11 +73,12 @@ class RoleChangeRuleMixin:
                 refusal = upcoming_booking_refusal(account, 'changing their role')
                 if refusal:
                     self.add_error('role', refusal)
-                elif account.tutor_meet_link:
-                    # Only a tutor has a Meet link (the form does not show it):
-                    # it goes with the role, as Team's role change drops it.
-                    # Past bookings keep their own copies.
+                else:
+                    # Only a tutor or a mentor has a Meet link (the form shows
+                    # neither): it goes with the role, as Team's role change
+                    # drops it. Past bookings keep their own copies.
                     account.tutor_meet_link = None
+                    account.mentor_meet_link = None
         if deactivating:
             refusal = upcoming_booking_refusal(account, 'deactivating')
             if refusal:

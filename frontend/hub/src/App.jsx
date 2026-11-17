@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AuthProvider from './context/AuthProvider';
+import PaymentReturnPage from './pages/PaymentReturnPage';
+import AutopayActionPage from './pages/AutopayActionPage';
 import SidebarLayout from './layout/SidebarLayout';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -33,6 +35,7 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import BdeActivityPage from './pages/BdeActivityPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import AdmissionsDashboardPage from './pages/AdmissionsDashboardPage';
+import SalesDashboardPage from './pages/SalesDashboardPage';
 import SalesSyllabiPage from './pages/SalesSyllabiPage';
 import SalesSyllabusPage from './pages/SalesSyllabusPage';
 import SalesSyllabusEditorPage from './pages/SalesSyllabusEditorPage';
@@ -41,6 +44,9 @@ import PlansPage from './pages/PlansPage';
 import PlanPage from './pages/PlanPage';
 import QuotesPage from './pages/QuotesPage';
 import QuotePage from './pages/QuotePage';
+import TutorEarningsPage from './pages/TutorEarningsPage';
+import TutorEarningsDetailPage from './pages/TutorEarningsDetailPage';
+import MyEarningsPage from './pages/MyEarningsPage';
 import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
 import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
 
@@ -200,8 +206,10 @@ function HubRoutes({ user, logout }) {
           path="/my-bookings/:bookingType/:bookingId/report"
           element={page('/my-bookings', <TutorReportPage user={user} />)}
         />
-        {/* The Tutor Hub's Hourly Earnings, still to come: nothing behind it yet. */}
-        <Route path="/hourly-earnings" element={page('/hourly-earnings', <ComingSoonPage module="hourlyEarnings" />)} />
+        {/* The Tutor Hub's My Earnings: the signed-in tutor's own earnings and payments (the API
+            answers for the signed-in account only). Its former address, Hourly Earnings, lands on it. */}
+        <Route path="/my-earnings" element={page('/my-earnings', <MyEarningsPage />)} />
+        <Route path="/hourly-earnings" element={page('/my-earnings', <Navigate to="/my-earnings" replace />)} />
         {/* A BDE's booking links are shared from their dashboard now (the
             Share Demo / Diagnostic Link cards), so the former page's address
             lands there. */}
@@ -235,8 +243,9 @@ function HubRoutes({ user, logout }) {
         {/* Quotes: a BDE's own, or every one for an administrator, and one quote as it was issued. */}
         <Route path="/quotes" element={page('/quotes', <QuotesPage user={user} />)} />
         <Route path="/quotes/:quoteId" element={page('/quotes', <QuotePage user={user} />)} />
-        {/* The Admin Hub's Sales & Finance modules still to come: nothing behind them yet. */}
-        <Route path="/sales-dashboard" element={page('/sales-dashboard', <ComingSoonPage module="salesDashboard" />)} />
+        {/* The Sales Dashboard: sales and collections across every student, for administrators. */}
+        <Route path="/sales-dashboard" element={page('/sales-dashboard', <SalesDashboardPage />)} />
+        {/* Sales & Finance modules still to come, with no sidebar item: nothing behind them yet. */}
         <Route path="/sales-module" element={page('/sales-module', <ComingSoonPage module="salesModule" />)} />
         <Route path="/sales-punching" element={page('/sales-punching', <ComingSoonPage module="salesPunching" />)} />
         {/* Syllabus & Plans: every syllabus, a new one, one, and its draft (keyed apart, so saving a
@@ -249,7 +258,11 @@ function HubRoutes({ user, logout }) {
           element={page('/sales-syllabus', <SalesSyllabusEditorPage key="edit" />)}
         />
         <Route path="/sales-pricing" element={page('/sales-pricing', <SalesPricingPage />)} />
-        <Route path="/tutor-earnings" element={page('/tutor-earnings', <ComingSoonPage module="tutorEarnings" />)} />
+        {/* Tutor Earnings, for administrators: every tutor's earnings and balance, the rates, and
+            each tutor's own page -- earnings, ledger, payments and corrections. The API checks
+            each action's own permission. */}
+        <Route path="/tutor-earnings" element={page('/tutor-earnings', <TutorEarningsPage user={user} />)} />
+        <Route path="/tutor-earnings/:tutorId" element={page('/tutor-earnings', <TutorEarningsDetailPage user={user} />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>
@@ -262,6 +275,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/payment-return" element={<PaymentReturnPage />} />
+        <Route path="/autopay/confirm/:token" element={<AutopayActionPage />} />
         {/* A temporary password must be replaced before anything else: this
             page stands alone (no sidebar), and every other Hub route sends an
             account with must_change_password here. The API enforces the same. */}

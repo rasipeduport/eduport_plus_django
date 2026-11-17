@@ -268,7 +268,7 @@ def bridge_selection(syllabus_id, number, chapter_ids):
     return revision, content, (None if len(selected) == len(chapters) else selected)
 
 
-def choose(chapters, chapter_ids, plan_type, revision):
+def choose(chapters, chapter_ids, plan_type, revision, class_mode='REGULAR'):
     """
     The ids of ``chapter_ids`` -- a Bridge Course's days, or a Chapter Plan's
     chapters -- in the course's order: rows of ``revision`` (whose ``chapters``
@@ -284,7 +284,11 @@ def choose(chapters, chapter_ids, plan_type, revision):
     if set(wanted) - {str(chapter.pk) for chapter in chapters}:
         raise _invalid_selection(f'Choose {noun}s of revision {revision.number} of {where}.')
     selected = [str(chapter.pk) for chapter in chosen_chapters(chapters, wanted)]
-    if plan_classes(plan_type, chapters, selected) <= 0:
+    try:
+        classes = plan_classes(plan_type, chapters, selected, class_mode=class_mode)
+    except ValueError as exc:
+        raise _invalid_selection(str(exc)) from exc
+    if classes <= 0:
         raise _invalid_selection(f'The {noun}s chosen have no classes.')
     return selected
 

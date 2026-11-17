@@ -28,6 +28,7 @@ export const enquiryBookingPath = (enquiryId, bookingId) => `/enquiries/${enquir
 // the dashboard's Upcoming Bookings opens My Enquiries at ?status=BOOKED.
 export const LEAD_STATUSES = [
   { value: 'NEW', label: 'New' },
+  { value: 'ENROLLED', label: 'Enrolled' },
   { value: 'BOOKED', label: 'Booked (any type)' },
   { value: 'DIAGNOSTIC_BOOKED', label: 'Diagnostic booked' },
   { value: 'DEMO_BOOKED', label: 'Demo booked' },

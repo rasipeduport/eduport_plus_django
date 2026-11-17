@@ -61,13 +61,9 @@ export default function DashboardPage() {
           {nextIsExam ? 'Join the chapter exam with your mentor.' : 'Join your scheduled one-on-one learning session.'}
         </p>
         {nextIsExam ? (
-          <LiveExamCard meetLink={selectedStudent?.meet_link} exam={nextExam} />
+          <LiveExamCard exam={nextExam} />
         ) : (
-          <LiveClassCard
-            meetLink={selectedStudent?.meet_link}
-            nextSession={nextSession}
-            loading={false}
-          />
+          <LiveClassCard nextSession={nextSession} loading={false} />
         )}
       </section>
 

@@ -71,8 +71,8 @@ class QuoteTestCase(BridgeCourseFixture):
             'single_payment_plan_types': list(plan_types), 'note': '',
         })
 
-    def quote(self, plan_type, syllabus=None, chapter_ids=(), actor=None, revision=1, lead=None):
-        return quotes.create_quote(actor or self.bde, {
+    def quote(self, plan_type, syllabus=None, chapter_ids=(), actor=None, revision=1, lead=None, collection_mode='FULL'):
+        return quotes.create_quote(actor or self.bde, {'collection_mode': collection_mode,
             'syllabus': (syllabus or self.grade6).pk, 'revision': revision, 'plan_type': plan_type,
             'chapter_ids': list(chapter_ids), 'lead': lead.pk if lead else None,
         })
@@ -244,7 +244,8 @@ class QuotePinningTests(QuoteTestCase, TestCase):
                          [(SELECTED_DAYS_TITLE, '3.5 Classes', 'AED 122.50', {'price': 'AED 116', 'saving': 'AED 6.50'})])
         html = render_to_string(TEMPLATE, context)
         self.assertIn(f'<p class="quote-ref">Quote Q-000001 · {reference["date"]}</p>', html)
-        self.assertIn('Save <b>AED 6.50</b> Instantly', html)
+        self.assertIn('Agreed Package Amount: AED 116', html)
+        self.assertIn('Original price: AED 123 · Discount: AED 7', html)
         self.assertTrue(self.pdf(self.quoted).startswith(b'%PDF'))
         # A whole course prints every chapter; the syllabus PDF itself has no quote line.
         whole = quotes.quote_pdf_parts(self.quote('REGULAR'))
@@ -323,7 +324,7 @@ class QuoteApiTests(QuoteTestCase, APITestCase):
         return self.client
 
     def create(self, user, **body):
-        payload = {'syllabus': str(self.bridge.pk), 'revision': 1, 'plan_type': 'BRIDGE_COURSE', **body}
+        payload = {'syllabus': str(self.bridge.pk), 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'BRIDGE_COURSE', **body}
         return self.as_user(user).post(QUOTES, payload, format='json')
 
     def test_a_bde_quotes_and_sees_their_own(self):
@@ -384,7 +385,7 @@ class QuoteApiTests(QuoteTestCase, APITestCase):
 
     def test_no_other_role_and_no_one_signed_out(self):
         quote = self.create(self.bde).json()
-        requests = [('get', QUOTES, None), ('post', QUOTES, {'syllabus': str(self.bridge.pk), 'revision': 1, 'plan_type': 'BRIDGE_COURSE'}),
+        requests = [('get', QUOTES, None), ('post', QUOTES, {'syllabus': str(self.bridge.pk), 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'BRIDGE_COURSE'}),
                     ('get', f'{QUOTES}{quote["id"]}/', None), ('get', f'{QUOTES}{quote["id"]}/pdf/', None),
                     ('post', f'{QUOTES}{quote["id"]}/cancel/', {'reason': 'No'})]
         for role in ('TUTOR', 'MENTOR', 'SALES_TL', 'STUDENT'):
@@ -421,7 +422,7 @@ class QuoteWithoutPricingTests(BridgeCourseFixture, APITestCase):
         self.admin = account('quote_no_pricing_admin')
         course = self.make_bridge_course()
         self.client.force_authenticate(self.admin)
-        response = self.client.post(QUOTES, {'syllabus': str(course.pk), 'revision': 1, 'plan_type': 'BRIDGE_COURSE'}, format='json')
+        response = self.client.post(QUOTES, {'syllabus': str(course.pk), 'revision': 1, 'collection_mode': 'FULL', 'plan_type': 'BRIDGE_COURSE'}, format='json')
         self.assertEqual((response.status_code, response.json()['error']), (409, 'NO_PRICING'))
         self.assertFalse(Quote.objects.exists())
 
@@ -514,7 +515,7 @@ class QuoteIntegrityTests(QuoteTestCase, TransactionTestCase):
 
     def test_a_chapter_is_the_quotes_own_with_the_classes_it_has(self):
         # Even while a quote is being issued: a chapter of another revision, or counted wrong, is refused.
-        snapshot = quotes.quote_snapshot(self.bde, syllabus_id=self.bridge.pk, revision=1, plan_type='BRIDGE_COURSE',
+        snapshot = quotes.quote_snapshot(self.bde, collection_mode='FULL', syllabus_id=self.bridge.pk, revision=1, plan_type='BRIDGE_COURSE',
                                          chapter_ids=[self.days[1]])
         for chapter_id, classes in ((self.chapters[0], D('4')), (self.days[2], D('2'))):
             with self.assertRaises(DatabaseError):
@@ -525,7 +526,7 @@ class QuoteIntegrityTests(QuoteTestCase, TransactionTestCase):
 
     def test_a_whole_course_covers_every_chapter(self):
         # The whole course, without day 6 (no classes): every sum still adds up, but a day is missing.
-        snapshot = quotes.quote_snapshot(self.bde, syllabus_id=self.bridge.pk, revision=1, plan_type='BRIDGE_COURSE')
+        snapshot = quotes.quote_snapshot(self.bde, collection_mode='FULL', syllabus_id=self.bridge.pk, revision=1, plan_type='BRIDGE_COURSE')
         short = dataclasses.replace(snapshot, chapters=[(chapter, classes) for chapter, classes in snapshot.chapters
                                                          if str(chapter.pk) != self.days[5]])
         with self.assertRaises(DatabaseError):

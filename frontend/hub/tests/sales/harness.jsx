@@ -2,20 +2,26 @@
 // account, the way App.jsx routes them -- Syllabus & Plans (/sales-syllabus,
 // /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit), Global
 // Pricing (/sales-pricing), the BDE's Plans & Pricing (/plans,
-// /plans/:syllabusId) and Quotes (/quotes, /quotes/:quoteId) -- with only the
-// API a stand-in (api-stub.js).
+// /plans/:syllabusId), Quotes (/quotes, /quotes/:quoteId), the Sales Dashboard
+// (/sales-dashboard), a student's profile (/students/:studentId, for its
+// Purchases tab) and an administrator's lead (/leads/:leadId, for its Plan
+// Choosing and Sales & Payment tabs) -- with only the API a stand-in (api-stub.js).
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import PlanPage from '@/pages/PlanPage';
 import PlansPage from '@/pages/PlansPage';
+import AutopayActionPage from '@/pages/AutopayActionPage';
 import EnquiryPage from '@/pages/EnquiryPage';
+import LeadPage from '@/pages/LeadPage';
 import QuotePage from '@/pages/QuotePage';
 import QuotesPage from '@/pages/QuotesPage';
+import SalesDashboardPage from '@/pages/SalesDashboardPage';
 import SalesPricingPage from '@/pages/SalesPricingPage';
 import SalesSyllabiPage from '@/pages/SalesSyllabiPage';
 import SalesSyllabusEditorPage from '@/pages/SalesSyllabusEditorPage';
 import SalesSyllabusPage from '@/pages/SalesSyllabusPage';
+import StudentProfilePage from '@/pages/StudentProfilePage';
 import SidebarLayout from '@/layout/SidebarLayout';
 
 // With `layout`, inside the Hub's own SidebarLayout, as App.jsx places every page.
@@ -39,10 +45,14 @@ export async function mount(path, user, { layout = false } = {}) {
       { path: '/sales-syllabus/:syllabusId/edit', element: inLayout(<SalesSyllabusEditorPage key="edit" />) },
       { path: '/sales-pricing', element: inLayout(<SalesPricingPage />) },
       { path: '/plans', element: inLayout(<PlansPage />) },
+      { path: '/autopay/confirm/:token', element: <AutopayActionPage /> },
       { path: '/plans/:syllabusId', element: inLayout(<PlanPage user={user} />) },
       { path: '/enquiries/:enquiryId', element: inLayout(<EnquiryPage user={user} />) },
+      { path: '/leads/:leadId', element: inLayout(<LeadPage user={user} />) },
       { path: '/quotes', element: inLayout(<QuotesPage user={user} />) },
       { path: '/quotes/:quoteId', element: inLayout(<QuotePage user={user} />) },
+      { path: '/students/:studentId', element: inLayout(<StudentProfilePage user={user} />) },
+      { path: '/sales-dashboard', element: inLayout(<SalesDashboardPage />) },
     ],
     { initialEntries: [path] }
   );
@@ -73,6 +83,7 @@ export { canOpenPage } from '@/lib/access';
 export { workspaceFor } from '@/lib/navigation';
 // (the labels re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
 export { ACTION_LABELS as actionLabels, describeActivity } from '@/lib/activity-format';
+export { followUpTask } from '@/lib/follow-ups';
 export {
   // (re-exported lower-case: an upper-case export reads as a component to the fast-refresh lint rule)
   SELECTED_DAYS_TITLE as selectedDaysTitle,

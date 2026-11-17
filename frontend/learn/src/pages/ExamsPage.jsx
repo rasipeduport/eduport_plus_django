@@ -44,7 +44,7 @@ export default function ExamsPage() {
         <p className="text-text-secondary mt-1 text-sm">Chapter and additional exams set by your mentor.</p>
       </section>
 
-      <ExamsList exams={exams} additionalExams={additionalExams} meetLink={selectedStudent?.meet_link} />
+      <ExamsList exams={exams} additionalExams={additionalExams} />
     </div>
   );
 }

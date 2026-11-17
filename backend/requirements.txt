@@ -17,7 +17,7 @@ django-environ==0.12.0
 # PostgreSQL driver
 psycopg[binary]==3.3.3
 
-# Google OAuth token verification (accounts) + Sheets sync (invitations)
+# Google Sheets sync (invitations); unrelated to Learn authentication
 google-auth==2.49.2
 gspread==6.1.4
 
@@ -38,3 +38,9 @@ whitenoise==6.6.0
 # Report PDFs (reports app, design F.2): HTML and CSS to PDF. It lays text out
 # with Pango, which the Dockerfile installs.
 weasyprint==70.0
+
+# Hosted Checkout links and signed payment webhooks.
+stripe==16.1.0
+
+# Authenticated encryption of retrievable initial credentials (key outside DB).
+cryptography==50.0.2

@@ -7,6 +7,8 @@ import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone';
+import { classMeetLink, classMeetMissing, examMeetLink, examMeetMissing } from '@/lib/meet-rooms';
+import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { EMPTY, FieldCard, StatTile } from './profile-primitives';
 
 const DATE_TIME = "d MMM yyyy, h:mm a";
@@ -44,7 +46,7 @@ function formatMoment(value) {
  * slow to wait for. The API does the reading and the arithmetic; this only
  * reports what came back and asks the page to repaint.
  */
-function QuotaBar({ quota, studentId, canSync, onSynced }) {
+function QuotaBar({ quota, studentId, canSync, onSynced, paymentManaged = false }) {
   const [syncing, setSyncing] = useState(false);
   // { tone: 'success' | 'warning' | 'destructive', text } or null. Inline
   // rather than a toast, matching how every dialog in the Hub reports.
@@ -89,7 +91,7 @@ function QuotaBar({ quota, studentId, canSync, onSynced }) {
         ) : null
       }
       fields={[
-        { label: 'Purchased', value: `${formatNumber(purchased)} hrs` },
+        { label: paymentManaged ? 'Paid quota' : 'Purchased', value: `${formatNumber(purchased)} hrs` },
         { label: 'Used', value: `${formatNumber(used)} hrs` },
         {
           label: 'Remaining',
@@ -110,9 +112,9 @@ function QuotaBar({ quota, studentId, canSync, onSynced }) {
         </div>
         <p className="text-muted-foreground mt-2 text-xs">
           {purchased === 0
-            ? 'Nothing paid for yet — set "No of classes paid for" in the enrolment sheet before booking classes.'
+            ? paymentManaged ? 'No paid class quota available.' : 'Nothing paid for yet — set "No of classes paid for" in the enrolment sheet before booking classes.'
             : over
-              ? `Over the purchased quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
+              ? `Over the ${paymentManaged ? 'paid' : 'purchased'} quota by ${formatNumber(Math.abs(quota.remaining_hours))} hrs.`
               : `${formatNumber(used)} of ${formatNumber(purchased)} hrs booked. Cancelled classes are not counted.`}
         </p>
         {notice ? (
@@ -133,7 +135,11 @@ function QuotaBar({ quota, studentId, canSync, onSynced }) {
   );
 }
 
-/** The next class, the last one held and the next exam, when there are any. */
+/**
+ * The next class, the last one held and the next exam, when there are any.
+ * The next class joins its assigned tutor's Meet room, the next exam its
+ * assigned mentor's; without one, the row says so.
+ */
 function NextUp({ highlights, onOpenTab }) {
   const rows = [
     highlights.next_session && {
@@ -143,6 +149,11 @@ function NextUp({ highlights, onOpenTab }) {
       title: highlights.next_session.title,
       when: formatMoment(highlights.next_session.start_time),
       tab: 'sessions',
+      join: {
+        link: classMeetLink(highlights.next_session),
+        missing: classMeetMissing(highlights.next_session),
+        label: `Join the class ${highlights.next_session.title}`,
+      },
     },
     highlights.last_session && {
       key: 'last_session',
@@ -159,6 +170,11 @@ function NextUp({ highlights, onOpenTab }) {
       title: highlights.next_exam.chapter_name,
       when: formatMoment(highlights.next_exam.start_time),
       tab: 'exams',
+      join: {
+        link: examMeetLink(highlights.next_exam),
+        missing: examMeetMissing(highlights.next_exam),
+        label: `Join the exam ${highlights.next_exam.chapter_name}`,
+      },
     },
   ].filter(Boolean);
 
@@ -182,6 +198,14 @@ function NextUp({ highlights, onOpenTab }) {
               </p>
             </div>
             <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:inline">{row.when}</span>
+            {row.join ? (
+              <JoinMeetButton
+                link={row.join.link}
+                missingLabel={row.join.missing}
+                label={row.join.label}
+                className="shrink-0 text-xs"
+              />
+            ) : null}
             <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onOpenTab(row.tab)}>
               Open
             </Button>
@@ -223,6 +247,8 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
 
   const toReview = homework.submitted ?? 0;
   const missingContent = sessions.pending ?? 0;
+  // Ended classes still waiting: their tutor's notes, or (nobody started them) their outcome.
+  const awaiting = (sessions.notes_due ?? 0) + (sessions.not_started ?? 0);
 
   // Four counters, each a different question. The quota tile is the headline
   // where there is a quota to report; a tutor, who is served none, leads with
@@ -232,13 +258,13 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
       ? {
           label: 'Quota remaining',
           value: `${formatNumber(quota.remaining_hours)} hrs`,
-          hint: `of ${formatNumber(quota.purchased)} hrs purchased`,
+          hint: `of ${formatNumber(quota.purchased)} hrs ${student.quota_source === 'PAYMENTS' ? 'paid' : 'purchased'}`,
           tone: quota.remaining_hours <= 0 ? 'destructive' : quota.remaining_hours <= 2 ? 'warning' : 'default',
         }
       : {
           label: 'Classes booked',
           value: sessions.total ?? 0,
-          hint: `${sessions.cancelled ?? 0} cancelled`,
+          hint: `${sessions.cancelled ?? 0} cancelled · ${sessions.not_conducted ?? 0} not conducted`,
         },
     {
       label: 'Classes attended',
@@ -258,9 +284,9 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
         },
     {
       label: 'Needs attention',
-      value: toReview + missingContent,
-      hint: `${plural(toReview, 'homework', 'homework')} to review · ${plural(missingContent, 'class', 'classes')} missing content`,
-      tone: toReview + missingContent > 0 ? 'warning' : 'default',
+      value: toReview + missingContent + awaiting,
+      hint: `${plural(toReview, 'homework', 'homework')} to review · ${plural(missingContent, 'class', 'classes')} missing content · ${plural(awaiting, 'class', 'classes')} awaiting notes or outcome`,
+      tone: toReview + missingContent + awaiting > 0 ? 'warning' : 'default',
     },
   ];
 
@@ -335,9 +361,10 @@ export function OverviewTab({ student, stats, highlights, user, onOpenTab, onSyn
         <FieldCard title="Assigned staff" fields={staffFields} />
         {quota ? (
           <QuotaBar
+            paymentManaged={student.quota_source === 'PAYMENTS'}
             quota={quota}
             studentId={student.id}
-            canSync={can(user, PERMISSIONS.syncStudentQuota)}
+            canSync={student.quota_source !== 'PAYMENTS' && can(user, PERMISSIONS.syncStudentQuota)}
             onSynced={onSynced}
           />
         ) : null}

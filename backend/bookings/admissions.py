@@ -44,6 +44,7 @@ PIPELINE = (
     ('CANCELLED', 'Cancelled'),
 )
 _STAGE_OF = {LeadStatus.NEW: 'NEW', **{status: stage for stage, statuses in STAGES.items() for status in statuses}}
+_STAGE_OF[LeadStatus.ENROLLED] = 'ENROLLED'
 
 # What the admissions workflow writes to the activity log: leads, booking
 # links, bookings (their communication and reports included), slots and the
@@ -162,7 +163,8 @@ def dashboard(now, date_from, date_to, *, user, request=None, show_bookings=Fals
         'timezone': BOOKING_TIMEZONE_NAME,
         'range': {'from': date_from.isoformat(), 'to': date_to.isoformat()},
         'leads': {'received': sum(stages.values()), 'new': stages['NEW']},
-        'pipeline': [{'stage': stage, 'label': label, 'count': stages[stage]} for stage, label in PIPELINE],
+        'pipeline': [{'stage': stage, 'label': label, 'count': stages[stage]} for stage, label in PIPELINE]
+                    + ([{'stage': 'ENROLLED', 'label': 'Enrolled', 'count': stages['ENROLLED']}] if stages['ENROLLED'] else []),
         'bookings': _bookings(now, date_from, date_to) if show_bookings else None,
         'today_bookings': _today_bookings(now) if show_bookings else None,
         'pending': _pending(now, show_bookings, show_confirmation),

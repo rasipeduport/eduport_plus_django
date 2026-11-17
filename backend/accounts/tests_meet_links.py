@@ -1,9 +1,10 @@
 """
-A tutor's permanent Google Meet link (accounts.meet_links) and the Team
-endpoint that sets it (PUT /api/team/<id>/meet-link/,
-accounts.team.TeamMemberMeetLinkView): only a Google Meet meeting link, only
-on a tutor, only by a team manager -- the activity log saying that it
-changed, never what it is -- and gone with the tutor role.
+A tutor's and a mentor's permanent Google Meet link (accounts.meet_links) and
+the Team endpoint that sets them (PUT /api/team/<id>/meet-link/,
+accounts.team.TeamMemberMeetLinkView): only a Google Meet meeting link, a
+tutor's only on a tutor and a mentor's only on a mentor, only by a team
+manager -- the activity log saying that it changed, never what it is -- and
+gone with the role.
 """
 import json
 from datetime import time, timedelta
@@ -298,3 +299,117 @@ class DatabaseTests(TestCase):
 
     def test_existing_accounts_have_no_link(self):
         self.assertIsNone(account('tutor_one', 'TUTOR').tutor_meet_link)
+
+
+class MentorMeetLinkTests(TeamMeetLinkTestCase):
+    def put_mentor(self, target, value, as_user=None):
+        if as_user is not None:
+            self.client.force_authenticate(as_user)
+        return self.client.put(url(target), {'mentor_meet_link': value}, format='json')
+
+    def mentor_link(self, target=None):
+        return User.objects.get(pk=(target or self.mentor).pk).mentor_meet_link
+
+    def test_an_administrator_sets_changes_and_removes_a_mentors_link(self):
+        response = self.put_mentor(self.mentor, ' meet.google.com/ABC-defg-hij?authuser=0 ')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual((response.json()['mentor_meet_link'], response.json()['tutor_meet_link']), (LINK, None))
+        self.assertEqual(self.mentor_link(), LINK)
+        self.assertEqual(self.client.get(f'/api/team/{self.mentor.pk}/').json()['mentor_meet_link'], LINK)
+        self.assertEqual(self.put_mentor(self.mentor, NEW_LINK).json()['mentor_meet_link'], NEW_LINK)
+        for empty in (None, ''):
+            with self.subTest(empty=empty):
+                self.put_mentor(self.mentor, LINK)
+                self.assertIsNone(self.put_mentor(self.mentor, empty).json()['mentor_meet_link'])
+                self.assertIsNone(self.mentor_link())
+
+    def test_an_unrelated_link_is_refused_and_nothing_changes(self):
+        self.put_mentor(self.mentor, LINK)
+        for value in ('https://zoom.us/j/1', 'https://meet.google.com/new', 42):
+            with self.subTest(value=value):
+                response = self.put_mentor(self.mentor, value)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual((response.json()['error'], response.json()['fields']), ('INVALID_MEET_LINK', ['mentor_meet_link']))
+                self.assertEqual(self.mentor_link(), LINK)
+
+    def test_only_a_mentor_has_a_mentor_link_and_only_a_tutor_a_tutor_link(self):
+        for role in ('TUTOR', 'BDE', 'SALES_TL'):
+            with self.subTest(role=role):
+                other = account(f'someone_{role.lower()}', role)
+                response = self.put_mentor(other, LINK)
+                self.assertEqual((response.status_code, response.json()['error']), (400, 'NOT_A_MENTOR'))
+                self.assertIsNone(self.mentor_link(other))
+        response = self.put(self.mentor, LINK)
+        self.assertEqual((response.status_code, response.json()['error']), (400, 'NOT_A_TUTOR'))
+        self.assertEqual((self.mentor_link(), self.stored(self.mentor)), (None, None))
+
+    def test_one_link_per_request(self):
+        response = self.client.put(url(self.mentor), {'mentor_meet_link': LINK, 'tutor_meet_link': LINK}, format='json')
+        self.assertEqual((response.status_code, response.json()['error']), (400, 'INVALID_INPUT'))
+        self.assertIsNone(self.mentor_link())
+
+    def test_only_team_managers_may_set_it(self):
+        for caller in (self.mentor, account('mentor_two', 'MENTOR'), self.tutor, account('bde_one', 'BDE')):
+            with self.subTest(caller=caller.username):
+                self.assertEqual(self.put_mentor(self.mentor, LINK, as_user=caller).status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.put_mentor(self.mentor, LINK).status_code, 403)
+        self.assertIsNone(self.mentor_link())
+
+    def test_directory_readers_never_see_it(self):
+        self.put_mentor(self.mentor, LINK)
+        reader = account('mentor_reader', 'MENTOR')
+        reader.user_permissions.add(Permission.objects.get(content_type__app_label='accounts', codename='view_team'))
+        self.client.force_authenticate(reader)
+        self.assertNotIn('mentor_meet_link', self.client.get(f'/api/team/{self.mentor.pk}/').json())
+        self.assertNotIn('meet.google.com', self.client.get('/api/team/').content.decode())
+
+    def test_the_log_says_how_it_changed_never_the_link(self):
+        self.put_mentor(self.mentor, LINK)
+        self.put_mentor(self.mentor, LINK)
+        self.put_mentor(self.mentor, None)
+        entries = list(ActivityLog.objects.filter(action='user.meet_link_update', entity_id=str(self.mentor.pk)).order_by('created_at'))
+        self.assertEqual([(entry.context['change'], entry.context['role']) for entry in entries],
+                         [('added', 'MENTOR'), ('removed', 'MENTOR')])
+        self.assertFalse(any('live_bookings_updated' in entry.context for entry in entries))
+        self.assertNotIn('meet.google.com', json.dumps([[e.changes, e.context] for e in ActivityLog.objects.all()]))
+
+    def test_a_mentor_who_changes_role_loses_the_link(self):
+        self.put_mentor(self.mentor, LINK)
+        response = self.client.patch(f'/api/team/{self.mentor.pk}/', {'role': 'TUTOR'}, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual((response.json()['mentor_meet_link'], response.json()['tutor_meet_link']), (None, None))
+        self.assertIsNone(self.mentor_link())
+        entry = ActivityLog.objects.get(action='user.role_change', entity_id=str(self.mentor.pk))
+        self.assertTrue(entry.context['meet_link_removed'])
+
+
+@override_settings(STORAGES=PLAIN_STORAGES)
+class DjangoAdminMentorRoleChangeTests(TestCase):
+    def test_a_mentor_whose_role_changes_in_the_django_admin_loses_the_link(self):
+        root = User.objects.create_superuser(username='root', email='root@meet.test', full_name='Root', password=STRONG)
+        mentor = account('mentor_one', 'MENTOR', mentor_meet_link=LINK)
+        browser = Client()
+        browser.force_login(root)
+        change = f'/admin/accounts/user/{mentor.pk}/change/'
+        data = admin_change_form_data(browser.get(change))
+        self.assertNotIn('mentor_meet_link', data, 'set through Team only')
+        data['role'] = 'TUTOR'
+        self.assertEqual(browser.post(change, data).status_code, 302)
+        mentor.refresh_from_db()
+        self.assertEqual((mentor.role, mentor.mentor_meet_link), ('TUTOR', None))
+
+
+class MentorLinkDatabaseTests(TestCase):
+    def test_only_a_mentor_may_hold_a_mentor_link(self):
+        for role in ('TUTOR', 'ADMIN', 'BDE'):
+            other = account(f'other_{role.lower()}', role)
+            with self.subTest(role=role), self.assertRaises(IntegrityError), transaction.atomic():
+                User.objects.filter(pk=other.pk).update(mentor_meet_link=LINK)
+
+    def test_only_a_link_in_its_stored_form_is_held(self):
+        mentor = account('mentor_one', 'MENTOR')
+        for value in ('https://zoom.us/j/1', 'meet.google.com/abc-defg-hij', ''):
+            with self.subTest(value=value), self.assertRaises(IntegrityError), transaction.atomic():
+                User.objects.filter(pk=mentor.pk).update(mentor_meet_link=value)
+        User.objects.filter(pk=mentor.pk).update(mentor_meet_link=LINK)

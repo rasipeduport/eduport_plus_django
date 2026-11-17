@@ -71,8 +71,7 @@ class UserManager(BaseUserManager):
         """
         A unique username from an email's local part: ``jane.doe``, then
         ``jane.doe2``, ``jane.doe3``... Used wherever an account is created
-        without an explicit username (Google provisioning for Learn, legacy
-        fixtures that only know an email).
+        without an explicit username (legacy fixtures that only know an email).
         """
         base = derive_username_base(email)
         candidate = base
@@ -84,9 +83,11 @@ class UserManager(BaseUserManager):
         return candidate
 
     def create_user(self, email=None, password=None, username=None, **extra_fields):
-        if not email:
+        if not email and extra_fields.get('role', RoleChoices.STUDENT) != RoleChoices.STUDENT:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
+        email = self.normalize_email(email) if email else None
+        if not email and not username:
+            raise ValueError('A student username must be set')
         username = normalize_username(username) if username else self.derive_username(email)
         extra_fields.setdefault('is_active', True)
         user = self.model(username=username, email=email, **extra_fields)
@@ -112,15 +113,14 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # The sign-in identifier (USERNAME_FIELD). Email stays unique and required:
-    # invitations, the enrolment sheet and the activity snapshots key on it.
+    # Email is optional for students; username is their enrollment identity.
     username = models.CharField(
         max_length=USERNAME_MAX_LENGTH,
         unique=True,
         validators=[UnicodeUsernameValidator()],
         help_text=USERNAME_HELP_TEXT,
     )
-    email = models.EmailField(unique=True, db_index=True)
+    email = models.EmailField(unique=True, db_index=True, null=True, blank=True)
     full_name = models.CharField(max_length=255, blank=True, null=True)
     avatar_url = models.URLField(max_length=1024, blank=True, null=True)
     role = models.CharField(
@@ -178,11 +178,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     # A tutor's permanent Google Meet room, where their Demo and Diagnostic
-    # bookings are taught (accounts.meet_links). Tutors only, and set only
-    # through the Team API by an administrator; NULL = not configured. Each
-    # booking keeps its own copy (bookings.booking_service). Not the room of an
-    # enrolled student's classes, which is students.Student.meet_link.
+    # bookings and the normal sessions assigned to them (sessions.Session.tutor)
+    # are taught (accounts.meet_links). Tutors only, and set only through the
+    # Team API by an administrator; NULL = not configured. Each booking keeps
+    # its own copy (bookings.booking_service); a session reads it as it is now.
     tutor_meet_link = models.CharField(
+        max_length=MEET_LINK_MAX_LENGTH,
+        null=True,
+        blank=True,
+        validators=[validate_meet_link],
+    )
+    # A mentor's permanent Google Meet room, where their students' chapter
+    # exams are held (exams.Exam.mentor). Mentors only, the same Google Meet
+    # rule as a tutor's (accounts.meet_links), set only through the Team API by
+    # an administrator; NULL = not configured.
+    mentor_meet_link = models.CharField(
         max_length=MEET_LINK_MAX_LENGTH,
         null=True,
         blank=True,
@@ -221,6 +231,15 @@ class User(AbstractBaseUser, PermissionsMixin):
                 condition=Q(tutor_meet_link__isnull=True) | Q(tutor_meet_link__regex=MEET_LINK_DB_PATTERN),
                 name='profiles_meet_link_google_meet',
             ),
+            # Only a mentor holds chapter exams, so only a mentor has an exam room.
+            models.CheckConstraint(
+                condition=Q(mentor_meet_link__isnull=True) | Q(role=RoleChoices.MENTOR),
+                name='profiles_mentor_meet_link_mentors_only',
+            ),
+            models.CheckConstraint(
+                condition=Q(mentor_meet_link__isnull=True) | Q(mentor_meet_link__regex=MEET_LINK_DB_PATTERN),
+                name='profiles_mentor_meet_link_google_meet',
+            ),
         ]
 
     def clean(self):
@@ -237,7 +256,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.email} ({self.role})"
+        return f"{self.username} ({self.role})"
 
 
 # The staff roles that carry a role group. Students never do: Learn has no

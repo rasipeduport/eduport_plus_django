@@ -34,8 +34,8 @@ const PORTED_PATHS = new Set([
   '/sales-syllabus',
   '/sales-pricing',
   '/tutor-earnings',
-  // The Tutor Hub's Hourly Earnings, still to come, built on the design tokens from the start.
-  '/hourly-earnings',
+  // The Tutor Hub's My Earnings, built on the design tokens from the start.
+  '/my-earnings',
   // The BDE workspace's pages, built on the design tokens from the start.
   '/demo-bookings',
   '/diagnostic-bookings',
@@ -95,6 +95,7 @@ export default function SidebarLayout({ user, logout, children }) {
     pathname.startsWith('/sales-syllabus/') ||
     pathname.startsWith('/plans/') ||
     pathname.startsWith('/quotes/') ||
+    pathname.startsWith('/tutor-earnings/') ||
     pathname.startsWith('/students/') ||
     pathname.startsWith('/team/') ||
     pathname.startsWith('/enquiries/') ||

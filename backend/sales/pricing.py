@@ -10,16 +10,16 @@ up (D1); its saving is the package's total less that rounded price.
 The classes of each plan type come from the syllabus's own chapters: Regular
 and Revision their columns' totals, Regular + Revision both, a Bridge Course
 its days -- every day for the whole course, or the days chosen when it is
-bought by the day -- and a Chapter Plan the Regular classes of the chapters
-chosen. A choice is of the syllabus's own chapter rows, by id: nothing is
-copied.
+bought by the day -- and a Chapter Plan the selected Regular or Revision
+classes of the chapters chosen. A choice is of the syllabus's own chapter
+rows, by id: nothing is copied.
 """
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
 
-from .models import PlanType, PricingVersion
+from .models import CLASS_STEP, MAX_CLASSES_PER_CHAPTER, ChapterClassMode, PlanType, PricingVersion
 
 ZERO = Decimal('0')
 HUNDRED = Decimal('100')
@@ -54,14 +54,29 @@ def chapter_totals(chapters):
     return totals
 
 
-def plan_classes(plan_type, chapters, chosen=None):
+def chapter_class_count(chapter, class_mode):
+    """A Chapter Plan's applicable count. Missing/invalid counts never fall back."""
+    if class_mode not in ChapterClassMode.values:
+        raise ValueError('Choose Regular or Revision classes.')
+    value = _get(chapter, f'{class_mode.lower()}_classes')
+    try:
+        count = Decimal(str(value))
+        valid = count.is_finite() and 0 <= count <= MAX_CLASSES_PER_CHAPTER and count % CLASS_STEP == 0
+    except (ArithmeticError, ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise ValueError(f'{ChapterClassMode(class_mode).label} is unavailable for {_get(chapter, "name")}: enter a valid class count.')
+    return count
+
+
+def plan_classes(plan_type, chapters, chosen=None, class_mode=ChapterClassMode.REGULAR):
     """
     The classes ``plan_type`` sells over ``chapters``. A Chapter Plan sells the
-    Regular classes of the chapters whose ids are in ``chosen``; a Bridge
+    ``class_mode`` counts of the chapters whose ids are in ``chosen``; a Bridge
     Course its every day, or, given ``chosen``, only the days whose ids are in it.
     """
     if plan_type == PlanType.CHAPTER_PLAN:
-        return chapter_totals(chosen_chapters(chapters, chosen or ()))['regular']
+        return sum((chapter_class_count(chapter, class_mode) for chapter in chosen_chapters(chapters, chosen or ())), ZERO)
     if plan_type == PlanType.BRIDGE_COURSE and chosen is not None:
         return chapter_totals(chosen_chapters(chapters, chosen))['bridge']
     totals = chapter_totals(chapters)

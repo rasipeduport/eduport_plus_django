@@ -1,12 +1,16 @@
 """
-A tutor's permanent Google Meet link: the one rule for what it may be.
+A tutor's or a mentor's permanent Google Meet link: the one rule for what it may be.
 
 A tutor (accounts.User, role TUTOR) has at most one, ``tutor_meet_link``: the
-Meet room their Demo and Diagnostic bookings are taught in. Each booking keeps
-its own copy (bookings.models.BookingBase.tutor_meet_link), so a later change
-never rewrites the link a past booking was taught in
-(bookings.booking_service.set_tutor_meet_link). It has nothing to do with
-students.Student.meet_link, the room of an enrolled student's own classes.
+Meet room their Demo and Diagnostic bookings and their normal sessions are
+taught in. Each booking keeps its own copy
+(bookings.models.BookingBase.tutor_meet_link), so a later change never
+rewrites the link a past booking was taught in
+(bookings.booking_service.set_tutor_meet_link); a session joins its tutor's
+link as it is now (sessions.serializers). A mentor (role MENTOR) has at most
+one, ``mentor_meet_link``: the room their students' chapter exams are held in
+(exams.serializers). Neither is students.Student.meet_link, which no class or
+exam joins any more.
 
 Only a Google Meet meeting link is accepted, stored as
 ``https://meet.google.com/<code>`` with the code in its usual abc-defg-hij

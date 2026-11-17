@@ -82,6 +82,8 @@ urlpatterns = [
     path('api/communications/', include('communications.urls', namespace='communications')),
     # Sales Management for administrators: the syllabuses on offer and the global pricing.
     path('api/sales/', include('sales.urls', namespace='sales')),
+    # Tutor Earnings: every tutor's for administrators, a tutor's own under /me/.
+    path('api/earnings/', include('earnings.urls', namespace='earnings')),
     path('api/student/scorecard/', ScorecardView.as_view(), name='student-scorecard'),
     path('api/student/scorecard', ScorecardView.as_view()),
     path('api/student/scores/', StudentScoresView.as_view(), name='student-scores'),

@@ -35,18 +35,19 @@ export function rangeSpan(preset, now = new Date()) {
 }
 
 /**
- * The dashboard's dates from its URL: `range` (a preset; the last 7 days when
- * absent) and, for Custom, `from` and `to` -- a Custom range missing either
- * end falls back to the default. Answers `{ range, from, to }`.
+ * The dashboard's dates from its URL: `range` (a preset; `fallback`, the last
+ * 7 days unless a dashboard opens on another, when absent) and, for Custom,
+ * `from` and `to` -- a Custom range missing either end falls back to the
+ * default. Answers `{ range, from, to }`.
  */
-export function readRange(searchParams, now = new Date()) {
-  const asked = RANGE_VALUES.has(searchParams.get('range')) ? searchParams.get('range') : DEFAULT_RANGE;
+export function readRange(searchParams, now = new Date(), fallback = DEFAULT_RANGE) {
+  const asked = RANGE_VALUES.has(searchParams.get('range')) ? searchParams.get('range') : fallback;
   if (asked === 'custom') {
     const from = DATE_RE.test(searchParams.get('from') ?? '') ? searchParams.get('from') : '';
     const to = DATE_RE.test(searchParams.get('to') ?? '') ? searchParams.get('to') : '';
     if (from && to && from <= to) return { range: 'custom', from, to };
   }
-  const preset = asked === 'custom' ? DEFAULT_RANGE : asked;
+  const preset = asked === 'custom' ? fallback : asked;
   return { range: preset, ...rangeSpan(preset, now) };
 }
 

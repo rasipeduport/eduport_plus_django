@@ -14,7 +14,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 PASSWORD_CHANGE_EXEMPT_PATHS = frozenset({
     '/api/auth/csrf',
     '/api/auth/login',
-    '/api/auth/google',
+    '/api/auth/learn/login',
     '/api/auth/logout',
     '/api/auth/me',
     '/api/auth/change-password',

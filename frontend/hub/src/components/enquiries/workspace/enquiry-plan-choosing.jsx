@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeftIcon, FileTextIcon, ReceiptTextIcon } from 'lucide-react';
+import { ArrowLeftIcon, FileTextIcon, ReceiptTextIcon, TicketIcon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { catalogueUrl, enquiryPlanUrl, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
+import { can, PERMISSIONS } from '@/lib/access';
+import { saleUrl, tokenDeadline, tokenStatusLabel } from '@/lib/payments';
+import { catalogueUrl, chapterPlanError, enquiryPlanUrl, quotePdfUrl, quotePlanLabel, quotePreview, salesError } from '@/lib/sales';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +18,38 @@ import { QuoteChapters, QuoteFigures, QuoteStatusBadge } from '@/components/sale
 import { SyllabusActions } from '@/components/sales/syllabus-actions';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import PlansPage from '@/pages/PlansPage';
+import { TokenSaleDialog, TokenSalePanel } from './token-sale';
+
+// How an enquiry's sale starts, chosen with its plan (backend sales.token_sales). Fixed once the sale exists.
+const SALE_TYPES = [
+  { value: 'NEW', label: 'New Sale', hint: 'Purchase the tuition package.', detail: 'Single / Complete, Partial or AutoPay.' },
+  { value: 'TOKEN', label: 'Token Sale', hint: 'Reserve with a token: AED 100 first.', detail: 'Then the remaining balance in one payment by a deadline. No AutoPay.' },
+];
+const FIXED_TYPE = {
+  NEW: 'This enquiry’s New Sale has started: the sale type is fixed.',
+  TOKEN: 'This enquiry’s token reservation exists: the sale type is fixed.',
+};
+const saleTypesFor = (kind) =>
+  SALE_TYPES.map((option) => (kind && option.value !== kind ? { ...option, disabled: true, note: FIXED_TYPE[kind] } : option));
+
+/** The enquiry's token reservation (its sale state): the tuition plan chosen here is what the token is credited against. */
+function TokenReservation({ state }) {
+  const { sale } = state;
+  return (
+    <WorkspaceCard icon={TicketIcon} title="Token reservation">
+      <Fields>
+        <Field label="Reservation">{sale.reservation_reference}</Field>
+        <Field label="Expected start">{sale.expected_start_date}</Field>
+        <Field label="Payment deadline">{tokenDeadline(sale)}</Field>
+        <Field label="Token (AED 100)">{tokenStatusLabel(sale, state.payments)}</Field>
+      </Fields>
+      <p className="text-muted-foreground text-sm">
+        The plan chosen here is the tuition package, quoted as a Token Sale: no single-payment discount, the AED 100 token credited against it,
+        and the remaining balance paid in one payment. It must be worth more than AED 100.
+      </p>
+    </WorkspaceCard>
+  );
+}
 
 function SavedPlan({ quote, locked, onEdit }) {
   const pdf = useSyllabusPdf({ snapshot: true });
@@ -57,16 +91,24 @@ function SavedPlan({ quote, locked, onEdit }) {
   );
 }
 
-/** One selected syllabus only; all selection and pricing helpers are shared with Sales. */
-function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked, onBack, onIssued, onConflict }) {
+/**
+ * One selected syllabus only; all selection and pricing helpers are shared with Sales. With the enquiry's `sale`
+ * state (read only with initial-sales access), the plan is followed by its sale type: New Sale, or Token Sale.
+ */
+function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked, sale = null, saleRefused = false, onBack, onIssued, onReserved, onConflict }) {
   const [detail, setDetail] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [planType, setPlanType] = useState(null);
   const [bridgeMode, setBridgeMode] = useState(null);
+  const [classMode, setClassMode] = useState('REGULAR');
+  const [collectionMode, setCollectionMode] = useState(null);
   const [chapterIds, setChapterIds] = useState([]);
   const [quoting, setQuoting] = useState(false);
   const [refusal, setRefusal] = useState(null);
+  const [saleType, setSaleType] = useState(null);
+  const [dates, setDates] = useState({ deadline: '', expected: '' });
+  const [reserving, setReserving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +124,10 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
           initialQuote.revision === data.revision &&
           data.plan_types.includes(initialQuote.plan_type);
         setPlanType(restore ? initialQuote.plan_type : null);
+        setCollectionMode(restore && initialQuote.collection_intention_confirmed && initialQuote.collection_mode !== 'TOKEN' ? initialQuote.collection_mode : null);
+        // A saved New Sale quote reopens as a New Sale; a Token Sale's type comes from its reservation.
+        setSaleType(restore && initialQuote.collection_intention_confirmed && initialQuote.collection_mode !== 'TOKEN' ? 'NEW' : null);
+        setClassMode(restore && initialQuote.plan_type === 'CHAPTER_PLAN' ? initialQuote.class_mode ?? 'REGULAR' : 'REGULAR');
         setBridgeMode(restore && initialQuote.plan_type === 'BRIDGE_COURSE' ? (initialQuote.full_course ? 'full' : 'selected') : null);
         const known = new Set(data.chapters.map((chapter) => chapter.id));
         setChapterIds(restore ? initialQuote.chapters.map((chapter) => chapter.id).filter((id) => known.has(id)) : []);
@@ -113,8 +159,15 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
   const plan = bridge && bridgeMode && detail.plan_types.includes('BRIDGE_COURSE') ? 'BRIDGE_COURSE' : planType;
   const partial = plan === 'CHAPTER_PLAN' || (bridge && bridgeMode === 'selected');
   const ids = partial ? chapterIds : [];
-  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing) : null;
+  const selectionError = plan === 'CHAPTER_PLAN' ? chapterPlanError(detail.chapters, ids, classMode) : null;
+  // The sale type: the enquiry's sale fixes it; before one starts, the BDE chooses it here.
+  const kind = sale?.sale?.kind ?? null;
+  const reservation = kind === 'TOKEN' ? sale.sale : null;
+  const type = sale ? kind ?? saleType : 'NEW';
+  const mode = type === 'TOKEN' ? 'TOKEN' : collectionMode;
+  const preview = plan && (!partial || ids.length) ? quotePreview(plan, detail.chapters, ids, detail.pricing, classMode, mode) : null;
   const disabled = locked || Boolean(refusal);
+  const coverage = preview?.fullCourse ? 'full course' : `${ids.length} selected chapters`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -141,6 +194,12 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
       {refusal ? (
         <ErrorState message={refusal.message ?? 'This plan changed. Reload the syllabus and select the plan again.'} onRetry={reload} />
       ) : null}
+      {saleRefused ? (
+        <Notice>
+          This enquiry’s sale could not be read, so Token Sale is not offered here. If it has a token reservation, an administrator chooses its
+          plan; otherwise a New Sale quote can still be chosen.
+        </Notice>
+      ) : null}
       {!detail.pricing ? (
         <p role="status" className="text-muted-foreground text-sm">
           Pricing is not set up yet. A quote cannot be issued.
@@ -154,6 +213,15 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         onBridgeMode={setBridgeMode}
         chapterIds={chapterIds}
         onChapterIds={setChapterIds}
+        collectionMode={collectionMode}
+        onCollectionMode={setCollectionMode}
+        saleTypes={sale ? saleTypesFor(kind) : null}
+        saleType={type}
+        onSaleType={setSaleType}
+        tokenPanel={<TokenSalePanel preview={preview} reservation={reservation} dates={dates} onDates={setDates} onCreate={() => setReserving(true)} locked={disabled} />}
+        classMode={classMode}
+        onClassMode={setClassMode}
+        selectionError={selectionError}
         preview={preview}
         onCreate={() => setQuoting(true)}
         locked={disabled}
@@ -164,9 +232,11 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
         syllabusId={syllabusId}
         detail={detail}
         planType={plan}
+        collectionMode={collectionMode}
+        classMode={classMode}
         chapterIds={ids}
         preview={preview}
-        coverage={preview?.fullCourse ? 'full course' : `${ids.length} selected chapters`}
+        coverage={coverage}
         enquiry={enquiry}
         replaces={replaces}
         onIssued={onIssued}
@@ -175,17 +245,40 @@ function PlanConfiguration({ syllabusId, enquiry, initialQuote, replaces, locked
           else setRefusal(reason);
         }}
       />
+      {sale ? (
+        <TokenSaleDialog
+          open={reserving}
+          onOpenChange={setReserving}
+          enquiry={enquiry}
+          detail={detail}
+          planType={plan}
+          classMode={classMode}
+          chapterIds={ids}
+          preview={preview}
+          coverage={coverage}
+          replaces={replaces}
+          reservation={reservation}
+          dates={dates}
+          candidates={sale.family_candidates ?? []}
+          onReserved={onReserved}
+          onRefused={setRefusal}
+          onConflict={onConflict}
+        />
+      ) : null}
     </div>
   );
 }
 
-export function EnquiryPlanChoosing({ enquiry }) {
+export function EnquiryPlanChoosing({ enquiry, user }) {
   const [saved, setSaved] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [view, setView] = useState('saved');
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState(null);
+  // The enquiry's sale as Sales & Payment reads it, kept with the enquiry it was read for.
+  const [sale, setSale] = useState(null);
+  const readsSale = can(user, PERMISSIONS.manageInitialSales);
   const reload = () => {
     setSaved(null);
     setView('saved');
@@ -210,14 +303,56 @@ export function EnquiryPlanChoosing({ enquiry }) {
     };
   }, [enquiry.id, reloadKey]);
 
+  // The enquiry's sale: a started sale fixes the sale type; without one the BDE chooses it with the plan. Without
+  // the read (no access, not read yet, or refused) only a New Sale quote is offered, which the API refuses for a
+  // Token Sale either way; a refused read says so.
+  useEffect(() => {
+    if (!readsSale) return undefined;
+    let active = true;
+    api
+      .get(saleUrl(enquiry.id))
+      .then(({ data }) => {
+        if (active) setSale({ enquiryId: enquiry.id, state: data });
+      })
+      .catch(() => {
+        if (active) setSale({ enquiryId: enquiry.id, state: null, refused: true });
+      });
+    return () => {
+      active = false;
+    };
+  }, [enquiry.id, readsSale, reloadKey]);
+
   if (failure) return <ErrorState message={failure.message} onRetry={reload} />;
   if (!saved) return <Skeleton className="h-64 w-full" aria-busy="true" />;
   const configuring = view === 'configure';
   const browsing = view === 'catalogue' || (view === 'saved' && !saved.current);
+  // Never another enquiry's sale: the admin's LeadPage keeps this mounted from one lead to the next.
+  const saleState = readsSale && sale?.enquiryId === enquiry.id ? sale.state : null;
+  const saleRefused = readsSale && sale?.enquiryId === enquiry.id && Boolean(sale.refused);
+  const tokenSale = saleState?.sale?.kind === 'TOKEN';
+  // A newly issued quote becomes the current plan; the earlier ones stay in its history.
+  const adopt = (quote) => {
+    setSaved({
+      ...saved,
+      current: quote,
+      latest_quote: quote.id,
+      history: [
+        quote,
+        ...saved.history.map((row) => ({
+          ...row,
+          is_current: false,
+          selection_status: row.status === 'CANCELLED' ? 'CANCELLED' : 'PREVIOUS',
+        })),
+      ],
+    });
+    setSelected(null);
+    setView('saved');
+  };
 
   return (
     <div className="flex flex-col gap-5">
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
+      {tokenSale && !saleState.sale.student ? <TokenReservation state={saleState} /> : null}
       {saved.locked ? (
         <p role="status" className="text-muted-foreground rounded-lg border p-3 text-sm">
           This enquiry is locked against plan changes. Its saved quote remains available.
@@ -259,25 +394,22 @@ export function EnquiryPlanChoosing({ enquiry }) {
             initialQuote={saved.current}
             replaces={saved.latest_quote}
             locked={saved.locked}
+            sale={saleState}
+            saleRefused={saleRefused}
             onBack={() => setView('catalogue')}
             onConflict={reload}
             onIssued={(quote) => {
-              setSaved({
-                ...saved,
-                current: quote,
-                latest_quote: quote.id,
-                history: [
-                  quote,
-                  ...saved.history.map((row) => ({
-                    ...row,
-                    is_current: false,
-                    selection_status: row.status === 'CANCELLED' ? 'CANCELLED' : 'PREVIOUS',
-                  })),
-                ],
-              });
-              setSelected(null);
-              setView('saved');
+              adopt(quote);
               setNotice(`Quote ${quote.reference} is now the current selected plan.`);
+            }}
+            onReserved={({ quote, state }) => {
+              adopt(quote);
+              setSale({ enquiryId: enquiry.id, state });
+              setNotice(
+                tokenSale
+                  ? `Quote ${quote.reference} is now the token reservation’s tuition plan.`
+                  : `Token reservation ${state.sale.reservation_reference} is created with quote ${quote.reference}. Collect the AED 100 token in Sales & Payment.`
+              );
             }}
           />
         </div>

@@ -8,6 +8,7 @@ import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { PlanTypeBadges } from '@/components/sales/syllabus-badges';
 import { SyllabusActions } from '@/components/sales/syllabus-actions';
+import { CatalogueSyllabusCard } from '@/components/sales/catalogue-syllabus-card';
 import { BOARDS, GRADES, STRUCTURES, SUBTITLES, structureLabel } from '@/lib/sales';
 
 /**
@@ -15,17 +16,24 @@ import { BOARDS, GRADES, STRUCTURES, SUBTITLES, structureLabel } from '@/lib/sal
  * Clear all filters while any is set. `filters` are the page's URL values
  * ('' for none); `onChange(updates)` takes URL values (null drops one).
  */
-export function CatalogueFilters({ filters, onChange, onClear }) {
+export function CatalogueFilters({ filters, onChange, onClear, selecting = false }) {
   const filtered = Object.values(filters).some(Boolean);
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <SearchField value={filters.q} onSearch={(text) => onChange({ q: text || null })} label="Search plans" placeholder="Search titles…" />
+    <div className={selecting ? 'flex flex-wrap items-center gap-3' : 'flex flex-wrap items-center gap-2'}>
+      <SearchField
+        value={filters.q}
+        onSearch={(text) => onChange({ q: text || null })}
+        label="Search plans"
+        placeholder={selecting ? 'Search syllabuses…' : 'Search titles…'}
+        className={selecting ? 'sm:max-w-md sm:flex-1 sm:basis-72' : undefined}
+      />
       <FilterSelect
         label="Filter by structure"
         placeholder="All structures"
         value={filters.structure}
         onChange={(value) => onChange({ structure: value || null })}
         options={STRUCTURES}
+        className={selecting ? 'sm:w-36' : undefined}
       />
       <FilterSelect
         label="Filter by board"
@@ -33,6 +41,7 @@ export function CatalogueFilters({ filters, onChange, onClear }) {
         value={filters.board}
         onChange={(value) => onChange({ board: value || null })}
         options={BOARDS}
+        className={selecting ? 'sm:w-36' : undefined}
       />
       <FilterSelect
         label="Filter by grade"
@@ -40,6 +49,7 @@ export function CatalogueFilters({ filters, onChange, onClear }) {
         value={filters.grade}
         onChange={(value) => onChange({ grade: value || null })}
         options={GRADES}
+        className={selecting ? 'sm:w-36' : undefined}
       />
       {filtered ? (
         <Button variant="ghost" className="text-muted-foreground" onClick={onClear}>
@@ -144,7 +154,17 @@ export function CatalogueList({ rows, total, page, pageSize, filtered, pending, 
 
   let body;
   if (rows.length) {
-    body = <ResponsiveList label="Plans on sale" columns={columns} rows={rows} pending={pending} minTableWidth={900} renderCard={renderCard} />;
+    body = onSelect ? (
+      <ul aria-label="Plans on sale" aria-busy={pending || undefined} className="@container flex min-w-0 flex-col gap-4">
+        {rows.map((row) => (
+          <li key={`${row.id}:${row.revision}`} className="min-w-0">
+            <CatalogueSyllabusCard syllabus={row} enquiry={enquiry} pending={pending} onSelect={onSelect} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <ResponsiveList label="Plans on sale" columns={columns} rows={rows} pending={pending} minTableWidth={900} renderCard={renderCard} />
+    );
   } else if (total > 0) {
     body = (
       <EmptyState

@@ -611,19 +611,10 @@ class ExistingSessionTests(APITestCase):
         self.client.force_login(self.mentor, backend=LEGACY_BACKEND)
         self.assertEqual(self.client.get(STAFF_ONLY_URL).status_code, status.HTTP_200_OK)
 
-    def test_google_sign_in_still_works_and_records_the_lockout_backend(self):
-        Invitation.objects.create(
-            email=self.student.email, role=InvitationRoleChoices.STUDENT, status=InvitationStatusChoices.ACCEPTED,
-        )
-        claims = {"email": self.student.email, "name": "Kid", "picture": None}
-        with patch('accounts.views.verify_google_token', return_value=claims):
-            response = self.client.post(GOOGLE_URL, {"credential": "stub-google-id-token"}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'authenticated')
-        self.assertTrue(response.data['csrf_token'])
-        self.assertEqual(self.client.session[BACKEND_SESSION_KEY], SESSION_BACKEND)
-        self.assertEqual(response.cookies[settings.SESSION_COOKIE_NAME]['max-age'], SESSION_LIFETIME)
-        self.assertEqual(self.client.get(ME_URL).status_code, status.HTTP_200_OK)
+    def test_google_sign_in_endpoint_is_removed(self):
+        response = self.client.post(GOOGLE_URL, {"credential": "obsolete-google-token"}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertNotIn(BACKEND_SESSION_KEY, self.client.session)
 
     def test_deactivation_ends_an_existing_session(self):
         admin_client = APIClient()

@@ -35,6 +35,7 @@ from rest_framework.test import APIClient
 from activity.models import ActivityLog
 from bookings.models import BookingSlot, BookingType, DemoBooking, Lead, ReferralStatus, SlotTime
 from bookings.scheduling import indian_today, slot_instants
+from earnings.values import india_today
 from exams.models import AdditionalExam, AdditionalExamFile, Exam, ExamFile
 from homework.models import Homework, HomeworkFile
 from invitations.models import Invitation
@@ -329,7 +330,7 @@ def build_world():
     # A quote (sales.quotes): admin2's, of syllabus_a's Regular course at pricing_v1 -- issued, not logged, so
     # the activity scenarios read as before.
     w.add('quote_a', sales_quotes.issue(
-        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR'),
+        sales_quotes.quote_snapshot(w['admin2'], syllabus_id=w['syllabus_a'].pk, revision=1, plan_type='REGULAR', collection_mode='FULL'),
         quote_id=fixed_id('quote_a'),
     ))
     return w
@@ -469,7 +470,7 @@ SCENARIOS = [
     Scenario('auth.login.student', 'post', '/api/auth/login/', {'username': 'parent.a', 'password': PASSWORD}, callers=ONLY_ANON),
     Scenario('auth.login.unknown_role', 'post', '/api/auth/login/', {'username': 'unknown', 'password': PASSWORD}, callers=ONLY_ANON),
     Scenario('auth.login.wrong', 'post', '/api/auth/login/', {'username': 'admin', 'password': 'wrong-password'}, callers=ONLY_ANON),
-    Scenario('auth.google.empty', 'post', '/api/auth/google/', {}, callers=ONLY_ANON),
+    Scenario('auth.learn_login.empty', 'post', '/api/auth/learn/login/', {}, callers=ONLY_ANON),
     Scenario('auth.me', 'get', '/api/auth/me/', capture=_me),
     Scenario('auth.logout', 'post', '/api/auth/logout/'),
     Scenario('auth.change_password.wrong', 'post', '/api/auth/change-password/',
@@ -499,6 +500,9 @@ SCENARIOS = [
     # A tutor's permanent Google Meet link (BDE-to-PDF Phase 1): team managers only, tutors only.
     Scenario('team.meet_link', 'put', '/api/team/{tutor_a}/meet-link/',
              {'tutor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
+    # A mentor's permanent Google Meet link, where their chapter exams are held: team managers only, mentors only.
+    Scenario('team.mentor_meet_link', 'put', '/api/team/{mentor_c}/meet-link/',
+             {'mentor_meet_link': 'https://meet.google.com/abc-defg-hij'}),
 
     # --- legacy staff endpoints ----------------------------------------------
     Scenario('staff.mentors', 'get', '/api/mentors/'),
@@ -558,6 +562,20 @@ SCENARIOS = [
     Scenario('sessions.upload.recording.a', 'post', '/api/sessions/{ses_a_att2}/files/recording/', lambda w: {'file': pdf()}, fmt='multipart'),
     Scenario('sessions.file.a', 'get', '/api/sessions/files/{sf_a}/'),
     Scenario('sessions.file.b', 'get', '/api/sessions/files/{sf_b}/'),
+    # Start Session (sessions.lifecycle): ses_a_one is weeks away, so its tutor,
+    # stu_a's mentor and the administrators are told it is too early; everyone
+    # else is refused.
+    Scenario('sessions.start.a', 'post', '/api/sessions/{ses_a_one}/start/'),
+    # No-show / Not Conducted (the student's mentor and the administrators) and
+    # an outcome's correction or revocation (administrators only),
+    # sessions.lifecycle. ses_a_att has its homework under way and no recorded
+    # outcome, so whoever may act is told why not (409).
+    Scenario('sessions.outcome.a', 'post', '/api/sessions/{ses_a_att}/outcome/',
+             lambda w: {'reason': 'STUDENT_NO_SHOW'}),
+    Scenario('sessions.outcome_correct.a', 'post', '/api/sessions/{ses_a_att}/outcome/correct/',
+             lambda w: {'reason': 'TUTOR_ABSENT', 'correction_note': 'Matrix'}),
+    Scenario('sessions.outcome_revoke.a', 'post', '/api/sessions/{ses_a_att}/outcome/revoke/',
+             lambda w: {'correction_note': 'Matrix'}),
 
     # --- exams ----------------------------------------------------------------
     Scenario('exams.list', 'get', '/api/exams/'),
@@ -600,7 +618,13 @@ SCENARIOS = [
     Scenario('activity.subject_mentor_a', 'get', '/api/activity/?subject={mentor_a}', capture=_activity),
 
     # --- invitations ----------------------------------------------------------
-    Scenario('invitations.lookup', 'post', '/api/invitations/lookup-student/', {'student_code': 'MX-NEW2'}),
+    Scenario('invitations.credentials', 'post', '/api/invitations/{inv_pending}/credentials/', {}),
+    # Regenerate Temporary Password: for whoever may reveal (inv_pending has no Learn account yet).
+    Scenario('invitations.credentials.regenerate', 'post', '/api/invitations/{inv_pending}/credentials/regenerate/',
+             {'last_password_reset_at': None}),
+    # Reset Password (an activated account): the same audience.
+    Scenario('invitations.credentials.reset', 'post', '/api/invitations/{inv_pending}/credentials/reset/',
+             {'last_password_reset_at': None}),
     Scenario('invitations.list', 'get', '/api/invitations/'),
     Scenario('invitations.list.alias', 'get', '/api/invitations/create-student-invitation/'),
     Scenario('invitations.create.student', 'post', '/api/invitations/', lambda w: {
@@ -796,7 +820,7 @@ SCENARIOS = [
     Scenario('sales.quotes', 'get', '/api/sales/quotes/'),
     Scenario('sales.enquiry_plan', 'get', '/api/sales/enquiries/{lead_a}/plan/'),
     Scenario('sales.quote_create', 'post', '/api/sales/quotes/',
-             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR'}),
+             lambda w: {'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL'}),
     Scenario('sales.quote', 'get', '/api/sales/quotes/{quote_a}/'),
     Scenario('sales.quote_pdf', 'get', '/api/sales/quotes/{quote_a}/pdf/?disposition=inline'),
     Scenario('sales.quote_cancel', 'post', '/api/sales/quotes/{quote_a}/cancel/', {'reason': 'Matrix'}),
@@ -805,6 +829,114 @@ SCENARIOS = [
         'currency': 'AED', 'standard_fee': '45', 'offer_fee': '30', 'single_payment_percent': '5',
         'single_payment_plan_types': ['REGULAR'], 'note': 'Matrix',
     }),
+]
+
+
+# Phase 1 transports: same world/roles, no additional seeded data that could
+# change unrelated list scopes. Valid-object ownership, enrollment boundaries,
+# signed success/replay and parent tokens are covered by sales authorization tests.
+SCENARIOS += [
+    Scenario('initial_sales.read', 'get', '/api/sales/enquiries/{lead_a}/sale/'),
+    Scenario('initial_sales.foreign', 'get', '/api/sales/enquiries/{lead_b}/sale/'),
+    Scenario('initial_sales.start', 'post', '/api/sales/enquiries/{lead_a}/sale/', {'kind': 'NEW'}),
+    Scenario('initial_sales.amount', 'get', '/api/sales/enquiries/{lead_a}/sale/amount/?purpose=TUITION&classes=1&collection_mode=FULL'),
+    Scenario('initial_sales.collect', 'post', '/api/sales/enquiries/{lead_a}/sale/payments/',
+             {'request_id': str(fixed_id('payment_request')), 'purpose': 'TUITION', 'classes': '1', 'method': 'STRIPE'}),
+    Scenario('initial_sales.replacement', 'post', '/api/sales/enquiries/{lead_a}/installment-quote/', lambda w: {'quote_id': w.id('quote_a'), 'collection_mode': 'PARTIAL'}),
+    Scenario('initial_sales.replacement_preview', 'get', '/api/sales/enquiries/{lead_a}/installment-quote/?quote_id={quote_a}&collection_mode=PARTIAL'),
+    # Token Sale chosen with its plan in Plan Choosing (2026-11-16): the quote and the reservation together.
+    Scenario('initial_sales.token_sale', 'post', '/api/sales/enquiries/{lead_a}/token-sale/', lambda w: {
+        'syllabus': w.id('syllabus_a'), 'revision': 1, 'plan_type': 'REGULAR',
+        'expected_start_date': w.day(10)[0], 'balance_due_date': w.day(7)[0]}),
+    Scenario('initial_sales.proof', 'get', '/api/sales/payments/{stu_a}/proof/'),
+    Scenario('initial_sales.expire', 'post', '/api/sales/payments/{stu_a}/expire/', {}),
+    Scenario('initial_sales.student', 'get', '/api/sales/students/{stu_a}/initial-sale/'),
+    Scenario('initial_autopay.preview', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/preview/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}]}),
+    Scenario('initial_autopay.begin', 'post', '/api/sales/enquiries/{lead_a}/sale/autopay/', lambda w: {
+        'quote_id': w.id('quote_a'), 'initial_classes': '1', 'installments': [{'classes': '3', 'due_at': w.utc(2).isoformat()}],
+        'request_id': str(fixed_id('agreement_request')), 'review_token': 'not-signed'}),
+    Scenario('initial_autopay.restart', 'post', '/api/sales/autopay/{stu_a}/initial-checkout/', {'request_id': str(fixed_id('checkout_request'))}),
+    Scenario('initial_autopay.parent_invalid', 'get', '/api/sales/autopay/actions/invalid-proof/'),
+    Scenario('initial_sales.webhook_unsigned', 'post', '/api/sales/webhooks/stripe/', {}),
+]
+
+
+# Student financial identity: billing contact (BDE/Admin), audited identity
+# correction, Autopay cancellation and the Stripe review queue (Admin only).
+SCENARIOS += [
+    Scenario('student_accounts.billing_contact', 'put', '/api/sales/enquiries/{lead_a}/sale/billing-contact/', {'email': 'billing@matrix.test'}),
+    Scenario('student_accounts.correction', 'post', '/api/sales/accounts/{stu_a}/identity-correction/',
+             {'student_name': 'Matrix Child', 'reason': 'Matrix identity correction reason.'}),
+    Scenario('student_accounts.cancel_autopay', 'post', '/api/sales/autopay/{stu_a}/cancel/', {'reason': 'Matrix cancellation reason.'}),
+    Scenario('stripe_review.list', 'get', '/api/sales/stripe-review/'),
+    Scenario('stripe_review.resolve', 'post', '/api/sales/stripe-review/{stu_a}/resolve/', {'action': 'DISMISS', 'note': 'Matrix review note.'}),
+]
+
+
+# The Sales Dashboard: sales and collections across every student, for
+# administrators only (the same financial oversight as the review queue).
+SCENARIOS += [
+    Scenario('sales_dashboard.read', 'get', '/api/sales/dashboard/?from=2026-11-01&to=2026-11-07'),
+]
+
+
+# Additional purchases: the student's own mentor (or an administrator). The
+# matrix world's students have no student account and no additional sale, so
+# whoever gets past the permission and the mentor check is answered
+# NO_STUDENT_ACCOUNT or NOT_FOUND ({stu_a} stands in for a sale or payment ID).
+SCENARIOS += [
+    Scenario('additional_purchases.overview', 'get', '/api/sales/students/{stu_a}/purchases/'),
+    Scenario('additional_purchases.foreign', 'get', '/api/sales/students/{stu_b}/purchases/'),
+    Scenario('additional_purchases.create', 'post', '/api/sales/students/{stu_a}/purchases/', lambda w: {
+        'syllabus': str(w['syllabus_a'].pk), 'revision': 1, 'plan_type': 'REGULAR', 'collection_mode': 'FULL',
+        'request_id': str(fixed_id('additional_purchase_request'))}),
+    Scenario('additional_purchases.read', 'get', '/api/sales/purchases/{stu_a}/'),
+    Scenario('additional_purchases.amount', 'get', '/api/sales/purchases/{stu_a}/amount/?classes=1'),
+    Scenario('additional_purchases.collect', 'post', '/api/sales/purchases/{stu_a}/payments/',
+             {'request_id': str(fixed_id('additional_payment_request')), 'classes': '1'}),
+    Scenario('additional_purchases.expire', 'post', '/api/sales/purchases/{stu_a}/payments/{stu_a}/expire/', {}),
+]
+
+
+# Student finance after enrollment: the same audience as additional purchases
+# (the student's own mentor, or an administrator), answered the same way.
+SCENARIOS += [
+    Scenario('student_finance.overview', 'get', '/api/sales/students/{stu_a}/finance/'),
+    Scenario('student_finance.foreign', 'get', '/api/sales/students/{stu_b}/finance/'),
+    Scenario('student_finance.payments', 'get', '/api/sales/students/{stu_a}/payments/'),
+    Scenario('student_finance.proof', 'get', '/api/sales/purchases/{stu_a}/payments/{stu_a}/proof/'),
+]
+
+
+# Tutor Earnings (earnings app): every tutor's earnings, the rates, payments
+# and ledger corrections are the administrators' (and the superusers'); a
+# tutor reads their own under /me/. The matrix world has the activation (its
+# migration) but no pricing and no earning, so the rate, payment and tutor-rate
+# changes are answered PRICING_NOT_STARTED, starting pricing and an adjustment
+# go through (rolled back), and a payment or entry that does not exist is a 404.
+EARNINGS_MISSING = '00000000-0000-0000-0000-00000000e001'
+SCENARIOS += [
+    Scenario('earnings.overview', 'get', '/api/earnings/overview/'),
+    Scenario('earnings.rates', 'get', '/api/earnings/rates/'),
+    Scenario('earnings.rates_change', 'post', '/api/earnings/rates/', {'rates': {'SESSION': '410'}, 'reason': 'Matrix'}),
+    Scenario('earnings.rates_initial', 'post', '/api/earnings/rates/initial/', {
+        'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True}),
+    Scenario('earnings.review', 'get', '/api/earnings/review/'),
+    Scenario('earnings.tutor', 'get', '/api/earnings/tutors/{tutor_a}/'),
+    Scenario('earnings.tutor_entries', 'get', '/api/earnings/tutors/{tutor_a}/entries/'),
+    Scenario('earnings.tutor_rates', 'post', '/api/earnings/tutors/{tutor_a}/rates/',
+             {'rates': {'SESSION': '450'}, 'reason': 'Matrix'}),
+    Scenario('earnings.tutor_payment', 'post', '/api/earnings/tutors/{tutor_a}/payments/', lambda w: {
+        'request_id': str(fixed_id('earnings_payment_request')), 'amount': '100', 'paid_on': india_today().isoformat(),
+        'method': 'UPI', 'reference': 'UPI MATRIX 1'}),
+    Scenario('earnings.tutor_adjustment', 'post', '/api/earnings/tutors/{tutor_a}/adjustments/',
+             {'amount': '50', 'reason': 'Matrix'}),
+    Scenario('earnings.payment_void', 'post', f'/api/earnings/payments/{EARNINGS_MISSING}/void/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_reverse', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/reverse/', {'reason': 'Matrix'}),
+    Scenario('earnings.entry_keep', 'post', f'/api/earnings/entries/{EARNINGS_MISSING}/keep/', {'reason': 'Matrix'}),
+    Scenario('earnings.me', 'get', '/api/earnings/me/'),
+    Scenario('earnings.me_entries', 'get', '/api/earnings/me/entries/'),
 ]
 
 

@@ -220,9 +220,8 @@ class TeamCreateTests(TeamTestCase):
     def test_new_accounts_cannot_sign_in_with_google(self):
         self.client.post(TEAM_URL, self.create_payload(), format='json')
         claims = {'email': 'new.mentor@eduport.com', 'name': 'New Mentor', 'picture': None}
-        with patch('accounts.views.verify_google_token', return_value=claims):
-            response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
-        self.assert_refused(response, status.HTTP_403_FORBIDDEN, 'ACCESS_RESTRICTED')
+        response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_a_legacy_staff_invitation_does_not_block_team(self):
         # Staff invitations are retired. One left over from before -- pending or
@@ -246,9 +245,8 @@ class TeamCreateTests(TeamTestCase):
             self.assertEqual(invitation.status, state)
         # ...and the leftover invitation never lets the new account in through Google.
         claims = {'email': 'new.mentor@eduport.com', 'name': 'New Mentor', 'picture': None}
-        with patch('accounts.views.verify_google_token', return_value=claims):
-            response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
-        self.assert_refused(response, status.HTTP_403_FORBIDDEN, 'GOOGLE_SIGN_IN_STUDENTS_ONLY')
+        response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_invalid_requests_create_nothing(self):
         Invitation.objects.create(
@@ -416,9 +414,8 @@ class TeamUpdateTests(TeamTestCase):
         for address in ('old.invite@eduport.com', 'mentor1@eduport.com'):
             with self.subTest(address=address):
                 claims = {'email': address, 'name': 'Someone', 'picture': None}
-                with patch('accounts.views.verify_google_token', return_value=claims):
-                    response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
-                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+                response = APIClient().post(GOOGLE_URL, {'credential': 'stub-google-id-token'}, format='json')
+                self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         # No second account for either address, and the mentor is still the one account.
         self.assertEqual(
             list(User.objects.filter(email__in=['old.invite@eduport.com', 'mentor1@eduport.com']).values_list('pk', flat=True)),

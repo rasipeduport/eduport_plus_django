@@ -4,6 +4,7 @@ import { REDEMO_CLOSE_REASONS, cancelReasonLabel, rescheduleReasonLabel } from '
 import { notConfirmedReasonLabel } from './communications';
 import { sourceLabel } from './enquiries';
 import { reportFieldsText } from './reports';
+import { formatInr } from './earnings';
 import { formatAmount } from './sales';
 
 // Short, human label per action — used for badges and the action filter.
@@ -26,6 +27,24 @@ export const ACTION_LABELS = {
   'session.update_links': 'Session links updated',
   'session.reschedule': 'Session rescheduled',
   'session.mark_attended': 'Marked attended',
+  // The assigned tutor's Start Session, and the completion their notes make (sessions.lifecycle).
+  'session.start': 'Session started',
+  'session.complete': 'Session completed',
+  // Entries from before the notes deadline was removed (2026-11-16); nothing writes these any more.
+  'session.submit_late_notes': 'Late notes submitted',
+  'session.approve_late_notes': 'Late notes approved',
+  'session.record_outcome': 'Outcome recorded',
+  // Tutor Earnings (backend earnings): rates, payments to tutors and corrections to the ledger.
+  'earnings.start_pricing': 'Pricing started',
+  'earnings.change_rates': 'Global rates changed',
+  'earnings.change_tutor_rates': 'Tutor rates changed',
+  'earnings.record_payment': 'Tutor payment recorded',
+  'earnings.void_payment': 'Tutor payment voided',
+  'earnings.reverse_entry': 'Earning reversed',
+  'earnings.keep_entry': 'Earning kept as earned',
+  'earnings.add_adjustment': 'Earnings adjusted',
+  'session.correct_outcome': 'Outcome corrected',
+  'session.revoke_outcome': 'Outcome removed',
   'session.cancel': 'Session cancelled',
   'session.cancel_series': 'Series class cancelled',
   'session.rate': 'Session rated',
@@ -43,6 +62,12 @@ export const ACTION_LABELS = {
   'invitation.create': 'Invitation sent',
   'invitation.update_email': 'Invitation email changed',
   'invitation.withdraw': 'Invitation withdrawn',
+  // A Learn account's initial credentials (backend invitations.credentials): never the password itself.
+  'invitation.credentials_created': 'Learn credentials issued',
+  'invitation.credentials_revealed': 'Temporary password revealed',
+  'invitation.credentials_regenerated': 'Temporary password regenerated',
+  'invitation.credentials_copied': 'Login details copied',
+  'invitation.password_reset': 'Learn password reset',
   'user.deactivate': 'User deactivated',
   'user.reactivate': 'User reactivated',
   'staff.reassign_all': 'Workload reassigned',
@@ -207,6 +232,14 @@ function bookingOfType(row) {
   return type ? `a ${type} booking` : 'a booking';
 }
 
+// Why a session was not conducted (backend SessionOutcomeReason), as the feed words it.
+const SESSION_OUTCOME_LABELS = {
+  STUDENT_NO_SHOW: 'a student no-show',
+  TUTOR_ABSENT: 'not conducted (tutor absent)',
+  TECHNICAL_ISSUE: 'not conducted (technical issue)',
+  OTHER: 'not conducted',
+};
+
 function reasonOf(row) {
   const reason = row.context?.reason;
   return typeof reason === 'string' && reason.trim() ? reason.trim() : null;
@@ -266,6 +299,28 @@ export function describeActivity(row) {
       return 'Rescheduled the session';
     case 'session.mark_attended':
       return 'Marked the session attended';
+    case 'session.start':
+      return 'Started the session';
+    case 'session.complete':
+      return row.context?.approved_late_notes
+        ? "Completed the session by approving the tutor's late notes"
+        : 'Completed the session with their notes';
+    // From before the notes deadline was removed (2026-11-16).
+    case 'session.submit_late_notes':
+      return 'Submitted notes after the 48-hour deadline, for approval';
+    case 'session.approve_late_notes':
+      return "Approved the tutor's late notes";
+    case 'session.record_outcome': {
+      const reason = SESSION_OUTCOME_LABELS[c.outcome_reason?.new] ?? 'not conducted';
+      return c.late_notes_status ? `Recorded the session as ${reason}, rejecting the late notes` : `Recorded the session as ${reason}`;
+    }
+    case 'session.correct_outcome': {
+      const from = SESSION_OUTCOME_LABELS[c.outcome_reason?.old];
+      const to = SESSION_OUTCOME_LABELS[c.outcome_reason?.new];
+      return from && to ? `Corrected the session's outcome from ${from} to ${to}` : "Corrected the session's outcome note";
+    }
+    case 'session.revoke_outcome':
+      return "Removed the session's recorded outcome";
     case 'session.cancel': {
       const reason = reasonOf(row);
       return reason ? `Cancelled the session — ${reason}` : 'Cancelled the session';
@@ -324,7 +379,8 @@ export function describeActivity(row) {
       const verb = { added: 'Set', changed: 'Changed', removed: 'Removed' }[row.context?.change] ?? 'Updated';
       const count = row.context?.live_bookings_updated ?? 0;
       const bookings = count ? `; ${count} booking${count === 1 ? '' : 's'} not yet ended now use${count === 1 ? 's' : ''} it` : '';
-      return `${verb} the tutor's Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
+      const whose = row.context?.role === 'MENTOR' ? "mentor's" : "tutor's";
+      return `${verb} the ${whose} Google Meet link${row.context?.change === 'removed' ? '' : bookings}`;
     }
     case 'user.update_details':
       return 'Updated the account details';
@@ -334,6 +390,14 @@ export function describeActivity(row) {
         : 'Set a temporary password';
     case 'user.password_change':
       return 'Changed their password';
+    case 'invitation.credentials_regenerated':
+      return row.context?.unlocked
+        ? 'Regenerated the temporary Learn password and cleared a sign-in lockout'
+        : 'Regenerated the temporary Learn password';
+    case 'invitation.password_reset':
+      return row.context?.unlocked
+        ? 'Reset the Learn password to a temporary one and cleared a sign-in lockout'
+        : 'Reset the Learn password to a temporary one';
     case 'user.permissions_update': {
       const added = row.context?.added ?? [];
       const removed = row.context?.removed ?? [];
@@ -486,6 +550,24 @@ export function describeActivity(row) {
       // The currency is logged only when it changed: the amount reads alone otherwise.
       return offer ? `${version}: offer fee ${formatAmount(offer, row.changes?.currency?.new ?? '').trim()} a class` : `${version} saved`;
     }
+    case 'earnings.start_pricing':
+      return 'Started pricing Tutor Earnings with the initial rates';
+    case 'earnings.change_rates':
+      return `Changed the global rates (${Object.keys(row.changes || {})
+        .map((type) => `${type.toLowerCase()} ${formatInr(row.changes[type]?.new)}`)
+        .join(', ')})`;
+    case 'earnings.change_tutor_rates':
+      return `Changed ${row.entity_label ?? "a tutor"}'s rates`;
+    case 'earnings.record_payment':
+      return `Recorded a payment of ${formatInr(row.changes?.paid?.new)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.void_payment':
+      return `Voided a payment of ${formatInr(row.changes?.paid?.old)} to ${row.entity_label ?? 'a tutor'}`;
+    case 'earnings.reverse_entry':
+      return `Reversed ${formatInr(row.changes?.amount?.old)} of earnings${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.keep_entry':
+      return `Kept ${formatInr(row.context?.amount)} as earned${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'earnings.add_adjustment':
+      return `Adjusted ${row.entity_label ?? 'a tutor'}'s earnings by ${formatInr(row.changes?.amount?.new, { signed: true })}`;
     case 'booking_schedule.update': {
       const parts = [];
       if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);

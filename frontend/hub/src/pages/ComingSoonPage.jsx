@@ -3,11 +3,9 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   Briefcase,
-  ChartColumn,
   ClipboardPen,
   LayoutDashboard,
   ReceiptIndianRupee,
-  Wallet,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -15,9 +13,9 @@ import { Page } from '@/components/page/page';
 import { ComingSoon } from '@/components/page/coming-soon';
 
 // The modules still to come -- the BDE workspace's, then the Admin Hub's
-// common Dashboard and Sales & Finance, and the Tutor Hub's Hourly Earnings --
-// each offered in the sidebar, and
-// nothing behind it yet but this page. `variant` picks the card beside the
+// common Dashboard and Sales & Finance --
+// each offered in the sidebar (Sales Module and Sales Punching no longer are),
+// and nothing behind it yet but this page. `variant` picks the card beside the
 // mascot (components/page/coming-soon): a chart filling in, or plans. The page
 // leads back to the Dashboard, or -- for the Dashboard itself -- on to `next`.
 const MODULES = {
@@ -34,12 +32,6 @@ const MODULES = {
     variant: 'sales',
     next: { to: '/academics-dashboard', label: 'Open the Academics Dashboard' },
   },
-  salesDashboard: {
-    icon: ChartColumn,
-    title: 'Sales Dashboard',
-    description: 'Sales performance across the team: conversions, revenue and targets at a glance.',
-    variant: 'sales',
-  },
   salesModule: {
     icon: Briefcase,
     title: 'Sales Module',
@@ -51,18 +43,6 @@ const MODULES = {
     title: 'Sales Punching',
     description: 'Record each sale as it closes: the plan, the payment and the BDE who made it.',
     variant: 'plans',
-  },
-  tutorEarnings: {
-    icon: Wallet,
-    title: 'Tutor Earnings',
-    description: 'What each tutor has earned for the classes they taught, month by month.',
-    variant: 'sales',
-  },
-  hourlyEarnings: {
-    icon: Wallet,
-    title: 'Hourly Earnings',
-    description: 'The hours you have taught, across classes, demos and diagnostic tests, and what you earned for them, month by month.',
-    variant: 'sales',
   },
 };
 
