@@ -88,6 +88,44 @@ class DispatchTests(SenderTestCase):
         # Switched on again, it goes.
         self.assertEqual(tasks.run_dispatch(now=NOW)['outcomes'], {SendOutcome.QUEUED: 1})
 
+    def test_invalid_settings_hold_everything_back_and_say_exactly_why(self):
+        ack = self.message(self.book())
+        written = ack.updated_at
+        cases = (
+            (dict(COMMUNICATIONS_WHATSAPP_PROVIDER='meta'),
+             "communications.W001: Unknown WhatsApp provider 'meta' in COMMUNICATIONS_WHATSAPP_PROVIDER."),
+            (dict(COMMUNICATIONS_ALLOW_ALL_RECIPIENTS=False, COMMUNICATIONS_RECIPIENT_ALLOWLIST=['0501234567']),
+             "communications.W002: COMMUNICATIONS_RECIPIENT_ALLOWLIST: '0501234567' is not an international number"),
+            (dict(COMMUNICATIONS_PROVIDER_TIMEOUT='abc'),
+             "communications.W003: COMMUNICATIONS_PROVIDER_TIMEOUT must be whole seconds from 1 to 60, not 'abc'."),
+        )
+        for changes, problem in cases:
+            with self.subTest(changes=changes), override_settings(**changes), \
+                    mock.patch.object(sending, 'send_message', side_effect=AssertionError('picked up')), \
+                    self.assertLogs('communications.tasks', 'WARNING') as logs:
+                summary = tasks.run_dispatch(now=NOW)
+                self.assertEqual((summary['held_back'], summary['outcomes'], summary['errors']),
+                                 (SendBlock.MISCONFIGURED, {}, 0))
+                # The Celery task itself returns the same, without raising.
+                with mock.patch.object(tasks, 'timezone', SimpleNamespace(now=lambda: NOW)):
+                    self.assertEqual(tasks.dispatch_messages()['held_back'], SendBlock.MISCONFIGURED)
+                self.assertIn(problem, '\n'.join(logs.output))
+        # Not claimed, not written, not sent.
+        ack = self.fresh(ack)
+        self.assertEqual((ack.status, ack.claimed_at, ack.updated_at, FakeProvider.outbox),
+                         (MessageStatus.PENDING, None, written, []))
+        # Fixed, it goes.
+        self.assertEqual(tasks.run_dispatch(now=NOW)['outcomes'], {SendOutcome.QUEUED: 1})
+
+    def test_sending_off_is_held_back_as_before_whatever_the_settings(self):
+        self.message(self.book())
+        with override_settings(COMMUNICATIONS_SENDING_ENABLED=False, COMMUNICATIONS_WHATSAPP_PROVIDER='meta',
+                               COMMUNICATIONS_PROVIDER_TIMEOUT='abc'), \
+                mock.patch.object(sending, 'send_message', side_effect=AssertionError('picked up')), \
+                self.assertNoLogs('communications.tasks', 'WARNING'):
+            summary = tasks.run_dispatch(now=NOW)
+        self.assertEqual((summary['held_back'], summary['outcomes'], summary['errors']), (SendBlock.SENDING_DISABLED, {}, 0))
+
     def test_only_messages_to_allowed_numbers_are_picked_up(self):
         held_back, allowed = self.message(self.book()), self.book()
         with override_settings(COMMUNICATIONS_ALLOW_ALL_RECIPIENTS=False,

@@ -1,33 +1,21 @@
 """
-System checks on the WhatsApp settings: a misconfiguration stops `migrate`
-(and so the container) instead of surfacing at the first send.
+System checks on the WhatsApp settings. A misconfiguration is a warning --
+printed by `check` in the entrypoint and by `migrate` -- and never stops the
+backend, its worker or beat: WhatsApp is not what the rest of the backend
+runs on. While it lasts, no WhatsApp message is sent: the safety gate holds
+every one back as MISCONFIGURED, and the dispatcher logs why on each run
+(communications.safety, communications.tasks).
 """
-from django.conf import settings
-from django.core.checks import Error
-from django.core.exceptions import ImproperlyConfigured
+from django.core import checks
 
-from .providers import get_provider
-from .safety import allowlist
+from .safety import blocks_sending, configuration_problems
 
-# Seconds a provider call may take: long enough for a slow API, short enough
-# that a hung one never holds a sender for long.
-TIMEOUT_RANGE = range(1, 61)
+HELD_BACK = 'No WhatsApp message is sent until this is fixed (held back as MISCONFIGURED); nothing else is affected.'
+NOT_READ = 'The allow-list is not read while COMMUNICATIONS_ALLOW_ALL_RECIPIENTS is on, so nothing is held back for it.'
 
 
 def check_whatsapp_settings(app_configs=None, **kwargs):
-    errors = []
-    try:
-        get_provider()
-    except ImproperlyConfigured as exc:
-        errors.append(Error(str(exc), id='communications.E001'))
-    try:
-        allowlist()
-    except ImproperlyConfigured as exc:
-        errors.append(Error(str(exc), id='communications.E002'))
-    timeout = settings.COMMUNICATIONS_PROVIDER_TIMEOUT
-    if not isinstance(timeout, int) or timeout not in TIMEOUT_RANGE:
-        errors.append(Error(
-            f'COMMUNICATIONS_PROVIDER_TIMEOUT must be whole seconds from 1 to 60, not {timeout!r}.',
-            id='communications.E003',
-        ))
-    return errors
+    return [
+        checks.Warning(problem, hint=HELD_BACK if blocks_sending(check_id) else NOT_READ, id=check_id)
+        for check_id, problem in configuration_problems()
+    ]

@@ -8,8 +8,10 @@ communications.sending and communications.planner, which these only call.
                                   each due Pending message to an allowed number
                                   handed to send_message -- which makes every
                                   check again under its locks, the safety gate
-                                  included; none at all while sending is off or
-                                  the provider sends nothing
+                                  included; none at all while sending is off,
+                                  the WhatsApp settings are invalid (logged as
+                                  a warning on each run) or the provider sends
+                                  nothing
     recover_stuck_sends           every 5 minutes: messages claimed for more than
                                   5 minutes taken back as unknown
     close_expired_communications  every 5 minutes: tasks whose time ran out
@@ -43,7 +45,7 @@ from django.db import connection
 from django.utils import timezone
 
 from . import outbox, planner, sending, status_updates
-from .safety import sending_block_for_all
+from .safety import SendBlock, sending_block_for_all, sending_problems
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,9 @@ def run_dispatch(now=None, time_budget=DISPATCH_TIME_BUDGET):
         logger.exception('WhatsApp dispatch: Waiting messages could not be checked again.')
     outcomes = Counter()
     summary['held_back'] = sending_block_for_all() or ''
+    if summary['held_back'] == SendBlock.MISCONFIGURED:
+        logger.warning('WhatsApp dispatch: nothing sent, the WhatsApp settings are invalid -- %s',
+                       '; '.join(f'{check_id}: {problem}' for check_id, problem in sending_problems()))
     due = [] if summary['held_back'] else sending.due_message_ids(now or timezone.now(), limit=DISPATCH_BATCH)
     for message_id in due:
         if time.monotonic() - started > time_budget:

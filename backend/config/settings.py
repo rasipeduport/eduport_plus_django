@@ -611,8 +611,14 @@ COMMUNICATIONS_SENDING_ENABLED = env.bool('COMMUNICATIONS_SENDING_ENABLED', defa
 COMMUNICATIONS_WHATSAPP_PROVIDER = env('COMMUNICATIONS_WHATSAPP_PROVIDER', default='none')
 COMMUNICATIONS_RECIPIENT_ALLOWLIST = env.list('COMMUNICATIONS_RECIPIENT_ALLOWLIST', default=[])
 COMMUNICATIONS_ALLOW_ALL_RECIPIENTS = env.bool('COMMUNICATIONS_ALLOW_ALL_RECIPIENTS', default=False)
-# Seconds one provider call may take (1-60).
-COMMUNICATIONS_PROVIDER_TIMEOUT = env.int('COMMUNICATIONS_PROVIDER_TIMEOUT', default=10)
+# Seconds one provider call may take (1-60). A value that is not a whole
+# number is kept as given rather than stopping every process here: the system
+# check reports it and WhatsApp sending is held back (communications.safety).
+_provider_timeout = env('COMMUNICATIONS_PROVIDER_TIMEOUT', default='10')
+try:
+    COMMUNICATIONS_PROVIDER_TIMEOUT = int(_provider_timeout)
+except ValueError:
+    COMMUNICATIONS_PROVIDER_TIMEOUT = _provider_timeout
 # Tests only: apply each communication event as it is recorded, in a savepoint
 # of the business transaction (communications.outbox). Never set in a deployment.
 COMMUNICATIONS_OUTBOX_INLINE = False
