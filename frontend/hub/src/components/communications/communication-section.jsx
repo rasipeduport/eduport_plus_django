@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Panel } from '@/components/dashboard/dashboard-primitives';
 import { EmptyState } from '@/components/page/page';
+import { unplannedText } from '@/lib/communications';
 import { CommunicationBody } from './communication-details';
 import { CallOutcomes, Empty, MessageRow, ParentConfirmationCard, TaskDetails, WorkflowTimeline } from './communication-workspace';
 
@@ -96,7 +97,7 @@ export function CommunicationSection({ state }) {
             communication.redemo
               ? // A Re-Demo (backend bookings.redemos) has no plan: nothing is ever sent to its parent.
                 'No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor.'
-              : 'No messages were planned for this booking: it was made before parent communication began.'
+              : unplannedText(communication)
           }
         />
       )}

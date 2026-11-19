@@ -29,6 +29,7 @@ import {
   messageState,
   stepLabel,
   stepLine,
+  unplannedText,
   workflowState,
 } from '@/lib/communications';
 import { cn } from '@/lib/utils';
@@ -514,7 +515,7 @@ export function CommunicationWorkspace({ communication, failure, retry, notice, 
           {communication.redemo
             ? // A Re-Demo (backend bookings.redemos) has no plan: nothing is ever sent to its parent.
               'No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor.'
-            : 'No messages were planned for this booking: it was made before parent communication began.'}
+            : unplannedText(communication)}
         </p>
       )}
     </div>

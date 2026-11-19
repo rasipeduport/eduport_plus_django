@@ -204,6 +204,21 @@ export const MESSAGE_MOMENTS = [
   ['Not sent', 'cancelled_at'],
 ];
 
+/**
+ * Why a booking that is not a Re-Demo shows no plan, in a sentence (its communication's `planned` is false):
+ * a plan still on its way from the backend's outbox, a plan whose event failed, or a booking made before
+ * parent communication began (`plan_status`, backend communications.outbox.PlanStatus).
+ */
+export function unplannedText(communication) {
+  if (communication.plan_status === 'PENDING') {
+    return 'Parent messages for this booking are being prepared and will appear here once ready.';
+  }
+  if (communication.plan_status === 'FAILED') {
+    return 'Parent messages for this booking could not be prepared. Please contact the technical team.';
+  }
+  return 'No messages were planned for this booking: it was made before parent communication began.';
+}
+
 /** What asking the parent to confirm did, in a sentence (POST …/confirmation-request/ answers `created`). */
 export function confirmationRequestNotice(data) {
   return data.created
