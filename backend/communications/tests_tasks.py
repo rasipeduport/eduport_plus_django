@@ -321,7 +321,7 @@ class ScheduleTests(SimpleTestCase):
 
 
 @skipUnless(connection.vendor == 'postgresql', 'the advisory locks need PostgreSQL')
-@override_settings(**SENDING)
+@override_settings(**SENDING, COMMUNICATIONS_OUTBOX_INLINE=True)  # reads the plan straight after each business call
 class OverlapTests(TransactionTestCase):
     """Real threads, each with its own database connection."""
 

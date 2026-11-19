@@ -48,8 +48,9 @@ booking's type, and every check that spans both types (a tutor's commitments,
 a phone number's bookings today) reads both. Each write also records the
 change in the booking's history (bookings.history), in the same transaction,
 and a booking's creation, answer from the parent, cancellation, reschedule,
-tutor change or Meet link change keeps its parent communication in step there
-too (communications.planner).
+tutor change or Meet link change records a communication event there too
+(communications.outbox): the parent communication follows from it after the
+transaction commits, so nothing about communication can undo a booking write.
 
 The seats' partial unique index makes a fourth booked row for one slot
 impossible even for code that skipped the lock; the lock is what keeps the
@@ -87,7 +88,7 @@ from django.utils import timezone
 
 from accounts.models import RoleChoices, User
 from activity.utils import log_activity
-from communications import planner
+from communications import outbox
 from sessions.models import Session, SessionStatusChoices
 from sessions.services import lock_tutor_schedule
 
@@ -549,9 +550,11 @@ def create_booking(request, now=None):
                 slot_id=slot.id, seat=booking.seat, referral_status=booking.referral_status, via='public_booking',
             )
             _record_diagnostic_tutor(booking, tutor, diagnostic)
-            owner_id = Lead.objects.filter(pk=lead.pk).values_list('owner_bde_id', flat=True).get()
-            # Its five communication steps and first messages, committed with it or not at all.
-            planner.plan_booking(booking, now)
+            # Read again, so the booking returned carries the owner the UPDATE above may have set.
+            booking.lead = Lead.objects.select_related('owner_bde').get(pk=lead.pk)
+            owner_id = booking.lead.owner_bde_id
+            # Its communication is planned from this event, after the booking commits.
+            outbox.booking_created(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -655,7 +658,7 @@ def create_invited_demo_booking(token, local_date, local_time, display_time='', 
             )
             _record_diagnostic_tutor(booking, tutor, diagnostic)
             owner_id = lead.owner_bde_id
-            planner.plan_booking(booking, now)
+            outbox.booking_created(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -1179,13 +1182,13 @@ def record_parent_confirmation(booking, outcome, *, reason_code='', confirm_canc
     Confirmed is recorded at once -- when, and by whom -- and saying it again
     changes nothing. It sends nothing itself: the confirmed message goes once
     the booking also has its tutor, their Meet link and the BDE's contact
-    details (communications.planner.parent_confirmed). Not Confirmed needs a
+    details (communications.outbox.parent_confirmed). Not Confirmed needs a
     NotConfirmedReason (InvalidReason) and ``confirm_cancellation`` -- the BDE
     agreeing that it cancels the booking (CancellationNotConfirmed) -- and
     then cancels it, with the same cancellation cancel_booking makes, in the
     same transaction: reason "Parent did not confirm", its future tasks and
-    unsent messages stopped. A Confirmed parent may still turn out Not
-    Confirmed; nothing goes back to Awaiting.
+    unsent messages stopped once its event is applied. A Confirmed parent
+    may still turn out Not Confirmed; nothing goes back to Awaiting.
 
     Only while the booking is booked, its tutor has not started it and its
     scheduled time has not come (the *NotConfirmable errors): a Not Confirmed
@@ -1232,7 +1235,7 @@ def record_parent_confirmation(booking, outcome, *, reason_code='', confirm_canc
             if outcome == ParentConfirmation.CONFIRMED:
                 booking.save(update_fields=[*answer_fields, 'updated_at'])
                 history.record(booking, BookingEventKind.PARENT_CONFIRMED, actor=actor)
-                planner.parent_confirmed(booking, now, actor=actor)
+                outbox.parent_confirmed(booking, now, actor=actor)
             else:
                 history.record(booking, BookingEventKind.PARENT_NOT_CONFIRMED, actor=actor, reason_code=reason_code)
                 _cancel_locked(booking, CancelReason.NOT_CONFIRMED, actor, now, extra_fields=answer_fields)
@@ -1397,8 +1400,8 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
                     new, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
                     old_tutor_id=None, new_tutor_id=tutor.pk, via='reschedule',
                 )
-            # The old booking's communication stops; the new one's is planned from its own slot.
-            planner.booking_rescheduled(old, new, now)
+            # The old booking's communication stops and the new one's is planned from its own slot (outbox).
+            outbox.booking_rescheduled(old, new, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -1659,8 +1662,8 @@ def assign_tutor(booking, tutor, actor=None, now=None):
                 booking, BookingEventKind.TUTOR_ASSIGNED, actor=actor,
                 old_tutor_id=previous_tutor_id, new_tutor_id=tutor.pk,
             )
-            # A waiting confirmed message may now have its tutor and Meet link.
-            planner.refresh_messages(booking, now)
+            # A waiting confirmed message may now have its tutor and Meet link (outbox).
+            outbox.tutor_changed(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -1693,8 +1696,8 @@ def unassign_tutor(booking, actor=None, now=None):
                 'assigned_tutor', 'tutor_assigned_at', 'tutor_assigned_by', 'tutor_meet_link', 'updated_at',
             ])
             history.record(booking, BookingEventKind.TUTOR_UNASSIGNED, actor=actor, old_tutor_id=previous_tutor_id)
-            # An unsent confirmed message waits again for a tutor.
-            planner.refresh_messages(booking, now)
+            # An unsent confirmed message waits again for a tutor (outbox).
+            outbox.tutor_changed(booking, now)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc
@@ -1821,8 +1824,8 @@ def set_tutor_meet_link(tutor, meet_link, actor=None, now=None):
                     history.record(
                         booking, BookingEventKind.MEET_LINK_UPDATED, actor=actor, has_meet_link=meet_link is not None,
                     )
-                    # Its unsent confirmed message goes with the new link, or waits for one.
-                    planner.refresh_messages(booking, now)
+                    # Its unsent confirmed message goes with the new link, or waits for one (outbox).
+                    outbox.meet_link_changed(booking, now)
                     changed.append(booking)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
@@ -1964,8 +1967,9 @@ def _locked_booking(booking):
 def _cancel_locked(booking, reason_code, actor, now, extra_fields=()):
     """
     Cancel ``booking``, already read under its locks and checked, for
-    ``reason_code``: its status, its history and its communication -- open
-    tasks cancelled, unsent messages stopped -- in the caller's transaction.
+    ``reason_code``: its status, its history and the event that stops its
+    communication (open tasks cancelled, unsent messages stopped, once the
+    outbox applies it) -- in the caller's transaction.
     ``extra_fields`` are other fields the caller changed, saved with it.
     """
     previous_status = booking.status
@@ -1980,7 +1984,7 @@ def _cancel_locked(booking, reason_code, actor, now, extra_fields=()):
         booking, BookingEventKind.CANCELLED, actor=actor,
         from_status=previous_status, to_status=booking.status, reason_code=reason_code,
     )
-    planner.booking_cancelled(booking, now)
+    outbox.booking_cancelled(booking, now)
 
 
 def _log_cancellation(booking, reason_code, actor):

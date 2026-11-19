@@ -16,7 +16,7 @@ from unittest import skipUnless
 
 from django.contrib.auth.models import Permission
 from django.db import IntegrityError, connection, transaction
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from rest_framework.test import APIClient, APITestCase
 
 from accounts.models import RoleGroup
@@ -368,6 +368,8 @@ def communication_rows(booking):
             list(Message.objects.filter(demo_booking=booking).order_by('id').values()))
 
 
+# These tests read the plan straight after each business call: events applied as recorded (communications.outbox).
+@override_settings(COMMUNICATIONS_OUTBOX_INLINE=True)
 class CommunicationTests(RedemoTestCase):
     def test_nothing_is_ever_written_to_a_redemos_parent(self):
         redemo = self.ask()

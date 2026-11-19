@@ -12913,7 +12913,7 @@
    }
   },
   "communications.booking @ admin": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -12948,6 +12948,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13009,7 +13010,7 @@
    }
   },
   "communications.booking @ su_mentor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -13044,6 +13045,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13057,7 +13059,7 @@
    }
   },
   "communications.booking @ su_tutor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -13092,6 +13094,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13105,7 +13108,7 @@
    }
   },
   "communications.booking @ superuser": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
@@ -13140,6 +13143,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13329,7 +13333,7 @@
    }
   },
   "communications.parent_confirmation @ admin": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -13367,6 +13371,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13429,7 +13434,7 @@
    }
   },
   "communications.parent_confirmation @ su_mentor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -13467,6 +13472,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13481,7 +13487,7 @@
    }
   },
   "communications.parent_confirmation @ su_tutor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -13519,6 +13525,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",
@@ -13533,7 +13540,7 @@
    }
   },
   "communications.parent_confirmation @ superuser": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
@@ -13571,6 +13578,7 @@
      "parent_confirmation.label",
      "parent_confirmation.reason",
      "parent_confirmation.status",
+     "plan_status",
      "planned",
      "redemo",
      "tasks",

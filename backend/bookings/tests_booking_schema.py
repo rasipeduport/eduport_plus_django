@@ -13,7 +13,7 @@ from unittest import skipUnless
 from django.core.management import CommandError, call_command
 from django.db import DatabaseError, IntegrityError, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
 from reports.models import DiagnosticReport
@@ -221,6 +221,8 @@ class ReasonCodeMigrationTests(TransactionTestCase):
             MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
 
 
+# These tests read the plan straight after each business call: events applied as recorded (communications.outbox).
+@override_settings(COMMUNICATIONS_OUTBOX_INLINE=True)
 class StartedMigrationTests(TransactionTestCase):
     """
     bookings.0009 (started_at / started_by, the STARTED event): applied over

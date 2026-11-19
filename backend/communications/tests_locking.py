@@ -51,7 +51,7 @@ SETTLE = 0.5
 
 
 @skipUnless(connection.vendor == 'postgresql', 'the locks need PostgreSQL')
-@override_settings(**SENDING)
+@override_settings(**SENDING, COMMUNICATIONS_OUTBOX_INLINE=True)  # reads the plan straight after each business call
 class LockingTestCase(TransactionTestCase):
     """Real threads, each with its own database connection."""
 
@@ -205,9 +205,11 @@ class RefreshTests(LockingTestCase):
     def test_a_booking_change_waits_for_a_job_cancelling_its_message_and_leaves_it_cancelled(self):
         """
         The expiry sweep has cancelled a message but not committed; a tutor
-        assigned at that moment refreshes the booking's messages. Each is
-        locked before it is read, so the refresh waits for the sweep and then
-        sees the message cancelled: no error, nothing written back.
+        assigned at that moment refreshes the booking's messages (here as its
+        outbox event is recorded, COMMUNICATIONS_OUTBOX_INLINE; in production
+        when the event is applied, with the same locks). Each is locked before
+        it is read, so the refresh waits for the sweep and then sees the
+        message cancelled: no error, nothing written back.
         """
         booking = self.book()
         ack = self.message(booking)

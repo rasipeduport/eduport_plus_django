@@ -227,6 +227,8 @@ class IssuingTests(DemoInviteTestCase):
             DemoInvite.objects.filter(pk=invite.pk).update(used_at=AFTER)  # used, but no booking named
 
 
+# These tests read the plan straight after each business call: events applied as recorded (communications.outbox).
+@override_settings(COMMUNICATIONS_OUTBOX_INLINE=True)
 class BookingTests(DemoInviteTestCase):
     def test_the_demo_is_the_diagnostics_lead_and_nothing_about_the_lead_changes(self):
         before = lead_row(self.lead.pk)

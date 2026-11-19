@@ -47,7 +47,7 @@ from rest_framework.views import APIView
 
 from activity.utils import log_activity
 from bookings.booking_service import BookingBusy, NotATutor, set_tutor_meet_link, upcoming_assignments
-from communications import planner
+from communications import outbox
 from core.pagination import paginate_queryset
 from invitations.models import Invitation, InvitationRoleChoices
 from students.models import Student
@@ -573,7 +573,7 @@ class TeamMemberView(TeamView):
                 # A BDE's parent messages sign with their name and phone: the
                 # unsent ones are checked again with the new details.
                 if {'full_name', 'mobile_number'} & set(changed):
-                    planner.sender_contact_changed(account, timezone.now())
+                    outbox.sender_contact_changed(account, timezone.now())
 
         details = {
             field: {"old": before[field], "new": getattr(account, field)}

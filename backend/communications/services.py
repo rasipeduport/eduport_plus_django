@@ -7,7 +7,10 @@ other booking writes (bookings.booking_service.record_parent_confirmation).
 
 Each action takes the booking's locks in the order every booking write takes
 them (booking_service._locked_booking), so it queues behind a cancellation or
-a reschedule of the same booking -- or they behind it -- and sees its result.
+a reschedule of the same booking -- or they behind it -- and sees its status.
+It does not see its plan change until that change's outbox event is applied
+(communications.outbox), so each checks the booking's own status where the
+plan could still trail it.
 The Admin may act on any booking; a BDE only on their own leads' (``owner_bde``,
 checked under the lock and answered as a booking that does not exist). Which
 role may call each is the caller's check (the API, a later phase).
@@ -28,7 +31,7 @@ from bookings.booking_service import (
 )
 from bookings.models import BookingStatus, ParentConfirmation
 
-from . import planner
+from . import outbox, planner
 from .formatting import whatsapp_message
 from .models import CALL_OUTCOMES, CallOutcome, CommunicationTask, MessageTemplate, Step, TaskStatus, template_key
 from .rendering import booking_values, is_ready, render, requirements
@@ -98,6 +101,33 @@ class NotPlanned(CommunicationError):
     message = 'This booking was made before parent communication began, so nothing can be sent for it.'
 
 
+class CommunicationPlanPending(CommunicationError):
+    """Its plan is still to be written: an event of the booking waits in the outbox (communications.outbox)."""
+    code = 'COMMUNICATION_PLAN_PENDING'
+    http_status = 409
+    message = "This booking's parent messages are still being prepared. Try again in a minute."
+
+
+class CommunicationPlanFailed(CommunicationError):
+    """The event that was to write its plan FAILED (communications.outbox): for the technical team to retry."""
+    code = 'COMMUNICATION_PLAN_FAILED'
+    http_status = 409
+    message = 'Parent messages for this booking could not be prepared. Please contact the technical team.'
+
+
+def not_planned(booking):
+    """
+    Why ``booking`` has no plan: still on its way (CommunicationPlanPending),
+    its event failed (CommunicationPlanFailed), or never to come (NotPlanned).
+    """
+    status = outbox.plan_status(booking, planned=False)
+    if status == outbox.PlanStatus.PENDING:
+        return CommunicationPlanPending()
+    if status == outbox.PlanStatus.FAILED:
+        return CommunicationPlanFailed()
+    return NotPlanned()
+
+
 class RedemoManual(CommunicationError):
     """A Re-Demo (bookings.redemos): the BDE contacts its parent by hand, so nothing is sent for it."""
     code = 'REDEMO_MANUAL'
@@ -139,7 +169,9 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
     longer booked, its scheduled time come, or started by its tutor, however
     early; once the parent has answered (ConfirmationNotNeeded), for a Re-Demo (RedemoManual:
     the BDE contacts its parent by hand), for a booking made before
-    communications existed (NotPlanned: it has no tasks), and while the
+    communications existed (NotPlanned: it has no tasks) or whose plan is
+    still being written (CommunicationPlanPending) or could not be
+    (CommunicationPlanFailed), and while the
     message lacks something it needs, such as the BDE's name (MessageBlocked).
     The message is written Pending; the sending engine sends it. Writing it is
     logged once (activity ``booking.confirmation_request``); asking again, or
@@ -162,7 +194,7 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
             if getattr(booking, 'redemo_for_id', None):
                 raise RedemoManual()
             if not booking.communication_tasks.filter(step=Step.CONFIRMATION_REQUEST).exists():
-                raise NotPlanned()
+                raise not_planned(booking)
             version = MessageTemplate.objects.get(
                 key=template_key(booking.booking_type, Step.CONFIRMATION_REQUEST),
             ).current_version()
@@ -198,7 +230,8 @@ def record_call_outcome(task, outcome, *, actor, owner_bde=None, now=None):
     nothing. Only from 15 minutes before the start (CallNotOpenYet) until the
     start, or until its tutor starts it if that comes first (CallClosed): at
     the start a call with no outcome is Missed (planner.close_expired). Never
-    on a cancelled booking's call (TaskClosed). Nothing ever records one by itself.
+    on a cancelled or moved booking's call (TaskClosed), whether or not its
+    event has closed the task yet. Nothing ever records one by itself.
     """
     if outcome not in CALL_OUTCOMES:
         raise InvalidCallOutcome()
@@ -211,7 +244,10 @@ def record_call_outcome(task, outcome, *, actor, owner_bde=None, now=None):
             booking = _locked_booking(task.booking)
             _check_owner(booking, owner_bde)
             task = CommunicationTask.objects.select_for_update().get(pk=task.pk)
-            if task.status not in (TaskStatus.OPEN, TaskStatus.DONE):
+            # The booking's own status, not only the task's: a cancellation or
+            # move closes the task only once its event is applied (communications.outbox).
+            if task.status not in (TaskStatus.OPEN, TaskStatus.DONE) or booking.status in (
+                    BookingStatus.CANCELLED, BookingStatus.RESCHEDULED):
                 raise TaskClosed()
             if task.due_at <= now or booking.started_at is not None:
                 raise CallClosed()

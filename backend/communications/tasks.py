@@ -19,6 +19,11 @@ communications.sending and communications.planner, which these only call.
     reconcile_status_updates      every 5 minutes: statuses kept for a message id
                                   a message now holds applied to it; ones no
                                   message took within a week forgotten
+    process_communication_events  every 15 seconds: the business changes the
+                                  outbox recorded applied to the plan, in
+                                  order, stuck claims taken back first
+                                  (communications.outbox)
+    purge_communication_events    nightly: applied events older than 30 days removed
 
 Each job runs once at a time across every worker and process: a run holds a
 PostgreSQL advisory lock for its job, and a run that cannot take it does
@@ -37,7 +42,7 @@ from celery import shared_task
 from django.db import connection
 from django.utils import timezone
 
-from . import planner, sending, status_updates
+from . import outbox, planner, sending, status_updates
 from .safety import sending_block_for_all
 
 logger = logging.getLogger(__name__)
@@ -162,3 +167,23 @@ def reconcile_status_updates():
         if applied or purged:
             logger.info('Status reconciliation: %d kept status(es) applied, %d forgotten.', applied, purged)
         return {'applied': applied, 'purged': purged}
+
+
+@shared_task(name='communications.tasks.process_communication_events')
+def process_communication_events():
+    with single_run('process_communication_events') as only_run:
+        if not only_run:
+            logger.info('Communication events skipped: another run is in progress.')
+            return {'skipped': True}
+        return outbox.run()
+
+
+@shared_task(name='communications.tasks.purge_communication_events')
+def purge_communication_events():
+    with single_run('purge_communication_events') as only_run:
+        if not only_run:
+            return {'skipped': True}
+        purged = outbox.purge_done()
+        if purged:
+            logger.info('Communication events: %d applied event(s) purged.', purged)
+        return {'purged': purged}
