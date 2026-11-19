@@ -26,8 +26,11 @@ the lead's owner, time-zone and details changes are applied one after the
 other, never side by side: a plan never keeps an owner changed while it was
 being written. The other booking events do not wait for their lead's: they
 only make the unsent messages follow the details as they are when applied.
-A BDE's contact change likewise only re-renders unsent messages. A failed attempt is
-rolled back, recorded (last_error) and tried again after RETRY_DELAYS; after
+A BDE's contact change likewise only re-renders unsent messages. A failed attempt --
+a planner that raised, or a transaction that could not COMMIT, its deferred
+foreign-key check having waited out the lock timeout for a booking row a
+business write holds -- is rolled back, recorded (last_error) in a
+transaction of its own and tried again after RETRY_DELAYS; after
 MAX_ATTEMPTS it is FAILED, for someone to look at (manage.py
 communication_events), and no longer holds its streams back. A claim whose
 processor stopped -- a worker killed between the claim and the commit -- is
@@ -64,7 +67,7 @@ from collections import Counter
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.db.models import Count, Exists, Min, OuterRef
 from django.utils import timezone
 
@@ -274,15 +277,25 @@ def apply_claimed(event):
     again (still PROCESSING under this claim, else SKIPPED), the planner's
     writes in a savepoint, and DONE -- or, if the planner raised, the attempt
     rolled back and the event retried later or FAILED. Returns an Outcome.
+
+    The transaction can also fail when it COMMITs: the tables' foreign keys are
+    checked then, and a booking row a business write holds FOR UPDATE makes
+    that check wait -- past the lock timeout, or into a deadlock, it fails and
+    everything written, DONE included, is rolled back. That attempt is
+    recorded failed, in a transaction of its own (_record_commit_failure), like
+    any other: retried after its delay, or FAILED after the last.
     """
-    with transaction.atomic():
-        _set_lock_timeout()
-        locked = CommunicationEvent.objects.select_for_update().filter(
-            pk=event.pk, status=EventStatus.PROCESSING, claimed_at=event.claimed_at,
-        ).first()
-        if locked is None:
-            return Outcome.SKIPPED
-        return _apply(locked)
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            locked = CommunicationEvent.objects.select_for_update().filter(
+                pk=event.pk, status=EventStatus.PROCESSING, claimed_at=event.claimed_at,
+            ).first()
+            if locked is None:
+                return Outcome.SKIPPED
+            return _apply(locked)
+    except DatabaseError as exc:
+        return _record_commit_failure(event, exc)
 
 
 def apply_ready_for(booking, limit=10):
@@ -444,6 +457,34 @@ def _apply(event):
     event.last_error = ''
     event.save(update_fields=['status', 'processed_at', 'last_error', 'updated_at'])
     return Outcome.DONE
+
+
+def _record_commit_failure(event, exc):
+    """
+    ``event``'s transaction failed with the database error ``exc`` -- at its
+    COMMIT, or while locking its row -- and was rolled back whole, so the event
+    is as claim_next left it, still PROCESSING under its claim. Record the
+    attempt as failed in a fresh transaction, as _apply does for a planner
+    that raised. An event no longer PROCESSING under this claim (its commit
+    had gone through after all; stuck-claim recovery took it back) is left
+    alone: SKIPPED. If even recording fails the claim stays and recover_stuck
+    takes it back, as for a processor that died: ``exc`` is raised again.
+    """
+    logger.warning('Communication event %s (%s): its transaction failed on attempt %s -- %s',
+                   event.pk, event.kind, event.attempts, _describe(exc))
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            locked = CommunicationEvent.objects.select_for_update().filter(
+                pk=event.pk, status=EventStatus.PROCESSING, claimed_at=event.claimed_at,
+            ).first()
+            if locked is None:
+                return Outcome.SKIPPED
+            return _failed(locked, _describe(exc), timezone.now())
+    except DatabaseError:
+        logger.exception('Communication event %s: the failed attempt could not be recorded; '
+                         'stuck-claim recovery takes it back.', event.pk)
+        raise exc
 
 
 def _apply_inline(event):

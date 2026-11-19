@@ -15,7 +15,7 @@ from datetime import timedelta
 from unittest import mock, skipUnless
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -25,6 +25,7 @@ from bookings.tests_demo_invites import DemoInviteTestCase
 
 from bookings import lead_admin, student_timezones
 from bookings.booking_service import (
+    _locked_booking,
     assign_tutor,
     cancel_booking,
     create_booking,
@@ -970,3 +971,126 @@ class ConcurrentProcessingTests(TransactionTestCase):
         self.assertEqual(released, [True], 'the apply was not held while recovery ran')
         self.assertEqual(outcome, [outbox.Outcome.DONE])
         self.assertEqual(CommunicationTask.objects.filter(demo_booking=booking).count(), 5)
+
+
+@skipUnless(connection.vendor == 'postgresql', 'the deferred foreign-key check needs PostgreSQL')
+class CommitFailureTests(TransactionTestCase):
+    """
+    The communication tables' foreign keys are checked when their transaction
+    COMMITs, and a booking row a business write holds FOR UPDATE makes that
+    check wait -- past the lock timeout, the COMMIT fails. The whole
+    transaction is rolled back (the planner's writes and the event's DONE
+    with it), so the failure is recorded in a transaction of its own as any
+    failed attempt is: retried after its delay, or FAILED after the last --
+    never left PROCESSING for stuck-claim recovery, never DONE, and never
+    half applied or applied twice.
+    """
+
+    def setUp(self):
+        schedule()
+        self.bde = account('bde_anil', role='BDE', mobile_number='+91 98470 12345')
+        self.token = link(self.bde, DEMO).token
+        self.booking = create_booking(request(student='Child 1', phone='0507700001', ref=self.token), now=NOW)[0]
+
+    @contextmanager
+    def booking_held(self):
+        """The booking's slot and row locked, as a business write holds them, in a thread of its own."""
+        held, release = threading.Event(), threading.Event()
+
+        def hold():
+            try:
+                with transaction.atomic():
+                    _locked_booking(self.booking)
+                    held.set()
+                    release.wait(timeout=30)
+            finally:
+                connection.close()
+
+        thread = threading.Thread(target=hold)
+        thread.start()
+        self.assertTrue(held.wait(10))
+        try:
+            with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'):
+                yield
+        finally:
+            release.set()
+            thread.join(30)
+
+    def event(self):
+        return CommunicationEvent.objects.get()
+
+    def written(self):
+        return (CommunicationTask.objects.filter(demo_booking=self.booking).count(),
+                Message.objects.filter(demo_booking=self.booking).count())
+
+    def test_a_commit_that_waits_out_the_lock_timeout_leaves_the_event_to_be_retried(self):
+        event = outbox.claim_next()
+        self.assertEqual((event.kind, event.status), (EventKind.BOOKING_CREATED, EventStatus.PROCESSING))
+        with self.booking_held():
+            began = time.monotonic()
+            outcome = outbox.apply_claimed(event)
+            seconds = time.monotonic() - began
+        self.assertEqual(outcome, outbox.Outcome.RETRYING)
+        self.assertLess(seconds, 4)
+        stored = self.event()
+        self.assertEqual((stored.status, stored.attempts, stored.claimed_at, stored.processed_at),
+                         (EventStatus.PENDING, 1, None, None))
+        self.assertGreater(stored.available_at, timezone.now() + timedelta(seconds=30))
+        self.assertIn('lock timeout', stored.last_error)
+        # The planner's writes went with the transaction, and nothing is left for stuck-claim recovery.
+        self.assertEqual(self.written(), (0, 0))
+        self.assertEqual(outbox.recover_stuck(timezone.now() + outbox.STUCK_AFTER + timedelta(minutes=1)), [])
+
+        # Due again, with the booking free: applied once, whole -- and a run after that finds nothing to do.
+        due_now()
+        self.assertEqual(outbox.run(), {'done': 1})
+        self.assertEqual(self.written(), (5, 2))
+        stored = self.event()
+        self.assertEqual((stored.status, stored.attempts, stored.last_error), (EventStatus.DONE, 2, ''))
+        due_now()
+        self.assertEqual(outbox.run(), {})
+        self.assertEqual(self.written(), (5, 2))
+
+    def test_the_last_attempt_failing_at_the_commit_is_failed_not_left_processing(self):
+        CommunicationEvent.objects.update(attempts=outbox.MAX_ATTEMPTS - 1)
+        event = outbox.claim_next()
+        self.assertEqual(event.attempts, outbox.MAX_ATTEMPTS)
+        with self.booking_held():
+            self.assertEqual(outbox.apply_claimed(event), outbox.Outcome.FAILED)
+        stored = self.event()
+        self.assertEqual((stored.status, stored.claimed_at, stored.processed_at), (EventStatus.FAILED, None, None))
+        self.assertIn('lock timeout', stored.last_error)
+        self.assertEqual(self.written(), (0, 0))
+
+    def test_the_job_and_the_views_helper_count_it_as_a_retry_and_never_raise(self):
+        with self.booking_held():
+            self.assertEqual(outbox.run(), {'retrying': 1})
+        due_now()
+        with self.booking_held():
+            self.assertEqual(outbox.apply_ready_for(self.booking), 0)
+        stored = self.event()
+        self.assertEqual((stored.status, stored.attempts), (EventStatus.PENDING, 2))
+        due_now()
+        self.assertEqual(outbox.apply_ready_for(self.booking), 1)
+        self.assertEqual(self.written(), (5, 2))
+
+    def test_when_recording_the_failure_fails_too_the_claim_is_left_for_recovery(self):
+        event = outbox.claim_next()
+        with self.booking_held(), mock.patch.object(outbox, '_failed', side_effect=OperationalError('cannot record')):
+            with self.assertRaises(OperationalError):
+                outbox.apply_claimed(event)
+        stored = self.event()
+        self.assertEqual(stored.status, EventStatus.PROCESSING)
+        self.assertIsNotNone(stored.claimed_at)
+        self.assertEqual(self.written(), (0, 0))
+        self.assertEqual(outbox.recover_stuck(timezone.now() + outbox.STUCK_AFTER + timedelta(minutes=1)), [event.pk])
+        self.assertEqual((self.event().status, self.event().attempts), (EventStatus.PENDING, 1))
+
+    def test_an_event_that_already_committed_is_not_recorded_as_failed(self):
+        """A commit whose outcome is unknown (the connection died) that had in fact succeeded: the event is DONE, left alone."""
+        event = outbox.claim_next()
+        self.assertEqual(outbox.apply_claimed(event), outbox.Outcome.DONE)
+        self.assertEqual(outbox._record_commit_failure(event, OperationalError('connection lost')), outbox.Outcome.SKIPPED)
+        stored = self.event()
+        self.assertEqual((stored.status, stored.attempts, stored.last_error), (EventStatus.DONE, 1, ''))
+        self.assertEqual(self.written(), (5, 2))

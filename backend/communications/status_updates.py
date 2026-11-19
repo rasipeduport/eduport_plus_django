@@ -40,7 +40,7 @@ from django.utils import timezone
 from bookings.booking_service import _locked_booking, _set_lock_timeout
 from bookings.models import BookingStatus
 
-from . import planner
+from . import outbox, planner
 from .chain import later_bookings
 from .models import (
     OUTCOME_UNKNOWN,
@@ -83,6 +83,9 @@ def apply_status_update(provider, update, now=None):
     """Apply ``update`` (a StatusUpdate) from ``provider`` (its name) to its message; returns a StatusResult."""
     now = now or timezone.now()
     with transaction.atomic():
+        # A lock held past the outbox's timeout fails the callback (500: Meta delivers it again, and what was
+        # applied is recognised then) instead of holding the request until the holder lets go.
+        outbox._set_lock_timeout()
         message = Message.objects.select_for_update(of=('self',)).filter(
             provider=provider, provider_message_id=update.provider_message_id,
         ).first()
@@ -98,6 +101,7 @@ def reconcile_message(message_id, now):
     provider id is recorded. Returns how many statuses were applied.
     """
     with transaction.atomic():
+        outbox._set_lock_timeout()
         message = Message.objects.select_for_update(of=('self',)).select_related('template').filter(
             pk=message_id,
         ).first()
@@ -134,6 +138,7 @@ def reconcile_unmatched(now=None, limit=500):
     for provider, provider_message_id in ids:
         try:
             with transaction.atomic():
+                outbox._set_lock_timeout()
                 message = Message.objects.select_for_update(of=('self',), skip_locked=True).filter(
                     provider=provider, provider_message_id=provider_message_id,
                 ).first()

@@ -17,7 +17,9 @@ communications.sending and communications.planner, which these only call.
     close_expired_communications  every 5 minutes: tasks whose time ran out
                                   Missed, unsent messages past their window --
                                   a retry left Pending included -- cancelled,
-                                  never one whose outcome is unknown
+                                  never one whose outcome is unknown; a run
+                                  that meets a lock past the outbox's lock
+                                  timeout does nothing, the next one does it
     reconcile_status_updates      every 5 minutes: statuses kept for a message id
                                   a message now holds applied to it; ones no
                                   message took within a week forgotten
@@ -41,8 +43,10 @@ from collections import Counter
 from contextlib import contextmanager
 
 from celery import shared_task
-from django.db import connection
+from django.db import OperationalError, connection, transaction
 from django.utils import timezone
+
+from bookings.booking_service import BUSY_SQLSTATES
 
 from . import outbox, planner, sending, status_updates
 from .safety import SendBlock, sending_block_for_all, sending_problems
@@ -147,7 +151,17 @@ def close_expired_communications():
         if not only_run:
             logger.info('Expiry sweep skipped: another run is in progress.')
             return {'skipped': True}
-        missed, expired = planner.close_expired(timezone.now())
+        try:
+            # One transaction, giving up at the outbox's lock timeout: a message or task another
+            # transaction holds is left for the next run, never waited for without end.
+            with transaction.atomic():
+                outbox._set_lock_timeout()
+                missed, expired = planner.close_expired(timezone.now())
+        except OperationalError as exc:
+            if getattr(exc.__cause__, 'sqlstate', None) not in BUSY_SQLSTATES:
+                raise
+            logger.info('Expiry sweep skipped: a message or task is locked; the next run does it.')
+            return {'busy': True}
         if missed or expired:
             logger.info('Expiry sweep: %d task(s) missed, %d message(s) expired.', missed, expired)
         return {'missed': missed, 'expired': expired}

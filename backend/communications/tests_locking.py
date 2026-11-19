@@ -8,13 +8,20 @@ stays closed; a booking change refreshing its messages waits for a job
 cancelling one and leaves it cancelled; the Waiting-message check holds its
 locks one short chunk at a time. Nothing reaches WhatsApp: the provider is
 the test-only fake.
+
+The last two classes run the real path -- a business write only records an
+outbox event, the planner applies it in a transaction of its own -- and
+cover F3: a sender claim never holds a booking's slot and row while it waits
+for a message (it is Busy at once), and the sender's result, the stuck-send
+recovery, the webhook and the expiry sweep give up at a lock timeout instead of
+waiting without end.
 """
 import threading
 import time as clock
 from datetime import timedelta
 from unittest import mock, skipUnless
 
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.test import TransactionTestCase, override_settings
 
 from bookings.booking_service import (
@@ -24,23 +31,25 @@ from bookings.booking_service import (
     record_parent_confirmation,
     reschedule_booking,
 )
-from bookings.models import CancelReason, ParentConfirmation, RescheduleReason
+from bookings.models import BookingStatus, CancelReason, ParentConfirmation, RescheduleReason
 from bookings.tests_booking import DAY, DEMO, MORNING, NOW, account, link, request, schedule
 
-from . import planner, sending
+from . import outbox, planner, sending, tasks
 from .models import (
     AttemptOutcome,
     CommunicationTask,
     Message,
     MessageCancelReason,
     MessageStatus,
+    MessageStatusEvent,
     Step,
     TaskResolution,
     TaskStatus,
 )
-from .providers.base import SendResult
-from .sending import SendOutcome, _claim, _finish
+from .providers.base import SendResult, StatusUpdate
+from .sending import SendOutcome, SendReport, _claim, _finish, recover_stuck_sends, send_message
 from .services import request_confirmation
+from .status_updates import StatusResult, apply_status_update
 from .tests_planning import MEET_LINK
 from .tests_providers import FakeProvider, use_fake_provider
 from .tests_sending import SENDING
@@ -269,3 +278,275 @@ class RefreshTests(LockingTestCase):
             outcomes = self.run_threads(check, probe)
         other = next(pk for pk in waiting if pk != first[0])
         self.assertEqual(outcomes, [0, [other]], outcomes)
+
+
+# ------------------------------------------------------------------ F3
+
+@override_settings(COMMUNICATIONS_OUTBOX_INLINE=False)  # the real path: a business write only records an event
+class SeparateTransactionsTestCase(LockingTestCase):
+    """The communication side in transactions of its own, as in production."""
+
+    def planned(self):
+        booking = self.book()
+        outbox.run()
+        return booking
+
+    def hold_message(self, message, held, release, seconds=8):
+        """A target for run_threads: the message's row locked until ``release`` is set (or ``seconds``)."""
+        def hold():
+            with transaction.atomic():
+                Message.objects.select_for_update().get(pk=message.pk)
+                held.set()
+                release.wait(timeout=seconds)
+            return 'held'
+        return hold
+
+    @staticmethod
+    def sqlstate(exc):
+        return getattr(exc.__cause__, 'sqlstate', None)
+
+
+class ClaimContentionTests(SeparateTransactionsTestCase):
+    """
+    A sender claim takes the booking's slot and row (as every booking write
+    does) and then its message. A message another transaction holds makes the
+    claim Busy at once -- it does not wait for it with the slot and the
+    booking held, which would make a cancellation or a move of that booking
+    wait too. Nothing is claimed, so nothing is lost or sent twice: the next
+    dispatch run tries again.
+    """
+
+    def claim_beside_a_held_message(self, business):
+        """The message held; a claim started on it; then ``business(booking)`` run meanwhile. Returns (ack, outcomes)."""
+        booking = self.planned()
+        ack = self.message(booking)
+        held, claiming, release = threading.Event(), threading.Event(), threading.Event()
+
+        def claim():
+            held.wait(timeout=10)
+            claiming.set()
+            began = clock.monotonic()
+            report = _claim(ack.pk, NOW)
+            return report, clock.monotonic() - began
+
+        def operate():
+            claiming.wait(timeout=10)
+            clock.sleep(0.3)  # the claim is under way, whatever it waits for
+            began = clock.monotonic()
+            try:
+                return business(booking), clock.monotonic() - began
+            finally:
+                release.set()
+
+        return ack, self.run_threads(self.hold_message(ack, held, release), claim, operate)
+
+    def test_a_message_another_transaction_holds_makes_the_claim_busy_at_once(self):
+        # The message stays held for another second: the claim has all the time to wait, if it were to.
+        ack, (holder, claimed, _operated) = self.claim_beside_a_held_message(lambda booking: clock.sleep(1.0))
+        self.assertEqual(holder, 'held')
+        report, seconds = claimed
+        self.assertEqual(report, SendReport(SendOutcome.BUSY))
+        self.assertLess(seconds, 1.5, 'the claim waited for the message instead of answering Busy')
+        # Nothing was claimed or written, and nothing sent: the message is as it was, for the next run.
+        message = Message.objects.get(pk=ack.pk)
+        self.assertEqual((message.status, message.claimed_at, message.attempt_count), (MessageStatus.PENDING, None, 0))
+        self.assertFalse(message.attempts.exists())
+        self.assertEqual(FakeProvider.outbox, [])
+        # Once the message is free it goes -- once.
+        self.assertEqual(send_message(ack.pk, now=NOW).outcome, SendOutcome.QUEUED)
+        self.assertEqual(send_message(ack.pk, now=NOW).outcome, SendOutcome.NOT_PENDING)
+        self.assertEqual(len(FakeProvider.outbox), 1)
+
+    def test_a_cancellation_is_not_held_up_by_a_claim_waiting_on_a_message(self):
+        ack, (holder, claimed, operated) = self.claim_beside_a_held_message(
+            lambda booking: cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW),
+        )
+        self.assertEqual(holder, 'held')
+        self.assertEqual(claimed[0], SendReport(SendOutcome.BUSY), claimed)
+        (_booking, changed), seconds = operated
+        self.assertTrue(changed)
+        self.assertLess(seconds, 1.0, 'the cancellation waited behind a claim that was waiting for a message')
+        outbox.run()
+        self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.CANCELLED)
+        self.assertEqual(FakeProvider.outbox, [])
+
+    def test_a_reschedule_is_not_held_up_by_a_claim_waiting_on_a_message(self):
+        ack, (holder, claimed, operated) = self.claim_beside_a_held_message(
+            lambda booking: reschedule_booking(
+                booking, DAY + timedelta(days=1), MORNING, reason_code=RescheduleReason.PARENT_REQUEST,
+                actor=self.admin, now=NOW,
+            ),
+        )
+        self.assertEqual(holder, 'held')
+        self.assertEqual(claimed[0], SendReport(SendOutcome.BUSY), claimed)
+        result, seconds = operated
+        self.assertEqual(result.previous.status, BookingStatus.RESCHEDULED)
+        self.assertLess(seconds, 1.0, 'the reschedule waited behind a claim that was waiting for a message')
+        self.assertEqual(FakeProvider.outbox, [])
+
+    def test_a_claim_still_waits_for_the_booking_and_sees_what_it_changed(self):
+        """The slot, then the booking, then the message: the order is kept, so a cancellation in progress is still seen."""
+        booking = self.planned()
+        ack = self.message(booking)
+        holding = threading.Event()
+
+        def cancel_slowly():
+            with transaction.atomic():
+                sending._locked_booking(booking)
+                holding.set()
+                clock.sleep(0.5)
+                cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
+            return 'cancelled'
+
+        def claim():
+            holding.wait(timeout=10)
+            return send_message(ack.pk, now=NOW).outcome
+
+        self.assertEqual(self.run_threads(cancel_slowly, claim), ['cancelled', SendOutcome.CANCELLED])
+        self.assertEqual(FakeProvider.outbox, [])
+
+
+class LockTimeoutTests(SeparateTransactionsTestCase):
+    """
+    The communication transactions that only wait for communication rows give
+    up at outbox.LOCK_TIMEOUT instead of waiting without end, and what handles
+    the timeout does: the sender's result is tried again, then left to
+    recovery; a recovery, a sweep or a webhook that gave up is done again by
+    the next pass or redelivery -- none writes anything half way.
+    """
+
+    def test_a_result_that_waits_out_the_lock_timeout_is_tried_again_and_recorded_once(self):
+        ack = self.message(self.planned())
+        claim = _claim(ack.pk, NOW)
+        held, release = threading.Event(), threading.Event()
+        timeouts, real = [], sending._record_result
+
+        def record_result(*args, **kwargs):
+            try:
+                return real(*args, **kwargs)
+            except OperationalError as exc:
+                timeouts.append(self.sqlstate(exc))
+                release.set()  # the lock is let go once the first try has given up
+                raise
+
+        def record():
+            held.wait(timeout=10)
+            began = clock.monotonic()
+            with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'), \
+                    mock.patch.object(sending, '_record_result', record_result):
+                outcome = _finish(claim, ACCEPTED, None, NOW, NOW, NOW, None).outcome
+            return outcome, clock.monotonic() - began
+
+        holder, (outcome, seconds) = self.run_threads(self.hold_message(ack, held, release), record)
+        self.assertEqual((holder, outcome), ('held', SendOutcome.QUEUED))
+        self.assertEqual(timeouts, ['55P03'])
+        self.assertLess(seconds, 4)
+        message = Message.objects.get(pk=ack.pk)
+        self.assertEqual((message.status, message.provider_message_id, message.claimed_at, message.attempt_count),
+                         (MessageStatus.QUEUED, 'wamid.LOCKS', None, 1))
+        self.assertEqual(message.attempts.count(), 1)
+
+    def test_a_lasting_lock_is_given_up_at_the_timeout_and_left_to_recovery(self):
+        ack = self.message(self.planned())
+        claim = _claim(ack.pk, NOW)
+        held, release = threading.Event(), threading.Event()
+
+        def record():
+            held.wait(timeout=10)
+            began = clock.monotonic()
+            try:
+                with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'), mock.patch.object(sending, 'RECORD_RETRY_PAUSE', 0):
+                    _finish(claim, ACCEPTED, None, NOW, NOW, NOW, None)
+            except OperationalError as exc:
+                return self.sqlstate(exc), clock.monotonic() - began
+            finally:
+                release.set()
+            return None, clock.monotonic() - began
+
+        holder, (sqlstate, seconds) = self.run_threads(self.hold_message(ack, held, release), record)
+        self.assertEqual((holder, sqlstate), ('held', '55P03'))
+        self.assertLess(seconds, 4, 'the result waited for the lock instead of giving up')
+        # Still claimed, nothing recorded: recovery takes it back as unknown, never sending it again.
+        message = Message.objects.get(pk=ack.pk)
+        self.assertEqual((message.status, message.claimed_at, message.attempt_count), (MessageStatus.PENDING, NOW, 0))
+        self.assertEqual(recover_stuck_sends(now=NOW + timedelta(minutes=6)), [ack.pk])
+        self.assertEqual(len(FakeProvider.outbox), 0)
+
+    def test_a_status_update_gives_up_at_the_timeout_and_its_redelivery_applies(self):
+        ack = self.message(self.planned())
+        self.assertEqual(send_message(ack.pk, now=NOW).outcome, SendOutcome.QUEUED)
+        update = StatusUpdate(provider_message_id='fake-1', status=MessageStatus.SENT, provider_status='sent', occurred_at=NOW)
+        held, release = threading.Event(), threading.Event()
+
+        def webhook():
+            held.wait(timeout=10)
+            began = clock.monotonic()
+            try:
+                with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'):
+                    apply_status_update('fake', update)
+            except OperationalError as exc:
+                return self.sqlstate(exc), clock.monotonic() - began
+            finally:
+                release.set()
+            return None, clock.monotonic() - began
+
+        holder, (sqlstate, seconds) = self.run_threads(self.hold_message(ack, held, release), webhook)
+        self.assertEqual((holder, sqlstate), ('held', '55P03'))
+        self.assertLess(seconds, 4, 'the webhook waited for the lock instead of giving up')
+        # Nothing half applied: Meta redelivers a callback answered 500, and it then applies once.
+        self.assertEqual(MessageStatusEvent.objects.count(), 0)
+        self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.QUEUED)
+        self.assertEqual(apply_status_update('fake', update), StatusResult.APPLIED)
+        self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.SENT)
+        self.assertEqual(MessageStatusEvent.objects.count(), 1)
+
+    def test_a_recovery_gives_up_at_the_timeout_and_is_done_by_the_next_pass(self):
+        """The recovery of an acknowledgement locks the one of the booking that replaced it: held, it waits no longer than the timeout."""
+        booking = self.planned()
+        ack = self.message(booking)
+        _claim(ack.pk, NOW)  # being sent...
+        moved = reschedule_booking(
+            booking, DAY + timedelta(days=1), MORNING, reason_code=RescheduleReason.PARENT_REQUEST, actor=self.admin, now=NOW,
+        ).booking
+        outbox.run()  # ...as the booking moves: the new booking's acknowledgement waits for it
+        later = self.message(moved)
+        held, release = threading.Event(), threading.Event()
+
+        def recover():
+            held.wait(timeout=10)
+            began = clock.monotonic()
+            try:
+                with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'):
+                    return recover_stuck_sends(now=NOW + timedelta(minutes=6)), clock.monotonic() - began
+            finally:
+                release.set()
+
+        holder, (recovered, seconds) = self.run_threads(self.hold_message(later, held, release), recover)
+        self.assertEqual((holder, recovered), ('held', []))
+        self.assertLess(seconds, 4, 'the recovery waited for the lock instead of giving up')
+        self.assertEqual(Message.objects.get(pk=ack.pk).claimed_at, NOW)  # untouched: rolled back whole
+        self.assertEqual(recover_stuck_sends(now=NOW + timedelta(minutes=6)), [ack.pk])
+
+    def test_the_expiry_sweep_is_busy_instead_of_waiting_and_runs_again_next_time(self):
+        ack = self.message(self.planned())
+        later = NOW + timedelta(days=30)
+        held, release = threading.Event(), threading.Event()
+
+        def sweep():
+            held.wait(timeout=10)
+            began = clock.monotonic()
+            try:
+                with mock.patch.object(outbox, 'LOCK_TIMEOUT', '300ms'), \
+                        mock.patch.object(tasks, 'timezone', mock.Mock(now=lambda: later)):
+                    return tasks.close_expired_communications(), clock.monotonic() - began
+            finally:
+                release.set()
+
+        holder, (result, seconds) = self.run_threads(self.hold_message(ack, held, release), sweep)
+        self.assertEqual((holder, result), ('held', {'busy': True}))
+        self.assertLess(seconds, 4, 'the sweep waited for the lock instead of giving up')
+        self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.PENDING)
+        with mock.patch.object(tasks, 'timezone', mock.Mock(now=lambda: later)):
+            result = tasks.close_expired_communications()
+        self.assertGreaterEqual(result['expired'], 1)
+        self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.CANCELLED)

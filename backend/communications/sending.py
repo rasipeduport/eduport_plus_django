@@ -5,7 +5,10 @@ It runs in three parts, so no lock is ever held while WhatsApp is being called:
 
 1. The claim, in one transaction. The booking is locked the way every booking
    write locks it -- its slot, then the booking (booking_service.
-   _locked_booking) -- and then the message. Under those locks everything is
+   _locked_booking) -- and then the message, which is never waited for with
+   those two held: one another transaction holds makes the claim Busy at once
+   (nothing claimed, so nothing lost or sent twice; the next run tries it
+   again). Under those locks everything is
    checked again: the message is still Pending and nobody is sending it, it is
    due, its booking still wants it (a message left Pending on a cancelled,
    moved or answered booking is cancelled here, so no retry can ever send
@@ -42,13 +45,13 @@ It runs in three parts, so no lock is ever held while WhatsApp is being called:
    tasks, the order every change takes them in (communications.planner) --
    and writes the task only while it is still open or missed, as the row
    stands then: a step closed after the message was read stays closed. A
-   deadlock or lock timeout here can only be a moment's contention, and the
-   provider may have taken the message, so recording it is tried again
-   (RECORD_TRIES). The statuses the provider reported before the message's id
-   was recorded are applied after that, in a transaction of their own
-   (status_updates.reconcile_message): they can reach other bookings, and
-   trouble there leaves them kept for the periodic pass, never undoing the
-   result.
+   deadlock or lock timeout here (the outbox's, which this step sets) can only
+   be a moment's contention, and the provider may have taken the message, so
+   recording it is tried again (RECORD_TRIES). The statuses the provider
+   reported before the message's id was recorded are applied after that, in a
+   transaction of their own (status_updates.reconcile_message): they can reach
+   other bookings, and trouble there leaves them kept for the periodic pass,
+   never undoing the result.
 
 Retries (Step 3). Only a refusal the provider marks retryable is tried
 again: after 1, 5 and then 15 minutes, 4 attempts in all, and only while the
@@ -84,7 +87,7 @@ from django.utils import timezone
 from bookings.booking_service import BUSY_SQLSTATES, _locked_booking, _set_lock_timeout
 from bookings.models import BookingStatus, ParentConfirmation
 
-from . import planner, status_updates
+from . import outbox, planner, status_updates
 from .formatting import whatsapp_message, whatsapp_number
 from .models import (
     OUTCOME_UNKNOWN,
@@ -138,7 +141,7 @@ class SendOutcome(TextChoices):
     WAITING = 'WAITING', 'Something it needs is missing'
     NOT_PENDING = 'NOT_PENDING', 'Not Pending, or already being sent'
     NOT_DUE = 'NOT_DUE', 'Not due'
-    BUSY = 'BUSY', 'Its booking is busy; try again later'
+    BUSY = 'BUSY', 'Its booking or message is busy; try again later'
     NOT_FOUND = 'NOT_FOUND', 'No such message'
 
 
@@ -212,7 +215,14 @@ def _claim(message_id, now):
                 return SendReport(SendOutcome.NOT_FOUND)
             # The booking's slot, then the booking, then the message: the order every booking write takes.
             booking = _locked_booking(message.booking)
-            message = Message.objects.select_for_update(of=('self',)).select_related('template').get(pk=message_id)
+            # The message is never waited for while the slot and the booking are held: a cancellation or a
+            # move of that booking would wait behind it. One another transaction holds -- a planner change,
+            # a result being recorded, a webhook -- is Busy at once, the locks let go, and the next run tries it again.
+            message = Message.objects.select_for_update(of=('self',), skip_locked=True).select_related(
+                'template',
+            ).filter(pk=message_id).first()
+            if message is None:
+                return SendReport(SendOutcome.BUSY)
             if message.status != MessageStatus.PENDING or message.claimed_at is not None:
                 return SendReport(SendOutcome.NOT_PENDING)
             reason = _no_longer_needed(message, booking, now, expired=False)
@@ -290,6 +300,8 @@ def _record_result(claim, result, error, started_at, finished_at, now, triggered
     """The result of a claim, in one transaction: an attempt, the message, its task, the bookings that replaced its."""
     provider = claim.provider
     with transaction.atomic():
+        # Gives up at the outbox's lock timeout, so _finish's retry on a lock timeout can see it.
+        outbox._set_lock_timeout()
         message = Message.objects.select_for_update(of=('self',)).select_related('template').get(
             pk=claim.message_id,
         )
@@ -370,6 +382,9 @@ def recover_stuck_sends(now=None):
 def _recover(message_id, stuck_since, now):
     """Take back ``message_id`` if it is still claimed since before ``stuck_since``; returns its attempt number, or None."""
     with transaction.atomic():
+        # What it waits for (the acknowledgements of later bookings) gives up at the lock timeout:
+        # recover_stuck_sends logs it and the next pass takes the message back.
+        outbox._set_lock_timeout()
         message = Message.objects.select_for_update(of=('self',), skip_locked=True).select_related(
             'template',
         ).filter(pk=message_id, claimed_at__lt=stuck_since).first()
