@@ -7,7 +7,8 @@ COMMUNICATIONS_WHATSAPP_PROVIDER:
 
 Meta's WhatsApp Cloud API joins these once Eduport Plus has its own WhatsApp
 Business account. A name not listed here is refused, never guessed
-(ImproperlyConfigured, and the system check communications.E001).
+(ImproperlyConfigured): the system check warns (communications.W001) and the
+safety gate holds every message back as MISCONFIGURED (communications.safety).
 """
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured

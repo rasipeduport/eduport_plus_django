@@ -10,12 +10,13 @@ number off the allow-list. Nothing is sent anywhere.
 from datetime import date, time
 from unittest import mock
 
+from django.core import checks
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from bookings.leads import normalize_phone
 
-from .checks import check_whatsapp_settings
+from .checks import HELD_BACK, NOT_READ, check_whatsapp_settings
 from .formatting import InvalidWhatsAppNumber, whatsapp_message, whatsapp_number, whatsapp_text, whatsapp_value
 from .models import Channel, MessageStatus, MessageTemplate, MessageTemplateVersion
 from .providers import PROVIDERS, get_provider
@@ -23,7 +24,16 @@ from .providers.base import OutgoingMessage, ProviderNotConfigured, SendResult, 
 from .providers.console import ConsoleProvider
 from .providers.none import NoneProvider
 from .rendering import VARIABLES, MissingValues, format_date, format_time, render
-from .safety import SendBlock, recipient_allowed, sending_block
+from .safety import (
+    SendBlock,
+    allowed_recipients,
+    allowlist,
+    configuration_problems,
+    recipient_allowed,
+    sending_block,
+    sending_block_for_all,
+    sending_problems,
+)
 from .tests_templates import PRD, prd_text
 
 UAE = '+971501234567'
@@ -103,17 +113,37 @@ class ProviderSelectionTests(SimpleTestCase):
             self.assertIsInstance(get_provider(), FakeProvider)
         self.assertNotIn('fake', PROVIDERS)
 
-    def test_the_system_check_reports_a_misconfiguration(self):
+    def test_the_system_check_warns_about_a_misconfiguration_and_never_stops_startup(self):
         self.assertEqual(check_whatsapp_settings(), [])
         cases = (
-            ({'COMMUNICATIONS_WHATSAPP_PROVIDER': 'meta'}, 'communications.E001'),
-            ({'COMMUNICATIONS_RECIPIENT_ALLOWLIST': ['0501234567']}, 'communications.E002'),
-            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': 0}, 'communications.E003'),
-            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': 120}, 'communications.E003'),
+            ({'COMMUNICATIONS_WHATSAPP_PROVIDER': 'meta'}, 'communications.W001', "Unknown WhatsApp provider 'meta'"),
+            ({'COMMUNICATIONS_WHATSAPP_PROVIDER': ''}, 'communications.W001', "Unknown WhatsApp provider ''"),
+            ({'COMMUNICATIONS_WHATSAPP_PROVIDER': 'consol'}, 'communications.W001', "Unknown WhatsApp provider 'consol'"),
+            ({'COMMUNICATIONS_RECIPIENT_ALLOWLIST': ['0501234567']}, 'communications.W002',
+             "'0501234567' is not an international number"),
+            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': 0}, 'communications.W003', 'from 1 to 60, not 0.'),
+            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': 120}, 'communications.W003', 'from 1 to 60, not 120.'),
+            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': 'abc'}, 'communications.W003', "from 1 to 60, not 'abc'."),
+            ({'COMMUNICATIONS_PROVIDER_TIMEOUT': ''}, 'communications.W003', "from 1 to 60, not ''."),
         )
-        for changes, error_id in cases:
-            with self.subTest(error=error_id, changes=changes), override_settings(**changes):
-                self.assertEqual([error.id for error in check_whatsapp_settings()], [error_id])
+        for changes, check_id, problem in cases:
+            with self.subTest(check=check_id, changes=changes), override_settings(**changes):
+                [warning] = check_whatsapp_settings()
+                self.assertEqual((warning.id, warning.level, warning.hint), (check_id, checks.WARNING, HELD_BACK))
+                self.assertIn(problem, warning.msg)
+                # Below ERROR: neither `check --fail-level ERROR` in the entrypoint nor `migrate` stops on it.
+                self.assertFalse(warning.is_serious())
+
+    def test_every_problem_is_reported_at_once(self):
+        with override_settings(COMMUNICATIONS_WHATSAPP_PROVIDER='meta', COMMUNICATIONS_RECIPIENT_ALLOWLIST=['0501234567'],
+                               COMMUNICATIONS_PROVIDER_TIMEOUT='abc'):
+            self.assertEqual([warning.id for warning in check_whatsapp_settings()],
+                             ['communications.W001', 'communications.W002', 'communications.W003'])
+
+    def test_a_malformed_allow_list_is_still_reported_while_every_number_is_allowed(self):
+        with override_settings(COMMUNICATIONS_ALLOW_ALL_RECIPIENTS=True, COMMUNICATIONS_RECIPIENT_ALLOWLIST=['0501234567']):
+            [warning] = check_whatsapp_settings()
+        self.assertEqual((warning.id, warning.level, warning.hint), ('communications.W002', checks.WARNING, NOT_READ))
 
 
 class ProviderBehaviourTests(SimpleTestCase):
@@ -302,6 +332,48 @@ class SafetyGateTests(SimpleTestCase):
 
     @override_settings(**{**CLOSED, 'COMMUNICATIONS_SENDING_ENABLED': True, 'COMMUNICATIONS_WHATSAPP_PROVIDER': 'console',
                           'COMMUNICATIONS_RECIPIENT_ALLOWLIST': ['0501234567']})
-    def test_a_malformed_allow_list_entry_is_refused(self):
+    def test_a_malformed_allow_list_entry_holds_every_message_back(self):
+        self.assertEqual(sending_block(UAE), SendBlock.MISCONFIGURED)
+        # The allow-list itself still refuses the entry, saying which.
         with self.assertRaisesMessage(ImproperlyConfigured, "'0501234567' is not an international number"):
-            sending_block(UAE)
+            allowlist()
+
+    @override_settings(**{**CLOSED, 'COMMUNICATIONS_SENDING_ENABLED': True, 'COMMUNICATIONS_WHATSAPP_PROVIDER': 'console',
+                          'COMMUNICATIONS_ALLOW_ALL_RECIPIENTS': True})
+    def test_invalid_settings_hold_every_message_back_and_never_raise(self):
+        for changes in (dict(COMMUNICATIONS_WHATSAPP_PROVIDER='meta'), dict(COMMUNICATIONS_WHATSAPP_PROVIDER=''),
+                        dict(COMMUNICATIONS_WHATSAPP_PROVIDER='consol'),
+                        dict(COMMUNICATIONS_ALLOW_ALL_RECIPIENTS=False, COMMUNICATIONS_RECIPIENT_ALLOWLIST=['0501234567']),
+                        dict(COMMUNICATIONS_PROVIDER_TIMEOUT=0), dict(COMMUNICATIONS_PROVIDER_TIMEOUT='abc')):
+            with self.subTest(changes=changes), override_settings(**changes):
+                self.assertEqual(sending_block_for_all(), SendBlock.MISCONFIGURED)
+                self.assertEqual(sending_block(UAE), SendBlock.MISCONFIGURED)
+                self.assertEqual(sending_block('0501234567'), SendBlock.MISCONFIGURED)
+                with use_fake_provider():
+                    self.assertEqual(sending_block(UAE, provider=FakeProvider()), SendBlock.MISCONFIGURED)
+                self.assertEqual(len(sending_problems()), 1)
+        # The same settings, valid: nothing held back.
+        self.assertIsNone(sending_block(UAE))
+
+    @override_settings(**{**CLOSED, 'COMMUNICATIONS_WHATSAPP_PROVIDER': 'meta',
+                          'COMMUNICATIONS_RECIPIENT_ALLOWLIST': ['0501234567'], 'COMMUNICATIONS_PROVIDER_TIMEOUT': 'abc'})
+    def test_sending_off_comes_first_whatever_the_settings(self):
+        self.assertEqual(sending_block_for_all(), SendBlock.SENDING_DISABLED)
+        self.assertEqual(sending_block(UAE), SendBlock.SENDING_DISABLED)
+
+    @override_settings(**{**CLOSED, 'COMMUNICATIONS_SENDING_ENABLED': True, 'COMMUNICATIONS_WHATSAPP_PROVIDER': 'console',
+                          'COMMUNICATIONS_ALLOW_ALL_RECIPIENTS': True, 'COMMUNICATIONS_RECIPIENT_ALLOWLIST': ['0501234567']})
+    def test_a_malformed_allow_list_holds_nothing_back_while_every_number_is_allowed(self):
+        # As before: the allow-list is not read while every number is allowed.
+        self.assertIsNone(sending_block_for_all())
+        self.assertIsNone(sending_block(UAE))
+        self.assertIsNone(allowed_recipients())
+        self.assertEqual(sending_problems(), [])
+        self.assertEqual([check_id for check_id, _problem in configuration_problems()], ['communications.W002'])
+        with override_settings(COMMUNICATIONS_ALLOW_ALL_RECIPIENTS=False):
+            self.assertEqual(sending_block(UAE), SendBlock.MISCONFIGURED)
+
+    @override_settings(**{**CLOSED, 'COMMUNICATIONS_SENDING_ENABLED': True, 'COMMUNICATIONS_WHATSAPP_PROVIDER': 'meta'})
+    def test_without_a_provider_and_invalid_settings_it_is_misconfigured(self):
+        # Valid but sending nothing is NO_PROVIDER (test_without_a_provider_messages_stay_pending); invalid is MISCONFIGURED.
+        self.assertEqual(sending_block(UAE), SendBlock.MISCONFIGURED)
