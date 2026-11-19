@@ -27,7 +27,10 @@ versions, are append-only: a trigger refuses every UPDATE and DELETE
 (communications.0001).
 
 communications.planner keeps a booking's tasks and messages in step with the
-booking, inside the transaction that changes it; communications.services
+booking, from the CommunicationEvent each booking change records in its own
+transaction (communications.outbox) -- applied after that transaction has
+committed, so these rows can trail the booking for a few seconds, or longer
+while Celery is down; communications.services
 holds the actions a BDE or the Admin take. Nothing here sends anything: the
 sending engine is a later phase. Unlike the booking's history, these rows do
 hold the parent's phone number and what each message says, so only the lead's
@@ -36,6 +39,8 @@ BDE and the Admin may read them.
 import uuid
 
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Cast
@@ -694,3 +699,129 @@ class UnmatchedStatusEvent(models.Model):
 
     def __str__(self):
         return f'{self.get_status_display()} for an unknown message ({self.received_at:%Y-%m-%d %H:%M})'
+
+
+# ---------------------------------------------------------------- outbox
+
+class EventKind(models.TextChoices):
+    """A business change the communication plan follows (communications.outbox)."""
+    BOOKING_CREATED = 'BOOKING_CREATED', 'Booking created'
+    PARENT_CONFIRMED = 'PARENT_CONFIRMED', 'Parent confirmed'
+    BOOKING_CANCELLED = 'BOOKING_CANCELLED', 'Booking cancelled'
+    BOOKING_RESCHEDULED = 'BOOKING_RESCHEDULED', 'Booking rescheduled'
+    TUTOR_CHANGED = 'TUTOR_CHANGED', 'Tutor assigned or removed'
+    MEET_LINK_CHANGED = 'MEET_LINK_CHANGED', 'Meet link changed'
+    BOOKING_COMPLETED = 'BOOKING_COMPLETED', 'Booking completed'
+    LEAD_OWNER_CHANGED = 'LEAD_OWNER_CHANGED', 'Lead given to another BDE'
+    LEAD_TIMEZONE_CHANGED = 'LEAD_TIMEZONE_CHANGED', 'Student time zone corrected'
+    LEAD_DETAILS_CHANGED = 'LEAD_DETAILS_CHANGED', 'Parent or student details corrected'
+    SENDER_CONTACT_CHANGED = 'SENDER_CONTACT_CHANGED', "BDE's name or mobile number changed"
+
+
+class EventSubject(models.TextChoices):
+    """What an event is about: a booking of either type, a lead, or a staff account."""
+    DEMO = BookingType.DEMO.value, 'Demo booking'
+    DIAGNOSTIC = BookingType.DIAGNOSTIC.value, 'Diagnostic booking'
+    LEAD = 'LEAD', 'Lead'
+    STAFF = 'STAFF', 'Staff account'
+
+
+class EventStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Pending'
+    # Claimed by a processor (claimed_at); taken back when it stops (outbox.recover_stuck).
+    PROCESSING = 'PROCESSING', 'Processing'
+    DONE = 'DONE', 'Done'
+    # Its last attempt failed too: kept for someone to look at (manage.py communication_events).
+    FAILED = 'FAILED', 'Failed'
+
+
+# Not finished yet: an event in one of these holds back every later event of its streams.
+UNFINISHED_EVENT_STATUSES = (EventStatus.PENDING, EventStatus.PROCESSING)
+BOOKING_EVENT_KINDS = (
+    EventKind.BOOKING_CREATED, EventKind.PARENT_CONFIRMED, EventKind.BOOKING_CANCELLED,
+    EventKind.BOOKING_RESCHEDULED, EventKind.TUTOR_CHANGED, EventKind.MEET_LINK_CHANGED, EventKind.BOOKING_COMPLETED,
+)
+LEAD_EVENT_KINDS = (EventKind.LEAD_OWNER_CHANGED, EventKind.LEAD_TIMEZONE_CHANGED, EventKind.LEAD_DETAILS_CHANGED)
+# The events that write a booking's plan: they carry their lead's stream as well (communications.outbox).
+PLAN_EVENT_KINDS = (EventKind.BOOKING_CREATED, EventKind.BOOKING_RESCHEDULED)
+
+
+class CommunicationEvent(models.Model):
+    """
+    One business change for the communication plan to follow: written by the
+    business code in the transaction that makes the change, so it commits --
+    or rolls back -- with it, and applied afterwards, in a transaction of its
+    own, by communications.outbox. It holds ids only: what changed is read
+    from the booking, lead or account as it is when the event is applied.
+
+    ``streams`` are the keys the event is ordered by: its booking's (both
+    bookings' for a reschedule), its lead's or its staff account's -- and
+    its lead's too for an event that writes a plan. An event is applied only
+    once every earlier event sharing a stream is DONE or FAILED, so a
+    booking's events are applied in the order they happened.
+    """
+    id = models.BigAutoField(primary_key=True)
+    kind = models.CharField(max_length=30, choices=EventKind.choices)
+    subject_type = models.CharField(max_length=20, choices=EventSubject.choices)
+    subject_id = models.UUIDField()
+    streams = ArrayField(models.CharField(max_length=64), size=3)
+    # Ids only (an actor, the booking a reschedule made): never names, phone numbers or text.
+    payload = models.JSONField(default=dict, blank=True)
+    # The business change's own moment: the plan's times are taken from it.
+    occurred_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=EventStatus.choices, default=EventStatus.PENDING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    # Not applied before this: when it was written, or its next retry.
+    available_at = models.DateTimeField(default=timezone.now)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'communication_events'
+        verbose_name = 'Communication event'
+        verbose_name_plural = 'Communication events'
+        ordering = ['id']
+        constraints = [
+            models.CheckConstraint(condition=Q(kind__in=EventKind.values), name='communication_events_known_kind'),
+            models.CheckConstraint(
+                condition=Q(subject_type__in=EventSubject.values), name='communication_events_known_subject',
+            ),
+            models.CheckConstraint(condition=Q(status__in=EventStatus.values), name='communication_events_known_status'),
+            models.CheckConstraint(
+                condition=(
+                    Q(kind__in=BOOKING_EVENT_KINDS, subject_type__in=(EventSubject.DEMO, EventSubject.DIAGNOSTIC))
+                    | Q(kind__in=LEAD_EVENT_KINDS, subject_type=EventSubject.LEAD)
+                    | Q(kind=EventKind.SENDER_CONTACT_CHANGED, subject_type=EventSubject.STAFF)
+                ),
+                name='communication_events_kind_matches_subject',
+            ),
+            models.CheckConstraint(
+                condition=~Q(status=EventStatus.PROCESSING) | Q(claimed_at__isnull=False),
+                name='communication_events_processing_claimed',
+            ),
+            models.CheckConstraint(
+                condition=~Q(status=EventStatus.DONE) | Q(processed_at__isnull=False),
+                name='communication_events_done_processed',
+            ),
+        ]
+        indexes = [
+            # The next ones to apply.
+            models.Index(
+                fields=['available_at', 'id'], name='comm_events_ready_idx', condition=Q(status=EventStatus.PENDING),
+            ),
+            # What still holds a stream back (and whether a booking's plan is still on its way).
+            GinIndex(
+                fields=['streams'], name='comm_events_open_streams_idx',
+                condition=Q(status__in=UNFINISHED_EVENT_STATUSES),
+            ),
+            models.Index(
+                fields=['claimed_at'], name='comm_events_claimed_idx', condition=Q(status=EventStatus.PROCESSING),
+            ),
+            models.Index(fields=['status', 'processed_at'], name='comm_events_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_kind_display()} #{self.pk} ({self.get_status_display()})'

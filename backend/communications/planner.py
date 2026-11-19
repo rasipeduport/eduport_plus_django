@@ -1,9 +1,11 @@
 """
 Keeping a booking's communication in step with the booking (PRD 3.11).
-bookings.booking_service and reports.services call these inside the
-transaction that changes the booking, so the booking, its tasks and its
-messages commit -- or roll back -- together: a booking that was never made
-leaves no task or message behind.
+The business code never calls these: it records a CommunicationEvent in the
+transaction that changes the booking (communications.outbox), and the
+outbox applies it afterwards through these, in a transaction of its own, as
+of the moment the change happened -- so no failure here can undo a booking
+change, and a booking that was never made leaves no event, task or message.
+Each is idempotent: an event applied twice changes nothing more.
 
     plan_booking         a new booking: its five tasks, its acknowledgement
                          (unless a booking it replaced had one accepted) and
@@ -110,6 +112,10 @@ def plan_booking(booking, now):
     # A Re-Demo's parent hears from the BDE, by hand: no tasks, no messages.
     if getattr(booking, 'redemo_for_id', None):
         return {}
+    # Planned already (its event applied again, communications.outbox): left as it is.
+    planned = {task.step: task for task in CommunicationTask.objects.filter(**booking_field(booking))}
+    if planned:
+        return planned
     # Read again: a public booking sets the lead's owner with an UPDATE.
     lead = Lead.objects.select_related('owner_bde').get(pk=booking.lead_id)
     booking.lead = lead
@@ -168,10 +174,10 @@ def parent_confirmed(booking, now, actor=None):
 def refresh_messages(booking, now):
     """
     Something ``booking``'s unsent messages need changed -- the parent's
-    answer, its tutor, its Meet link: check each of them again now. The caller
-    holds the booking's lock (booking_service), but the jobs and the sender
-    change messages without it: each is locked first, in id order, and
-    checked as it is then -- one cancelled meanwhile is left cancelled.
+    answer, its tutor, its Meet link: check each of them again now. Neither
+    the outbox nor the jobs hold the booking's lock, nor does the sender
+    while it records a result: each message is locked first, in id order,
+    and checked as it is then -- one cancelled meanwhile is left cancelled.
     """
     with transaction.atomic():
         messages = Message.objects.select_for_update(of=('self',)).filter(
@@ -201,8 +207,9 @@ def sender_contact_changed(bde, now):
 
 def lead_owner_changed(lead, now):
     """
-    ``lead`` has a new owner BDE (bookings.ownership, which holds the lead's
-    lock): its bookings' open tasks become theirs, and their unsent messages,
+    ``lead`` has a new owner BDE (bookings.ownership, through the outbox):
+    its bookings' open tasks become theirs -- the owner as the lead has it
+    when this runs -- and their unsent messages,
     which sign with the owner, are checked again. Messages are locked before
     tasks, in id order, as everywhere here.
     """
@@ -218,7 +225,7 @@ def lead_owner_changed(lead, now):
 def lead_timezone_changed(lead, now):
     """
     ``lead``'s student time zone was corrected (bookings.student_timezones,
-    which holds the lead's lock): its bookings' unsent messages, which show
+    through the outbox): its bookings' unsent messages, which show
     the booking at the student's time, are checked again -- written again
     with the zone now, not only when one is sent. Nothing handed over changes.
     """
@@ -226,7 +233,7 @@ def lead_timezone_changed(lead, now):
 
 
 def lead_details_changed(lead, now):
-    """Admin corrected names/contact under the lead lock: refresh only unsent messages."""
+    """The lead's names or contact were corrected (an outbox event, communications.outbox): refresh only unsent messages."""
     _refresh_lead_messages(lead, now)
 
 
@@ -248,9 +255,9 @@ def refresh_waiting(now, limit=1000):
     the fallback for a change no hook sees, such as a mobile number edited in
     the Django admin or a row changed by hand. The soonest due come first,
     ``limit`` of them per type, in short transactions of REFRESH_CHUNK, so a
-    booking change never waits long behind this. Each is locked first,
-    skipping one a booking change holds (that change refreshes it itself), so
-    nothing a change is closing is written back; only a message that changed
+    booking change's event never waits long behind this. Each is locked
+    first, skipping one an applying event or a sender holds (that one
+    refreshes or closes it itself), so nothing being closed is written back; only a message that changed
     is saved, and one that cannot be checked is logged and skipped, never
     stopping the rest. Returns how many became Pending.
     """
@@ -372,7 +379,7 @@ def close_expired(now, booking=None):
     if booking is not None:
         tasks = tasks.filter(**booking_field(booking))
         messages = messages.filter(**booking_field(booking))
-    # Its own transaction when the scheduled job calls it; part of the booking's when completion does.
+    # Its own transaction when the scheduled job calls it; part of the completion event's when that applies it.
     with transaction.atomic():
         expired = _cancel_messages(messages, MessageCancelReason.EXPIRED, now)
         # Both kinds locked together, in id order, before either is written.

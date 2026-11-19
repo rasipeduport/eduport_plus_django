@@ -159,14 +159,13 @@ def correct(lead_id, value, *, actor, via, owner_bde=None, request=None, now=Non
     ``changed`` is False when it already was that zone, and nothing is
     written. A change is logged with the old zone and the new, and the
     lead's unsent parent messages are written again with it as of ``now``,
-    in the same transaction (communications.planner.lead_timezone_changed). Raises
-    InvalidStudentTimezone, Lead.DoesNotExist (also for another BDE's lead),
-    or booking_service.BookingBusy when the lead or one of those messages
-    stays locked past the booking lock timeout.
+    from an event recorded in the same transaction (communications.outbox).
+    Raises InvalidStudentTimezone, Lead.DoesNotExist (also for another BDE's
+    lead), or booking_service.BookingBusy when the lead stays locked past the
+    booking lock timeout.
     """
-    # booking_service imports this module for the bookings' zones, and the
-    # planner does through communications.rendering for the messages' times.
-    from communications import planner
+    # Imported here, as before: booking_service imports this module for the bookings' zones.
+    from communications import outbox
 
     from .booking_service import BUSY_SQLSTATES, BookingBusy, _set_lock_timeout
 
@@ -190,7 +189,7 @@ def correct(lead_id, value, *, actor, via, owner_bde=None, request=None, now=Non
             lead.save(update_fields=['student_timezone', 'updated_at'])
             # Its messages still to go show the bookings at the student's time:
             # what the Hub shows as ready is what the parent would read.
-            planner.lead_timezone_changed(lead, now or timezone.now())
+            outbox.lead_timezone_changed(lead, now or timezone.now())
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise BookingBusy() from exc

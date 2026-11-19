@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+from datetime import timedelta
+
 import environ
 from celery.schedules import crontab
 from pathlib import Path
@@ -524,6 +526,19 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='2-59/5'),
         'options': {'expires': 240},
     },
+    # The communication outbox (communications.outbox): the business changes
+    # recorded with each booking write applied to the parent communication
+    # plan, every 15 seconds. A tick no worker takes in time expires; events
+    # wait in the table, so a worker or beat that was down loses none.
+    'process-communication-events': {
+        'task': 'communications.tasks.process_communication_events',
+        'schedule': timedelta(seconds=15),
+        'options': {'expires': 14},
+    },
+    'purge-communication-events': {
+        'task': 'communications.tasks.purge_communication_events',
+        'schedule': crontab(minute='40', hour='3'),
+    },
     # WhatsApp statuses that came before their message's id was recorded.
     'reconcile-whatsapp-statuses': {
         'task': 'communications.tasks.reconcile_status_updates',
@@ -598,6 +613,9 @@ COMMUNICATIONS_RECIPIENT_ALLOWLIST = env.list('COMMUNICATIONS_RECIPIENT_ALLOWLIS
 COMMUNICATIONS_ALLOW_ALL_RECIPIENTS = env.bool('COMMUNICATIONS_ALLOW_ALL_RECIPIENTS', default=False)
 # Seconds one provider call may take (1-60).
 COMMUNICATIONS_PROVIDER_TIMEOUT = env.int('COMMUNICATIONS_PROVIDER_TIMEOUT', default=10)
+# Tests only: apply each communication event as it is recorded, in a savepoint
+# of the business transaction (communications.outbox). Never set in a deployment.
+COMMUNICATIONS_OUTBOX_INLINE = False
 # Meta's WhatsApp Cloud API webhook (communications.webhooks): the app secret
 # every callback is signed with, and the token Meta's subscription check
 # presents. Both from the platform's secret store, never a tracked file; while

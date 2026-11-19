@@ -19,6 +19,7 @@ from bookings.lifecycle import activity_state
 from bookings.models import BookingStatus, NotConfirmedReason, ParentConfirmation
 from bookings.scheduling import BOOKING_TIMEZONE_NAME
 
+from . import outbox
 from .formatting import whatsapp_message
 from .models import (
     OUTCOME_UNKNOWN,
@@ -52,7 +53,9 @@ def booking_communication(booking, now, user=None, request=None):
     tutor and confirming account). A booking made before communications
     existed has no plan: ``planned`` is false and it has no tasks or messages.
     Nor has a Re-Demo (``redemo``, bookings.redemos): the BDE contacts its
-    parent by hand, so nothing is ever sent for it.
+    parent by hand, so nothing is ever sent for it. ``plan_status`` tells
+    those apart from a plan still on its way from the outbox (PENDING) or
+    whose event failed (FAILED) -- communications.outbox.PlanStatus.
     """
     redemo = _is_redemo(booking)
     tasks = sorted(
@@ -69,6 +72,7 @@ def booking_communication(booking, now, user=None, request=None):
         'booking': _booking(booking, now),
         'timezone': BOOKING_TIMEZONE_NAME,
         'planned': bool(tasks),
+        'plan_status': outbox.plan_status(booking, planned=bool(tasks)),
         'redemo': redemo,
         'parent_confirmation': parent_confirmation(booking),
         'tasks': [_task(task, now) for task in tasks],

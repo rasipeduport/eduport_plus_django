@@ -13,9 +13,12 @@ It runs in three parts, so no lock is ever held while WhatsApp is being called:
    from the booking as it is now, or turns it Waiting), and the safety gate
    lets it through (communications.safety). Only then is it claimed:
    ``claimed_at`` is set and the exact text to send is fixed. A cancellation,
-   reschedule or answer committed before the claim has already cancelled the
-   message, so it is never sent; one still holding the booking makes the
-   claim wait for it, and then see it. A second sender finds the message
+   reschedule or answer only records an outbox event (communications.outbox),
+   and the message is cancelled when that event is applied -- seconds later,
+   or much later while Celery is down. Until then this re-check is what stops
+   the message: a change committed before the claim is seen here, so the
+   message is cancelled instead of sent; one still holding the booking makes
+   the claim wait for it, and then see it. A second sender finds the message
    claimed and leaves it.
 2. The provider call, outside any transaction, with COMMUNICATIONS_PROVIDER_
    TIMEOUT. While it runs the message stays claimed: the planner neither

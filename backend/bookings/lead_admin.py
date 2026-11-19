@@ -160,10 +160,11 @@ def update_lead_details(admin, lead_id, details, request=None):
     Apply validated LeadDetailsUpdateSerializer fields under the lead's lock.
     Identity corrections keep the existing phone/name uniqueness rule; they
     never merge children or rewrite booking details and issued snapshots.
-    Unsent parent messages follow corrected names and contact details using
-    the same message locks as the ownership and time-zone workflows.
+    Unsent parent messages follow corrected names and contact details from an
+    event recorded with the correction (communications.outbox), applied after
+    it commits, as for the ownership and time-zone workflows.
     """
-    from communications import planner
+    from communications import outbox
 
     from .booking_service import BUSY_SQLSTATES, BookingBusy, _set_lock_timeout
 
@@ -202,7 +203,7 @@ def update_lead_details(admin, lead_id, details, request=None):
                 raise LeadExists(duplicate)
 
             if {'parent_name', 'student_name', 'phone_key'} & changed.keys():
-                planner.lead_details_changed(lead, timezone.now())
+                outbox.lead_details_changed(lead, timezone.now())
             if 'student_name' in changed:
                 # Before any payment the student account still follows the enquiry.
                 from sales.student_accounts import mirror_unlocked_name

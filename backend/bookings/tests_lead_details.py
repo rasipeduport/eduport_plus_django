@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import RoleGroup
 from activity.models import ActivityLog
-from communications.models import MessageStatus
+from communications.models import CommunicationEvent, EventKind, EventStatus, MessageStatus
 from communications.tests_planning import CommunicationTestCase
 
 from . import lead_admin
@@ -122,12 +122,15 @@ class AdminLeadDetailsTests(TestCase):
         self.assertEqual(self.lead.updated_at, before)
         self.assertFalse(ActivityLog.objects.filter(action='lead.update_details').exists())
 
-    def test_busy_message_refresh_rolls_back_the_contact_correction(self):
+    def test_a_busy_message_refresh_never_undoes_the_contact_correction(self):
+        # F1: the unsent messages follow from an outbox event, applied after the correction commits.
         with mock.patch('communications.planner.lead_details_changed', side_effect=BookingBusy):
-            res = self.patch(parent_name='Must not be saved')
-        self.assertEqual((res.status_code, res.json()['error']), (503, 'LEAD_BUSY'))
+            res = self.patch(parent_name='Saved anyway')
+        self.assertEqual(res.status_code, 200, res.content)
         self.lead.refresh_from_db()
-        self.assertEqual(self.lead.parent_name, 'Asha Nair')
+        self.assertEqual(self.lead.parent_name, 'Saved anyway')
+        event = CommunicationEvent.objects.get(subject_id=self.lead.pk)
+        self.assertEqual((event.kind, event.status), (EventKind.LEAD_DETAILS_CHANGED, EventStatus.PENDING))
 
 
 class LeadDetailsCommunicationTests(CommunicationTestCase):

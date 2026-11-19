@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MESSAGE_MOMENTS, istMoment, joined, messageLine, stepLabel, stepLine } from '@/lib/communications';
+import { MESSAGE_MOMENTS, istMoment, joined, messageLine, stepLabel, stepLine, unplannedText } from '@/lib/communications';
 import { MessageStateBadge, ParentConfirmationBadge, TaskStateBadge } from './communication-badges';
 
 function Detail({ label, children }) {
@@ -161,9 +161,7 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
           No messages are sent for a Re-Demo: the BDE contacts the parent directly with its date, time and tutor.
         </p>
       ) : (
-        <p className="text-muted-foreground text-sm">
-          No messages were planned for this booking: it was made before parent communication began.
-        </p>
+        <p className="text-muted-foreground text-sm">{unplannedText(communication)}</p>
       )}
     </div>
   );

@@ -37,6 +37,7 @@ from bookings.models import booking_model
 from bookings.public_views import PATH_TYPES
 from core.permissions import HasAnyAppPermission, HasAppPermission
 
+from . import outbox
 from .models import Step
 from .overview import booking_communication
 from .rendering import Requirement
@@ -44,8 +45,8 @@ from .serializers import ParentAnswerSerializer
 from .services import (
     CommunicationError,
     MessageBlocked,
-    NotPlanned,
     RedemoManual,
+    not_planned,
     preview,
     record_call_outcome,
     request_confirmation,
@@ -169,8 +170,10 @@ class ConfirmationRequestView(APIView):
     written Pending, and the sending engine sends it. Asking again returns the
     request already written, never a second. Answers the booking's
     communication in full with ``created`` (201, or 200 when it already was).
-    409 BOOKING_NOT_UPCOMING, CONFIRMATION_NOT_NEEDED, NOT_PLANNED, or
-    MESSAGE_BLOCKED with what is ``missing`` (each {code, label}).
+    409 BOOKING_NOT_UPCOMING, CONFIRMATION_NOT_NEEDED, NOT_PLANNED, COMMUNICATION_PLAN_PENDING,
+    COMMUNICATION_PLAN_FAILED, or MESSAGE_BLOCKED with what is ``missing`` (each {code, label}).
+    The booking's ready outbox events are applied first, best-effort
+    (outbox.apply_ready_for), so a plan still on its way is there to use.
     """
     permission_classes = [IsAuthenticated, HasAppPermission(SEND_COMMUNICATIONS), IN_SCOPE]
 
@@ -178,6 +181,7 @@ class ConfirmationRequestView(APIView):
         booking = _visible(request, booking_type, pk)
         if booking is None:
             return _no_booking()
+        outbox.apply_ready_for(booking)
         try:
             _message, created = request_confirmation(booking, actor=request.user, owner_bde=_owner_bde(request))
         except (CommunicationError, BookingError) as exc:
@@ -196,7 +200,10 @@ class ParentConfirmationView(APIView):
     communication in full with ``changed`` (false for the answer already
     recorded). 400 VALIDATION_ERROR, INVALID_CONFIRMATION, INVALID_REASON or
     CANCELLATION_NOT_CONFIRMED; 409 for a booking cancelled, completed, moved
-    or started.
+    or started. The answer is a business write that only records an outbox
+    event; once it has committed, the booking's ready events are applied
+    best-effort (outbox.apply_ready_for), so the communication answered shows
+    the answer's effect -- or, if that fails, the plan as the job will fix it.
     """
     permission_classes = [IsAuthenticated, HasAppPermission(RECORD_CONFIRMATION), IN_SCOPE]
 
@@ -216,6 +223,7 @@ class ParentConfirmationView(APIView):
             )
         except BookingError as exc:
             return _refusal(exc)
+        outbox.apply_ready_for(booking)
         return Response(_communication(request, booking_type, pk, changed=changed), status=status.HTTP_200_OK)
 
 
@@ -227,8 +235,10 @@ class CallOutcomeView(APIView):
     outcome is kept, and the call shows the latest. From 15 minutes before
     the start until the start -- the moment its tutor starts it, if earlier.
     Answers the booking's communication in full (201). 400 INVALID_OUTCOME;
-    409 CALL_NOT_OPEN_YET, CALL_CLOSED, TASK_CLOSED, or NOT_PLANNED /
-    REDEMO_MANUAL for a booking that has no call.
+    409 CALL_NOT_OPEN_YET, CALL_CLOSED, TASK_CLOSED, COMMUNICATION_PLAN_PENDING,
+    COMMUNICATION_PLAN_FAILED, or NOT_PLANNED / REDEMO_MANUAL for a booking that
+    has no call. The booking's ready outbox events are applied first,
+    best-effort (outbox.apply_ready_for).
     """
     permission_classes = [IsAuthenticated, HasAppPermission(SEND_COMMUNICATIONS), IN_SCOPE]
 
@@ -238,9 +248,10 @@ class CallOutcomeView(APIView):
             return _no_booking()
         outcome = request.data.get('outcome') if hasattr(request.data, 'get') else None
         outcome = outcome.strip().upper() if isinstance(outcome, str) else ''
+        outbox.apply_ready_for(booking)
         call = booking.communication_tasks.filter(step=Step.PRE_ACTIVITY_CALL).first()
         if call is None:
-            return _refusal(RedemoManual() if getattr(booking, 'redemo_for_id', None) else NotPlanned())
+            return _refusal(RedemoManual() if getattr(booking, 'redemo_for_id', None) else not_planned(booking))
         try:
             record_call_outcome(call, outcome, actor=request.user, owner_bde=_owner_bde(request))
         except (CommunicationError, BookingError) as exc:

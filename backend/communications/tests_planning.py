@@ -2,8 +2,10 @@
 Planning a booking's communication (communications.planner), driven through
 the booking writes themselves: every new Demo or Diagnostic booking gets its
 five tasks, owned by its lead's BDE (the Admin without one), with the PRD's
-deadlines, its acknowledgement and a Waiting confirmed message -- all in the
-booking's own transaction. Cancelling stops what was not sent; a reschedule
+deadlines, its acknowledgement and a Waiting confirmed message -- written from
+the booking's outbox event (communications.outbox), which these tests apply
+as it is recorded (COMMUNICATIONS_OUTBOX_INLINE) so they can read the plan
+straight after each booking write. Cancelling stops what was not sent; a reschedule
 plans the new booking afresh without a second acknowledgement; completion
 writes the after-activity message once. Nothing is ever sent here.
 """
@@ -30,7 +32,9 @@ from reports.tests_services import report_input
 
 from . import planner
 from .models import (
+    CommunicationEvent,
     CommunicationTask,
+    EventStatus,
     Message,
     MessageAttempt,
     MessageCancelReason,
@@ -49,6 +53,8 @@ BDE_PHONE = '+91 98470 12345'
 HOUR = timedelta(hours=1)
 
 
+# These tests read the plan straight after each business call: events applied as recorded (communications.outbox).
+@override_settings(COMMUNICATIONS_OUTBOX_INLINE=True)
 class CommunicationTestCase(TestCase):
     def setUp(self):
         schedule()
@@ -159,12 +165,14 @@ class NewBookingTests(CommunicationTestCase):
         self.assertEqual((again.pk, created), (first.pk, False))
         self.assertEqual((CommunicationTask.objects.count(), Message.objects.count()), (5, 2))
 
-    def test_a_booking_that_rolls_back_leaves_no_communication(self):
+    def test_a_planning_failure_keeps_the_booking_and_leaves_no_half_written_plan(self):
+        # F1: planning never undoes the booking; its event waits for a retry (communications.outbox).
         with mock.patch.object(planner, '_add_message', side_effect=RuntimeError('planning failed')):
-            with self.assertRaises(RuntimeError):
-                self.book()
-        self.assertFalse(DemoBooking.objects.exists())
+            booking = self.book()
+        self.assertEqual(DemoBooking.objects.get(pk=booking.pk).status, BookingStatus.BOOKED)
         self.assertEqual((CommunicationTask.objects.count(), Message.objects.count()), (0, 0))
+        event = CommunicationEvent.objects.get(subject_id=booking.pk)
+        self.assertEqual((event.status, event.attempts), (EventStatus.PENDING, 1))
 
 
 class CancellationTests(CommunicationTestCase):

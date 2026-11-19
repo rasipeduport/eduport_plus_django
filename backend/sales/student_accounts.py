@@ -263,8 +263,8 @@ def correct_identity(actor, account_id, data, request=None):
     if lead:
         lead.student_name, lead.student_name_key = name, key
         lead.save(update_fields=['student_name', 'student_name_key', 'updated_at'])
-        from communications import planner
-        planner.lead_details_changed(lead, timezone.now())
+        from communications import outbox
+        outbox.lead_details_changed(lead, timezone.now())
     if account.student_id:
         from students.models import Student
         student = Student.objects.select_for_update().get(pk=account.student_id)
