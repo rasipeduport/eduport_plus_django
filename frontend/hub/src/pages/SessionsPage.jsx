@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
   Loader2, Calendar, Video, FileText, 
   BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink, ChevronDown, X
 } from 'lucide-react';
 import api from '../lib/api';
+import { useLiveRefresh } from '../hooks/use-live-refresh';
 import { EXAM_VIEW, PERMISSIONS, can, canAny } from '../lib/access';
 import { describeApiError } from '../lib/api-errors';
 import { mentorZoneFormatter } from '../lib/timezone';
@@ -237,8 +238,28 @@ export default function SessionsPage({ user }) {
   const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  // A read of the list once it is on screen: the table stays (its scroll, open
+  // menus and any dialog a row holds) and only the Refresh icon turns.
+  const [refreshing, setRefreshing] = useState(false);
+  const loaded = useRef(false);
+  // Start Session's dialog is open: what it shows -- a refusal, say -- stays
+  // until it closes (its own close reads the list again after a refusal).
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  // A list that comes in while it is open -- a refresh already under way when
+  // it opened -- waits here and is shown once it closes.
+  const startOpen = useRef(false);
+  const heldList = useRef(null);
+  const startDialogChanged = useCallback((open) => {
+    startOpen.current = open;
+    setStartDialogOpen(open);
+    if (!open && heldList.current) {
+      const show = heldList.current;
+      heldList.current = null;
+      show();
+    }
+  }, []);
   const [error, setError] = useState('');
-  
+
   // Filtering & Search states (Hub filter bar: title, date range, tutor, columns)
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState(undefined); // { from, to } with `to` at end of day
@@ -322,21 +343,34 @@ export default function SessionsPage({ user }) {
   // the New Session drawer's credit maths. While a Content filter is active
   // the table instead shows the API's filtered result, refreshed together.
   const fetchSessions = async (content = contentFilter) => {
-    setLoading(true);
+    // The full-page spinner only while there is no list to show yet.
+    const setBusy = loaded.current ? setRefreshing : setLoading;
+    setBusy(true);
     setError('');
     try {
       const [all, filtered] = await Promise.all([
         api.get('/api/sessions/'),
         content && content !== 'all' ? api.get('/api/sessions/', { params: { content } }) : Promise.resolve(null),
       ]);
-      setSessions(all.data.sessions || []);
-      setContentSessions(filtered ? filtered.data.sessions || [] : null);
+      const show = () => {
+        setSessions(all.data.sessions || []);
+        setContentSessions(filtered ? filtered.data.sessions || [] : null);
+      };
+      // Not under an open Start Session dialog: the fresh list could take its row, and its refusal, away.
+      if (startOpen.current) heldList.current = show;
+      else show();
+      loaded.current = true;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load sessions.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
+
+  // Classes are started, moved and completed elsewhere too: read again on coming back to the tab
+  // (the clock above only moves what is offered, it reads nothing) -- but not under an open Start
+  // Session dialog, whose row a fresh list could take away with its message.
+  useLiveRefresh(() => fetchSessions(), { enabled: !startDialogOpen });
 
   const applyContentFilter = async (value) => {
     setContentFilter(value);
@@ -750,7 +784,13 @@ export default function SessionsPage({ user }) {
         const start = ownClass || canManage ? startState(s, now) : null;
         if (start === 'ready') {
           return (
-            <StartSessionButton session={s} asTutor={ownClass} onStarted={() => fetchSessions()} onRefresh={() => fetchSessions()} />
+            <StartSessionButton
+              session={s}
+              asTutor={ownClass}
+              onStarted={() => fetchSessions()}
+              onRefresh={() => fetchSessions()}
+              onOpenChange={startDialogChanged}
+            />
           );
         }
         if (ownClass && start === 'upcoming') {
@@ -955,6 +995,11 @@ export default function SessionsPage({ user }) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button variant="outline" size="sm" onClick={() => fetchSessions()} disabled={loading || refreshing} aria-label="Refresh sessions">
+          <RefreshCw className={`size-4${loading || refreshing ? ' animate-spin' : ''}`} />
+          Refresh
+        </Button>
 
         {selectedStudentId && canCreate && (
           <div className="ml-auto">

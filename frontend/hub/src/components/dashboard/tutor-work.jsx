@@ -15,6 +15,7 @@ import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { ReportStateBadge } from '@/components/bookings/booking-badges';
 import { JoinMeetButton } from '@/components/bookings/meet-link';
 import { Panel, PanelEmpty, ScrollList } from './dashboard-primitives';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 // The Tutor Hub's Main and Admissions dashboards' lists of work in time order:
 // today's on a timeline, what comes after today as a list. A Demo or
@@ -118,6 +119,8 @@ function classEntry(session, now) {
 
 /** Today's Demo classes and diagnostic tests (IST) on a timeline. */
 export function TodaysBookings({ rows, total, from, links, className }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const subtitle = total > rows.length ? `${todayLabel()} · the first ${rows.length} of ${total} · IST` : `${todayLabel()} · Indian time (IST)`;
   return (
     <Panel
@@ -153,6 +156,8 @@ export function TodaysBookings({ rows, total, from, links, className }) {
  * keeps Indian time), ended ones included.
  */
 export function TodaysWork({ bookings, bookingTotal, classes, from, links, className }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const now = new Date();
   const entries = [...bookings.map((booking) => bookingEntry(booking, from)), ...classes.map((session) => classEntry(session, now))].sort(byTime);
   const zone = deviceKeepsIst(now) ? 'Indian time (IST)' : 'Bookings in IST, classes in your time';

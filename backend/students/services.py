@@ -290,9 +290,10 @@ def build_profile_stats(student, user, request=None):
 
 def profile_highlights(student, user, request=None):
     """
-    The "Next up" strip: the next scheduled class, the last attended one and
-    the next scheduled exam. Serialized with the same serializers the list
-    endpoints use so the SPA renders them with its existing helpers.
+    The "Next up" strip: the next scheduled class (one under way included,
+    until its scheduled end), the last attended one and the next scheduled
+    exam. Serialized with the same serializers the list endpoints use so the
+    SPA renders them with its existing helpers.
     """
     from sessions.serializers import SessionSerializer
 
@@ -301,7 +302,7 @@ def profile_highlights(student, user, request=None):
         'student', 'student__profile', 'tutor', 'homework'
     ).prefetch_related('files')
     next_session = base.filter(
-        status=SessionStatusChoices.SCHEDULED, start_time__gte=now
+        status=SessionStatusChoices.SCHEDULED, end_time__gt=now
     ).order_by('start_time').first()
     last_session = base.filter(
         status=SessionStatusChoices.ATTENDED

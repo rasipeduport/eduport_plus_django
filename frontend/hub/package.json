@@ -19,6 +19,7 @@
     "test:meet-links": "node tests/meet-links/run.mjs",
     "test:sessions": "node tests/sessions/run.mjs",
     "test:earnings": "node tests/earnings/run.mjs",
+    "test:data-freshness": "node tests/data-freshness/run.mjs",
     "test:sales:browser": "node tests/sales/browser/collection-intention.mjs"
   },
   "dependencies": {

@@ -183,11 +183,12 @@ class StudentDashboardView(APIView):
         ).count()
         attended_count = Session.objects.filter(student=student, status=SessionStatusChoices.ATTENDED).count()
 
-        # Next upcoming class (scheduled, start time in the future)
+        # Next class: scheduled and not yet ended, so a class under way stays
+        # (and stays joinable) until its scheduled end.
         next_sess = Session.objects.filter(
             student=student,
             status=SessionStatusChoices.SCHEDULED,
-            start_time__gte=now
+            end_time__gt=now
         ).order_by('start_time').first()
 
         # Last completed class (attended, sorted desc)
@@ -208,6 +209,9 @@ class StudentDashboardView(APIView):
         ).order_by('-start_time').first()
 
         return Response({
+            # Which student these are: the selection is a cookie every tab
+            # shares, so a tab can tell when another one switched student.
+            "student_id": str(student.id),
             "student_name": student.full_name or request.user.full_name or "",
             "mentor": student.mentor.full_name if student.mentor else None,
             "mentor_email": student.mentor.email if student.mentor else None,

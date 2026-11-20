@@ -96,6 +96,12 @@ export default function RedemoWorkspacePage({ user }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [historyKey, setHistoryKey] = useState(0);
   const [notice, setNotice] = useState(null);
+  // A notice belongs to its request: another one opens without it.
+  const [noticeFor, setNoticeFor] = useState(redemoId);
+  if (noticeFor !== redemoId) {
+    setNoticeFor(redemoId);
+    setNotice(null);
+  }
   const [closing, setClosing] = useState(null);
   // The dialog last opened ('close' or 'reopen'): kept while it animates closed, so it never turns into the other.
   const [lastClosing, setLastClosing] = useState(null);
@@ -219,6 +225,7 @@ export default function RedemoWorkspacePage({ user }) {
             <TabsContent value="scheduling">
               <RedemoScheduler
                 redemo={shown}
+                onRefused={() => setReloadKey((key) => key + 1)}
                 onScheduled={(next) =>
                   updated(
                     next,
@@ -297,6 +304,7 @@ export default function RedemoWorkspacePage({ user }) {
         onRescheduled={({ booking: replacement }) =>
           changed(`Moved ${replacement.student_name}'s Re-Demo to ${slotLabel(replacement.slot)}.`)
         }
+        onRefused={() => setReloadKey((key) => key + 1)}
       />
       {canChangeTutor ? (
         <AssignTutorDialog
@@ -304,6 +312,7 @@ export default function RedemoWorkspacePage({ user }) {
           open={acting?.action === 'change_tutor'}
           onOpenChange={closeActing}
           onAssigned={(next) => changed(`${next.tutor?.full_name} now teaches ${next.student_name}'s Re-Demo.`)}
+          onRefused={() => setReloadKey((key) => key + 1)}
         />
       ) : null}
       <CancelBookingDialog
@@ -315,6 +324,7 @@ export default function RedemoWorkspacePage({ user }) {
             `Cancelled ${next.student_name}'s Re-Demo (${cancelReasonLabel(next.cancel_reason_code)}). The request waits to be scheduled again.`
           )
         }
+        onRefused={() => setReloadKey((key) => key + 1)}
       />
     </Page>
   );

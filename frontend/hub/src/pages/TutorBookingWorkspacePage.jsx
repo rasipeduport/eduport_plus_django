@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, SearchXIcon } from 'lucide-react';
 
@@ -15,9 +15,11 @@ import { istMoment } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { reportWords } from '@/lib/reports';
 import { useHistory } from '@/hooks/use-history';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StartDialogWatch } from '@/components/bookings/start-dialog-watch';
 import { TutorBookingHeader } from '@/components/bookings/tutor-workspace/tutor-booking-header';
 import { TutorBookingOverview } from '@/components/bookings/tutor-workspace/tutor-booking-overview';
 import { TutorBookingSession } from '@/components/bookings/tutor-workspace/tutor-booking-session';
@@ -83,6 +85,21 @@ export default function TutorBookingWorkspacePage({ type }) {
   // History is read again after a Start made here, which changes the booking without reading it again.
   const [historyKey, setHistoryKey] = useState(0);
   const [notice, setNotice] = useState(null);
+  // A Start dialog is open: no read on coming back to the tab, and a read that
+  // comes in meanwhile waits in `held` until it closes -- a fresh booking could
+  // take Start, and the refusal it shows, away.
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const startOpen = useRef(false);
+  const held = useRef(null);
+  const startDialogChanged = useCallback((open) => {
+    startOpen.current = open;
+    setStartDialogOpen(open);
+    if (!open && held.current) {
+      const next = held.current;
+      held.current = null;
+      setBooking(next);
+    }
+  }, []);
 
   const reload = () => setReloadKey((key) => key + 1);
 
@@ -92,7 +109,9 @@ export default function TutorBookingWorkspacePage({ type }) {
     api
       .get(tutorBookingUrl(type, bookingId))
       .then((response) => {
-        if (active) setBooking(response.data);
+        if (!active) return;
+        if (startOpen.current) held.current = response.data;
+        else setBooking(response.data);
       })
       .catch((err) => {
         if (active) setFailure(bookingError(err, 'Could not load this booking.'));
@@ -130,6 +149,8 @@ export default function TutorBookingWorkspacePage({ type }) {
 
   // Started here: show the booking as the API answered it.
   const started = (updated) => {
+    // Newer than any read held while its dialog was open.
+    held.current = null;
     setBooking(updated);
     setHistoryKey((key) => key + 1);
     setNotice(
@@ -161,6 +182,19 @@ export default function TutorBookingWorkspacePage({ type }) {
     const timer = setTimeout(() => setReloadKey((key) => key + 1), wait > 0 ? wait : 15_000);
     return () => clearTimeout(timer);
   }, [startOpensAt, shown]);
+
+  // Its class ending changes what it offers (Start closes, the report opens): read it again then.
+  const endsAt = shown?.status === 'BOOKED' ? shown.slot?.ends_at : null;
+  useEffect(() => {
+    if (!endsAt) return undefined;
+    const wait = new Date(endsAt).getTime() - Date.now() + 1000;
+    if (!(wait > 0 && wait < 2 ** 31)) return undefined;
+    const timer = setTimeout(() => setReloadKey((key) => key + 1), wait);
+    return () => clearTimeout(timer);
+  }, [endsAt]);
+
+  // Kept open around a class: read again on coming back to the tab (a cancel or a move made meanwhile), at most every 30 seconds.
+  useLiveRefresh(reload, { minGapMs: 30_000, enabled: Boolean(shown) && !startDialogOpen });
 
   let content;
   if (failure && failure.status === 404) {
@@ -253,6 +287,7 @@ export default function TutorBookingWorkspacePage({ type }) {
   }
 
   return (
+    <StartDialogWatch.Provider value={startDialogChanged}>
     <Page>
       <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2 self-start" asChild>
         <Link to={back.to} state={back.state ?? undefined}>
@@ -263,5 +298,6 @@ export default function TutorBookingWorkspacePage({ type }) {
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
       {content}
     </Page>
+    </StartDialogWatch.Provider>
   );
 }

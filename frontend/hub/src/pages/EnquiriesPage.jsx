@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
 import { ENQUIRIES_URL, LEAD_STATUSES, SOURCE_FILTERS, enquiryError } from '@/lib/enquiries';
 import { useListParams } from '@/hooks/use-list-params';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
@@ -124,6 +125,8 @@ export default function EnquiriesPage({ user }) {
   }, [page, q, status, source, reloadKey]);
 
   const retry = () => setReloadKey((key) => key + 1);
+  // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(retry, { minGapMs: 30_000, enabled: failure?.status !== 403 });
   const handleAdded = (enquiry) => {
     setAdded(enquiry);
     retry();

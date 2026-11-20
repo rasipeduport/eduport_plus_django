@@ -24,9 +24,10 @@ function zoneLabel(date) {
 /**
  * Greeting + today's date. The name comes from the signed-in user the layout
  * already holds; the date and zone are the browser's, the same clock the
- * session times on this page are shown in.
+ * session times on this page are shown in. `actions` (a Refresh button, say)
+ * sits beside the date.
  */
-export function DashboardHeader({ user, subtitle = "Here's what's happening across Eduport Plus." }) {
+export function DashboardHeader({ user, subtitle = "Here's what's happening across Eduport Plus.", actions = null }) {
   const now = new Date();
   const firstName = (user?.full_name || '').trim().split(' ')[0] || null;
   const zone = zoneLabel(now);
@@ -41,6 +42,7 @@ export function DashboardHeader({ user, subtitle = "Here's what's happening acro
         <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2.5">
+        {actions}
         <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
           <CalendarDays className="size-4" />
         </span>

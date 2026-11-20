@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CalendarCheck, CalendarCheck2, CalendarDays, FileClock, GraduationCap, LayoutGrid, School } from 'lucide-react';
+import { AlertCircle, CalendarCheck, CalendarCheck2, CalendarDays, FileClock, GraduationCap, LayoutGrid, RefreshCwIcon, School } from 'lucide-react';
 
 import api from '@/lib/api';
 import { ACTIVITY_VIEW, EXAM_VIEW, HOMEWORK_VIEW, PERMISSIONS, SESSION_VIEW, STUDENT_VIEW, can, canAny, canOpenPage } from '@/lib/access';
@@ -77,6 +77,12 @@ export default function TutorMainDashboardPage({ user }) {
   const canSeeActivity = canAny(user, ACTIVITY_VIEW);
   const [data, setData] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Refresh, on request only: this page makes a dozen reads, so it is never read again on its own.
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    setRefreshing(true);
+    setReloadKey((key) => key + 1);
+  };
 
   useEffect(() => {
     let active = true;
@@ -124,6 +130,7 @@ export default function TutorMainDashboardPage({ user }) {
         additionalExams: list(exams, (d) => d.additional_exams ?? []),
         activity: list(activity, (d) => d.results ?? []),
       });
+      setRefreshing(false);
     })();
 
     return () => {
@@ -286,7 +293,16 @@ export default function TutorMainDashboardPage({ user }) {
 
   return (
     <Page>
-      <DashboardHeader user={user} subtitle="Your admissions and academic work at a glance." />
+      <DashboardHeader
+        user={user}
+        subtitle="Your admissions and academic work at a glance."
+        actions={
+          <Button variant="ghost" size="sm" onClick={refresh} disabled={refreshing || !data}>
+            <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
+            Refresh
+          </Button>
+        }
+      />
       <div className="flex flex-wrap gap-2">
         {canOpenPage(user, TUTOR_DASHBOARDS.admissions.to) ? (
           <Button variant="outline" asChild>

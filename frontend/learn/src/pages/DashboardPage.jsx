@@ -7,10 +7,14 @@ import { LastClassCard } from '../components/home/last-class-card';
 import { LiveExamCard } from '../components/home/live-exam-card';
 import { PastExamCard } from '../components/home/past-exam-card';
 import { ScorecardHero } from '../components/scorecard/scorecard-hero';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { cn } from '../lib/utils';
 
 export default function DashboardPage() {
-  const { selectedStudent, dashboardStats } = useStudent();
+  const { selectedStudent, dashboardStats, reloadStats } = useStudent();
+  // Read again when the student comes back to the tab (debounced), so a class
+  // booked, moved or cancelled meanwhile shows without a reload.
+  useRefreshOnFocus(reloadStats);
 
   if (!dashboardStats) {
     return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { PlayIcon } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/form-dialog';
 import { startError, startLabel, tutorBookingStartUrl } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
+import { StartDialogWatch } from './start-dialog-watch';
 
 /**
  * A blank tab for Google Meet, opened while the tutor's click still counts as
@@ -40,13 +41,21 @@ function showMeet(tab, link) {
  * started, the booking's Google Meet link opens in a new tab (see openMeetTab).
  * `onStarted` gets the booking as the API answers it; a refusal (the slot
  * ended, a reassignment) is shown in the dialog, and `onRefresh` is asked to
- * read the booking again once the dialog closes.
+ * read the booking again once the dialog closes. A page providing
+ * StartDialogWatch hears whether the dialog is open.
  */
 export function StartBookingButton({ booking, onStarted, onRefresh, size = 'sm' }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
   const [refused, setRefused] = useState(false);
+  const watch = useContext(StartDialogWatch);
+
+  useEffect(() => {
+    if (!open || !watch) return undefined;
+    watch(true);
+    return () => watch(false);
+  }, [open, watch]);
 
   if (!booking?.actions?.start) return null;
   const label = startLabel(booking.booking_type);
