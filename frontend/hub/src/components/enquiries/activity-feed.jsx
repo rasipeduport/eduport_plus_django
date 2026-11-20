@@ -5,6 +5,7 @@ import { enquiryBookingPath } from '@/lib/enquiries';
 import { activitySentence } from '@/lib/follow-ups';
 import { formatDateInZone, formatTimeInZone, utcToZonedWallTime } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 // Activity is read in Indian time, the zone the slots are booked in.
 const INDIAN_TIME = 'Asia/Kolkata';
@@ -36,6 +37,8 @@ function byDay(rows) {
  * BDE's own doing. The API sends nothing of who else acted, or why.
  */
 export function ActivityFeed({ rows, inEnquiry = false, from = null }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   return (
     <div className="flex flex-col gap-5">
       {byDay(rows).map((day) => (

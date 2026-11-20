@@ -287,7 +287,8 @@ function PendingActions({ pending, className }) {
       label: 'Classes to come that need a tutor',
       detail: byType(pending.needs_tutor),
       count: totalOf(pending.needs_tutor),
-      to: bookingsListPath(busierType(pending.needs_tutor), { assigned: 'false' }),
+      // The list the count is: booked, no tutor, class still to come.
+      to: bookingsListPath(busierType(pending.needs_tutor), { status: 'BOOKED', assigned: 'false', when: 'upcoming' }),
     });
   }
   if (pending.report_due) {

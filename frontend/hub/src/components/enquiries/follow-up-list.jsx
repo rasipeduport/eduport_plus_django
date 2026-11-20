@@ -21,6 +21,7 @@ import { ParentAnswerDialog } from '@/components/communications/parent-answer-di
 import { confirmationRequestNotice, istMoment, istParts, joined, parentAnswerNotice } from '@/lib/communications';
 import { phoneLinks, slotLabel, whatsAppUrl } from '@/lib/enquiries';
 import { FOLLOW_UP_STATE_VARIANTS, followUpPath, followUpTask } from '@/lib/follow-ups';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 const TYPE_ICONS = {
   NEW_ENQUIRY_CALL: UserPlusIcon,
@@ -201,9 +202,14 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
  * for or recording the parent's confirmation, or recording the call before a
  * class, in a dialog here; opening the enquiry, or its report to send it to
  * the parent. `onChanged` hears of each action taken here, with what to tell
- * the BDE; `from` is the way back from where one opens.
+ * the BDE; `from` is the way back from where one opens. `empty` stands in for
+ * the list while it has no rows -- its dialogs stay, so one open when a fresh
+ * read leaves the list empty stays open with what was entered. `onRefused`
+ * reads the list again once a dialog closes after a 404/409.
  */
-export function FollowUpList({ rows, pending, inEnquiry = false, from = null, onChanged }) {
+export function FollowUpList({ rows, pending, inEnquiry = false, from = null, onChanged, onRefused, empty = null }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   // The dialog open now, and the follow-up it is for -- kept while it closes.
   const [dialog, setDialog] = useState({ kind: null, followUp: null });
   const onAct = (kind, followUp) => setDialog({ kind, followUp });
@@ -271,24 +277,30 @@ export function FollowUpList({ rows, pending, inEnquiry = false, from = null, on
 
   return (
     <>
-      <ResponsiveList
-        label="Follow-ups"
-        columns={columns}
-        rows={rows}
-        rowKey={rowKey}
-        pending={pending}
-        minTableWidth={inEnquiry ? 820 : 1080}
-        renderCard={renderCard}
-      />
-      <RecordOutcomeDialog followUp={dialog.followUp} onRecorded={changed} {...dialogProps('outcome')} />
+      {!rows.length && empty ? (
+        empty
+      ) : (
+        <ResponsiveList
+          label="Follow-ups"
+          columns={columns}
+          rows={rows}
+          rowKey={rowKey}
+          pending={pending}
+          minTableWidth={inEnquiry ? 820 : 1080}
+          renderCard={renderCard}
+        />
+      )}
+      <RecordOutcomeDialog followUp={dialog.followUp} onRecorded={changed} onRefused={onRefused} {...dialogProps('outcome')} />
       <ConfirmationRequestDialog
         booking={dialogBooking(dialog.followUp)}
         onRequested={(data) => changed(confirmationRequestNotice(data))}
+        onRefused={onRefused}
         {...dialogProps('request')}
       />
       <ParentAnswerDialog
         booking={dialogBooking(dialog.followUp)}
         onRecorded={(data, outcome) => changed(parentAnswerNotice(data, outcome))}
+        onRefused={onRefused}
         {...dialogProps('answer')}
       />
     </>

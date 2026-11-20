@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,7 +23,9 @@ const TUTOR_NOTICE = 'The tutor assigned to the Re-Demo will see this reason.';
  * a BDE that the lead is theirs -- and its refusal is shown as it comes.
  * `onRequested` receives the API's answer.
  */
-export function RequestRedemoDialog({ booking, open, onOpenChange, requestUrl, onRequested }) {
+export function RequestRedemoDialog({ booking, open, onOpenChange, requestUrl, onRequested, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [reason, setReason] = useState('');
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState(null);
@@ -57,10 +60,13 @@ export function RequestRedemoDialog({ booking, open, onOpenChange, requestUrl, o
     setError(null);
     try {
       const response = await api.post(requestUrl, { reason: trimmed });
+      refusal.accepted();
       onRequested?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      setError(bookingError(err, 'Could not request the Re-Demo.').message);
+      const failure = bookingError(err, 'Could not request the Re-Demo.');
+      setError(failure.message);
+      refusal.refused(failure);
     } finally {
       setPending(false);
     }
@@ -69,7 +75,7 @@ export function RequestRedemoDialog({ booking, open, onOpenChange, requestUrl, o
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title={reviewing ? 'Confirm the Re-Demo request' : 'Request Re-Demo'}
       description={booking ? `${booking.student_name} · Demo · ${slotLabel(booking.slot)}` : null}
       error={error}

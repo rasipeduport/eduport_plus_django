@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeftIcon,
@@ -30,6 +30,7 @@ import { bookingTypeLabel, enquiryError, slotLabel } from '@/lib/enquiries';
 import { leadNotesUrl, leadUrl } from '@/lib/leads';
 import { useHistory } from '@/hooks/use-history';
 import { useBookingCommunication } from '@/hooks/use-booking-communication';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -122,11 +123,23 @@ export default function BookingWorkspacePage({ user, type }) {
   const [rescheduling, setRescheduling] = useState(null);
   const [requestingRedemo, setRequestingRedemo] = useState(null);
 
+  // A notice belongs to its booking: another one opens without it, but the
+  // replacement a move opens shows the move's (handed over in `carried`).
+  const carried = useRef(null);
+  const [noticeFor, setNoticeFor] = useState(bookingId);
+  if (noticeFor !== bookingId) {
+    setNoticeFor(bookingId);
+    setNotice(carried.current);
+    carried.current = null;
+  }
+
   const reload = () => setReloadKey((key) => key + 1);
-  // After a change: say what happened, and read the booking and everything under it again.
+  // After a change: say what happened, and read the booking and everything under it again --
+  // its communication once more about 20 seconds on, once the backend's outbox has applied the change.
   const changed = (message) => {
     setNotice(message);
     reload();
+    communication.refreshLater();
   };
 
   useEffect(() => {
@@ -168,6 +181,31 @@ export default function BookingWorkspacePage({ user, type }) {
   }, [canViewLead, leadId, reloadKey]);
   const shownLead = lead && lead.id === leadId ? lead : null;
 
+  // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(reload, { minGapMs: 30_000, enabled: Boolean(shown) });
+  // Its class ending changes what it offers (No-show, the report): read it again then.
+  const endsAt = shown?.status === 'BOOKED' ? shown.slot?.ends_at : null;
+  useEffect(() => {
+    if (!endsAt) return undefined;
+    const wait = new Date(endsAt).getTime() - Date.now() + 1000;
+    if (!(wait > 0 && wait < 2 ** 31)) return undefined;
+    const timer = setTimeout(() => setReloadKey((key) => key + 1), wait);
+    return () => clearTimeout(timer);
+  }, [endsAt]);
+
+  // Cancel opens at once, then reads the booking as it now stands -- No-show turns on once its class has started.
+  const openCancel = () => {
+    const id = shown.id;
+    setCancelling(shown);
+    api
+      .get(bookingUrl(type, id))
+      .then((response) => {
+        setBooking((current) => (current?.id === id ? response.data : current));
+        setCancelling((current) => (current?.id === id ? response.data : current));
+      })
+      .catch(() => {});
+  };
+
   const history = useHistory(shown ? bookingStudentHistoryUrl(type, shown.id) : null, reloadKey);
   const communication = useBookingCommunication(canViewCommunication && shown ? type : null, shown?.id, reloadKey);
 
@@ -204,7 +242,7 @@ export default function BookingWorkspacePage({ user, type }) {
     let tutorNote = '';
     if (tutor?.carried_over) tutorNote = ` ${tutor.tutor.full_name} still teaches it.`;
     else if (tutor?.tutor) tutorNote = ` ${tutor.tutor.full_name} isn't free then, so it needs a tutor.`;
-    setNotice(`Moved ${replacement.student_name}'s ${typeOf(replacement)} to ${slotLabel(replacement.slot)}.${tutorNote}`);
+    carried.current = `Moved ${replacement.student_name}'s ${typeOf(replacement)} to ${slotLabel(replacement.slot)}.${tutorNote}`;
     openBooking(replacement.id);
   };
 
@@ -262,7 +300,7 @@ export default function BookingWorkspacePage({ user, type }) {
         />
       ) : null,
       actions.cancel ? (
-        <Button key="cancel" variant="destructive" size="sm" onClick={() => setCancelling(shown)}>
+        <Button key="cancel" variant="destructive" size="sm" onClick={openCancel}>
           <CalendarX2Icon />
           Cancel booking
         </Button>
@@ -375,6 +413,7 @@ export default function BookingWorkspacePage({ user, type }) {
             if (!open) setAssigning(null);
           }}
           onAssigned={(updated) => changed(`${updated.tutor?.full_name} now teaches ${updated.student_name}'s ${typeOf(updated)}.`)}
+          onRefused={reload}
         />
       ) : null}
 
@@ -385,6 +424,7 @@ export default function BookingWorkspacePage({ user, type }) {
           if (!open) setRescheduling(null);
         }}
         onRescheduled={moved}
+        onRefused={reload}
       />
 
       <CancelBookingDialog
@@ -396,6 +436,7 @@ export default function BookingWorkspacePage({ user, type }) {
         onCancelled={(updated) =>
           changed(`Cancelled ${updated.student_name}'s ${typeOf(updated)} (${cancelReasonLabel(updated.cancel_reason_code)}).`)
         }
+        onRefused={reload}
       />
 
       <RequestRedemoDialog
@@ -405,6 +446,7 @@ export default function BookingWorkspacePage({ user, type }) {
           if (!open) setRequestingRedemo(null);
         }}
         requestUrl={requestingRedemo ? bookingRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
+        onRefused={reload}
         onRequested={(redemo) =>
           changed(
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">

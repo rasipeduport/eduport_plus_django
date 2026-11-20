@@ -184,7 +184,7 @@ function NothingToSchedule({ redemo }) {
  * time. The API checks it all again, and its refusal is shown as it comes,
  * with the options read again. With nothing to schedule, nothing is read.
  */
-export function RedemoScheduler({ redemo, onScheduled }) {
+export function RedemoScheduler({ redemo, onScheduled, onRefused }) {
   const enabled = Boolean(redemo.actions?.schedule);
   const redemoId = redemo.id;
   const [mode, setMode] = useState(BY_TIME);
@@ -267,6 +267,8 @@ export function RedemoScheduler({ redemo, onScheduled }) {
       setError(refusal.conflict?.message ? `${refusal.message} ${refusal.conflict.message}` : refusal.message);
       // What was free a moment ago may not be any more: show the options as they are now.
       setReloadKey((key) => key + 1);
+      // Out of date (404/409): the request itself may have changed meanwhile, so the workspace reads it again.
+      if (refusal.status === 404 || refusal.status === 409) onRefused?.();
     } finally {
       setPending(false);
     }

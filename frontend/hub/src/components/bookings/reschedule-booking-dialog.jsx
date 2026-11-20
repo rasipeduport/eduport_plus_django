@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -36,7 +37,9 @@ function OptionsSkeleton() {
  * the list, never typed. POST /api/bookings/<type>/<id>/reschedule/ checks it
  * all again and answers the replacement booking.
  */
-export function RescheduleBookingDialog({ booking, open, onOpenChange, onRescheduled }) {
+export function RescheduleBookingDialog({ booking, open, onOpenChange, onRescheduled, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -96,11 +99,13 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
         time: chosen.time,
         reason,
       });
+      refusal.accepted();
       onRescheduled?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      const refusal = bookingError(err, 'Could not move the booking.');
-      setError(refusal.conflict?.message ? `${refusal.message} ${refusal.conflict.message}` : refusal.message);
+      const failure = bookingError(err, 'Could not move the booking.');
+      setError(failure.conflict?.message ? `${failure.message} ${failure.conflict.message}` : failure.message);
+      refusal.refused(failure);
       // What was open a moment ago may not be any more: show the slots as they are now.
       setTime('');
       setReloadKey((key) => key + 1);
@@ -176,7 +181,7 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title="Reschedule booking"
       description={
         booking ? `${booking.student_name} · ${bookingTypeLabel(booking.booking_type)} · now ${slotLabel(booking.slot)}` : null

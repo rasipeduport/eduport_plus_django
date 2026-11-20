@@ -273,16 +273,28 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
   const [reload, setReload] = useState(0);
   const endpoint = saleUrl(enquiryId);
   const refresh = (next) => { if (next) setData(next); else setReload((key) => key + 1); onChanged?.(); };
+  // A read the payment poll made: once it finds the payment settled, the workspace reads the enquiry again (its header shows Enrolled).
+  const polled = useRef(false);
+  const changedRef = useRef(onChanged);
+  useEffect(() => { changedRef.current = onChanged; });
   useEffect(() => {
     let active = true;
-    api.get(endpoint).then(({ data: state }) => { if (active) { setData(state); setError(null); } })
+    api.get(endpoint).then(({ data: state }) => {
+      if (!active) return;
+      setData(state);
+      setError(null);
+      if (polled.current) {
+        polled.current = false;
+        if (!state.payments.some((payment) => payment.status === 'PENDING')) changedRef.current?.();
+      }
+    })
       .catch((err) => { if (active) setError(salesError(err, 'Could not load the initial sale.')); });
     return () => { active = false; };
   }, [endpoint, reload]);
   const pendingPayment = data?.payments.find((payment) => payment.status === 'PENDING');
   useEffect(() => {
     if (!pendingPayment) return;
-    const timer = setTimeout(() => setReload((key) => key + 1), 10000);
+    const timer = setTimeout(() => { polled.current = true; setReload((key) => key + 1); }, 10000);
     return () => clearTimeout(timer);
   }, [pendingPayment, reload]);
   if (error && !data) return <ErrorState message={error.message} onRetry={() => refresh()} />;

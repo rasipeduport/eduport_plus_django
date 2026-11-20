@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import api from '../lib/api';
@@ -19,11 +19,23 @@ export default function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  // The student shown now, for reloadStats to compare an answer with when it
+  // arrives (not with the one shown when it set off).
+  const selectedRef = useRef(null);
+  useEffect(() => {
+    selectedRef.current = studentProfile;
+  }, [studentProfile]);
+
+  // Only the latest load counts: one an earlier, slower load would overwrite is kept.
+  const loadSeq = useRef(0);
 
   const fetchUserAndStats = async () => {
+    const seq = ++loadSeq.current;
+    const latest = () => seq === loadSeq.current;
     try {
       // 1. Fetch current user + linked students from session /me/
       const meResponse = await api.get('/api/auth/me/');
+      if (!latest()) return;
       const userData = meResponse.data.user;
       setUser(userData);
 
@@ -71,6 +83,7 @@ export default function AuthProvider({ children }) {
       // 2. A student is selected -> fetch their dashboard stats
       try {
         const statsResponse = await api.get('/api/student/dashboard/');
+        if (!latest()) return;
         setStats(statsResponse.data);
 
         // Redirect into the app if currently on a gateway route. Note:
@@ -80,6 +93,7 @@ export default function AuthProvider({ children }) {
           navigate('/dashboard');
         }
       } catch (err) {
+        if (!latest()) return;
         const code = err.response?.data?.error;
         if (code === 'STUDENT_PROFILE_NOT_FOUND') {
           if (location.pathname !== '/waiting-room') navigate('/waiting-room');
@@ -92,6 +106,7 @@ export default function AuthProvider({ children }) {
         }
       }
     } catch {
+      if (!latest()) return;
       setUser(null);
       setStudents([]);
       setStudentProfile(null);
@@ -107,17 +122,29 @@ export default function AuthProvider({ children }) {
   const reloadStats = async () => {
     try {
       const statsResponse = await api.get('/api/student/dashboard/');
+      // The selected student is a cookie every tab shares: after a switch in
+      // another tab the dashboard answers for that student. Then re-resolve who
+      // is selected and read their stats with them, so one student's stats never
+      // show under another's name.
+      const answeredFor = statsResponse.data?.student_id;
+      const shown = selectedRef.current?.id;
+      if (answeredFor && shown && String(answeredFor) !== String(shown)) {
+        await fetchUserAndStats();
+        return;
+      }
       setStats(statsResponse.data);
     } catch (err) {
       console.error('Failed to reload dashboard stats', err);
     }
   };
 
-  // Switch the active child: persist the choice server-side, then re-resolve.
+  // Switch the active child: persist the choice server-side, then re-resolve
+  // once -- the dashboard's route reads the new child on its own; already
+  // there, it is read here.
   const switchStudent = async (studentId) => {
     await api.post('/api/auth/select-student/', { student_id: studentId });
-    await fetchUserAndStats();
-    navigate('/dashboard');
+    if (location.pathname === '/dashboard') await fetchUserAndStats();
+    else navigate('/dashboard');
   };
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { NOT_CONFIRMED_REASONS, PARENT_ANSWERS, communicationError, parentConfirmationUrl } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,9 @@ export function Choice({ name, option, checked, onChange }) {
  * step, so the cancellation is agreed to first. The API checks every rule
  * again, and its refusal is shown as it comes.
  */
-export function ParentAnswerDialog({ booking, open, onOpenChange, onRecorded }) {
+export function ParentAnswerDialog({ booking, open, onOpenChange, onRecorded, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [outcome, setOutcome] = useState('');
   const [reason, setReason] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -58,10 +61,13 @@ export function ParentAnswerDialog({ booking, open, onOpenChange, onRecorded }) 
     try {
       const answer = notConfirmed ? { outcome, reason, confirm_cancellation: true } : { outcome };
       const response = await api.post(parentConfirmationUrl(booking.booking_type, booking.id), answer);
+      refusal.accepted();
       onRecorded?.(response.data, outcome);
       onOpenChange(false);
     } catch (err) {
-      setError(communicationError(err, "Could not record the parent's answer.").message);
+      const failure = communicationError(err, "Could not record the parent's answer.");
+      setError(failure.message);
+      refusal.refused(failure);
     } finally {
       setPending(false);
     }
@@ -70,7 +76,7 @@ export function ParentAnswerDialog({ booking, open, onOpenChange, onRecorded }) 
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title="Record parent's answer"
       description={
         booking ? `${booking.student_name} · ${bookingTypeLabel(booking.booking_type)} · ${slotLabel(booking.slot)}` : null

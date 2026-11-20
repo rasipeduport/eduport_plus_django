@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { enquiryError } from '@/lib/enquiries';
 import { BDE_FOLLOW_UPS_URL, FOLLOW_UP_DUE, FOLLOW_UP_TYPES } from '@/lib/follow-ups';
 import { useListParams } from '@/hooks/use-list-params';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableSkeleton } from '@/components/table-skeleton';
@@ -73,6 +74,8 @@ export default function FollowUpsPage() {
   }, [page, due, type, reloadKey]);
 
   const retry = () => setReloadKey((key) => key + 1);
+  // Reminders fall due and leave on their own: read again every minute while the tab is shown, and on coming back to it.
+  useLiveRefresh(retry, { intervalMs: 60_000, enabled: failure?.status !== 403 });
   const changed = (message) => {
     setNotice(message);
     retry();
@@ -101,37 +104,45 @@ export default function FollowUpsPage() {
       list = (
         <>
           {failure ? <ErrorState message={failure.message} onRetry={retry} pending={pending} /> : null}
-          {rows.length ? (
-            <FollowUpList rows={rows} pending={pending} from={from} onChanged={changed} />
-          ) : total > 0 ? (
-            <EmptyState
-              icon={SearchXIcon}
-              title="Nothing on this page"
-              description="This page is past the last one."
-              action={
-                <Button variant="outline" onClick={() => update({ page: null })}>
-                  Go to the first page
-                </Button>
-              }
-            />
-          ) : due || type ? (
-            <EmptyState
-              icon={CheckCircle2Icon}
-              title={`No ${dueLabel ? dueLabel.toLowerCase() : 'matching'} follow-ups`}
-              description="Nothing to follow up here right now."
-              action={
-                <Button variant="outline" onClick={clear}>
-                  Show every follow-up
-                </Button>
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={CheckCircle2Icon}
-              title="You're all caught up"
-              description="Reminders appear here when an enquiry is assigned to you, a class is coming up, a tutor submits a report or a Re-Demo is scheduled."
-            />
-          )}
+          {/* Without rows the list shows why in their place, and stays: a dialog open when a fresh read empties it stays open. */}
+          <FollowUpList
+            rows={rows}
+            pending={pending}
+            from={from}
+            onChanged={changed}
+            onRefused={retry}
+            empty={
+              total > 0 ? (
+                <EmptyState
+                  icon={SearchXIcon}
+                  title="Nothing on this page"
+                  description="This page is past the last one."
+                  action={
+                    <Button variant="outline" onClick={() => update({ page: null })}>
+                      Go to the first page
+                    </Button>
+                  }
+                />
+              ) : due || type ? (
+                <EmptyState
+                  icon={CheckCircle2Icon}
+                  title={`No ${dueLabel ? dueLabel.toLowerCase() : 'matching'} follow-ups`}
+                  description="Nothing to follow up here right now."
+                  action={
+                    <Button variant="outline" onClick={clear}>
+                      Show every follow-up
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  icon={CheckCircle2Icon}
+                  title="You're all caught up"
+                  description="Reminders appear here when an enquiry is assigned to you, a class is coming up, a tutor submits a report or a Re-Demo is scheduled."
+                />
+              )
+            }
+          />
           {total > 0 ? (
             <Pagination
               page={page}

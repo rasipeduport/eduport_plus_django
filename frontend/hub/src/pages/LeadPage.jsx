@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import api from '@/lib/api';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { can, PERMISSIONS } from '@/lib/access';
 import { bookingState } from '@/lib/bookings';
 import { enquiryError, formatDay, phoneLinks, slotLabel } from '@/lib/enquiries';
@@ -175,6 +176,12 @@ export default function LeadPage({ user }) {
       active = false;
     };
   }, [leadId, reloadKey]);
+
+  // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(() => setReloadKey((key) => key + 1), {
+    minGapMs: 30_000,
+    enabled: Boolean(lead) && failure?.status !== 404 && failure?.status !== 403,
+  });
 
   useEffect(() => {
     if (!canAssign) return undefined;

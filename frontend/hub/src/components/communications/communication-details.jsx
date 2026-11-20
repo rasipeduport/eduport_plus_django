@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MESSAGE_MOMENTS, istMoment, joined, messageLine, stepLabel, stepLine, unplannedText } from '@/lib/communications';
 import { MessageStateBadge, ParentConfirmationBadge, TaskStateBadge } from './communication-badges';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 function Detail({ label, children }) {
   return (
@@ -91,6 +92,8 @@ function MessageItem({ message }) {
  * nothing here changes anything itself.
  */
 export function CommunicationDetails({ communication, onRequestConfirmation, onRecordAnswer }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const { booking, parent_confirmation: confirmation, tasks, messages, actions = {} } = communication;
   const canRequest = Boolean(actions.request_confirmation && onRequestConfirmation);
   const canRecord = Boolean(actions.record_confirmation && onRecordAnswer);

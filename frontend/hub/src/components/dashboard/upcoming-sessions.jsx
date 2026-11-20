@@ -9,6 +9,7 @@ import { remainingToday } from '@/lib/session-day';
 import { sessionHours } from '@/lib/session-status';
 import { getInitials } from '@/lib/utils';
 import { Panel, PanelEmpty, ScrollList } from './dashboard-primitives';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 const MAX_VISIBLE = 5;
 
@@ -86,6 +87,8 @@ function SessionRow({ session, grade }) {
  * student's name and avatar). Each class joins its assigned tutor's Meet room.
  */
 export function UpcomingSessions({ sessions, students }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const now = new Date();
   const rows = remainingToday(sessions, now);
   const gradeOf = new Map(students.map((s) => [s.id, s.grade]));

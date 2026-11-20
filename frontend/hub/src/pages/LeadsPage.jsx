@@ -7,6 +7,7 @@ import { PERMISSIONS, can } from '@/lib/access';
 import { LEAD_STATUSES, SOURCE_FILTERS, enquiryError } from '@/lib/enquiries';
 import { LEADS_URL, LEAD_BDES_URL, UNASSIGNED, ownerOptions } from '@/lib/leads';
 import { useListParams } from '@/hooks/use-list-params';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
@@ -109,6 +110,8 @@ export default function LeadsPage({ user }) {
   }
 
   const retry = () => setReloadKey((key) => key + 1);
+  // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(retry, { minGapMs: 30_000, enabled: failure?.status !== 403 });
   const changed = (text, lead) => {
     setNotice({ text, id: lead.id });
     retry();
