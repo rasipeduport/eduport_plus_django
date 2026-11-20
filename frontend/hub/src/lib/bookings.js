@@ -114,6 +114,31 @@ export function shownDayOf(dates, day) {
   return day || dates.find((entry) => entry.slots.some((slot) => slot.bookable))?.date || dates[0]?.date || '';
 }
 
+/**
+ * An Indian date from the API ("2026-11-24") as a calendar's day: midnight of
+ * those numbers on this device's clock, so the calendar shows that very date
+ * in any zone. Undefined for anything else.
+ */
+export function calendarDay(value) {
+  const [year, month, day] = String(value ?? '').split('-').map(Number);
+  return year && month && day ? new Date(year, month - 1, day) : undefined;
+}
+
+/**
+ * A calendar's day back as the API's "YYYY-MM-DD", from its own numbers --
+ * never toISOString(), which reads it in UTC and, east of Greenwich (India
+ * included), names the day before.
+ */
+export function isoDay(date) {
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// What the reschedule dialog says once a time today is chosen: nobody is told of a move by itself.
+export const SAME_DAY_NOTICE =
+  'The parent and tutor are not notified automatically about this schedule change. ' +
+  'Please contact them and confirm their availability before proceeding.';
+
 // The administrators' Bookings pages: one per type (/bookings/demo, /bookings/diagnostic),
 // the Re-Demo requests a tab of Demo's (?tab=redemo).
 export const bookingsPagePath = (type) => `/bookings/${typePath(type)}`;

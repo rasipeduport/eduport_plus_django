@@ -57,7 +57,16 @@ from .models import (
     ReDemoStatus,
     RescheduleReason,
 )
-from .scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME, bookable_window, slot_instants
+from .scheduling import (
+    BOOKING_TIMEZONE,
+    BOOKING_TIMEZONE_NAME,
+    RESCHEDULE_MIN_LEAD,
+    active_times,
+    bookable_window,
+    reschedule_dates,
+    reschedule_starts_after,
+    slot_instants,
+)
 
 CANCEL_BOOKING = 'accounts.cancel_booking'
 RESCHEDULE_BOOKING = 'accounts.reschedule_booking'
@@ -596,7 +605,7 @@ def tutor_outcome(result):
 
 # ----------------------------------------------------------- rescheduling
 
-def reschedule_options(booking, now):
+def reschedule_options(booking, now, local_date=None):
     """
     Where ``booking`` may move: every slot of its type the public pages offer,
     with its seats, whether the booking could go there and why not -- full,
@@ -604,9 +613,18 @@ def reschedule_options(booking, now):
     tutor is assigned, whether they are free there (Q24: they carry over only
     if so). What the Admin's picker shows; reschedule_booking checks it all
     again under its locks.
+
+    ``dates`` are the pages' seven dates (the picker's date buttons) -- or,
+    with ``local_date``, that one date of the wider reschedule window, for the
+    picker's calendar. ``window`` says what the calendar may offer, in Indian
+    dates: ``today``, ``first`` (today while one of its times may still be
+    chosen, else tomorrow) and ``last``. Either way a time starting less than
+    RESCHEDULE_MIN_LEAD from now is left out. The caller checks that
+    ``local_date`` lies in reschedule_dates.
     """
     tutor = booking.assigned_tutor
     refusal = move_refusal(booking, now)
+    days = None if local_date is None else [local_date]
     return {
         'booking_id': str(booking.id),
         'booking_type': booking.booking_type,
@@ -615,11 +633,34 @@ def reschedule_options(booking, now):
         'tutor': _person(tutor),
         'reschedulable': refusal is None,
         'refusal': refusal,
-        'dates': slot_options(booking.booking_type, booking.lead, tutor, now, booking=booking),
+        'window': reschedule_window(booking.booking_type, now),
+        'dates': slot_options(
+            booking.booking_type, booking.lead, tutor, now, booking=booking,
+            days=days, starts_after=reschedule_starts_after(now),
+        ),
     }
 
 
-def slot_options(booking_type, lead, tutor, now, booking=None):
+def reschedule_window(booking_type, now):
+    """
+    The dates a booking of ``booking_type`` may be moved to, as the picker's
+    calendar offers them (Indian dates, ISO): ``today``; ``first``, which is
+    today only while one of its times starts at least RESCHEDULE_MIN_LEAD from
+    now; ``last``, RESCHEDULE_DAYS days on; and that lead in minutes.
+    """
+    dates = reschedule_dates(now)
+    today = dates[0]
+    earliest = reschedule_starts_after(now)
+    today_open = any(slot_instants(today, start)[0] >= earliest for start in active_times(booking_type))
+    return {
+        'today': today.isoformat(),
+        'first': (today if today_open else dates[1]).isoformat(),
+        'last': dates[-1].isoformat(),
+        'min_lead_minutes': int(RESCHEDULE_MIN_LEAD.total_seconds() // 60),
+    }
+
+
+def slot_options(booking_type, lead, tutor, now, booking=None, days=None, starts_after=None):
     """
     Every slot of ``booking_type`` the public pages offer, by date, as a
     staff picker shows them: its seats, whether ``lead`` could be booked
@@ -628,8 +669,12 @@ def slot_options(booking_type, lead, tutor, now, booking=None):
     free there. ``booking`` is the one being moved, whose own slot and
     commitments are left out. reschedule_options' dates, and the Re-Demo
     picker's (bookings.redemos.slot_options).
+
+    ``days`` and ``starts_after`` are bookable_window's: other dates than the
+    pages' window, and no time starting before that instant. Only the
+    reschedule passes them; the Re-Demo pickers keep the pages' window.
     """
-    window = bookable_window(booking_type, now)
+    window = bookable_window(booking_type, now, days=days, starts_after=starts_after)
     tutor_assignable = is_assignable_tutor(tutor)
     # Read the tutor's and the lead's commitments once, over the whole window.
     instants = [slot_instants(day, entry['time']) for day, entries in window for entry in entries]

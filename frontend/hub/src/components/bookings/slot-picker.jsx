@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { slotParts } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
 
@@ -18,9 +19,16 @@ const UNAVAILABLE = {
  * tutor not free (TUTOR_BUSY). With `tutorBadges` and a `tutor`, an open
  * time also says whether that tutor is free there. `day` is the date shown
  * (lib/bookings shownDayOf), `time` the one picked.
+ *
+ * `moreDates` closes the row of dates (the reschedule's calendar). For a day
+ * the buttons do not hold, `slots` gives its times, `loading` stands in for
+ * them while they are read, and `empty` is said when there are none.
  */
-export function SlotPicker({ dates, day, time, onDayChange, onTimeChange, tutor, tutorBadges = true, disabled, name }) {
-  const slots = dates.find((entry) => entry.date === day)?.slots ?? [];
+export function SlotPicker({
+  dates, day, time, onDayChange, onTimeChange, tutor, tutorBadges = true, disabled, name,
+  moreDates = null, slots: daySlots, loading = false, empty = null,
+}) {
+  const slots = daySlots ?? dates.find((entry) => entry.date === day)?.slots ?? [];
   return (
     <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Dates">
@@ -40,11 +48,14 @@ export function SlotPicker({ dates, day, time, onDayChange, onTimeChange, tutor,
             </Button>
           );
         })}
+        {moreDates}
       </div>
 
-      <fieldset className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto pr-1" disabled={disabled}>
+      <fieldset className="flex max-h-[40vh] flex-col gap-2 overflow-y-auto pr-1" disabled={disabled} aria-busy={loading || undefined}>
         <legend className="sr-only">Times</legend>
-        {slots.map((slot) => {
+        {loading ? [0, 1, 2].map((key) => <Skeleton key={key} className="h-12" />) : null}
+        {!loading && !slots.length && empty ? <div className="text-muted-foreground text-sm">{empty}</div> : null}
+        {(loading ? [] : slots).map((slot) => {
           const why =
             slot.lead_conflict?.message ??
             (slot.unavailable_reason === 'TUTOR_BUSY' ? slot.tutor_reason?.message : UNAVAILABLE[slot.unavailable_reason]);
