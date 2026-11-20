@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { Choice } from '@/components/communications/parent-answer-dialog';
 import { CALL_OUTCOME_CHOICES, callOutcomeUrl, communicationError } from '@/lib/communications';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
@@ -12,7 +13,9 @@ import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
  * the reminder. The API checks every rule again, and its refusal is shown as
  * it comes.
  */
-export function RecordOutcomeDialog({ followUp, open, onOpenChange, onRecorded }) {
+export function RecordOutcomeDialog({ followUp, open, onOpenChange, onRecorded, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [outcome, setOutcome] = useState('');
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
@@ -36,10 +39,13 @@ export function RecordOutcomeDialog({ followUp, open, onOpenChange, onRecorded }
     try {
       await api.post(callOutcomeUrl(booking.booking_type, booking.id), { outcome });
       const label = CALL_OUTCOME_CHOICES.find((option) => option.value === outcome)?.label ?? outcome;
+      refusal.accepted();
       onRecorded?.(`Recorded “${label}” for the call to ${followUp.enquiry.parent_name}.`);
       onOpenChange(false);
     } catch (err) {
-      setError(communicationError(err, 'Could not record the call.').message);
+      const failure = communicationError(err, 'Could not record the call.');
+      setError(failure.message);
+      refusal.refused(failure);
     } finally {
       setPending(false);
     }
@@ -48,7 +54,7 @@ export function RecordOutcomeDialog({ followUp, open, onOpenChange, onRecorded }
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title="Record the pre-activity call"
       description={
         booking

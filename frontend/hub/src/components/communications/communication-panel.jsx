@@ -25,6 +25,12 @@ export function CommunicationPanel({ state, onChanged, children }) {
     onRecordAnswer: () => setDialog('answer'),
   };
 
+  // A request refused as out of date (404/409): the communication, and the page, as they now stand.
+  const refused = () => {
+    state.retry();
+    onChanged?.();
+  };
+
   function done(data, message) {
     state.update(data);
     setNotice(message);
@@ -52,12 +58,14 @@ export function CommunicationPanel({ state, onChanged, children }) {
             open={dialog === 'request'}
             onOpenChange={(open) => setDialog(open ? 'request' : null)}
             onRequested={(data) => done(data, confirmationRequestNotice(data))}
+            onRefused={refused}
           />
           <ParentAnswerDialog
             booking={booking}
             open={dialog === 'answer'}
             onOpenChange={(open) => setDialog(open ? 'answer' : null)}
             onRecorded={(data, outcome) => done(data, parentAnswerNotice(data, outcome))}
+            onRefused={refused}
           />
         </>
       ) : null}

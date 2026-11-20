@@ -256,6 +256,7 @@ function BookingsView({ user, type }) {
             if (!open) setAssigning(null);
           }}
           onAssigned={(booking) => changed(`${booking.tutor?.full_name} now teaches ${booking.student_name}'s ${typeOf(booking)}.`)}
+          onRefused={reload}
         />
       ) : null}
     </Page>

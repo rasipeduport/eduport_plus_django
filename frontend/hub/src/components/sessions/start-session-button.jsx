@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PlayIcon } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -35,13 +35,20 @@ function showMeet(tab, link) {
  * class's room -- its assigned tutor's Meet link, never the student's -- opens
  * in a new tab and `onStarted` gets the session as
  * the API answers it; a refusal is shown in the dialog, and `onRefresh` reads
- * the list again once it closes.
+ * the list again once it closes. `onOpenChange` hears whether the dialog is
+ * open (false again should the button go while it is).
  */
-export function StartSessionButton({ session, asTutor = false, onStarted, onRefresh }) {
+export function StartSessionButton({ session, asTutor = false, onStarted, onRefresh, onOpenChange }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
   const [refused, setRefused] = useState(false);
+
+  useEffect(() => {
+    if (!open || !onOpenChange) return undefined;
+    onOpenChange(true);
+    return () => onOpenChange(false);
+  }, [open, onOpenChange]);
 
   const meetLink = classMeetLink(session);
   const studentName = session.students?.full_name || 'the student';

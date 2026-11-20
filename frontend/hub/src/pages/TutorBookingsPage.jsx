@@ -62,6 +62,16 @@ function Meeting({ booking }) {
   return <JoinMeetButton link={booking.tutor_meet_link} label={`Join the Google Meet for ${booking.student_name}`} />;
 }
 
+/** The soonest `start_opens_at` among `bookings` the API refuses to start yet (START_TOO_EARLY), or null. */
+function nextStartOpening(bookings) {
+  let soonest = null;
+  for (const booking of bookings ?? []) {
+    if (booking.start_refusal?.code !== 'START_TOO_EARLY' || !booking.start_opens_at) continue;
+    if (soonest === null || new Date(booking.start_opens_at) < new Date(soonest)) soonest = booking.start_opens_at;
+  }
+  return soonest;
+}
+
 /**
  * What a row offers first: Start Demo / Start Diagnostic while the API allows
  * it, else Submit Feedback / Enter Results once the class is started and its
@@ -142,6 +152,21 @@ export default function TutorBookingsPage({ type }) {
       active = false;
     };
   }, [type, reloadKey]);
+
+  // Start opens five minutes before a class (the API's rule, each row's
+  // start_refusal until then): the list is read again once, when the soonest
+  // row shown opens, so its Start shows then -- as the booking's own page does.
+  // Should this device's clock run ahead of the server's, it is read again every
+  // fifteen seconds until the API offers it.
+  const startOpensAt = nextStartOpening(data?.results);
+  useEffect(() => {
+    if (!startOpensAt) return undefined;
+    const wait = new Date(startOpensAt).getTime() - Date.now() + 1000;
+    // Further off than a timer can wait (about 24 days): read again on the next visit.
+    if (!(wait < 2 ** 31)) return undefined;
+    const timer = setTimeout(() => setReloadKey((key) => key + 1), wait > 0 ? wait : 15_000);
+    return () => clearTimeout(timer);
+  }, [startOpensAt, data]);
 
   // Another view keeps the search and the dates; a filter the new view has no use for goes.
   const changeView = (next) => {

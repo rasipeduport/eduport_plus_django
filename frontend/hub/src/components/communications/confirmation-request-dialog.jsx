@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { communicationError, confirmationRequestUrl, messagePreviewUrl } from '@/lib/communications';
@@ -18,7 +19,9 @@ const lacking = (items) => items.map((item) => item.label).join(', ');
  * answered with the request already written, never a second. The API checks
  * every rule again, and its refusal is shown as it comes.
  */
-export function ConfirmationRequestDialog({ booking, open, onOpenChange, onRequested }) {
+export function ConfirmationRequestDialog({ booking, open, onOpenChange, onRequested, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [preview, setPreview] = useState(null);
   const [previewFailure, setPreviewFailure] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -60,10 +63,12 @@ export function ConfirmationRequestDialog({ booking, open, onOpenChange, onReque
     setError(null);
     try {
       const response = await api.post(confirmationRequestUrl(bookingType, bookingId));
+      refusal.accepted();
       onRequested?.(response.data);
       onOpenChange(false);
     } catch (err) {
       const failure = communicationError(err, 'Could not request the confirmation.');
+      refusal.refused(failure);
       const missing = err?.response?.data?.missing;
       setError(Array.isArray(missing) && missing.length ? `${failure.message} Missing: ${lacking(missing)}.` : failure.message);
     } finally {
@@ -103,7 +108,7 @@ export function ConfirmationRequestDialog({ booking, open, onOpenChange, onReque
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title="Request confirmation"
       description={
         booking ? `${booking.student_name} · ${bookingTypeLabel(booking.booking_type)} · ${slotLabel(booking.slot)}` : null

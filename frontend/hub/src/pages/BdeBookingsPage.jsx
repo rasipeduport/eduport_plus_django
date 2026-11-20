@@ -9,6 +9,7 @@ import { BOOKING_STATUSES, DEFAULT_WHEN, DEMO_ONLY_STATUSES, bdeBookingsUrl } fr
 import { enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
 import { showsStudentTime } from '@/lib/timezone';
 import { useListParams } from '@/hooks/use-list-params';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
@@ -105,6 +106,9 @@ export default function BdeBookingsPage({ user, type }) {
       active = false;
     };
   }, [type, noun, page, q, status, when, from, to, reloadKey]);
+
+  // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(() => setReloadKey((key) => key + 1), { minGapMs: 30_000, enabled: failure?.status !== 403 });
 
   // Each booking opens in its enquiry's workspace; its way back is this list, filters and page included.
   const opening = (booking) => ({

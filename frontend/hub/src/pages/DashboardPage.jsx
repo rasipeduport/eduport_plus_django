@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { RefreshCwIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { EXAM_VIEW, PERMISSIONS, can, canAny } from '@/lib/access';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
@@ -50,6 +52,13 @@ export default function DashboardPage({ user }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Refresh, on request only: this page makes six reads, so it is never read again on its own.
+  const [reloadKey, setReloadKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    setRefreshing(true);
+    setReloadKey((key) => key + 1);
+  };
 
   useEffect(() => {
     let active = true;
@@ -80,14 +89,17 @@ export default function DashboardPage({ user }) {
       if (stats.status === 'rejected') {
         console.error('Stats loading failed', stats.reason);
         setError(stats.reason?.response?.data?.message || 'Some dashboard figures could not be loaded.');
+      } else {
+        setError('');
       }
       setLoading(false);
+      setRefreshing(false);
     })();
 
     return () => {
       active = false;
     };
-  }, [canSeeExams]);
+  }, [canSeeExams, reloadKey]);
 
   const attention = useMemo(
     () =>
@@ -110,7 +122,15 @@ export default function DashboardPage({ user }) {
         <DashboardSkeleton />
       ) : (
         <>
-          <DashboardHeader user={user} />
+          <DashboardHeader
+            user={user}
+            actions={
+              <Button variant="ghost" size="sm" onClick={refresh} disabled={refreshing}>
+                <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
+                Refresh
+              </Button>
+            }
+          />
 
           {error && <p className="text-destructive text-sm">{error}</p>}
 

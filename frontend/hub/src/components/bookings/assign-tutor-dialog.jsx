@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { ErrorState } from '@/components/page/states';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { bookingError, bookingTutorUrl, bookingTutorsUrl } from '@/lib/bookings';
 import { slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
@@ -122,7 +123,9 @@ function TutorGroup({ title, tutors, empty, name, selected, onSelect }) {
  * on its way; it closes once the API has taken it. A dialog, or on a phone
  * the Hub's bottom sheet (as the student invitation's).
  */
-export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
+export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned, onRefused }) {
+  // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const isMobile = useIsMobile();
   const radioName = useId();
   const [data, setData] = useState(null);
@@ -184,7 +187,7 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
 
   // Nothing closes the dialog while the assignment is on its way.
   const close = (next) => {
-    if (!pending) onOpenChange(next);
+    if (!pending) refusal.onOpenChange(next);
   };
 
   async function assign() {
@@ -193,11 +196,13 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned }) {
     setError(null);
     try {
       const response = await api.put(bookingTutorUrl(bookingType, bookingId), { tutor_id: selected });
+      refusal.accepted();
       onAssigned?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      const refusal = bookingError(err, 'Could not assign the tutor.');
-      setError(refusal.conflict?.message ? `${refusal.message} ${refusal.conflict.message}` : refusal.message);
+      const failure = bookingError(err, 'Could not assign the tutor.');
+      setError(failure.conflict?.message ? `${failure.message} ${failure.conflict.message}` : failure.message);
+      refusal.refused(failure);
       // What was free a moment ago may not be any more: show the list as it is now.
       setSelected('');
       setReloadKey((key) => key + 1);

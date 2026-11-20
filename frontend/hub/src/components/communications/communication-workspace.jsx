@@ -35,6 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MessageStateBadge, ParentConfirmationBadge, TaskStateBadge } from './communication-badges';
 import { CommunicationBody } from './communication-details';
+import { useClockTick } from '@/hooks/use-clock-tick';
 
 // Who acts on a task (backend communications.models.OwnerRole).
 const OWNER_ROLES = { BDE: 'BDE', ADMIN: 'Admin' };
@@ -149,6 +150,8 @@ function stepNote(state, message) {
  * current step. Nothing to act on here.
  */
 export function WorkflowTimeline({ communication }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const { booking, tasks, messages } = communication;
   const latest = latestMessages(messages);
   const current = tasks.find((task) => task.status === 'OPEN');
@@ -333,6 +336,8 @@ export function MessageRow({ message }) {
  * (backend communications.services.record_call_outcome) -- or that there is none.
  */
 export function CallOutcomes({ communication }) {
+  // Its time labels move with the clock while the page stays open.
+  useClockTick();
   const { booking, tasks } = communication;
   const calls = tasks.filter((task) => task.step === 'PRE_ACTIVITY_CALL');
   if (!calls.length) return <Empty>No call is planned for this booking.</Empty>;

@@ -1653,3 +1653,32 @@ class ManualQuotaSyncTests(APITestCase):
         with patch.object(quota_sync.GoogleSheetsService, 'fetch_enrollment_rows', return_value=rows):
             report = quota_sync.sync_student_quotas_from_sheet()
         self.assertEqual((report.students_updated, report.students_unchanged), (0, 1))
+
+
+class DashboardNamesItsStudentTests(APITestCase):
+    """
+    F4 P6: the Learn dashboard says which student it answers for, so a tab can
+    tell when another tab switched the selected student (a shared cookie).
+    """
+
+    def setUp(self):
+        self.parent = User.objects.create_user(
+            email="two_children@eduport.com", password="password", full_name="Parent Two", role="STUDENT"
+        )
+        self.riya = Student.objects.create(profile=self.parent, student_code="TWO001", full_name="Riya", status="ACTIVE")
+        self.arjun = Student.objects.create(profile=self.parent, student_code="TWO002", full_name="Arjun", status="ACTIVE")
+        self.client.force_authenticate(user=self.parent)
+
+    def dashboard_after_selecting(self, student):
+        selected = self.client.post(reverse('accounts:select-student'), {"student_id": str(student.id)}, format='json')
+        self.assertEqual(selected.status_code, status.HTTP_200_OK, selected.data)
+        response = self.client.get(reverse('student-dashboard'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        return response.data
+
+    def test_the_dashboard_names_the_selected_student_and_follows_a_switch(self):
+        data = self.dashboard_after_selecting(self.riya)
+        self.assertEqual((data["student_id"], data["student_name"]), (str(self.riya.id), "Riya"))
+        # Another tab switches: the same session's next read answers for the new student, and says so.
+        data = self.dashboard_after_selecting(self.arjun)
+        self.assertEqual((data["student_id"], data["student_name"]), (str(self.arjun.id), "Arjun"))

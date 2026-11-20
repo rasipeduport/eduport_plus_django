@@ -64,7 +64,18 @@ export function EnquiryFollowUps({ enquiryId, from, onChanged }) {
       />
     );
   } else {
-    content = <FollowUpList rows={data.results} inEnquiry from={from} onChanged={changed} />;
+    content = (
+      <FollowUpList
+        rows={data.results}
+        inEnquiry
+        from={from}
+        onChanged={changed}
+        onRefused={() => {
+          retry();
+          onChanged?.();
+        }}
+      />
+    );
   }
 
   const summary = data?.summary;

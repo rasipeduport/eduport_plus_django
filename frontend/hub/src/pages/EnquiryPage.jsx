@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, ReceiptIndianRupeeIcon, SearchXIcon } from 'lucide-react';
 
@@ -9,6 +9,7 @@ import { bookingTypeLabel, enquiryError, enquiryTimezoneUrl, enquiryUrl, slotLab
 import { COMING_SOON } from '@/lib/navigation';
 import { savedTimezoneLabel } from '@/lib/timezone';
 import { useHistory } from '@/hooks/use-history';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -95,6 +96,10 @@ export default function EnquiryPage({ user }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [enquiry, setEnquiry] = useState(null);
   const [failure, setFailure] = useState(null);
+  // A read in place that failed: said above the workspace, which stays.
+  const [refreshFailure, setRefreshFailure] = useState(null);
+  // Only the latest read in place counts; an action's own answer, or another enquiry, drops any still on its way.
+  const refreshSeq = useRef(0);
   const [reloadKey, setReloadKey] = useState(0);
   const [cancelling, setCancelling] = useState(null);
   const [requestingRedemo, setRequestingRedemo] = useState(null);
@@ -146,16 +151,49 @@ export default function EnquiryPage({ user }) {
 
   /** The enquiry as an action here answered it: its bookings, and so its History, as they now stand. */
   const changedTo = (updated) => {
+    refreshSeq.current += 1;
+    setRefreshFailure(null);
     setEnquiry(updated);
     setHistoryKey((key) => key + 1);
   };
 
-  /** The enquiry as it now stands, read in place -- after an action in a booking's communication sheet. */
+  /**
+   * The enquiry as it now stands, read in place -- after an action in a
+   * booking's communication sheet, a refusal, or on coming back to the tab --
+   * resolving to it (null when another read or change came first, or it
+   * failed). Gone (404/403) says so in place of the workspace; any other
+   * failure is said above it, and the workspace stays.
+   */
   const refreshEnquiry = () => {
-    api
+    const seq = ++refreshSeq.current;
+    return api
       .get(enquiryUrl(enquiryId))
-      .then((response) => changedTo(response.data))
-      .catch((err) => setFailure(enquiryError(err, 'Could not load this enquiry.')));
+      .then((response) => {
+        if (seq !== refreshSeq.current) return null;
+        changedTo(response.data);
+        return response.data;
+      })
+      .catch((err) => {
+        if (seq !== refreshSeq.current) return null;
+        const refusal = enquiryError(err, 'Could not load this enquiry.');
+        if (refusal.status === 404 || refusal.status === 403) setFailure(refusal);
+        else setRefreshFailure(refusal);
+        return null;
+      });
+  };
+
+  // Kept open while the BDE works elsewhere: read again on coming back to the tab, at most every 30 seconds.
+  useLiveRefresh(refreshEnquiry, { minGapMs: 30_000, enabled: Boolean(enquiry) && !failure });
+
+  // A booking in the cancel dialog as the enquiry lists it.
+  const cancellable = (booking, of) => ({ ...booking, student_name: of.student_name, slot: { date: booking.date, time: booking.time } });
+  // Cancel opens at once, then reads the booking as it now stands -- No-show turns on once its class has started (L3).
+  const openCancel = (booking) => {
+    setCancelling(cancellable(booking, enquiry));
+    refreshEnquiry().then((fresh) => {
+      const now = fresh?.bookings?.find((entry) => entry.id === booking.id && entry.booking_type === booking.booking_type);
+      if (now) setCancelling((current) => (current?.id === now.id ? cancellable(now, fresh) : current));
+    });
   };
 
   /** Open `booking`'s communication sheet, or close it (null) and stay on Bookings. */
@@ -177,8 +215,10 @@ export default function EnquiryPage({ user }) {
 
   useEffect(() => {
     let active = true;
+    refreshSeq.current += 1;
     setEnquiry(null);
     setFailure(null);
+    setRefreshFailure(null);
     api
       .get(enquiryUrl(enquiryId))
       .then((response) => {
@@ -203,6 +243,7 @@ export default function EnquiryPage({ user }) {
     const recipient = { dialCode: enquiry.phone_dial_code, number: enquiry.phone_number };
     content = (
       <>
+        {refreshFailure ? <ErrorState message={refreshFailure.message} onRetry={refreshEnquiry} /> : null}
         <EnquiryHeader enquiry={enquiry} canShareLinks={canShareLinks} />
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -227,9 +268,7 @@ export default function EnquiryPage({ user }) {
               bookings={enquiry.bookings ?? []}
               highlight={highlight}
               onOpenCommunication={canSeeCommunication ? showCommunication : null}
-              onCancel={(booking) =>
-                setCancelling({ ...booking, student_name: enquiry.student_name, slot: { date: booking.date, time: booking.time } })
-              }
+              onCancel={openCancel}
               recipient={recipient}
               onInviteRefused={refreshEnquiry}
               onRequestRedemo={(booking) =>
@@ -299,6 +338,7 @@ export default function EnquiryPage({ user }) {
           if (!open) setCancelling(null);
         }}
         cancelUrl={(booking) => bdeBookingCancelUrl(booking.booking_type, booking.id)}
+        onRefused={refreshEnquiry}
         onCancelled={(updated) => {
           // The API answers the enquiry as it now stands.
           changedTo(updated);
@@ -314,6 +354,7 @@ export default function EnquiryPage({ user }) {
           if (!open) setRequestingRedemo(null);
         }}
         requestUrl={requestingRedemo ? bdeRedemoUrl(requestingRedemo.booking_type, requestingRedemo.id) : ''}
+        onRefused={refreshEnquiry}
         onRequested={(updated) => {
           // The API answers the enquiry as it now stands.
           changedTo(updated);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import api from '@/lib/api';
 import { FormDialog } from '@/components/form-dialog';
+import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { CANCEL_REASONS, bookingCancelUrl, bookingError } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
@@ -12,9 +13,11 @@ import { cn } from '@/lib/utils';
  * never typed (Q9): No-show only once its scheduled time has passed, whether
  * or not the tutor started it (the booking's actions.no_show, D12). The API
  * checks it all again -- for a BDE, that the
- * booking's lead is theirs -- and its refusal is shown as it comes.
+ * booking's lead is theirs -- and its refusal is shown as it comes; once the
+ * dialog closes after a 404/409, `onRefused` lets the page read it again.
  */
-export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, cancelUrl }) {
+export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, cancelUrl, onRefused }) {
+  const refusal = useRefusalRefresh(onOpenChange, onRefused);
   const [reason, setReason] = useState('');
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
@@ -38,10 +41,13 @@ export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, 
     try {
       const url = cancelUrl ? cancelUrl(booking) : bookingCancelUrl(booking.booking_type, booking.id);
       const response = await api.post(url, { reason });
+      refusal.accepted();
       onCancelled?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      setError(bookingError(err, 'Could not cancel the booking.').message);
+      const failure = bookingError(err, 'Could not cancel the booking.');
+      setError(failure.message);
+      refusal.refused(failure);
     } finally {
       setPending(false);
     }
@@ -50,7 +56,7 @@ export function CancelBookingDialog({ booking, open, onOpenChange, onCancelled, 
   return (
     <FormDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={refusal.onOpenChange}
       title="Cancel booking"
       description={
         booking ? `${booking.student_name} · ${bookingTypeLabel(booking.booking_type)} · ${slotLabel(booking.slot)}` : null
