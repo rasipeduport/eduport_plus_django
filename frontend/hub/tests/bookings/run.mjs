@@ -81,7 +81,7 @@ const { mount, act, canOpenPage, homePage, ACTION_LABELS, actionLabel, describeA
   await import(pathToFileURL(bundle).href);
 const { bdeBookingParams, classDateSpan, indianToday, readBdeBookingFilters, rangeLabel, enquiryTimezoneUrl, leadTimezoneUrl,
   TIMEZONE_OPTIONS, listedTimezone, savedTimezoneLabel, showsStudentTime, studentTime, studentTimeState,
-  studentTimezoneLabel } = await import(pathToFileURL(libsBundle).href);
+  studentTimezoneLabel, calendarDay, isoDay } = await import(pathToFileURL(libsBundle).href);
 
 // ------------------------------------------------------------------ helpers
 const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -686,6 +686,164 @@ test('Reschedule: a refusal at move time is shown and the slots read again; a bo
   await click(button('Reschedule', topDialog()));
   assert.match(clean(topDialog().textContent), /This booking has already started, so it can no longer be moved\./);
   assert.ok(button('Move booking', topDialog()).disabled);
+});
+
+// ------------------------------------------------- Reschedule: More dates (the calendar)
+// The reschedule window as the API names it, in Indian dates: today is 30 Oct, the calendar reaches 29 Nov.
+const RANGE = { today: '2026-10-30', first: '2026-10-30', last: '2026-11-29', min_lead_minutes: 30 };
+const CAL_OPTIONS = { ...OPTIONS, window: RANGE };
+const DAY_SLOTS = {
+  '2026-10-30': [optionSlot('19:30', { seats_left: 2 })],
+  '2026-11-12': [optionSlot('10:00'), optionSlot('19:30', { bookable: false, unavailable_reason: 'FULL', seats_left: 0 })],
+};
+/** reschedule-options as the API answers it: the date buttons, or with ?date= that one date of the window. */
+const calendarOptions = (entry) => ok(entry.params?.date
+  ? { ...CAL_OPTIONS, dates: [{ date: entry.params.date, slots: DAY_SLOTS[entry.params.date] ?? [] }] }
+  : CAL_OPTIONS);
+const dateButtons = (root = topDialog()) => [...root.querySelectorAll('[aria-label="Dates"] button')];
+// A day of the month shown (never another month's day shown beside it), and whether the calendar refuses it.
+const dayCell = (date) => document.querySelector(`td[data-day="${date}"]:not([data-outside])`);
+const dayDisabled = (date) => dayCell(date).hasAttribute('data-disabled');
+const optionCalls = () => calls('GET', at(RIYA, 'reschedule-options/'));
+
+/** Open More dates (the last date option), turn to `date`'s month and pick it. */
+async function pickCalendarDate(date) {
+  await click(dateButtons().at(-1));
+  for (let turn = 0; turn < 2 && !dayCell(date); turn += 1) await click(button('Go to the Next Month'));
+  for (let turn = 0; turn < 2 && !dayCell(date); turn += 1) await click(button('Go to the Previous Month'));
+  assert.ok(dayCell(date), `no ${date} in the calendar`);
+  await click(dayCell(date).querySelector('button'));
+}
+
+test('Reschedule: the date helpers keep an Indian date as it is, whatever the device zone', () => {
+  for (const value of ['2026-10-30', '2026-11-29', '2026-12-31', '2027-01-01', '2026-03-29', '2026-11-01']) {
+    assert.equal(isoDay(calendarDay(value)), value);
+  }
+  assert.equal(calendarDay('not a date'), undefined);
+  assert.equal(calendarDay(''), undefined);
+  // Local midnight of 24 Nov is still 24 Nov, even where toISOString() would call it the 23rd.
+  assert.equal(isoDay(new Date(2026, 10, 24)), '2026-11-24');
+});
+
+test('Reschedule: More dates closes the date buttons, opens a calendar of the API window, and a date beyond the buttons reads its own times', async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA, { actions: CAN_ALL }),
+    [`GET ${at(RIYA, 'reschedule-options/')}`]: calendarOptions,
+    [`POST ${at(RIYA, 'reschedule/')}`]: () => ok({ booking: detail(MOVED), previous: { id: RIYA.id, status: 'RESCHEDULED' },
+      tutor: { carried_over: true, tutor: { id: 't-a', full_name: 'Tutor A' }, reason: null } }),
+    [`GET ${at(MOVED)}`]: detail(MOVED),
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Reschedule', topDialog()));
+  const dialog = topDialog();
+  // The date buttons as they were, then More dates last.
+  assert.deepEqual(dateButtons(dialog).map((b) => clean(b.textContent)), ['Sat, 31 Oct(1)', 'Mon, 2 Nov(1)', 'More dates']);
+  assert.equal(optionCalls().length, 1);
+
+  await click(dateButtons(dialog).at(-1));
+  // Today and the limits are the API's Indian dates, never this device's clock.
+  assert.equal(document.querySelector('td[data-today]')?.getAttribute('data-day'), '2026-10-30');
+  assert.ok(dayDisabled('2026-10-29'), 'a past date is disabled');
+  assert.ok(!dayDisabled('2026-10-30'), 'today may be picked');
+  assert.ok(!dayDisabled('2026-10-31'));
+  assert.equal(button('Go to the Previous Month').getAttribute('aria-disabled'), 'true', 'no month before today');
+  await click(button('Go to the Next Month'));
+  assert.ok(!dayDisabled('2026-11-29'), '30 days on may be picked');
+  assert.ok(dayDisabled('2026-11-30'), 'beyond 30 days is disabled');
+  assert.equal(button('Go to the Next Month').getAttribute('aria-disabled'), 'true', 'no month past the window');
+  await click(dayCell('2026-11-12').querySelector('button'));
+
+  // The date is read on its own, the same API with ?date=, and named on the button.
+  assert.deepEqual(optionCalls().map((entry) => entry.params?.date ?? null), [null, '2026-11-12']);
+  assert.deepEqual(dateButtons().map((b) => clean(b.textContent)), ['Sat, 31 Oct(1)', 'Mon, 2 Nov(1)', 'Thu, 12 Nov']);
+  assert.ok(!radio('10:00 AM').disabled);
+  assert.ok(radio('7:30 PM').disabled && clean(choice('7:30 PM').textContent).includes('Fully booked'));
+  await click(radio('10:00 AM'));
+  await click(radio('Tutor unavailable'));
+  assert.ok(!clean(topDialog().textContent).includes('not notified automatically'), 'not today: no notice');
+  await click(button('Move booking', topDialog()));
+  assert.deepEqual(calls('POST', at(RIYA, 'reschedule/')).map((entry) => entry.data),
+    [{ date: '2026-11-12', time: '10:00', reason: 'TUTOR_UNAVAILABLE' }]);
+});
+
+test('Reschedule: today from the calendar brings the same-day notice; a button date picked there is that button; a refusal reads the date again', async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA, { actions: CAN_ALL }),
+    [`GET ${at(RIYA, 'reschedule-options/')}`]: calendarOptions,
+    [`POST ${at(RIYA, 'reschedule/')}`]: () => fail(409, { error: 'SLOT_TOO_SOON',
+      message: 'That time starts in less than 30 minutes, or has already started. Please choose a later time.' }),
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Reschedule', topDialog()));
+
+  // A date the buttons hold, picked in the calendar, is that button: nothing more is read.
+  await pickCalendarDate('2026-11-02');
+  assert.equal(optionCalls().length, 1);
+  assert.equal(clean(dateButtons().at(-1).textContent), 'More dates');
+  assert.equal(dateButtons()[1].getAttribute('aria-pressed'), 'true');
+  assert.match(clean(choice('7:30 PM').textContent), /1 seat left/);
+
+  await pickCalendarDate('2026-10-30');
+  assert.equal(clean(dateButtons().at(-1).textContent), 'Fri, 30 Oct');
+  assert.deepEqual(dateButtons().slice(0, 2).map((b) => b.getAttribute('aria-pressed')), ['false', 'false']);
+  assert.ok(!clean(topDialog().textContent).includes('not notified automatically'), 'no notice before a time is chosen');
+  await click(radio('7:30 PM'));
+  assert.match(clean(topDialog().textContent),
+    /The parent and tutor are not notified automatically about this schedule change\. Please contact them and confirm their availability before proceeding\./);
+  await click(radio('Parent asked to move'));
+  await click(button('Move booking', topDialog()));
+  assert.deepEqual(calls('POST', at(RIYA, 'reschedule/')).map((entry) => entry.data),
+    [{ date: '2026-10-30', time: '19:30', reason: 'PARENT_REQUEST' }]);
+  assert.match(clean(topDialog().textContent), /That time starts in less than 30 minutes/);
+  // Read again, the buttons and the picked date alike; the date stays shown, the time is cleared.
+  assert.deepEqual(optionCalls().map((entry) => entry.params?.date ?? null), [null, '2026-10-30', null, '2026-10-30']);
+  assert.equal(clean(dateButtons().at(-1).textContent), 'Fri, 30 Oct');
+  assert.ok(button('Move booking', topDialog()).disabled);
+  assert.ok(!clean(topDialog().textContent).includes('not notified automatically'));
+});
+
+test('Reschedule: only the latest calendar date is shown; a slow earlier answer is dropped; a failed one can be tried again', async () => {
+  const slow = deferred();
+  let failOnce = true;
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA, { actions: CAN_ALL }),
+    [`GET ${at(RIYA, 'reschedule-options/')}`]: (entry) => {
+      if (entry.params?.date === '2026-11-20') return slow.promise.then(() => calendarOptions(entry));
+      if (entry.params?.date === '2026-11-21' && failOnce) {
+        failOnce = false;
+        return fail(503, { error: 'CAPACITY_CHECK_UNAVAILABLE', message: 'Could not check this slot right now. Please try again.' });
+      }
+      return calendarOptions(entry);
+    },
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Reschedule', topDialog()));
+  await pickCalendarDate('2026-11-20');
+  assert.equal(topDialog().querySelector('fieldset[aria-busy="true"]') !== null, true, 'its times are loading');
+  await pickCalendarDate('2026-11-12');
+  slow.resolve();
+  await settle();
+  assert.equal(clean(dateButtons().at(-1).textContent), 'Thu, 12 Nov');
+  assert.ok(choice('10:00 AM') && !radio('10:00 AM').disabled, 'the 12th is shown, not the 20th');
+
+  await pickCalendarDate('2026-11-21');
+  assert.match(clean(topDialog().textContent), /Could not check this slot right now\. Please try again\./);
+  await click(button('Try again', topDialog()));
+  assert.match(clean(topDialog().textContent), /No time can be chosen on this date\./);
+});
+
+test('Reschedule: with no window from the API there is no More dates; the buttons work as before', async () => {
+  serve({
+    [`GET ${LIST}`]: list([RIYA]),
+    [`GET ${at(RIYA)}`]: detail(RIYA, { actions: CAN_ALL }),
+    [`GET ${at(RIYA, 'reschedule-options/')}`]: OPTIONS,
+  });
+  await open(`/bookings?booking=${RIYA.id}`, ADMIN);
+  await click(button('Reschedule', topDialog()));
+  assert.deepEqual(dateButtons().map((b) => clean(b.textContent)), ['Sat, 31 Oct(1)', 'Mon, 2 Nov(1)']);
 });
 
 test('Cancel: a reason from the list, No-show only once the scheduled time has passed; then a fresh list', async () => {

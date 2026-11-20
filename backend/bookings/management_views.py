@@ -8,7 +8,7 @@ Booking management for the Admin / Coordinator (bookings.coordination):
     PUT    /api/bookings/<type>/<id>/tutor/ {tutor_id}  assign or reassign its tutor
     DELETE /api/bookings/<type>/<id>/tutor/             unassign it
     GET    /api/bookings/<type>/<id>/history/           its timeline, across its reschedule chain
-    GET    /api/bookings/<type>/<id>/reschedule-options/  where it may move, and whether its tutor is free there
+    GET    /api/bookings/<type>/<id>/reschedule-options/[?date=]  where it may move, and whether its tutor is free there
     POST   /api/bookings/<type>/<id>/reschedule/ {date, time, reason}  move it
     POST   /api/bookings/<type>/<id>/cancel/ {reason}   cancel it, or mark it No-show
     POST   /api/bookings/diagnostic/<id>/demo-invite/   the parent's invitation to book a Demo from it
@@ -67,6 +67,7 @@ from core.permissions import ByMethod, HasAppPermission
 from . import coordination, redemos, timeline
 from .booking_service import (
     BookingError,
+    DateOutOfWindow,
     LeadTimeConflict,
     TutorNotAssignable,
     TutorUnavailable,
@@ -84,7 +85,7 @@ from .booking_service import (
 from .demo_invites import invite_body, issue_invite
 from .models import BookingSlot, BookingType, DemoBooking, booking_model
 from .public_views import PATH_TYPES
-from .scheduling import BOOKING_TIMEZONE_NAME, slot_instants
+from .scheduling import BOOKING_TIMEZONE_NAME, reschedule_dates, slot_instants
 from .serializers import (
     CancelSerializer,
     RedemoCloseSerializer,
@@ -295,11 +296,15 @@ class BookingHistoryView(APIView):
 
 class RescheduleOptionsView(APIView):
     """
-    GET /api/bookings/<type>/<id>/reschedule-options/
+    GET /api/bookings/<type>/<id>/reschedule-options/[?date=YYYY-MM-DD]
     The slots the booking may move to (coordination.reschedule_options): the
     public pages' window with seats, why a slot is out of reach, and whether
-    its tutor is free there. ``reschedulable`` is false, with the reason, for a
-    booking that can no longer move.
+    its tutor is free there -- or, with ``date``, that one Indian date of the
+    reschedule window (today through RESCHEDULE_DAYS days on), as the picker's
+    calendar asks. ``window`` gives the calendar its dates. ``reschedulable``
+    is false, with the reason, for a booking that can no longer move. 400
+    VALIDATION_ERROR for a malformed date, DATE_OUT_OF_WINDOW for one outside
+    the window.
     """
     permission_classes = [IsAuthenticated, VIEW_ALL_BOOKINGS, RESCHEDULE_BOOKING]
 
@@ -307,7 +312,18 @@ class RescheduleOptionsView(APIView):
         booking = _bookings(booking_type).filter(pk=pk).first()
         if booking is None:
             return _no_booking()
-        return Response(coordination.reschedule_options(booking, timezone.now()), status=status.HTTP_200_OK)
+        now = timezone.now()
+        local_date = None
+        raw = request.query_params.get('date')
+        if raw is not None:
+            try:
+                local_date = datetime.strptime(raw, '%Y-%m-%d').date()
+            except ValueError:
+                return _error('VALIDATION_ERROR', 'Choose a date as YYYY-MM-DD.', status.HTTP_400_BAD_REQUEST,
+                              fields={'date': ['Enter a date as YYYY-MM-DD.']})
+            if local_date not in reschedule_dates(now):
+                return _error(DateOutOfWindow.code, DateOutOfWindow.message, DateOutOfWindow.http_status)
+        return Response(coordination.reschedule_options(booking, now, local_date), status=status.HTTP_200_OK)
 
 
 class BookingRescheduleView(APIView):
@@ -315,10 +331,12 @@ class BookingRescheduleView(APIView):
     POST /api/bookings/<type>/<id>/reschedule/ {"date": "YYYY-MM-DD", "time": "HH:MM", "reason": <code>}
     Move the booking (booking_service.reschedule_booking): 201 with the
     replacement booking in full, the one it replaced, and whether the tutor
-    carried over (``tutor``, Q24). 400 VALIDATION_ERROR or DATE_OUT_OF_WINDOW;
-    409 BOOKING_COMPLETED, BOOKING_CANCELLED, BOOKING_RESCHEDULED,
+    carried over (``tutor``, Q24). 400 VALIDATION_ERROR or DATE_OUT_OF_WINDOW
+    (today through RESCHEDULE_DAYS days on, Indian dates); 409
+    BOOKING_COMPLETED, BOOKING_CANCELLED, BOOKING_RESCHEDULED,
     BOOKING_STARTED (its tutor has started it; a booking whose scheduled time
-    passed with no start may still move), SLOT_UNAVAILABLE, SLOT_FULL,
+    passed with no start may still move), SLOT_TOO_SOON (starting less than
+    RESCHEDULE_MIN_LEAD from now), SLOT_UNAVAILABLE, SLOT_FULL,
     SAME_SLOT, LEAD_ALREADY_BOOKED or LEAD_TIME_CONFLICT (with ``conflict``,
     Q26); 503 when the slot is busy.
     """

@@ -11328,7 +11328,7 @@
   },
   "bookings.reschedule_options @ admin": {
    "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "note": "Where the booking may move, with seats and whether its tutor is free there. With the reschedule calendar (2026-11-20): a `window` object (today, first, last, min_lead_minutes) names the Indian dates the picker's calendar may offer -- today through 30 days on, a time at least 30 minutes away; `?date=` answers one such date. Same permissions; fields only.",
    "result": {
     "fields": [
      "booking_id",
@@ -11358,7 +11358,12 @@
      "slot.starts_at",
      "slot.time",
      "timezone",
-     "tutor"
+     "tutor",
+     "window",
+     "window.first",
+     "window.last",
+     "window.min_lead_minutes",
+     "window.today"
     ],
     "records": [
      "booking_a",
@@ -11417,7 +11422,7 @@
   },
   "bookings.reschedule_options @ su_mentor": {
    "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "note": "Where the booking may move, with seats and whether its tutor is free there. With the reschedule calendar (2026-11-20): a `window` object (today, first, last, min_lead_minutes) names the Indian dates the picker's calendar may offer -- today through 30 days on, a time at least 30 minutes away; `?date=` answers one such date. Same permissions; fields only.",
    "result": {
     "fields": [
      "booking_id",
@@ -11447,7 +11452,12 @@
      "slot.starts_at",
      "slot.time",
      "timezone",
-     "tutor"
+     "tutor",
+     "window",
+     "window.first",
+     "window.last",
+     "window.min_lead_minutes",
+     "window.today"
     ],
     "records": [
      "booking_a",
@@ -11458,7 +11468,7 @@
   },
   "bookings.reschedule_options @ su_tutor": {
    "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "note": "Where the booking may move, with seats and whether its tutor is free there. With the reschedule calendar (2026-11-20): a `window` object (today, first, last, min_lead_minutes) names the Indian dates the picker's calendar may offer -- today through 30 days on, a time at least 30 minutes away; `?date=` answers one such date. Same permissions; fields only.",
    "result": {
     "fields": [
      "booking_id",
@@ -11488,7 +11498,12 @@
      "slot.starts_at",
      "slot.time",
      "timezone",
-     "tutor"
+     "tutor",
+     "window",
+     "window.first",
+     "window.last",
+     "window.min_lead_minutes",
+     "window.today"
     ],
     "records": [
      "booking_a",
@@ -11499,7 +11514,7 @@
   },
   "bookings.reschedule_options @ superuser": {
    "decision": "Booking operations (Phase 5.2 P3, Admin side; Q9, Q22, Q23, Q24, Q26 answered 2026-10-31): the history timeline needs accounts.view_all_bookings; reschedule options and rescheduling need view_all_bookings and accounts.reschedule_booking (the Admin only, Q23); cancelling needs view_all_bookings and accounts.cancel_booking, so a BDE, who holds cancel_booking for their own leads (Q22), never reaches these Admin routes. Reasons are codes from a fixed list (Q9), never free text (M1).",
-   "note": "Where the booking may move, with seats and whether its tutor is free there.",
+   "note": "Where the booking may move, with seats and whether its tutor is free there. With the reschedule calendar (2026-11-20): a `window` object (today, first, last, min_lead_minutes) names the Indian dates the picker's calendar may offer -- today through 30 days on, a time at least 30 minutes away; `?date=` answers one such date. Same permissions; fields only.",
    "result": {
     "fields": [
      "booking_id",
@@ -11529,7 +11544,12 @@
      "slot.starts_at",
      "slot.time",
      "timezone",
-     "tutor"
+     "tutor",
+     "window",
+     "window.first",
+     "window.last",
+     "window.min_lead_minutes",
+     "window.today"
     ],
     "records": [
      "booking_a",

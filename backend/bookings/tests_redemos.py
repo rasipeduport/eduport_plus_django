@@ -45,6 +45,7 @@ from .booking_service import (
     RedemoRemarksTooLong,
     RedemoScheduled,
     SlotFull,
+    SlotTooSoon,
     TutorNotAssignable,
     TutorUnavailable,
     assign_tutor,
@@ -304,6 +305,26 @@ class ScheduleTests(RedemoTestCase):
         with self.assertRaises(RedemoRemarksTooLong):
             self.book(redemo, at=MORNING, remarks='x' * 2001)
         self.assertEqual(self.book(redemo, at=MORNING).slot.local_time, MORNING)
+
+    def test_a_scheduled_redemo_moves_by_the_reschedule_window_but_is_booked_by_the_pages(self):
+        redemo = self.ask()
+        today = date(2026, 10, 29)  # AFTER's Indian date, at 12:00
+        # Booking a new Re-Demo keeps the pages' window: never today, never past its seven days.
+        for day in (today, today + timedelta(days=8)):
+            with self.subTest(day=str(day)), self.assertRaises(DateOutOfWindow):
+                self.book(redemo, day=day)
+        booking = self.book(redemo)
+        # Moving it is a reschedule: today, at least 30 minutes on, through 30 days on -- still a Re-Demo, with its tutor.
+        with self.assertRaises(SlotTooSoon):
+            reschedule_booking(booking, today, MORNING, reason_code=RescheduleReason.PARENT_REQUEST, now=AFTER)
+        moved = reschedule_booking(booking, today, EVENING, reason_code=RescheduleReason.PARENT_REQUEST, now=AFTER).booking
+        self.assertEqual((moved.slot.local_date, moved.redemo_for_id, moved.assigned_tutor), (today, redemo.pk, self.tutor))
+        later = reschedule_booking(moved, today + timedelta(days=30), EVENING, reason_code=RescheduleReason.OTHER,
+                                   now=AFTER).booking
+        self.assertEqual((later.slot.local_date, later.redemo_for_id), (today + timedelta(days=30), redemo.pk))
+        with self.assertRaises(DateOutOfWindow):
+            reschedule_booking(later, today + timedelta(days=31), EVENING, reason_code=RescheduleReason.OTHER, now=AFTER)
+        self.assertEqual(state(ReDemoRequest.objects.get(pk=redemo.pk), AFTER).booking.pk, later.pk)
 
     def test_a_scheduled_redemo_changes_as_a_booking(self):
         redemo = self.ask()
