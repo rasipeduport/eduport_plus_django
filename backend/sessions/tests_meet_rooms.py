@@ -213,3 +213,42 @@ class JoinEntryPointTests(MeetRoomWorld):
         rows = self.get(self.admin, '/api/students/').json()
         listed = rows if isinstance(rows, list) else rows.get('students', rows.get('results', []))
         self.assertIn(STUDENT_LINK, [row.get('meet_link') for row in listed])
+
+
+class ClassUnderWayStaysJoinableTests(MeetRoomWorld):
+    """
+    F4 P2: the next class a Join reads -- Learn's dashboard and the Hub's
+    profile "Next up" -- is the next scheduled one not yet ended, so a class
+    under way stays there, joinable, until its scheduled end.
+    """
+    def test_learns_dashboard_keeps_a_class_under_way_until_it_ends(self):
+        under_way = self.session(-timedelta(minutes=5), tutor=self.tutor_a)  # ends in 55 minutes
+        self.session(timedelta(days=1), tutor=self.tutor_b)
+        data = self.get(self.student_user, '/api/student/dashboard/').json()
+        self.assertEqual(data['next_session']['id'], str(under_way.id))
+        self.assertEqual(data['next_session']['tutor_meet_link'], TUTOR_A_LINK)
+
+    def test_an_ended_class_is_no_longer_next(self):
+        self.session(-timedelta(hours=2), tutor=self.tutor_a)  # ended an hour ago, nothing recorded
+        later = self.session(timedelta(days=1), tutor=self.tutor_b)
+        data = self.get(self.student_user, '/api/student/dashboard/').json()
+        self.assertEqual(data['next_session']['id'], str(later.id))
+        highlights = self.get(self.admin, f'/api/students/{self.student.id}/profile/').json()['highlights']
+        self.assertEqual(highlights['next_session']['id'], str(later.id))
+
+    def test_a_class_under_way_that_is_not_scheduled_is_never_next(self):
+        for status_value in (SessionStatusChoices.CANCELLED, SessionStatusChoices.ATTENDED):
+            with self.subTest(status=status_value):
+                Session.objects.all().delete()
+                self.session(-timedelta(minutes=5), tutor=self.tutor_a, status_value=status_value)
+                data = self.get(self.student_user, '/api/student/dashboard/').json()
+                self.assertIsNone(data['next_session'])
+                highlights = self.get(self.admin, f'/api/students/{self.student.id}/profile/').json()['highlights']
+                self.assertIsNone(highlights['next_session'])
+
+    def test_the_hub_profile_next_up_keeps_a_class_under_way(self):
+        under_way = self.session(-timedelta(minutes=5), tutor=self.tutor_a)
+        self.session(timedelta(days=1), tutor=self.tutor_b)
+        highlights = self.get(self.admin, f'/api/students/{self.student.id}/profile/').json()['highlights']
+        self.assertEqual(highlights['next_session']['id'], str(under_way.id))
+        self.assertEqual(highlights['next_session']['tutor_meet_link'], TUTOR_A_LINK)
