@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   RESCHEDULE_REASONS,
+  SAME_DAY_NOTICE,
   bookingError,
   bookingRescheduleOptionsUrl,
   bookingRescheduleUrl,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/bookings';
 import { bookingTypeLabel, slotLabel } from '@/lib/enquiries';
 import { cn } from '@/lib/utils';
+import { RescheduleCalendar } from './reschedule-calendar';
 import { SlotPicker } from './slot-picker';
 
 function OptionsSkeleton() {
@@ -36,6 +38,12 @@ function OptionsSkeleton() {
  * which the dialog says before anything is sent. The reason is picked from
  * the list, never typed. POST /api/bookings/<type>/<id>/reschedule/ checks it
  * all again and answers the replacement booking.
+ *
+ * The date buttons are the public pages' seven dates; "More dates" (the API's
+ * `window`) reaches every date from today through 30 days on, a time at least
+ * 30 minutes away. A calendar date the buttons do not hold is read on its own
+ * (the same API, `?date=`), and the button then names it. A time today brings
+ * SAME_DAY_NOTICE: nobody is told of the move by itself.
  */
 export function RescheduleBookingDialog({ booking, open, onOpenChange, onRescheduled, onRefused }) {
   // Refused as out of date (404/409): once closed, `onRefused` lets the page read it again.
@@ -48,6 +56,9 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
   const [reason, setReason] = useState('');
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(false);
+  // The calendar date outside the date buttons, if one was picked, and what the API said of it.
+  const [calendarDate, setCalendarDate] = useState('');
+  const [calendarAnswer, setCalendarAnswer] = useState(null);
   const bookingId = booking?.id;
   const bookingType = booking?.booking_type;
 
@@ -62,6 +73,8 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
       setTime('');
       setReason('');
       setError(null);
+      setCalendarDate('');
+      setCalendarAnswer(null);
     }
   }
 
@@ -82,12 +95,62 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
     };
   }, [open, bookingType, bookingId, reloadKey]);
 
+  // A calendar date's own times, read again with the rest (reloadKey). Only the
+  // latest date picked is kept: an earlier answer arriving late is dropped.
+  useEffect(() => {
+    if (!open || !bookingId || !bookingType || !calendarDate) return undefined;
+    let active = true;
+    setCalendarAnswer(null);
+    api
+      .get(bookingRescheduleOptionsUrl(bookingType, bookingId), { params: { date: calendarDate } })
+      .then((response) => {
+        if (!active) return;
+        const entry = response.data.dates?.find((item) => item.date === calendarDate) ?? { date: calendarDate, slots: [] };
+        setCalendarAnswer({ date: calendarDate, slots: entry.slots });
+        // Moved or started meanwhile: say so, as the dates' own answer would.
+        if (!response.data.reschedulable) {
+          setData((current) => current && { ...current, reschedulable: false, refusal: response.data.refusal });
+        }
+      })
+      .catch((err) => {
+        if (active) setCalendarAnswer({ date: calendarDate, failure: bookingError(err, 'Could not load the times for that date.') });
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, bookingType, bookingId, calendarDate, reloadKey]);
+
   const dates = data?.dates ?? [];
+  const range = data?.window;
   const shownDay = shownDayOf(dates, day);
-  const slots = dates.find((entry) => entry.date === shownDay)?.slots ?? [];
+  // A day the buttons do not hold came from the calendar: its times are its own answer's.
+  const fromCalendar = Boolean(shownDay) && !dates.some((entry) => entry.date === shownDay);
+  const answer = fromCalendar && calendarAnswer?.date === shownDay ? calendarAnswer : null;
+  const slots = fromCalendar ? (answer?.slots ?? []) : (dates.find((entry) => entry.date === shownDay)?.slots ?? []);
   const chosen = slots.find((slot) => slot.time === time && slot.bookable);
   const tutor = data?.tutor;
+  const sameDay = Boolean(chosen && range?.today && shownDay === range.today);
   const canSubmit = Boolean(data?.reschedulable && chosen && reason);
+
+  const pickCalendarDate = (value) => {
+    setDay(value);
+    setTime('');
+    setCalendarDate(dates.some((entry) => entry.date === value) ? '' : value);
+  };
+
+  let emptyDay = null;
+  if (answer?.failure) {
+    emptyDay = (
+      <span className="flex flex-wrap items-center gap-3">
+        <span className="text-destructive">{answer.failure.message}</span>
+        <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+          Try again
+        </Button>
+      </span>
+    );
+  } else if (fromCalendar) {
+    emptyDay = 'No time can be chosen on this date.';
+  }
 
   async function reschedule() {
     if (!canSubmit) return;
@@ -143,11 +206,31 @@ export function RescheduleBookingDialog({ booking, open, onOpenChange, onResched
           tutor={tutor}
           disabled={pending}
           name="reschedule-time"
+          moreDates={
+            range ? (
+              <RescheduleCalendar
+                range={range}
+                selected={shownDay}
+                active={fromCalendar}
+                onSelect={pickCalendarDate}
+                disabled={pending}
+              />
+            ) : null
+          }
+          slots={fromCalendar ? slots : undefined}
+          loading={fromCalendar && !answer}
+          empty={emptyDay}
         />
 
         {chosen && tutor && !chosen.tutor_free ? (
           <p role="note" className="bg-warning/10 text-warning rounded-md px-3 py-2 text-sm">
             {tutor.full_name} isn&apos;t free then, so the moved booking will need a tutor.
+          </p>
+        ) : null}
+
+        {sameDay ? (
+          <p role="note" className="bg-warning/10 text-warning rounded-md px-3 py-2 text-sm">
+            {SAME_DAY_NOTICE}
           </p>
         ) : null}
 

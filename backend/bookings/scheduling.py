@@ -12,6 +12,13 @@ lib/google-sheets.ts and lib/constants.ts), computed on every read:
   closed slot is Fully Booked.
 * A date is Fully Booked only when every slot is; otherwise it takes the most
   urgent bookable status of its slots.
+
+An administrator moving a booking (bookings.coordination.reschedule_options,
+booking_service.reschedule_booking) reaches further than the pages: any date
+from today through RESCHEDULE_DAYS days on (reschedule_dates), each time of it
+that starts at least RESCHEDULE_MIN_LEAD after the server's clock
+(reschedule_starts_after). Nothing else reads those two rules, so the pages'
+window above -- public bookings, Demo invitations, new Re-Demos -- is unchanged.
 """
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -34,6 +41,11 @@ WINDOW_DAYS = {
     BookingType.DIAGNOSTIC: 7,
 }
 
+# How far an administrator may move a booking: today through this many days
+# on (both types), and never into a slot starting sooner than RESCHEDULE_MIN_LEAD.
+RESCHEDULE_DAYS = 30
+RESCHEDULE_MIN_LEAD = timedelta(minutes=30)
+
 AVAILABLE = 'Available'
 FILLING_FAST = 'Filling Fast'
 ONLY_A_FEW_LEFT = 'Only a Few Left'
@@ -51,6 +63,17 @@ def booking_window(booking_type, now=None):
     """The bookable dates, ascending: tomorrow through WINDOW_DAYS days on."""
     first = indian_today(now) + timedelta(days=1)
     return [first + timedelta(days=offset) for offset in range(WINDOW_DAYS[booking_type])]
+
+
+def reschedule_dates(now=None):
+    """The dates a booking may be moved to, ascending: today through RESCHEDULE_DAYS days on (Indian dates)."""
+    today = indian_today(now)
+    return [today + timedelta(days=offset) for offset in range(RESCHEDULE_DAYS + 1)]
+
+
+def reschedule_starts_after(now=None):
+    """The earliest a slot a booking is moved to may start: RESCHEDULE_MIN_LEAD after ``now``."""
+    return (now or timezone.now()) + RESCHEDULE_MIN_LEAD
 
 
 def status_for_count(count, capacity=SLOT_CAPACITY):
@@ -96,14 +119,19 @@ def slot_instants(local_date, local_time):
     return starts_at, starts_at + timedelta(minutes=SLOT_MINUTES)
 
 
-def bookable_window(booking_type, now=None):
+def bookable_window(booking_type, now=None, days=None, starts_after=None):
     """
     Every slot the public pages offer for ``booking_type``, by date then time:
     ``[(date, [{"time", "slot", "booked", "capacity", "closed", "status"}])]``,
     ``slot`` being the BookingSlot row or None for one nobody has touched.
     The calendar and the Admin's reschedule options both read it.
+
+    ``days`` replaces the pages' window with those dates, and ``starts_after``
+    leaves out every time starting before that instant (a date can then have
+    none): the Admin's reschedule reaches today and beyond the window
+    (reschedule_dates, reschedule_starts_after). Without them, the pages' window as it is.
     """
-    window = booking_window(booking_type, now)
+    window = booking_window(booking_type, now) if days is None else list(days)
     times = active_times(booking_type)
     slots = {
         (slot.local_date, slot.local_time): slot
@@ -115,6 +143,8 @@ def bookable_window(booking_type, now=None):
     for day in window:
         entries = []
         for start in times:
+            if starts_after is not None and slot_instants(day, start)[0] < starts_after:
+                continue
             slot = slots.get((day, start))
             booked = slot.booked if slot else 0
             capacity = min(slot.capacity, SLOT_CAPACITY) if slot else SLOT_CAPACITY

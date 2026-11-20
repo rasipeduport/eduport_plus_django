@@ -123,7 +123,13 @@ from .models import (
 )
 from .public_serializers import CLASSES, SYLLABI
 from .redemo_chain import excluded_tutor_ids
-from .scheduling import booking_window, slot_instants
+from .scheduling import (
+    RESCHEDULE_MIN_LEAD,
+    booking_window,
+    reschedule_dates,
+    reschedule_starts_after,
+    slot_instants,
+)
 
 LOCK_TIMEOUT = '3s'
 # Demo invitation tokens are secrets.token_urlsafe values (43 characters today, 64 at most in the column).
@@ -156,6 +162,16 @@ class SlotFull(BookingError):
     code = 'SLOT_FULL'
     http_status = 409
     message = 'This slot is fully booked. Please choose another time.'
+
+
+class SlotTooSoon(BookingError):
+    """A booking is moved only into a slot starting at least RESCHEDULE_MIN_LEAD from now (reschedule_booking)."""
+    code = 'SLOT_TOO_SOON'
+    http_status = 409
+    message = (
+        f'That time starts in less than {int(RESCHEDULE_MIN_LEAD.total_seconds() // 60)} minutes, '
+        'or has already started. Please choose a later time.'
+    )
 
 
 class TooManyBookings(BookingError):
@@ -1290,10 +1306,13 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
     Only a booked booking (BookingCompleted, BookingRescheduled,
     CancelledNotMovable) its tutor has not started (StartedNotMovable) --
     one whose scheduled time passed, or whose slot ended, with no start may
-    still move: the class never happened -- and only into a slot the public
-    pages would offer: a date in the window (DateOutOfWindow), an active time
-    (SlotUnavailable), open with a free seat (SlotFull), not its own
-    (SameSlot). The lead may hold no other live booking of this type
+    still move: the class never happened -- and only into a slot of the
+    reschedule window, which reaches further than the public pages' window:
+    a date from today through RESCHEDULE_DAYS days on (DateOutOfWindow), a
+    time starting at least RESCHEDULE_MIN_LEAD from now (SlotTooSoon, by the
+    clock once the locks are held; ``now``, when given, stands in for it),
+    an active time (SlotUnavailable), open with a free seat (SlotFull), not
+    its own (SameSlot). The lead may hold no other live booking of this type
     (LeadAlreadyBooked: one a parent made after the slot of this one ended)
     nor one of either type at the new time (LeadTimeConflict, Q26). The
     tutor carries over when they are an active tutor free for the new slot;
@@ -1303,10 +1322,11 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
     """
     if reason_code not in RescheduleReason.values:
         raise InvalidReason()
+    pinned = now is not None
     now = now or timezone.now()
     model = type(booking)
     booking_type = model.BOOKING_TYPE
-    if local_date not in booking_window(booking_type, now):
+    if local_date not in reschedule_dates(now):
         raise DateOutOfWindow()
     if not SlotTime.objects.filter(booking_type=booking_type, start_time=local_time, is_active=True).exists():
         raise SlotUnavailable()
@@ -1334,6 +1354,11 @@ def reschedule_booking(booking, local_date, local_time, *, reason_code, actor=No
                 raise CancelledNotMovable()
             if old.started_at is not None:
                 raise StartedNotMovable()
+            # Read the clock again now that the locks are held (waiting for
+            # them may take LOCK_TIMEOUT): a time starting sooner than the lead
+            # is refused, as the picker leaves it out.
+            if new_starts_at < reschedule_starts_after(now if pinned else timezone.now()):
+                raise SlotTooSoon()
             if new_slot.closed_at is not None:
                 raise SlotFull()
             taken = set(model.objects.filter(slot=new_slot, status__in=HOLDS_SEAT).values_list('seat', flat=True))

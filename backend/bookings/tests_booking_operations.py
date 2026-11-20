@@ -7,31 +7,44 @@ and who may do any of it (Q22, Q23).
 """
 import json
 import threading
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from unittest import mock, skipUnless
 
 from django.contrib import admin as django_admin
 from django.contrib.auth.models import Permission
 from django.db import connection
-from django.test import RequestFactory, TransactionTestCase
+from django.test import RequestFactory, TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from accounts.models import RoleGroup
 from activity.models import ActivityLog
+from communications.models import CommunicationEvent, CommunicationTask, EventKind, Step, TaskStatus
 
+from . import coordination
 from .admin import DemoBookingAdmin
 from .booking_service import (
+    DateOutOfWindow,
     SlotFull,
+    SlotTooSoon,
+    _check_offered,
     assign_tutor,
     cancel_booking,
     close_slot,
     create_booking,
     reschedule_booking,
 )
-from .models import BookingEventKind, BookingStatus, CancelReason, DemoBooking, DiagnosticBooking, RescheduleReason
-from .scheduling import indian_today
+from .models import (
+    BookingEventKind,
+    BookingSlot,
+    BookingStatus,
+    CancelReason,
+    DemoBooking,
+    DiagnosticBooking,
+    RescheduleReason,
+)
+from .scheduling import BOOKING_TIMEZONE, RESCHEDULE_DAYS, booking_window, calendar, indian_today
 from .tests_booking import EVENING, MORNING, account, request, schedule, start
 from .tests_booking_admin import DEMO, DIAGNOSTIC, PRIVATE, BookingAdminTestCase, detail_url
 
@@ -210,15 +223,16 @@ class RescheduleTests(OperationsTestCase):
         gone.refresh_from_db()
         self.assertEqual(gone.assigned_tutor, self.tutor_b)  # kept as history
 
-    def test_only_a_slot_the_public_pages_offer(self):
+    def test_only_a_slot_of_the_reschedule_window(self):
         booking = self.book('Riya')
         tomorrow = self.day + timedelta(days=1)
         for _ in range(3):
             self.book('Filler', day=tomorrow, at=MORNING)
         close_slot(DEMO, self.day + timedelta(days=2), EVENING, actor=self.admin)
         cases = [
-            ({'day': indian_today()}, 400, 'DATE_OUT_OF_WINDOW'),
-            ({'day': self.day + timedelta(days=6)}, 400, 'DATE_OUT_OF_WINDOW'),
+            # Today through RESCHEDULE_DAYS days on (RescheduleWindowTests): never the past, never beyond.
+            ({'day': indian_today() - timedelta(days=1)}, 400, 'DATE_OUT_OF_WINDOW'),
+            ({'day': indian_today() + timedelta(days=RESCHEDULE_DAYS + 1)}, 400, 'DATE_OUT_OF_WINDOW'),
             ({'day': tomorrow, 'at': ELEVEN}, 409, 'SLOT_UNAVAILABLE'),
             ({'day': tomorrow, 'at': MORNING}, 409, 'SLOT_FULL'),
             ({'day': self.day + timedelta(days=2)}, 409, 'SLOT_FULL'),
@@ -304,6 +318,219 @@ class NeverStartedRescheduleTests(OperationsTestCase):
         self.assertEqual((res.status_code, res.data['error']), (409, 'LEAD_ALREADY_BOOKED'))
         stale.refresh_from_db()
         self.assertEqual((stale.status, self.kinds(stale)), (BookingStatus.BOOKED, [BookingEventKind.CREATED]))
+
+
+# ---------------------------------------------- the calendar and same-day moves
+
+def indian(clock, days=0):
+    """The instant of ``clock`` (Indian time) on the Indian date ``days`` from today: a pinned server clock."""
+    return datetime.combine(indian_today() + timedelta(days=days), clock, tzinfo=BOOKING_TIMEZONE)
+
+
+class RescheduleWindowTests(OperationsTestCase):
+    """
+    The picker's calendar (``?date=``) and moves beyond the pages' window: any
+    Indian date from today through RESCHEDULE_DAYS days on, a time starting at
+    least RESCHEDULE_MIN_LEAD (30 minutes) after the server's clock -- for both
+    types -- with every other rule of a move as it was. The server clock is
+    pinned on today's Indian date; the schedule is MORNING 10:00 and EVENING 19:30.
+    """
+
+    def options(self, booking, day=None, client=None):
+        params = {} if day is None else {'date': day if isinstance(day, str) else day.isoformat()}
+        return (client or self.client).get(ops_url(booking, 'reschedule-options'), params)
+
+    def clock(self, at):
+        return mock.patch('django.utils.timezone.now', return_value=at)
+
+    def times(self, data):
+        return [(entry['date'], [slot['time'] for slot in entry['slots']]) for entry in data['dates']]
+
+    def test_the_date_buttons_keep_the_pages_window(self):
+        today = indian_today()
+        for booking_type in (DEMO, DIAGNOSTIC):
+            with self.subTest(booking_type=booking_type), self.clock(indian(time(9, 0))):
+                booking = self.book(f'Riya {booking_type}', booking_type=booking_type)
+                data = self.options(booking).data
+                self.assertEqual([entry['date'] for entry in data['dates']],
+                                 [day.isoformat() for day in booking_window(booking_type)])
+                self.assertEqual(data['dates'][0]['date'], (today + timedelta(days=1)).isoformat())
+                self.assertEqual(data['window'], {
+                    'today': today.isoformat(), 'first': today.isoformat(),
+                    'last': (today + timedelta(days=RESCHEDULE_DAYS)).isoformat(), 'min_lead_minutes': 30,
+                })
+
+    def test_today_offers_only_times_starting_thirty_minutes_on_or_later(self):
+        today = indian_today().isoformat()
+        tomorrow = (indian_today() + timedelta(days=1)).isoformat()
+        cases = [
+            (time(9, 0), ['10:00', '19:30']),
+            (time(9, 30), ['10:00', '19:30']),  # exactly 30 minutes ahead is still offered
+            (time(9, 31), ['19:30']),
+            (time(19, 0), ['19:30']),
+            (time(19, 1), []),  # nothing left today: the calendar starts tomorrow
+        ]
+        for booking_type in (DEMO, DIAGNOSTIC):
+            booking = self.book(f'Riya {booking_type}', booking_type=booking_type)
+            for clock, shown in cases:
+                with self.subTest(booking_type=booking_type, clock=str(clock)), self.clock(indian(clock)):
+                    data = self.options(booking, today).data
+                    self.assertEqual(self.times(data), [(today, shown)])
+                    self.assertTrue(all(slot['bookable'] for slot in data['dates'][0]['slots']))
+                    self.assertEqual(data['window']['first'], today if shown else tomorrow)
+
+    def test_a_calendar_date_outside_the_window_is_refused(self):
+        booking = self.book('Riya')
+        today = indian_today()
+        last = today + timedelta(days=RESCHEDULE_DAYS)
+        with self.clock(indian(time(9, 0))):
+            cases = [
+                (today - timedelta(days=1), 'DATE_OUT_OF_WINDOW'),
+                (last + timedelta(days=1), 'DATE_OUT_OF_WINDOW'),
+                ('tomorrow', 'VALIDATION_ERROR'),
+                ('2026-13-01', 'VALIDATION_ERROR'),
+                ('', 'VALIDATION_ERROR'),
+            ]
+            for day, code in cases:
+                with self.subTest(day=str(day)):
+                    res = self.options(booking, day)
+                    self.assertEqual((res.status_code, res.data['error']), (400, code))
+            res = self.options(booking, last)
+            self.assertEqual((res.status_code, self.times(res.data)), (200, [(last.isoformat(), ['10:00', '19:30'])]))
+
+    def test_a_move_later_today_or_up_to_thirty_days_on(self):
+        today = indian_today()
+        for booking_type in (DEMO, DIAGNOSTIC):
+            for day in (today, today + timedelta(days=RESCHEDULE_DAYS)):
+                with self.subTest(booking_type=booking_type, day=str(day)), self.clock(indian(time(9, 0))):
+                    old = self.book(f'Riya {booking_type} {day}', booking_type=booking_type)
+                    res = self.move(old, day, at=MORNING)
+                    self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+                    new = type(old).objects.select_related('slot').get(pk=res.data['booking']['id'])
+                    old.refresh_from_db()
+                    self.assertEqual((new.slot.local_date, new.slot.local_time, new.status, new.rescheduled_from_id),
+                                     (day, MORNING, BookingStatus.BOOKED, old.id))
+                    self.assertEqual((old.status, old.slot.local_date), (BookingStatus.RESCHEDULED, self.day))
+                    self.assertEqual(self.kinds(old), [BookingEventKind.CREATED, BookingEventKind.RESCHEDULED])
+                    self.assertEqual(self.kinds(new), [BookingEventKind.CREATED])
+                    self.assertTrue(ActivityLog.objects.filter(action='booking.reschedule', entity_id=str(new.id)).exists())
+                    self.assertTrue(CommunicationEvent.objects.filter(
+                        kind=EventKind.BOOKING_RESCHEDULED, subject_id=old.id, payload__new_booking_id=str(new.id),
+                    ).exists())
+
+    def test_a_time_starting_too_soon_or_already_started_is_refused(self):
+        today = indian_today()
+        for booking_type in (DEMO, DIAGNOSTIC):
+            booking = self.book(f'Riya {booking_type}', booking_type=booking_type)
+            for clock in (time(9, 31), time(10, 0), time(10, 30)):
+                with self.subTest(booking_type=booking_type, clock=str(clock)), self.clock(indian(clock)):
+                    res = self.move(booking, today, at=MORNING)
+                    self.assertEqual((res.status_code, res.data['error']), (409, 'SLOT_TOO_SOON'))
+            # The service itself, with its clock given, refuses it as well.
+            with self.assertRaises(SlotTooSoon):
+                reschedule_booking(booking, today, MORNING, reason_code=RescheduleReason.OTHER, now=indian(time(9, 45)))
+            booking.refresh_from_db()
+            self.assertEqual((booking.status, self.kinds(booking)), (BookingStatus.BOOKED, [BookingEventKind.CREATED]))
+            # Rolled back whole: not even the new slot's row is left.
+            self.assertFalse(BookingSlot.objects.filter(booking_type=booking_type, local_date=today).exists())
+
+    def test_slot_capacity_still_holds_on_a_calendar_date(self):
+        today = indian_today()
+        with self.clock(indian(time(9, 0))):
+            movers = [self.book(f'Kid {n}', at=MORNING if n < 2 else EVENING) for n in range(4)]
+            for booking in movers[:3]:
+                self.assertEqual(self.move(booking, today, at=EVENING).status_code, status.HTTP_201_CREATED)
+            slot = next(s for s in self.options(movers[3], today).data['dates'][0]['slots'] if s['time'] == '19:30')
+            self.assertEqual((slot['bookable'], slot['unavailable_reason'], slot['seats_left']), (False, 'FULL', 0))
+            res = self.move(movers[3], today, at=EVENING)
+        self.assertEqual((res.status_code, res.data['error']), (409, 'SLOT_FULL'))
+        self.assertEqual(DemoBooking.objects.filter(slot__local_date=today, status=BookingStatus.BOOKED).count(), 3)
+        # A closed slot beyond the date buttons is as closed as one among them.
+        later = today + timedelta(days=12)
+        close_slot(DEMO, later, MORNING, actor=self.admin)
+        with self.clock(indian(time(9, 0))):
+            slot = next(s for s in self.options(movers[3], later).data['dates'][0]['slots'] if s['time'] == '10:00')
+            self.assertEqual((slot['bookable'], slot['unavailable_reason']), (False, 'CLOSED'))
+            res = self.move(movers[3], later, at=MORNING)
+        self.assertEqual((res.status_code, res.data['error']), (409, 'SLOT_FULL'))
+
+    def test_tutor_and_child_conflicts_still_hold_on_a_calendar_date(self):
+        today = indian_today()
+        booking = self.book('Riya')
+        assign_tutor(booking, self.tutor_a, actor=self.admin)
+        self.class_for(self.tutor_a, indian(time(19, 0)), 'EDP31')
+        with self.clock(indian(time(9, 0))):
+            slots = {s['time']: s for s in self.options(booking, today).data['dates'][0]['slots']}
+            self.assertEqual((slots['10:00']['tutor_free'], slots['19:30']['tutor_free'],
+                              slots['19:30']['tutor_reason']['code']), (True, False, 'CLASS_CONFLICT'))
+            # Busy then: the move goes ahead, and the booking waits for a tutor (Q24).
+            res = self.move(booking, today, at=EVENING)
+        self.assertEqual((res.status_code, res.data['tutor']['carried_over']), (201, False))
+        moved = DemoBooking.objects.get(pk=res.data['booking']['id'])
+        self.assertIsNone(moved.assigned_tutor_id)
+        # The child's own Diagnostic, moved to today's morning, keeps their Demo from that time (Q26).
+        diagnostic = self.same_lead(moved, DIAGNOSTIC, day=self.day, at=MORNING)
+        with self.clock(indian(time(9, 0))):
+            reschedule_booking(diagnostic, today, MORNING, reason_code=RescheduleReason.OTHER, actor=self.admin)
+            slot = next(s for s in self.options(moved, today).data['dates'][0]['slots'] if s['time'] == '10:00')
+            self.assertEqual((slot['bookable'], slot['unavailable_reason']), (False, 'LEAD_TIME_CONFLICT'))
+            res = self.move(moved, today, at=MORNING)
+        self.assertEqual((res.status_code, res.data['error']), (409, 'LEAD_TIME_CONFLICT'))
+
+    def test_the_pages_invitations_and_new_redemos_keep_their_window(self):
+        today = indian_today()
+        lead = self.book('Riya').lead
+        with self.clock(indian(time(9, 0))):
+            now = timezone.now()
+            self.assertEqual([entry['date'] for entry in calendar(DEMO)],
+                             [(today + timedelta(days=n)).isoformat() for n in range(1, 8)])
+            for day in (today, today + timedelta(days=8)):
+                with self.subTest(day=str(day)):
+                    with self.assertRaises(DateOutOfWindow):
+                        create_booking(request(student='Late', phone='0507009999', day=day, at=EVENING))
+                    # The Demo invitation and a new Re-Demo both book through this check.
+                    with self.assertRaises(DateOutOfWindow):
+                        _check_offered(DEMO, day, EVENING, now)
+            # The Re-Demo pickers read the pages' window, never the reschedule's.
+            self.assertEqual([entry['date'] for entry in coordination.slot_options(DEMO, lead, None, now)],
+                             [day.isoformat() for day in booking_window(DEMO)])
+
+    def test_only_the_reschedule_permission_reaches_the_calendar(self):
+        booking = self.book('Riya')
+        today = indian_today()
+        callers = [self.mentor, self.tutor_a, self.bde, account('sales_cal', role='SALES_TL'), None]
+        with self.clock(indian(time(9, 0))):
+            for user in callers:
+                client = APIClient()
+                if user is not None:
+                    client.force_authenticate(user=user)
+                with self.subTest(caller=getattr(user, 'role', 'anonymous')):
+                    self.assertEqual(self.options(booking, today, client=client).status_code, status.HTTP_403_FORBIDDEN)
+                    self.assertEqual(self.move(booking, today, client=client).status_code, status.HTTP_403_FORBIDDEN)
+            group = RoleGroup.objects.select_related('group').get(role='ADMIN').group
+            group.permissions.remove(Permission.objects.get(codename='reschedule_booking'))
+            client = APIClient()
+            client.force_authenticate(user=type(self.admin).objects.get(pk=self.admin.pk))
+            self.assertEqual(self.options(booking, today, client=client).status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(self.move(booking, today, client=client).status_code, status.HTTP_403_FORBIDDEN)
+        booking.refresh_from_db()
+        self.assertEqual((booking.status, self.kinds(booking)), (BookingStatus.BOOKED, [BookingEventKind.CREATED]))
+
+    @override_settings(COMMUNICATIONS_OUTBOX_INLINE=True)
+    def test_a_same_day_move_is_planned_from_its_new_slot(self):
+        today = indian_today()
+        booking = self.book('Riya', booking_type=DIAGNOSTIC)
+        with self.clock(indian(time(9, 0))):
+            res = self.move(booking, today, at=EVENING)
+        new = DiagnosticBooking.objects.select_related('slot').get(pk=res.data['booking']['id'])
+        tasks = {task.step: task for task in CommunicationTask.objects.filter(diagnostic_booking=new)}
+        starts_at = new.slot.starts_at
+        self.assertEqual(starts_at, indian(EVENING))
+        # Within 12 hours of its start the confirmation request is due at once; the call opens 15 minutes before.
+        self.assertEqual(tasks[Step.CONFIRMATION_REQUEST].due_at, indian(time(9, 0)))
+        self.assertEqual(tasks[Step.PRE_ACTIVITY_CALL].active_from, starts_at - timedelta(minutes=15))
+        self.assertEqual(tasks[Step.PARENT_CONFIRMATION].due_at, starts_at)
+        self.assertFalse(CommunicationTask.objects.filter(diagnostic_booking=booking, status=TaskStatus.OPEN).exists())
 
 
 class OptionsAndHistoryTests(OperationsTestCase):
