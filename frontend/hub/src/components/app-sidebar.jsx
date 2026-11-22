@@ -11,8 +11,10 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { useFollowUpsDueToday } from '@/hooks/use-follow-ups-due-today';
+import { canOpenPage } from '@/lib/access';
 import { usesRefreshedDesign } from '@/lib/design';
-import { workspaceFor } from '@/lib/navigation';
+import { FOLLOW_UPS_DUE_TODAY, workspaceFor } from '@/lib/navigation';
 
 export function AppSidebar({ user, logout, ...props }) {
   // Exactly the pages the route guards in App.jsx open for this account
@@ -22,6 +24,10 @@ export function AppSidebar({ user, logout, ...props }) {
   const workspace = workspaceFor(user);
   // The refreshed design (lib/design) closes the phone's sidebar sheet once a page is picked.
   const closeOnNavigate = usesRefreshedDesign(user);
+  // The live counts beside items that carry a `counter`: the BDE's follow-ups due today, read only
+  // for whoever may open the Follow-ups page (a BDE who may see their leads' communication).
+  const followUpsDueToday = useFollowUpsDueToday(canOpenPage(user, '/follow-ups'));
+  const counts = { [FOLLOW_UPS_DUE_TODAY]: followUpsDueToday };
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -47,6 +53,7 @@ export function AppSidebar({ user, logout, ...props }) {
             <NavMain
               label={section.label}
               items={section.items}
+              counts={counts}
               collapsible={workspace.collapsible}
               closeOnNavigate={closeOnNavigate}
             />

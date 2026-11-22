@@ -4,7 +4,8 @@
 // every five seconds while its plan is PENDING (six times at most) and once
 // about 20 seconds after a change in its workspace; and Sessions on request
 // (Refresh) and on coming back to the tab -- each refresh once, however many
-// events bring it, and nothing left running after the page goes. The pages
+// events bring it, and nothing left running after the page goes; and the BDE
+// sidebar's count of follow-ups due today, on the same minute. The pages
 // and hooks are rendered for real in jsdom (harness.jsx), with the API stood
 // in for (../sessions/api-stub.js).
 //
@@ -1094,6 +1095,149 @@ test('L12: a slower, earlier load never overwrites the child a later one resolve
   await settle();
   assert.equal(probe.student.selectedStudent.id, 'sB', 'the later load stands');
   assert.equal(probe.student.dashboardStats.student_id, 'sB', "and its stats are Arjun's");
+});
+
+// ======================================= Sidebar: the Follow-ups badge (due today)
+// The count beside the BDE's Follow-ups item is the API's summary.today -- the
+// Follow-ups page's Due today tab -- never upcoming, overdue or every open one.
+// The Follow-ups page and the BDE dashboard share the summary they read; on
+// every other page the sidebar reads it itself, on their minute.
+const FOLLOW_UPS_DUE = (today, upcoming = 0, overdue) => ({ ...FOLLOW_UPS,
+  summary: { total: today + upcoming + (overdue ?? 0), today, upcoming, ...(overdue == null ? {} : { overdue }) } });
+const dueBadge = () => document.querySelector('[data-counter="follow-ups-due-today"]');
+const followUpsItem = () => document.querySelector('a[href="/follow-ups"]');
+const dueTab = () => [...document.querySelectorAll('[role="tab"]')].find((tab) => clean(tab.textContent).startsWith('Due today'));
+const go = async (to) => { await act(async () => globalThis.__dfRouter.navigate(to)); await settle(); };
+/** The Hub at `path`, its sidebar's first read let through (it waits for the page arriving with it). */
+const openHub = async (path, user = BDE) => { await open('hub', { path, user }); await advance(0); return current; };
+const sidebarReads = () => calls('GET', BDE_FOLLOW_UPS_URL).filter((entry) => entry.params?.page_size === 1).length;
+
+test("Sidebar badge: today's follow-ups only -- 5 due today of 15 open (7 upcoming, 3 overdue) shows 5", async () => {
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(5, 7, 3) });
+  await openHub('/enquiries');
+  assert.equal(clean(dueBadge().textContent), '5');
+  assert.equal(dueBadge().getAttribute('aria-hidden'), 'true', 'read out with the item instead');
+  assert.match(dueBadge().className, /bg-destructive/);
+  assert.match(dueBadge().className, /rounded-full/);
+  assert.equal(clean(followUpsItem().textContent), 'Follow-ups (5 due today)');
+  assert.deepEqual(calls('GET', BDE_FOLLOW_UPS_URL).map((entry) => entry.params), [{ page_size: 1 }], 'one read, nothing filtered');
+});
+
+test('Sidebar badge: one due today shows 1; none hides it, the item as it always was', async () => {
+  let today = 1;
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: () => FOLLOW_UPS_DUE(today, 4) });
+  await openHub('/enquiries');
+  assert.equal(clean(dueBadge().textContent), '1');
+  today = 0;
+  await advance(MINUTE);
+  assert.equal(dueBadge(), null, 'hidden at zero');
+  assert.equal(clean(followUpsItem().textContent), 'Follow-ups');
+});
+
+test('Sidebar badge: the same number as the Due today tab, from the Follow-ups page’s own read -- the sidebar reads nothing', async () => {
+  let today = 5;
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: () => FOLLOW_UPS_DUE(today, 7, 3) });
+  await openHub('/follow-ups?due=upcoming');
+  assert.equal(clean(dueTab().textContent), 'Due today5');
+  assert.equal(clean(dueBadge().textContent), '5', 'the whole count, whichever tab is open');
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 1, "the page's read only");
+  // A follow-up done (or fallen due) meanwhile: the page's next read moves the tab and the badge together.
+  today = 4;
+  await advance(MINUTE);
+  assert.equal(clean(dueTab().textContent), 'Due today4');
+  assert.equal(clean(dueBadge().textContent), '4');
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 2);
+  assert.equal(sidebarReads(), 0, 'no read of its own while the page reads them');
+});
+
+test('Sidebar badge: the BDE dashboard shares its follow-up counts too; one read a minute between them', async () => {
+  serve({ [`GET ${BDE_DASHBOARD_URL}`]: DASHBOARD, [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(3, 2) });
+  await openHub('/dashboard');
+  assert.equal(clean(dueBadge().textContent), '3');
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 1);
+  await advance(MINUTE);
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 2, "the dashboard's minute read, nothing more");
+});
+
+test('Sidebar badge: kept while moving between BDE pages, a change of page reading nothing again', async () => {
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(5, 7) });
+  await openHub('/enquiries');
+  assert.equal(sidebarReads(), 1);
+  for (const to of ['/demo-bookings', '/follow-ups', '/enquiries', '/demo-bookings']) {
+    await go(to);
+    assert.equal(clean(dueBadge()?.textContent ?? ''), '5', `still shown on ${to}`);
+  }
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 2, "the first read and the Follow-ups page's own");
+  await advance(MINUTE);
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 3, 'then once a minute');
+});
+
+test('Sidebar badge: elsewhere it follows changes on the minute, as the Follow-ups page does; nothing while hidden, once on return', async () => {
+  let today = 5;
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: () => FOLLOW_UPS_DUE(today, 1) });
+  await openHub('/enquiries');
+  today = 2;
+  await advance(MINUTE - 1);
+  assert.equal(clean(dueBadge().textContent), '5', 'nothing read before the minute');
+  await advance(1);
+  assert.equal(clean(dueBadge().textContent), '2');
+  await hide();
+  today = 0;
+  await advance(5 * MINUTE);
+  assert.equal(sidebarReads(), 2, 'nothing while hidden');
+  await show();
+  await focus();
+  assert.equal(sidebarReads(), 3, 'one read for visibility + focus');
+  assert.equal(dueBadge(), null);
+});
+
+test('Sidebar badge: 120 due today reads 99+ without widening the sidebar; the full number is read out', async () => {
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(120, 3) });
+  await openHub('/enquiries');
+  assert.equal(clean(dueBadge().textContent), '99+');
+  assert.equal(clean(followUpsItem().textContent), 'Follow-ups (120 due today)');
+  assert.match(followUpsItem().className, /\bpr-10\b/, 'the title keeps clear of the badge');
+});
+
+test('Sidebar badge: a failed read keeps the count shown; the next minute reads again', async () => {
+  let fail = false;
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: () => (fail ? refused(500, {}) : FOLLOW_UPS_DUE(5)) });
+  await openHub('/enquiries');
+  fail = true;
+  await advance(MINUTE);
+  assert.equal(clean(dueBadge().textContent), '5');
+  fail = false;
+  await advance(MINUTE);
+  assert.equal(sidebarReads(), 3);
+});
+
+test("Sidebar badge: signing out drops it; the next BDE never sees the last one's count", async () => {
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(5) });
+  await openHub('/enquiries');
+  assert.equal(clean(dueBadge().textContent), '5');
+  await current.unmount();
+  current = null;
+  await advance(5 * MINUTE);
+  assert.equal(sidebarReads(), 1, 'nothing read after signing out');
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(2) });
+  await open('hub', { path: '/enquiries', user: { ...BDE, id: 'bde-2', email: 'bde2@hub.test' } });
+  assert.equal(dueBadge(), null, 'nothing shown before their own read');
+  await advance(0);
+  assert.equal(clean(dueBadge().textContent), '2');
+});
+
+test("Sidebar badge: an administrator's sidebar, or a BDE's without Follow-ups, has none and reads nothing", async () => {
+  serve({ [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(5) });
+  for (const user of [ADMIN, { ...BDE, permissions: ['accounts.view_own_enquiries'] }]) {
+    await openHub(user.role === 'ADMIN' ? '/leads' : '/enquiries', user);
+    await advance(3 * MINUTE);
+    await focus();
+    assert.equal(gets(BDE_FOLLOW_UPS_URL), 0, `${user.role}: no follow-ups read`);
+    assert.equal(document.querySelector('[data-counter]'), null);
+    assert.equal(followUpsItem(), null, 'no Follow-ups item to badge');
+    await current.unmount();
+    current = null;
+  }
 });
 
 // ---------------------------------------------------------------------- run
