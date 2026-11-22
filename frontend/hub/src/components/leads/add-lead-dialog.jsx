@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimezoneSelect } from '@/components/sessions/timezone-select';
+import { CustomSourceInput } from '@/components/leads/custom-source-input';
 import api from '@/lib/api';
-import { CLASSES, MANUAL_SOURCES, SYLLABI, enquiryError } from '@/lib/enquiries';
+import { CLASSES, MANUAL_SOURCES, OTHER_SOURCE, SYLLABI, customSourceError, enquiryError } from '@/lib/enquiries';
 import { LEADS_URL } from '@/lib/leads';
 
 const FORM_ID = 'add-lead';
 // student_timezone: an IANA zone, or '' while not set (backend bookings.student_timezones).
+// custom_source: an Other source's own name, sent only with Other.
 const EMPTY = {
   parent_name: '',
   phone_dial_code: '+91',
@@ -19,6 +21,7 @@ const EMPTY = {
   student_name: '',
   grade: '',
   source: '',
+  custom_source: '',
   school_name: '',
   syllabus: '',
   country: '',
@@ -86,6 +89,9 @@ export function AddLeadDialog({ open, onOpenChange, onCreated }) {
 
   const setField = (name) => (event) => setForm((current) => ({ ...current, [name]: event.target.value }));
   const setChoice = (name) => (value) => setForm((current) => ({ ...current, [name]: value }));
+  // Leaving Other drops the name typed for it.
+  const setSource = (value) =>
+    setForm((current) => ({ ...current, source: value, custom_source: value === OTHER_SOURCE ? current.custom_source : '' }));
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -98,12 +104,16 @@ export function AddLeadDialog({ open, onOpenChange, onCreated }) {
     if (!form.student_name.trim()) errors.student_name = "Enter the student's name.";
     if (!form.grade) errors.grade = 'Choose a class.';
     if (!form.source) errors.source = 'Choose how this lead reached Eduport Plus.';
+    const customSource = customSourceError(form.source, form.custom_source);
+    if (customSource) errors.custom_source = customSource;
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
     setPending(true);
     try {
-      const body = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value.trim()]));
+      const { custom_source: name, ...fields } = form;
+      const body = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()]));
+      if (form.source === OTHER_SOURCE) body.custom_source = name.trim();
       const response = await api.post(LEADS_URL, body);
       onCreated?.(response.data);
       onOpenChange(false);
@@ -289,7 +299,7 @@ export function AddLeadDialog({ open, onOpenChange, onCreated }) {
             <OptionSelect
               id="enquiry-source"
               value={form.source}
-              onChange={setChoice('source')}
+              onChange={setSource}
               placeholder="How did it reach us?"
               options={MANUAL_SOURCES}
               disabled={pending}
@@ -298,6 +308,15 @@ export function AddLeadDialog({ open, onOpenChange, onCreated }) {
             />
             <FieldError message={fieldErrors.source} />
           </div>
+          {form.source === OTHER_SOURCE ? (
+            <CustomSourceInput
+              id="enquiry-custom-source"
+              value={form.custom_source}
+              onChange={(value) => setForm((current) => ({ ...current, custom_source: value }))}
+              error={fieldErrors.custom_source}
+              disabled={pending}
+            />
+          ) : null}
           <div className="grid content-start gap-2">
             <Label htmlFor="enquiry-country">Country (optional)</Label>
             <Input

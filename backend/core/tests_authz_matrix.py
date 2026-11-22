@@ -389,7 +389,8 @@ class ReviewedPhase1DeltaTests(SimpleTestCase):
             before[key] = change.get('result')
         after = apply_reviewed_changes(before)
         changed_old = {key for key in before if before[key] != after[key]}
-        self.assertEqual(len(changed_old), 58)
+        # 58, plus the 20 booking responses naming an Other lead source (lead.custom_source).
+        self.assertEqual(len(changed_old), 78)
         added_notes = {key for key in set(after) - set(before) if key.split(' @ ')[0] in
                        {'leads.notes', 'bde.enquiries.notes', 'tutor_bookings.notes'}}
         self.assertEqual(len(added_notes), 33)

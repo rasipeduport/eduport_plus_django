@@ -2,13 +2,14 @@ import { useEffect, useId, useState } from 'react';
 import { Loader2Icon, PencilIcon } from 'lucide-react';
 
 import { FormDialog } from '@/components/form-dialog';
+import { CustomSourceInput } from '@/components/leads/custom-source-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/lib/api';
 import { can, isAdmin, PERMISSIONS } from '@/lib/access';
-import { CLASSES, SOURCE_FILTERS, SYLLABI, enquiryError } from '@/lib/enquiries';
+import { CLASSES, OTHER_SOURCE, SOURCE_FILTERS, SYLLABI, customSourceError, enquiryError } from '@/lib/enquiries';
 import { leadUrl } from '@/lib/leads';
 
 const options = (values) => values.map((value) => ({ value, label: value }));
@@ -81,10 +82,13 @@ const SECTIONS = {
         wide: true,
         options: SOURCE_FILTERS.filter(({ value }) => !['DEMO_LINK', 'DIAGNOSTIC_LINK'].includes(value)),
       },
+      // Other's own name: shown, required and sent only while Other is chosen.
+      { name: 'custom_source', customSource: true, shownWhen: (form) => form.source === OTHER_SOURCE },
     ],
   },
 };
 const NONE = '__none__';
+const shown = (fields, form) => fields.filter((field) => !field.shownWhen || field.shownWhen(form));
 
 /** Loaded afresh on each open; the PATCH includes only fields changed in this card. */
 function EditLeadDetailsDialog({ leadId, section, onClose, onSaved }) {
@@ -124,15 +128,32 @@ function EditLeadDetailsDialog({ leadId, section, onClose, onSaved }) {
   }, [leadId, config, reloadKey]);
 
   function setField(name, value) {
-    setForm((current) => ({ ...current, [name]: value }));
-    setFieldErrors((current) => ({ ...current, [name]: null }));
+    setForm((current) => {
+      const next = { ...current, [name]: value };
+      // Leaving Other clears its name; coming back to it restores the saved one, if any.
+      if (name === 'source' && 'custom_source' in current) {
+        next.custom_source = value === OTHER_SOURCE && saved?.source === OTHER_SOURCE ? saved.custom_source : '';
+      }
+      return next;
+    });
+    setFieldErrors((current) => ({ ...current, [name]: null, ...(name === 'source' ? { custom_source: null } : {}) }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!saved || pending || loading) return;
+    const fields = shown(config.fields, form);
+    // An Other source needs its name once anything about it changes; one
+    // saved before names were is left as it is while untouched.
+    if ('custom_source' in form && (form.source !== saved.source || form.custom_source !== saved.custom_source)) {
+      const problem = customSourceError(form.source, form.custom_source);
+      if (problem) {
+        setFieldErrors((current) => ({ ...current, custom_source: problem }));
+        return;
+      }
+    }
     const changes = Object.fromEntries(
-      config.fields.flatMap(({ name }) => {
+      fields.flatMap(({ name }) => {
         if (form[name] === saved[name]) return [];
         const value = form[name].trim();
         return value === saved[name] ? [] : [[name, value]];
@@ -191,10 +212,22 @@ function EditLeadDetailsDialog({ leadId, section, onClose, onSaved }) {
       ) : (
         <form id={formId} onSubmit={handleSubmit} className="max-h-[60vh] overflow-y-auto py-1" noValidate>
           <fieldset className="grid gap-4 sm:grid-cols-2" disabled={pending}>
-            {config.fields.map((field) => {
+            {shown(config.fields, form).map((field) => {
               const id = `${formId}-${field.name}`;
               const errorId = `${id}-error`;
               const value = form[field.name];
+              if (field.customSource) {
+                return (
+                  <CustomSourceInput
+                    key={field.name}
+                    id={id}
+                    value={value}
+                    onChange={(next) => setField(field.name, next)}
+                    error={fieldErrors[field.name]}
+                    disabled={pending}
+                  />
+                );
+              }
               const choices = field.options && [...field.options];
               // Keep legacy values visible without silently replacing them on a partial save.
               if (choices && value && !choices.some((option) => option.value === value)) {

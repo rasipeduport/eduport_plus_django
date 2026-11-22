@@ -79,8 +79,19 @@ export const SOURCE_FILTERS = [
   ...MANUAL_SOURCES,
 ];
 
-export function sourceLabel(source) {
+// An Other source carries its own name ("Newspaper advertisement"), shown in
+// place of "Other" (backend Lead.custom_source; the API's source_label already does).
+export const OTHER_SOURCE = 'OTHER';
+export const CUSTOM_SOURCE_MAX_LENGTH = 100;
+
+export function sourceLabel(source, customSource) {
+  if (source === OTHER_SOURCE && customSource) return customSource;
   return SOURCE_FILTERS.find((option) => option.value === source)?.label ?? 'Booking page';
+}
+
+/** Why an Other source's name cannot be saved (Other needs one, trimmed), or null. */
+export function customSourceError(source, name) {
+  return source === OTHER_SOURCE && !String(name ?? '').trim() ? 'Enter the lead source name.' : null;
 }
 
 // The booking pages' classes and syllabi (backend public_serializers), so an

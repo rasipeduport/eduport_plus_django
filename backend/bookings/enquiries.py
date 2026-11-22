@@ -105,6 +105,12 @@ def source_of(lead):
     return lead.source
 
 
+def source_label(lead):
+    """How ``lead``'s source reads: an Other source by the name an administrator gave it, else as SOURCE_LABELS names it."""
+    source = source_of(lead)
+    return lead.custom_source or SOURCE_LABELS.get(source, source)
+
+
 def booking_brief(booking):
     """When and what a booking is. Slot dates and times are Indian time (bookings.scheduling)."""
     slot = booking.slot
@@ -125,15 +131,14 @@ def enquiry_rows(leads, now, extra=None):
 
 
 def _row(lead, next_booking):
-    source = source_of(lead)
     return {
         'id': str(lead.id),
         'parent_name': lead.parent_name,
         'phone': f'{lead.phone_dial_code} {lead.phone_number}',
         'student_name': lead.student_name,
         'grade': lead.grade,
-        'source': source,
-        'source_label': SOURCE_LABELS.get(source, source),
+        'source': source_of(lead),
+        'source_label': source_label(lead),
         'status': lead.lead_status,
         'status_label': status_label(lead.lead_status),
         'next_booking': booking_brief(next_booking) if next_booking else None,
