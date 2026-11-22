@@ -733,7 +733,7 @@ const listOf = (results) => ({ results, count: results.length, page: 1, page_siz
 const LEADS_ADMIN = { id: 'admin', role: 'ADMIN', full_name: 'Admin One', email: 'admin@hub.test',
   permissions: ['accounts.view_all_leads', 'accounts.assign_lead_owner', 'accounts.add_lead', 'accounts.view_all_bookings'] };
 const ENQUIRY_BDE = { id: 'bde', role: 'BDE', full_name: 'Bde One', email: 'bde@hub.test',
-  permissions: ['accounts.view_own_enquiries', 'accounts.add_enquiry', 'accounts.cancel_booking'] };
+  permissions: ['accounts.view_own_enquiries', 'accounts.cancel_booking'] };
 const WEB_LEAD = { id: 'lead-web', parent_name: 'Meera Menon', phone: '+91 9876543210', phone_dial_code: '+91', phone_number: '9876543210',
   parent_email: '', student_name: 'Kavya', grade: 'Class 7', source: 'WEBSITE', source_label: 'Website', status: 'NEW', status_label: 'New',
   next_booking: null, added_at: null, owner: null, created_at: '2026-11-06T04:00:00+00:00', school_name: 'Kendriya Vidyalaya',

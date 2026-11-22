@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { InboxIcon, PlusIcon, SearchXIcon } from 'lucide-react';
+import { InboxIcon, SearchXIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
@@ -10,12 +9,11 @@ import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
-import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { MyEnquiriesList } from '@/components/enquiries/my-enquiries-list';
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { FilterSelect, ListToolbar, SearchField } from '@/components/page/list-toolbar';
 import { Pagination } from '@/components/page/pagination';
-import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
+import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 const PAGE_SIZE = 25;
 const STATUS_VALUES = new Set(LEAD_STATUSES.map((status) => status.value));
@@ -25,7 +23,7 @@ const SOURCE_VALUES = new Set(SOURCE_FILTERS.map((source) => source.value));
  * What the list says when it has no rows: no enquiry matches the filters, the
  * page asked for is past the last one, or the BDE has no enquiries yet.
  */
-function NoEnquiries({ filtered, total, onClear, onFirstPage, onAdd }) {
+function NoEnquiries({ filtered, total, onClear, onFirstPage }) {
   if (total > 0) {
     return (
       <EmptyState
@@ -58,37 +56,27 @@ function NoEnquiries({ filtered, total, onClear, onFirstPage, onAdd }) {
     <EmptyState
       icon={InboxIcon}
       title="No enquiries yet"
-      description="Share your booking links, or add an enquiry that reached you another way."
-      action={
-        onAdd ? (
-          <Button onClick={onAdd}>
-            <PlusIcon />
-            Add Enquiry
-          </Button>
-        ) : null
-      }
+      description="Share your booking links. Enquiries they bring in, and ones an administrator assigns you, appear here."
     />
   );
 }
 
 /**
  * My Enquiries: the BDE's own enquiries -- the ones their booking links
- * brought in, the ones they added by hand and the ones an administrator
- * assigned them -- with their booking links to share. Search, filters and the
+ * brought in and the ones an administrator assigned them -- with their
+ * booking links to share. A BDE no longer adds an enquiry by hand: an
+ * administrator adds the lead and assigns it. Search, filters and the
  * page are kept in the URL (q, status, source, page) and applied by the API,
  * which serves each BDE only the enquiries they own now: one reassigned to
  * another BDE is gone from here.
  */
 export default function EnquiriesPage({ user }) {
-  const canAdd = can(user, PERMISSIONS.addEnquiry);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const { searchParams, update, clear } = useListParams();
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [added, setAdded] = useState(null);
-  const [addOpen, setAddOpen] = useState(false);
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const q = (searchParams.get('q') ?? '').trim();
@@ -127,10 +115,6 @@ export default function EnquiriesPage({ user }) {
   const retry = () => setReloadKey((key) => key + 1);
   // Kept open while staff work elsewhere: read again on coming back to the tab, at most every 30 seconds.
   useLiveRefresh(retry, { minGapMs: 30_000, enabled: failure?.status !== 403 });
-  const handleAdded = (enquiry) => {
-    setAdded(enquiry);
-    retry();
-  };
 
   let content;
   if (failure?.status === 403) {
@@ -161,7 +145,6 @@ export default function EnquiriesPage({ user }) {
               total={total}
               onClear={clear}
               onFirstPage={() => update({ page: null })}
-              onAdd={canAdd ? () => setAddOpen(true) : null}
             />
           )}
           {total > 0 ? (
@@ -209,33 +192,12 @@ export default function EnquiriesPage({ user }) {
     <Page>
       <PageHeader
         title="My Enquiries"
-        description="Every enquiry that is yours: from your booking links, added by you, or assigned to you. Search, filter and open one to take action."
-        actions={
-          <>
-            {/* The BDE's own booking links, to share with any parent. */}
-            {canShareLinks ? <ShareLinkButtons /> : null}
-            {canAdd ? (
-              <Button variant="outline" onClick={() => setAddOpen(true)}>
-                <PlusIcon />
-                Add Enquiry
-              </Button>
-            ) : null}
-          </>
-        }
+        description="Every enquiry that is yours: from your booking links, assigned to you, or added by you earlier. Search, filter and open one to take action."
+        // The BDE's own booking links, to share with any parent.
+        actions={canShareLinks ? <ShareLinkButtons /> : null}
       />
 
-      {added ? (
-        <Notice onDismiss={() => setAdded(null)}>
-          Added the enquiry for {added.student_name}.{' '}
-          <Link to={`/enquiries/${added.id}`} className="font-medium underline">
-            Open it
-          </Link>
-        </Notice>
-      ) : null}
-
       {content}
-
-      {canAdd ? <AddEnquiryDialog open={addOpen} onOpenChange={setAddOpen} onCreated={handleAdded} /> : null}
     </Page>
   );
 }

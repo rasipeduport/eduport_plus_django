@@ -409,11 +409,11 @@ class ManualLeadTests(AdminLeadsTestCase):
                 self.assertEqual((res.status_code, res.json()['error']), (400, 'VALIDATION_ERROR'))
         self.assertEqual(Lead.objects.count(), 0)
 
-    def test_a_bde_still_adds_their_own_enquiries_and_is_recorded_as_adding_them(self):
+    def test_a_bde_no_longer_adds_enquiries_only_an_administrator_adds_a_lead(self):
+        # Retired by accounts.0031: the BDE's own add answers Gone and writes nothing.
         res = self.as_user(self.bde).post(BDE_ENQUIRIES, {**new_lead(), 'source': 'WALK_IN'}, format='json')
-        self.assertEqual(res.status_code, 201, res.content)
-        made = Lead.objects.get(pk=res.json()['id'])
-        self.assertEqual((made.owner_bde, made.created_by, made.source), (self.bde, self.bde, 'WALK_IN'))
+        self.assertEqual((res.status_code, res.json()['error']), (410, 'MANUAL_ENQUIRIES_RETIRED'))
+        self.assertFalse(Lead.objects.exists())
 
 
 # ------------------------------------------------------------------ giving a lead to a BDE

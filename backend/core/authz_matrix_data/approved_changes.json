@@ -3771,13 +3771,12 @@
    }
   },
   "auth.me @ su_mentor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
-      "accounts.add_enquiry",
       "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
@@ -3883,13 +3882,12 @@
    }
   },
   "auth.me @ su_tutor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
-      "accounts.add_enquiry",
       "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
@@ -3995,13 +3993,12 @@
    }
   },
   "auth.me @ superuser": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five.",
-   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched.",
+   "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
      "groups": [],
      "permissions": [
-      "accounts.add_enquiry",
       "accounts.add_lead",
       "accounts.add_student_note",
       "accounts.assign_booking_tutor",
@@ -5584,7 +5581,7 @@
    }
   },
   "bde.dashboard @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5600,7 +5597,7 @@
    }
   },
   "bde.dashboard @ anon": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
    "result": {
     "capture": {
@@ -5616,7 +5613,7 @@
    }
   },
   "bde.dashboard @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5632,7 +5629,7 @@
    }
   },
   "bde.dashboard @ mentor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5648,7 +5645,7 @@
    }
   },
   "bde.dashboard @ parent_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5664,7 +5661,7 @@
    }
   },
   "bde.dashboard @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "capture": {
@@ -5682,7 +5679,7 @@
    }
   },
   "bde.dashboard @ su_tutor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "capture": {
@@ -5700,7 +5697,7 @@
    }
   },
   "bde.dashboard @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "capture": {
@@ -5718,7 +5715,7 @@
    }
   },
   "bde.dashboard @ tutor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5734,7 +5731,7 @@
    }
   },
   "bde.dashboard @ tutor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5750,7 +5747,7 @@
    }
   },
   "bde.dashboard @ unknown": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "capture": {
@@ -5766,8 +5763,8 @@
    }
   },
   "bde.enquiries.create @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5778,8 +5775,8 @@
    }
   },
   "bde.enquiries.create @ anon": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "Authentication credentials were not provided.",
     "fields": [
@@ -5790,8 +5787,8 @@
    }
   },
   "bde.enquiries.create @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5802,8 +5799,8 @@
    }
   },
   "bde.enquiries.create @ mentor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5814,8 +5811,8 @@
    }
   },
   "bde.enquiries.create @ parent_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5826,8 +5823,8 @@
    }
   },
   "bde.enquiries.create @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "error": "NOT_A_BDE",
     "fields": [
@@ -5840,8 +5837,8 @@
    }
   },
   "bde.enquiries.create @ su_tutor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "error": "NOT_A_BDE",
     "fields": [
@@ -5854,8 +5851,8 @@
    }
   },
   "bde.enquiries.create @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "error": "NOT_A_BDE",
     "fields": [
@@ -5868,8 +5865,8 @@
    }
   },
   "bde.enquiries.create @ tutor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5880,8 +5877,8 @@
    }
   },
   "bde.enquiries.create @ tutor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5892,8 +5889,8 @@
    }
   },
   "bde.enquiries.create @ unknown": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
-   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
+   "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written. Adding an enquiry by hand is retired (accounts.0031): this answer is unchanged, and a BDE is answered 410 MANUAL_ENQUIRIES_RETIRED.",
    "result": {
     "detail": "You do not have permission to perform this action.",
     "fields": [
@@ -5904,7 +5901,7 @@
    }
   },
   "bde.enquiries.detail @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -5916,7 +5913,7 @@
    }
   },
   "bde.enquiries.detail @ anon": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
    "result": {
     "detail": "Authentication credentials were not provided.",
@@ -5928,7 +5925,7 @@
    }
   },
   "bde.enquiries.detail @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -5940,7 +5937,7 @@
    }
   },
   "bde.enquiries.detail @ mentor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -5952,7 +5949,7 @@
    }
   },
   "bde.enquiries.detail @ parent_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -5964,7 +5961,7 @@
    }
   },
   "bde.enquiries.detail @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -5978,7 +5975,7 @@
    }
   },
   "bde.enquiries.detail @ su_tutor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -5992,7 +5989,7 @@
    }
   },
   "bde.enquiries.detail @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -6006,7 +6003,7 @@
    }
   },
   "bde.enquiries.detail @ tutor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6018,7 +6015,7 @@
    }
   },
   "bde.enquiries.detail @ tutor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6030,7 +6027,7 @@
    }
   },
   "bde.enquiries.detail @ unknown": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6180,7 +6177,7 @@
    }
   },
   "bde.enquiries.list @ admin": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6192,7 +6189,7 @@
    }
   },
   "bde.enquiries.list @ anon": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "The BDE workspace endpoints, like every staff endpoint, need a signed-in account.",
    "result": {
     "detail": "Authentication credentials were not provided.",
@@ -6204,7 +6201,7 @@
    }
   },
   "bde.enquiries.list @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6216,7 +6213,7 @@
    }
   },
   "bde.enquiries.list @ mentor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6228,7 +6225,7 @@
    }
   },
   "bde.enquiries.list @ parent_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6240,7 +6237,7 @@
    }
   },
   "bde.enquiries.list @ su_mentor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -6254,7 +6251,7 @@
    }
   },
   "bde.enquiries.list @ su_tutor": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -6268,7 +6265,7 @@
    }
   },
   "bde.enquiries.list @ superuser": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "A superuser holds the enquiry permissions (D1) but is not a BDE. Enquiries belong to active BDE accounts only, so the endpoint answers NOT_A_BDE before reading or writing anything.",
    "result": {
     "error": "NOT_A_BDE",
@@ -6282,7 +6279,7 @@
    }
   },
   "bde.enquiries.list @ tutor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6294,7 +6291,7 @@
    }
   },
   "bde.enquiries.list @ tutor_b": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
@@ -6306,7 +6303,7 @@
    }
   },
   "bde.enquiries.list @ unknown": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1).",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. accounts.add_enquiry is retired; POST /api/bde/enquiries/ is guarded by accounts.view_own_enquiries alone and answers a BDE 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing; every other caller is answered as before.",
    "note": "Only the BDE role may hold the enquiry permissions, so this caller is refused and nothing is read or written.",
    "result": {
     "detail": "You do not have permission to perform this action.",
