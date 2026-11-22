@@ -48,7 +48,7 @@ from .booking_service import (
     StartWindowClosed,
 )
 from .coordination import PAST, UPCOMING, filtered, report_summary, slot_brief
-from .enquiries import SOURCE_LABELS, booking_brief, source_of
+from .enquiries import booking_brief, source_label
 from .lead_status import LeadStatus, status_label, with_status
 from .lifecycle import activity_state, start_opens_at
 from .models import BOOKING_MODELS, CONDUCTED, BookingStatus, BookingType, DemoBooking, Lead, booking_model
@@ -290,9 +290,8 @@ def enquiry_brief(lead, now):
     )
     upcoming = [booking for booking in bookings if booking.status == BookingStatus.BOOKED and booking.slot.ends_at > now]
     status = LeadStatus.DEMO_COMPLETED if lead.lead_status == LeadStatus.DEMO_REDEMO_REQUIRED else lead.lead_status
-    source = source_of(lead)
     return {
-        'source_label': SOURCE_LABELS.get(source, source),
+        'source_label': source_label(lead),
         'status': status,
         'status_label': status_label(status),
         'created_at': lead.created_at.isoformat(),

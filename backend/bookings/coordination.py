@@ -349,6 +349,8 @@ def booking_detail(booking, now, user=None, request=None):
             'country': lead.country,
             'student_timezone': student_timezones.of(lead),
             'source': lead.source,
+            # An Other source's own name ('' otherwise), shown in place of "Other".
+            'custom_source': lead.custom_source,
             'owner_bde': _person(lead.owner_bde),
         },
         'referral_status': booking.referral_status,

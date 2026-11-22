@@ -19,8 +19,8 @@ from core.timezones import DATE_PATTERN
 from . import enquiries
 from .lead_intake import LeadExists, create_lead, existing_lead
 from .lead_status import with_status
-from .leads import InvalidLeadDetails, normalize_phone, student_name_key
-from .models import MANUAL_LEAD_SOURCES, Lead
+from .leads import CUSTOM_SOURCE_REQUIRED, InvalidLeadDetails, custom_source_error, normalize_phone, student_name_key
+from .models import CUSTOM_SOURCE_KEY, MANUAL_LEAD_SOURCES, Lead, LeadSource
 from .scheduling import BOOKING_TIMEZONE
 from .services import owns_booking_links
 
@@ -102,11 +102,46 @@ def lead_detail(lead, now, show_confirmation=False):
         **enquiries.enquiry_detail(lead, now, show_confirmation=show_confirmation),
         'owner': _person(lead.owner_bde),
         'added_by': _person(lead.created_by),
-        'source_details': lead.source_details,
+        # The campaign tags only; an Other source's name is `custom_source`.
+        'source_details': lead.campaign_tags,
         # `source` is a display code (DEMO_LINK / DIAGNOSTIC_LINK for a BDE's
         # booking link). Corrections use the stored LeadSource, not that label.
         'original_source': lead.source,
+        # The name an Other source was given ('' for any other source, and for
+        # an Other recorded before names were); `source_label` already shows it.
+        'custom_source': lead.custom_source,
     }
+
+
+def with_custom_source(source_details, name):
+    """``source_details`` (a lead's) with the Other source's name set to ``name``, or dropped when ''."""
+    details = {
+        key: value for key, value in (source_details if isinstance(source_details, dict) else {}).items()
+        if key != CUSTOM_SOURCE_KEY
+    }
+    if name:
+        details[CUSTOM_SOURCE_KEY] = name
+    return details
+
+
+def _source_details_for(lead, source, name):
+    """
+    ``lead``'s source_details once its source is ``source`` and its Other name
+    ``name`` (None: not sent, so an Other keeps the name it has). Leaving
+    Other drops the name; the campaign tags always stay. Raises
+    InvalidLeadDetails for an Other left without a name, or a name sent for
+    another source (a blank one is ignored there).
+    """
+    if source == LeadSource.OTHER:
+        name = lead.custom_source if name is None else name
+        if not name:
+            raise InvalidLeadDetails('custom_source', CUSTOM_SOURCE_REQUIRED)
+    else:
+        problem = custom_source_error(source, name or '')
+        if problem:
+            raise InvalidLeadDetails('custom_source', problem)
+        name = ''
+    return with_custom_source(lead.source_details, name)
 
 
 def bde_options():
@@ -133,8 +168,13 @@ def add_lead(admin, details, request=None):
     """
     if details['source'] not in MANUAL_LEAD_SOURCES:
         raise InvalidLeadDetails('source', 'Choose how this lead reached Eduport Plus.')
-    lead = create_lead(details, source=details['source'], created_by=admin)
-    # Ids and choices only, as for every lead: no names or phone numbers in the log.
+    name = details.get('custom_source') or ''
+    problem = custom_source_error(details['source'], name)
+    if problem:
+        raise InvalidLeadDetails('custom_source', problem)
+    lead = create_lead(details, source=details['source'], created_by=admin, source_details=with_custom_source({}, name))
+    # Ids and choices only, as for every lead: no names or phone numbers in the
+    # log -- nor the Other source's typed name.
     log_activity(
         action='lead.create',
         entity_type='lead',
@@ -180,6 +220,9 @@ def update_lead_details(admin, lead_id, details, request=None):
                 values.update(phone_dial_code=dial, phone_number=number, phone_key=key)
             if 'student_name' in values:
                 values['student_name_key'] = student_name_key(values['student_name'])
+            name = values.pop('custom_source', None)
+            if name is not None or 'source' in values:
+                values['source_details'] = _source_details_for(lead, values.get('source', lead.source), name)
 
             changed = {field: value for field, value in values.items() if getattr(lead, field) != value}
             if not changed:
@@ -208,10 +251,12 @@ def update_lead_details(admin, lead_id, details, request=None):
                 # Before any payment the student account still follows the enquiry.
                 from sales.student_accounts import mirror_unlocked_name
                 mirror_unlocked_name(lead)
-            # As on lead intake, record field names, not private contact values.
+            # As on lead intake, record field names, not private contact values
+            # (nor an Other source's typed name).
+            fields = set(changed) | ({'custom_source'} if 'source_details' in changed else set())
             log_activity(
                 action='lead.update_details', entity_type='lead', entity_id=lead.id,
-                entity_label=f'{lead.grade} lead', context={'fields': sorted(set(details) & changed.keys()), 'via': 'admin_leads'},
+                entity_label=f'{lead.grade} lead', context={'fields': sorted(set(details) & fields), 'via': 'admin_leads'},
                 request=request, actor=admin,
             )
     except OperationalError as exc:

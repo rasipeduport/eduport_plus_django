@@ -1,10 +1,10 @@
 from rest_framework import serializers
 
 from .booking_service import REDEMO_REASON_MAX_LENGTH, REDEMO_REMARKS_MAX_LENGTH
-from .leads import InvalidLeadDetails, normalize_phone
+from .leads import InvalidLeadDetails, custom_source_error, normalize_phone
 from .models import (
-    MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason, LeadSource, RedemoCloseReason,
-    RescheduleReason,
+    CUSTOM_SOURCE_MAX_LENGTH, MANUAL_CANCEL_REASONS, MANUAL_LEAD_SOURCES, BookingLink, BookingType, CancelReason,
+    LeadSource, RedemoCloseReason, RescheduleReason,
 )
 from .notes import NOTE_MAX_LENGTH
 from .public_serializers import CLASSES, SYLLABI
@@ -17,6 +17,11 @@ def known_timezone(value):
     """A student time zone staff pick: '' (not known) or an IANA zone the runtime knows."""
     if value and clean_student_timezone(value) != value:
         raise serializers.ValidationError(InvalidStudentTimezone.message)
+
+
+def custom_source_field(**kwargs):
+    """An Other source's own name: trimmed (DRF's default), so a blank or whitespace-only one reads ''."""
+    return serializers.CharField(max_length=CUSTOM_SOURCE_MAX_LENGTH, required=False, allow_blank=True, **kwargs)
 
 
 class BookingLinkSerializer(serializers.ModelSerializer):
@@ -71,6 +76,8 @@ class LeadCreateSerializer(serializers.Serializer):
     student_name = serializers.CharField(max_length=255)
     grade = serializers.ChoiceField(choices=CLASSES)
     source = serializers.ChoiceField(choices=MANUAL_LEAD_SOURCES)
+    # Required with Other ("Newspaper advertisement"), refused with any other source.
+    custom_source = custom_source_field(default='')
     school_name = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
     # The Diagnostic page offers every syllabus the Demo page does, and more.
     syllabus = serializers.ChoiceField(choices=SYLLABI[BookingType.DIAGNOSTIC], required=False, allow_blank=True, default='')
@@ -82,10 +89,16 @@ class LeadCreateSerializer(serializers.Serializer):
     parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
 
     def validate(self, data):
+        errors = {}
         try:
             normalize_phone(data['phone_dial_code'], data['phone_number'])
         except InvalidLeadDetails as exc:
-            raise serializers.ValidationError({exc.field: [exc.message]})
+            errors[exc.field] = [exc.message]
+        problem = custom_source_error(data['source'], data.get('custom_source', ''))
+        if problem:
+            errors['custom_source'] = [problem]
+        if errors:
+            raise serializers.ValidationError(errors)
         return data
 
 
@@ -101,6 +114,9 @@ class LeadDetailsUpdateSerializer(serializers.Serializer):
     school_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     syllabus = serializers.ChoiceField(choices=SYLLABI[BookingType.DIAGNOSTIC], required=False, allow_blank=True)
     source = serializers.ChoiceField(choices=LeadSource.choices, required=False)
+    # An Other source's own name. With ``source`` it is checked here; alone it
+    # renames the lead's current Other source (bookings.lead_admin.update_lead_details).
+    custom_source = custom_source_field()
 
     def to_internal_value(self, data):
         values = super().to_internal_value(data)
@@ -108,6 +124,13 @@ class LeadDetailsUpdateSerializer(serializers.Serializer):
         if unknown:
             raise serializers.ValidationError({field: ['This field cannot be edited here.'] for field in sorted(unknown)})
         return values
+
+    def validate(self, data):
+        if 'source' in data:
+            problem = custom_source_error(data['source'], data.get('custom_source', ''))
+            if problem:
+                raise serializers.ValidationError({'custom_source': [problem]})
+        return data
 
 
 class StudentTimezoneSerializer(serializers.Serializer):

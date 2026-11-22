@@ -96,6 +96,62 @@ class AdminLeadDetailsTests(TestCase):
         self.assertEqual((self.lead.owner_link_id, self.lead.owner_bde_id, self.lead.source_details),
                          (link.pk, self.bde.pk, {'utm_source': 'original'}))
 
+    def test_choosing_other_needs_a_name_kept_beside_the_campaign_tags(self):
+        self.lead.source = LeadSource.WEBSITE
+        self.lead.source_details = {'utm_source': 'original'}
+        self.lead.save(update_fields=['source', 'source_details'])
+        for fields in ({'source': 'OTHER'}, {'source': 'OTHER', 'custom_source': '   '},
+                       {'source': 'OTHER', 'custom_source': 'x' * 101}):
+            with self.subTest(fields=fields):
+                res = self.patch(**fields)
+                self.assertEqual((res.status_code, list(res.json()['fields'])), (400, ['custom_source']))
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.source, LeadSource.WEBSITE)
+
+        res = self.patch(source='OTHER', custom_source=' School Campaign ')
+        self.assertEqual(res.status_code, 200, res.content)
+        data = res.json()
+        self.assertEqual((data['original_source'], data['custom_source'], data['source_label'], data['source_details']),
+                         ('OTHER', 'School Campaign', 'School Campaign', {'utm_source': 'original'}))
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.source_details, {'utm_source': 'original', 'custom_source': 'School Campaign'})
+        entry = ActivityLog.objects.get(action='lead.update_details')
+        self.assertEqual(entry.context['fields'], ['custom_source', 'source'])
+        self.assertNotIn('School Campaign', str(entry.context))
+
+    def test_an_other_source_is_renamed_and_leaving_other_drops_its_name(self):
+        self.lead.source = LeadSource.OTHER
+        self.lead.source_details = {'utm_source': 'kept', 'custom_source': 'Exhibition'}
+        self.lead.save(update_fields=['source', 'source_details'])
+        self.assertEqual(self.client.get(self.url).json()['custom_source'], 'Exhibition')
+
+        res = self.patch(custom_source='Partner Referral')
+        self.assertEqual((res.status_code, res.json()['source_label']), (200, 'Partner Referral'))
+        self.assertEqual(self.patch(custom_source=' ').status_code, 400, 'an Other is never left without its name')
+
+        res = self.patch(source=LeadSource.PHONE_CALL)
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual((res.json()['source_label'], res.json()['custom_source']), ('Phone call', ''))
+        self.lead.refresh_from_db()
+        self.assertEqual((self.lead.source, self.lead.source_details), ('PHONE_CALL', {'utm_source': 'kept'}))
+
+        # A name for another source is refused; a blank one changes nothing.
+        for fields in ({'custom_source': 'Exhibition'}, {'source': 'WALK_IN', 'custom_source': 'Exhibition'}):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.patch(**fields).status_code, 400)
+        before = self.lead.updated_at
+        self.assertEqual(self.patch(custom_source='').status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertEqual((self.lead.source, self.lead.updated_at), ('PHONE_CALL', before))
+
+    def test_an_other_lead_from_before_names_keeps_saving_its_other_details(self):
+        self.lead.source = LeadSource.OTHER
+        self.lead.save(update_fields=['source'])
+        self.assertEqual(self.client.get(self.url).json()['source_label'], 'Other')
+        self.assertEqual(self.patch(parent_name='Still saved').status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertEqual((self.lead.parent_name, self.lead.source, self.lead.source_details), ('Still saved', 'OTHER', {}))
+
     def test_bde_tutor_and_other_roles_cannot_edit_even_as_superusers(self):
         for role in ('BDE', 'TUTOR', 'MENTOR', 'SALES_TL', 'STUDENT'):
             for superuser in (False, True):

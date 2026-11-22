@@ -13,7 +13,7 @@ import re
 import unicodedata
 
 from . import student_timezones
-from .models import Lead
+from .models import Lead, LeadSource
 
 DIAL_CODE_RE = re.compile(r'^\+[1-9][0-9]{0,3}$')
 # E.164: at most 15 digits, country code included.
@@ -33,6 +33,22 @@ class InvalidLeadDetails(ValueError):
         super().__init__(message)
         self.field = field
         self.message = message
+
+
+CUSTOM_SOURCE_REQUIRED = 'Enter the lead source name.'
+CUSTOM_SOURCE_NOT_OTHER = 'Specify a lead source name only when the source is Other.'
+
+
+def custom_source_error(source, name):
+    """
+    Why ``name`` (an Other source's own name, already trimmed) cannot go with
+    ``source``, or None: Other needs a name, every other source takes none.
+    """
+    if source == LeadSource.OTHER and not name:
+        return CUSTOM_SOURCE_REQUIRED
+    if source != LeadSource.OTHER and name:
+        return CUSTOM_SOURCE_NOT_OTHER
+    return None
 
 
 def normalize_phone(dial_code, number):

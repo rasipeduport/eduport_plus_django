@@ -324,6 +324,12 @@ PUBLIC_LEAD_SOURCES = (LeadSource.BOOKING_PAGE, LeadSource.WEBSITE, LeadSource.L
 PUBLIC_FORM_SOURCES = (LeadSource.WEBSITE, LeadSource.LANDING_PAGE)
 # What a BDE or an administrator may pick when adding a lead by hand.
 MANUAL_LEAD_SOURCES = [value for value in LeadSource.values if value not in PUBLIC_LEAD_SOURCES]
+# An Other source's own name as an administrator typed it ("Newspaper
+# advertisement"): kept in Lead.source_details under this key, beside a lead
+# form's utm_* tags, so the lead keeps OTHER as its source code -- filters and
+# existing readers stay as they are -- and the name is shown instead of "Other".
+CUSTOM_SOURCE_KEY = 'custom_source'
+CUSTOM_SOURCE_MAX_LENGTH = 100
 
 
 class Lead(models.Model):
@@ -361,6 +367,7 @@ class Lead(models.Model):
     source = models.CharField(max_length=20, choices=LeadSource.choices, default=LeadSource.BOOKING_PAGE)
     # Where a lead form's lead came from, as the form's page URL told it: its
     # utm_* campaign parameters, written once with the lead (bookings.lead_intake).
+    # An Other source's name sits beside them under CUSTOM_SOURCE_KEY.
     source_details = models.JSONField(default=dict, blank=True)
     # Who added it by hand: a BDE (their enquiry) or an administrator. NULL
     # for a lead a public page made, and for enquiries from before the column.
@@ -418,6 +425,19 @@ class Lead(models.Model):
 
     def __str__(self):
         return f"Lead {self.id}"
+
+    @property
+    def custom_source(self):
+        """The name an administrator gave this lead's Other source, or '' (another source, or an Other with no name)."""
+        if self.source != LeadSource.OTHER or not isinstance(self.source_details, dict):
+            return ''
+        return self.source_details.get(CUSTOM_SOURCE_KEY) or ''
+
+    @property
+    def campaign_tags(self):
+        """source_details without the Other source's name: a lead form's utm_* tags only."""
+        details = self.source_details if isinstance(self.source_details, dict) else {}
+        return {key: value for key, value in details.items() if key != CUSTOM_SOURCE_KEY}
 
 
 def _cleared(*events):

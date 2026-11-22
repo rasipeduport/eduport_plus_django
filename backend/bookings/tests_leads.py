@@ -409,6 +409,47 @@ class ManualLeadTests(AdminLeadsTestCase):
                 self.assertEqual((res.status_code, res.json()['error']), (400, 'VALIDATION_ERROR'))
         self.assertEqual(Lead.objects.count(), 0)
 
+    def test_an_other_source_keeps_the_name_it_was_given(self):
+        res = self.client.post(LEADS, new_lead(source='OTHER', custom_source='  Newspaper Advertisement  '), format='json')
+        self.assertEqual(res.status_code, 201, res.content)
+        data = res.json()
+        self.assertEqual((data['source'], data['original_source'], data['custom_source'], data['source_label']),
+                         ('OTHER', 'OTHER', 'Newspaper Advertisement', 'Newspaper Advertisement'))
+        self.assertEqual(data['source_details'], {}, 'the campaign tags stay campaign tags')
+        made = Lead.objects.get(pk=data['id'])
+        self.assertEqual((made.source, made.source_details), ('OTHER', {'custom_source': 'Newspaper Advertisement'}))
+        # The log keeps the code, never the typed name.
+        self.assertNotIn('Newspaper', str(ActivityLog.objects.get(action='lead.create').context))
+        # Listed by its name, and still found under the Other filter.
+        rows = self.client.get(LEADS, {'source': 'OTHER'}).json()['results']
+        self.assertEqual([(row['id'], row['source'], row['source_label']) for row in rows],
+                         [(data['id'], 'OTHER', 'Newspaper Advertisement')])
+
+    def test_an_other_source_needs_a_name_and_no_other_source_takes_one(self):
+        cases = {
+            'Other with no name': new_lead(source='OTHER'),
+            'Other with a blank name': new_lead(source='OTHER', custom_source=''),
+            'Other with only spaces': new_lead(source='OTHER', custom_source='   '),
+            'Other with a null name': new_lead(source='OTHER', custom_source=None),
+            'a name too long': new_lead(source='OTHER', custom_source='x' * 101),
+            'a name with another source': new_lead(custom_source='Exhibition'),
+        }
+        for case, body in cases.items():
+            with self.subTest(case=case):
+                res = self.client.post(LEADS, body, format='json')
+                self.assertEqual((res.status_code, res.json()['error']), (400, 'VALIDATION_ERROR'))
+                self.assertIn('custom_source', res.json()['fields'])
+        self.assertEqual(Lead.objects.count(), 0)
+        # A blank name beside another source is no name at all.
+        res = self.client.post(LEADS, new_lead(custom_source=' '), format='json')
+        self.assertEqual((res.status_code, res.json()['source_label'], res.json()['custom_source']), (201, 'Phone call', ''))
+        self.assertEqual(Lead.objects.get().source_details, {})
+
+    def test_an_other_lead_from_before_names_still_reads_other(self):
+        legacy = lead(None, 'Legacy', source=LeadSource.OTHER)
+        data = self.client.get(f'{LEADS}{legacy.id}/').json()
+        self.assertEqual((data['source'], data['source_label'], data['custom_source']), ('OTHER', 'Other', ''))
+
     def test_a_bde_no_longer_adds_enquiries_only_an_administrator_adds_a_lead(self):
         # Retired by accounts.0031: the BDE's own add answers Gone and writes nothing.
         res = self.as_user(self.bde).post(BDE_ENQUIRIES, {**new_lead(), 'source': 'WALK_IN'}, format='json')
