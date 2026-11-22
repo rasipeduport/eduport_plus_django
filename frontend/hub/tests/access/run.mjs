@@ -132,13 +132,13 @@ function withBookingSlots(answers) {
 }
 
 // BDE portal phase 1 (dashboard and My Enquiries), laid over the same
-// recorded answers: accounts.view_own_enquiries and accounts.add_enquiry,
-// which the BDE's role group carries and a superuser holds (D1) -- the Hub
+// recorded answers: accounts.view_own_enquiries, which the BDE's role group
+// carries and a superuser holds (D1; accounts.add_enquiry, held alongside it
+// until adding an enquiry by hand was retired by accounts.0031) -- the Hub
 // still opens the enquiry pages for the BDE role only, and gives a superuser
 // the staff dashboard. The BDE is served its own dashboard and one enquiry,
 // on fixed dates, so nothing shown moves with the clock.
 const VIEW_OWN_ENQUIRIES = 'accounts.view_own_enquiries';
-const ADD_ENQUIRY = 'accounts.add_enquiry';
 const ENQUIRY_ID = '5d1f0c2e-8a47-4c3b-9e61-2f7a9b0c4d18';
 const BDE_DASHBOARD_PATH = '/api/bde/dashboard/';
 const ENQUIRIES_PATH = '/api/bde/enquiries/';
@@ -198,7 +198,7 @@ const BDE_REPORTS = { status: 200, body: { timezone: 'Asia/Kolkata', count: 1, r
 const NOT_A_BDE = { status: 403, body: { error: 'NOT_A_BDE', message: 'Enquiries belong to BDE accounts, and this account is not one.' } };
 function asSuperuserAfterEnquiries(answers) {
   const me = answers['/api/auth/me/'];
-  const permissions = [...me.body.user.permissions, ADD_ENQUIRY, VIEW_OWN_ENQUIRIES].sort();
+  const permissions = [...me.body.user.permissions, VIEW_OWN_ENQUIRIES].sort();
   return {
     ...answers,
     '/api/auth/me/': { ...me, body: { ...me.body, user: { ...me.body.user, permissions } } },
@@ -545,7 +545,7 @@ const CALLERS = {
       '/api/sales/quotes/': SALES_QUOTES },
     // With the workflow permissions the BDE role group carries since accounts.0015 (P2), the
     // catalogue on sale since accounts.0021 and quotes since accounts.0022.
-    me: fakeMe('BDE', [ADD_ENQUIRY, 'accounts.cancel_booking', CHANGE_STUDENT_TIMEZONE, 'accounts.create_demo_booking',
+    me: fakeMe('BDE', ['accounts.cancel_booking', CHANGE_STUDENT_TIMEZONE, 'accounts.create_demo_booking',
       'accounts.create_sales_quotes', 'accounts.manage_initial_sales',
       'accounts.manage_own_conversion', RECORD_PARENT_CONFIRMATION, SEND_LEAD_COMMUNICATIONS, 'accounts.share_booking_report',
       VIEW_OWN_BOOKING_LINKS, VIEW_OWN_ENQUIRIES, VIEW_OWN_LEAD_COMMUNICATIONS, 'accounts.view_own_lead_reports',

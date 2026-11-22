@@ -144,8 +144,7 @@ export function whatsAppUrl(dialCode, number, text) {
 /**
  * `{ status, code, message, fields, enquiryId }` from an axios error. The
  * workspace and the Leads API answer `{ error: CODE, message, fields? }`; a
- * duplicate of the BDE's own enquiry also carries `enquiry_id`, and any
- * duplicate an administrator adds `lead_id`.
+ * duplicate lead an administrator adds also carries `lead_id`.
  */
 export function enquiryError(err, fallback) {
   const response = err?.response;
@@ -157,6 +156,6 @@ export function enquiryError(err, fallback) {
       ? data.message || data.detail || fallback
       : 'Could not reach the server. Check your connection and try again.',
     fields: data.fields && typeof data.fields === 'object' && !Array.isArray(data.fields) ? data.fields : {},
-    enquiryId: [data.enquiry_id, data.lead_id].find((id) => typeof id === 'string') ?? null,
+    enquiryId: typeof data.lead_id === 'string' ? data.lead_id : null,
   };
 }

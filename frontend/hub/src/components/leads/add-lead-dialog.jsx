@@ -7,10 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimezoneSelect } from '@/components/sessions/timezone-select';
 import api from '@/lib/api';
-import { CLASSES, ENQUIRIES_URL, MANUAL_SOURCES, SYLLABI, enquiryError } from '@/lib/enquiries';
+import { CLASSES, MANUAL_SOURCES, SYLLABI, enquiryError } from '@/lib/enquiries';
 import { LEADS_URL } from '@/lib/leads';
 
-const FORM_ID = 'add-enquiry';
+const FORM_ID = 'add-lead';
 // student_timezone: an IANA zone, or '' while not set (backend bookings.student_timezones).
 const EMPTY = {
   parent_name: '',
@@ -59,18 +59,15 @@ function OptionSelect({ id, value, onChange, placeholder, options, disabled, req
 }
 
 /**
- * Adds a lead by hand. A BDE adds one they received outside their booking
- * links -- a call, a walk-in, a referral -- and it is theirs from the start; a
- * parent who later books through the booking pages lands on it and it stays
- * theirs. An administrator (`admin`, the Leads page) adds one to the same
- * leads, owned by nobody until they assign it, with the parent's email when
- * known. The student's time zone is optional (Not set by default): with it,
- * staff see each booking's Student Time beside its Indian time. The API
- * refuses a child already registered under the same phone number, pointing
- * to the lead when the caller may open it. A BDE's workspace calls them
- * enquiries (Add Enquiry); the administrators' Leads page, leads.
+ * Adds a lead by hand, from the administrators' Leads page: one that reached
+ * Eduport Plus another way -- a call, a walk-in, a referral -- owned by
+ * nobody until it is assigned to a BDE, with the parent's email when known.
+ * (A BDE no longer adds enquiries by hand.) The student's time zone is
+ * optional (Not set by default): with it, staff see each booking's Student
+ * Time beside its Indian time. The API refuses a child already registered
+ * under the same phone number, pointing to the lead.
  */
-export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false }) {
+export function AddLeadDialog({ open, onOpenChange, onCreated }) {
   const [form, setForm] = useState(EMPTY);
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState(null);
@@ -100,26 +97,25 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
     if (!form.phone_number.trim()) errors.phone_number = 'Enter the phone number.';
     if (!form.student_name.trim()) errors.student_name = "Enter the student's name.";
     if (!form.grade) errors.grade = 'Choose a class.';
-    if (!form.source) errors.source = admin ? 'Choose how this lead reached Eduport Plus.' : 'Choose how this enquiry reached you.';
+    if (!form.source) errors.source = 'Choose how this lead reached Eduport Plus.';
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
     setPending(true);
     try {
-      const fields = Object.entries(form).filter(([key]) => admin || key !== 'parent_email');
-      const body = Object.fromEntries(fields.map(([key, value]) => [key, value.trim()]));
-      const response = await api.post(admin ? LEADS_URL : ENQUIRIES_URL, body);
+      const body = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value.trim()]));
+      const response = await api.post(LEADS_URL, body);
       onCreated?.(response.data);
       onOpenChange(false);
     } catch (err) {
-      const failure = enquiryError(err, admin ? 'Could not add the lead.' : 'Could not add the enquiry.');
-      if (failure.code === 'ENQUIRY_EXISTS' || failure.code === 'LEAD_EXISTS') {
+      const failure = enquiryError(err, 'Could not add the lead.');
+      if (failure.code === 'LEAD_EXISTS') {
         setError(
           failure.enquiryId ? (
             <>
               {failure.message}{' '}
               <Link
-                to={`${admin ? '/leads' : '/enquiries'}/${failure.enquiryId}`}
+                to={`/leads/${failure.enquiryId}`}
                 className="underline"
                 onClick={() => onOpenChange(false)}
               >
@@ -150,15 +146,11 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={admin ? 'Add lead' : 'Add Enquiry'}
-      description={
-        admin
-          ? 'A lead that reached Eduport Plus another way -- a call, a walk-in, a referral. It is added unassigned; assign it to a BDE from the list.'
-          : 'An enquiry that reached you outside your booking links. It is added to your enquiries straight away.'
-      }
+      title="Add lead"
+      description="A lead that reached Eduport Plus another way -- a call, a walk-in, a referral. It is added unassigned; assign it to a BDE from the list."
       error={error}
       formId={FORM_ID}
-      confirmLabel={admin ? 'Add lead' : 'Add Enquiry'}
+      confirmLabel="Add lead"
       pendingLabel="Adding…"
       pending={pending}
       size="lg"
@@ -209,21 +201,19 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
             </div>
             <FieldError message={fieldErrors.phone_dial_code || fieldErrors.phone_number} />
           </div>
-          {admin ? (
-            <div className="grid gap-2">
-              <Label htmlFor="enquiry-parent-email">Parent email (optional)</Label>
-              <Input
-                id="enquiry-parent-email"
-                type="email"
-                value={form.parent_email}
-                onChange={setField('parent_email')}
-                placeholder="name@example.com"
-                autoComplete="off"
-                aria-invalid={invalid('parent_email')}
-              />
-              <FieldError message={fieldErrors.parent_email} />
-            </div>
-          ) : null}
+          <div className="grid gap-2">
+            <Label htmlFor="enquiry-parent-email">Parent email (optional)</Label>
+            <Input
+              id="enquiry-parent-email"
+              type="email"
+              value={form.parent_email}
+              onChange={setField('parent_email')}
+              placeholder="name@example.com"
+              autoComplete="off"
+              aria-invalid={invalid('parent_email')}
+            />
+            <FieldError message={fieldErrors.parent_email} />
+          </div>
         </fieldset>
 
         <fieldset className="grid gap-4" disabled={pending}>
@@ -290,7 +280,7 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
         </fieldset>
 
         <fieldset className="grid gap-4 sm:grid-cols-2" disabled={pending}>
-          <legend className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">{admin ? 'Lead' : 'Enquiry'}</legend>
+          <legend className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">Lead</legend>
           {/* A row of its own, so where the family is -- country and time zone -- reads as a pair. */}
           <div className="grid content-start gap-2 sm:col-span-2">
             <Label htmlFor="enquiry-source" required>
@@ -300,7 +290,7 @@ export function AddEnquiryDialog({ open, onOpenChange, onCreated, admin = false 
               id="enquiry-source"
               value={form.source}
               onChange={setChoice('source')}
-              placeholder={admin ? 'How did it reach us?' : 'How did it reach you?'}
+              placeholder="How did it reach us?"
               options={MANUAL_SOURCES}
               disabled={pending}
               required
