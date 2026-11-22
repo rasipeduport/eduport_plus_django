@@ -675,52 +675,55 @@ const PRE_CALL = { id: 't-call', type: 'PRE_ACTIVITY_CALL', type_label: 'Pre-act
     phone_dial_code: '+971', phone_number: '501234567' },
   booking: { id: 'b-dona', booking_type: 'DEMO', date: '2026-11-20', time: '19:30', starts_at: '2026-11-20T14:00:00+00:00',
     status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
-  actions: { record_outcome: true, request_confirmation: false, record_answer: false } };
+  actions: { request_confirmation: false, record_answer: false } };
+// The pre-activity call only reminds, so the dialog these keep open is the parent's answer to a confirmation.
+const CONFIRM = { ...PRE_CALL, id: 'b-dona', type: 'PARENT_CONFIRMATION', type_label: 'Parent confirmation',
+  actions: { request_confirmation: false, record_answer: true } };
 const followUpsPage = (rows) => ({ results: rows, count: rows.length, page: 1, page_size: 25,
   summary: { total: rows.length, today: rows.length, upcoming: 0 } });
-const CALL_OUTCOME = `${COMMS('b-dona')}call-outcome/`;
+const PARENT_ANSWER = `${COMMS('b-dona')}parent-confirmation/`;
 
-const outcomeDialog = async (later, extra = {}) => {
+const answerDialog = async (later, extra = {}) => {
   serve({
-    [`GET ${BDE_FOLLOW_UPS_URL}`]: () => followUpsPage(gets(BDE_FOLLOW_UPS_URL) <= 1 ? [PRE_CALL] : later),
+    [`GET ${BDE_FOLLOW_UPS_URL}`]: () => followUpsPage(gets(BDE_FOLLOW_UPS_URL) <= 1 ? [CONFIRM] : later),
     ...extra,
   });
   await open('page', { path: '/follow-ups', user: FOLLOW_UP_BDE });
-  await click(button('Record outcome'));
-  assert.ok(topDialog(), 'the outcome dialog is open');
-  await click(radio('No answer'));
-  assert.ok(radio('No answer').checked, 'an outcome picked');
+  await click(button('Record answer'));
+  assert.ok(topDialog(), 'the answer dialog is open');
+  await click(radio('Confirmed'));
+  assert.ok(radio('Confirmed').checked, 'an answer picked');
 };
 
-test('P3 fix: the minute refresh that empties Follow-ups keeps the open outcome dialog and what was picked', async () => {
-  await outcomeDialog([]);
+test('P3 fix: the minute refresh that empties Follow-ups keeps the open answer dialog and what was picked', async () => {
+  await answerDialog([]);
   await advance(MINUTE);
   assert.equal(gets(BDE_FOLLOW_UPS_URL), 2, 'the minute refresh ran and found nothing left');
   assert.ok(topDialog(), 'the dialog is still open');
-  assert.ok(radio('No answer').checked, 'with the outcome still picked');
-  assert.ok(!button('Record outcome', topDialog()).disabled, 'and still ready to record');
+  assert.ok(radio('Confirmed').checked, 'with the answer still picked');
+  assert.ok(!button('Record answer', topDialog()).disabled, 'and still ready to record');
   await click(button('Cancel', topDialog()) ?? button('Close', topDialog()));
   await settle();
   assert.match(clean(document.body.textContent), /You're all caught up/, 'the empty state, once it closes');
 });
 
-test('P3 fix: recording on a window that closed meanwhile shows the API refusal in the dialog', async () => {
-  await outcomeDialog([], {
-    [`POST ${CALL_OUTCOME}`]: () => refused(409, { error: 'CALL_CLOSED', message: 'The call window has closed: the class has started.' }),
+test('P3 fix: recording on a booking that changed meanwhile shows the API refusal in the dialog', async () => {
+  await answerDialog([], {
+    [`POST ${PARENT_ANSWER}`]: () => refused(409, { error: 'BOOKING_STARTED', message: 'The class has started.' }),
   });
   await advance(MINUTE);
-  await click(button('Record outcome', topDialog()));
-  assert.equal(calls('POST', CALL_OUTCOME).length, 1, 'sent to the API, which decides');
-  assert.deepEqual(calls('POST', CALL_OUTCOME)[0].data, { outcome: 'NO_ANSWER' });
+  await click(button('Record answer', topDialog()));
+  assert.equal(calls('POST', PARENT_ANSWER).length, 1, 'sent to the API, which decides');
+  assert.deepEqual(calls('POST', PARENT_ANSWER)[0].data, { outcome: 'CONFIRMED' });
   assert.ok(topDialog(), 'the dialog stays');
-  assert.match(clean(topDialog().textContent), /The call window has closed: the class has started\./, 'with the API message');
+  assert.match(clean(topDialog().textContent), /The class has started\./, 'with the API message');
 });
 
 test('P3 fix: while its row is still listed the dialog is untouched by the refresh', async () => {
-  await outcomeDialog([PRE_CALL]);
+  await answerDialog([CONFIRM]);
   await advance(MINUTE);
   assert.equal(gets(BDE_FOLLOW_UPS_URL), 2);
-  assert.ok(topDialog() && radio('No answer').checked);
+  assert.ok(topDialog() && radio('Confirmed').checked);
 });
 
 // ============================================ Phase 3 -- P7: focus refresh where staff keep pages open
@@ -994,13 +997,13 @@ test('P7: Tutor Main and Academics dashboards read again on Refresh only, never 
 });
 
 // ============================================ Phase 3 -- P8: the low fixes
-test('L2: a 409 recording the call stays in the dialog; closing it reads the follow-ups again', async () => {
-  await outcomeDialog([PRE_CALL], {
-    [`POST ${CALL_OUTCOME}`]: () => refused(409, { error: 'CALL_CLOSED', message: 'The call window has closed.' }),
+test("L2: a 409 recording the parent's answer stays in the dialog; closing it reads the follow-ups again", async () => {
+  await answerDialog([CONFIRM], {
+    [`POST ${PARENT_ANSWER}`]: () => refused(409, { error: 'BOOKING_STARTED', message: 'The class has started.' }),
   });
   assert.equal(gets(BDE_FOLLOW_UPS_URL), 1);
-  await click(button('Record outcome', topDialog()));
-  assert.match(clean(topDialog().textContent), /The call window has closed\./);
+  await click(button('Record answer', topDialog()));
+  assert.match(clean(topDialog().textContent), /The class has started\./);
   assert.equal(gets(BDE_FOLLOW_UPS_URL), 1, 'nothing read while it shows');
   await click(button('Cancel', topDialog()));
   assert.equal(gets(BDE_FOLLOW_UPS_URL), 2, 'closing it reads the follow-ups again');

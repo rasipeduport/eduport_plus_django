@@ -14,8 +14,6 @@ export const bookingCommunicationUrl = (type, id) => `/api/communications/bookin
 export const messagePreviewUrl = (type, id) => `${bookingCommunicationUrl(type, id)}preview/`;
 export const confirmationRequestUrl = (type, id) => `${bookingCommunicationUrl(type, id)}confirmation-request/`;
 export const parentConfirmationUrl = (type, id) => `${bookingCommunicationUrl(type, id)}parent-confirmation/`;
-// How the 15-minute call went (POST {outcome}), recorded from the BDE's follow-ups.
-export const callOutcomeUrl = (type, id) => `${bookingCommunicationUrl(type, id)}call-outcome/`;
 
 // Errors answer `{ error: CODE, message }`, as the booking API's do.
 export const communicationError = bookingError;
@@ -77,12 +75,13 @@ export function notConfirmedReasonLabel(code) {
   return NOT_CONFIRMED_REASONS.find((option) => option.value === code)?.label ?? '';
 }
 
-// The five steps (backend communications.models.Step), named as the Hub shows them.
+// The five steps (backend communications.models.Step), named as the Hub shows them. The pre-activity call is a
+// reminder to the BDE, nothing more (reminderState).
 const STEP_LABELS = {
   ACKNOWLEDGEMENT: 'Initial acknowledgement',
   CONFIRMATION_REQUEST: 'Confirmation request',
   PARENT_CONFIRMATION: 'Confirmed message',
-  PRE_ACTIVITY_CALL: 'Pre-activity BDE call',
+  PRE_ACTIVITY_CALL: 'Pre-activity BDE reminder',
   AFTER_ACTIVITY: 'After-activity message',
 };
 
@@ -91,8 +90,12 @@ export function stepLabel(row) {
   return STEP_LABELS[row.step] ?? row.step_label ?? row.step;
 }
 
-/** A task's state as a badge (backend communications.models.TaskStatus; `overdue` is still open past its target). */
-export function taskState(task) {
+/**
+ * A task's state as a badge (backend communications.models.TaskStatus; `overdue` is still open past its target);
+ * the pre-activity BDE reminder's by its own states (reminderState), for which `booking` is its booking.
+ */
+export function taskState(task, booking) {
+  if (task.step === 'PRE_ACTIVITY_CALL') return REMINDER_STATES[reminderState(task, booking)];
   switch (task.status) {
     case 'DONE':
       return { label: 'Done', variant: 'success' };
@@ -136,17 +139,9 @@ const DONE_AS = {
 
 const ACTIVITY_NAMES = { DEMO: 'Demo', DIAGNOSTIC: 'Diagnostic' };
 
-// What the BDE may record for the 15-minute call (backend communications.models.CALL_OUTCOMES).
-export const CALL_OUTCOME_CHOICES = [
-  { value: 'CALLED', label: 'Called' },
-  { value: 'MESSAGED', label: 'Messaged' },
-  { value: 'NO_ANSWER', label: 'No answer' },
-];
-
 /**
- * The 15-minute call's reminder while it is on -- from its `active_from` until
- * the start (`due_at`), when the backend closes it, Missed unless an outcome
- * was recorded -- or null.
+ * The pre-activity BDE reminder's words while it is on -- from its `active_from`, 15 minutes before the start,
+ * until the start (`due_at`), when the backend closes it by itself -- or null.
  */
 export function callReminder(task, bookingType, now = Date.now()) {
   if (task.step !== 'PRE_ACTIVITY_CALL' || !task.active_from || !task.due_at) return null;
@@ -156,8 +151,57 @@ export function callReminder(task, bookingType, now = Date.now()) {
   return `Call parent – ${ACTIVITY_NAMES[bookingType] ?? 'Booking'} starts in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
 }
 
-/** A step's one line: how and when it was done, the call's reminder, or when it is due or closed. */
-export function stepLine(task, bookingType) {
+// The pre-activity BDE reminder's states (reminderState) as badges: when the BDE was reminded to call, never
+// whether they called -- nothing records that.
+const REMINDER_STATES = {
+  scheduled: { label: 'Scheduled', variant: 'outline' },
+  triggered: { label: 'Reminder triggered', variant: 'info' },
+  'not-needed': { label: 'Not needed', variant: 'outline' },
+  cancelled: { label: 'Cancelled', variant: 'outline' },
+};
+
+// A booking that is no longer to happen: its reminder goes with it, even before the backend closes its step.
+const BOOKING_GONE = new Set(['CANCELLED', 'RESCHEDULED']);
+
+/**
+ * Where the pre-activity BDE reminder (`task`, its step PRE_ACTIVITY_CALL) of `booking` stands: 'scheduled'
+ * until its time (`active_from`, 15 minutes before the start); 'triggered' from then -- in the BDE's
+ * follow-ups until the class starts, when the backend closes it by itself; 'not-needed' when the class was
+ * started before its time; 'cancelled' with its booking, cancelled or moved. Whether the BDE called is never
+ * tracked, so a call closed before as Missed, or with an outcome, reads 'triggered' too.
+ */
+export function reminderState(task, booking, now = Date.now()) {
+  if (task.status === 'CANCELLED' || (task.status === 'OPEN' && BOOKING_GONE.has(booking?.status))) return 'cancelled';
+  const from = task.active_from ? new Date(task.active_from).getTime() : null;
+  const started = booking?.started_at ? new Date(booking.started_at).getTime() : null;
+  if (from !== null && started !== null && started <= from) return 'not-needed';
+  if (from === null || now < from) return 'scheduled';
+  return 'triggered';
+}
+
+/**
+ * The pre-activity BDE reminder's one line: its words while it is on, else when it shows (or showed), why it
+ * never showed, or why it was cancelled.
+ */
+function reminderLine(task, booking, now = Date.now()) {
+  switch (reminderState(task, booking, now)) {
+    case 'cancelled':
+      return joined(task.resolution_label || booking?.status_label, istMoment(task.resolved_at)) || null;
+    case 'not-needed':
+      return 'The class started before the reminder time';
+    case 'triggered':
+      return callReminder(task, booking?.booking_type, now) ?? `Reminder at ${istMoment(task.active_from)}`;
+    default:
+      return task.active_from ? `Reminder at ${istMoment(task.active_from)}` : null;
+  }
+}
+
+/**
+ * A step's one line (`booking` is the communication's): how and when it was done, or when it is due or closed;
+ * for the pre-activity BDE reminder, when it shows or its words while it is on.
+ */
+export function stepLine(task, booking) {
+  if (task.step === 'PRE_ACTIVITY_CALL') return reminderLine(task, booking);
   switch (task.status) {
     case 'DONE':
       return joined(DONE_AS[task.resolution] ?? task.resolution_label, istMoment(task.resolved_at));
@@ -166,7 +210,7 @@ export function stepLine(task, bookingType) {
     case 'CANCELLED':
       return joined(task.resolution_label, istMoment(task.resolved_at));
     default:
-      return callReminder(task, bookingType) ?? (task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class');
+      return task.due_at ? `Due ${istMoment(task.due_at)}` : 'After the class';
   }
 }
 
@@ -234,10 +278,6 @@ export function parentAnswerNotice(data, outcome) {
     : 'Recorded that the parent confirmed.';
 }
 
-// How the BDE's 15-minute call went, as they recorded it (backend communications.models.CALL_OUTCOMES);
-// the call's task shows the latest.
-export const CALL_OUTCOMES = new Set(['CALLED', 'MESSAGED', 'NO_ANSWER']);
-
 /** Each step's latest message, by step (the API lists them oldest first). */
 export function latestMessages(messages) {
   return Object.fromEntries(messages.map((message) => [message.step, message]));
@@ -250,7 +290,8 @@ const SENT_AS = new Set(['ACCEPTED', 'SENT', 'MARKED_SENT']);
 const ON_ITS_WAY = new Set(['QUEUED', 'SENT', 'DELIVERED', 'READ']);
 
 /**
- * Where one step of a booking's communication stands, from its task and the
+ * Where one message step of a booking's communication stands (the pre-activity
+ * BDE reminder's is reminderState), from its task and the
  * step's latest message, for the BDE's workflow timeline: 'failed' (its
  * message failed and nothing else closed the step), 'sent' or 'completed'
  * (done), 'missed', 'cancelled', 'overdue', 'pending' (open now) or

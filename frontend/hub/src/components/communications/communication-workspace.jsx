@@ -1,5 +1,6 @@
 import { Fragment, useId, useState } from 'react';
 import {
+  BellRingIcon,
   CheckCheckIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -8,7 +9,6 @@ import {
   ClipboardCheckIcon,
   ClockIcon,
   MinusIcon,
-  PhoneCallIcon,
   SendIcon,
   TimerOffIcon,
   TriangleAlertIcon,
@@ -19,14 +19,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  CALL_OUTCOMES,
   MESSAGE_MOMENTS,
-  callReminder,
   istMoment,
   joined,
   latestMessages,
   messageLine,
   messageState,
+  reminderState,
   stepLabel,
   stepLine,
   unplannedText,
@@ -118,8 +117,9 @@ export function ParentConfirmationCard({ communication, notice, onRequestConfirm
   );
 }
 
-// Each workflow state's badge and dot on the timeline (lib/communications workflowState): green once done,
-// red when it failed or ran out, amber while it is open or late, grey until its time comes.
+// Each workflow state's badge and dot on the timeline (lib/communications workflowState, and reminderState for
+// the pre-activity BDE reminder): green once done, red when it failed or ran out, amber while it is open or late,
+// blue once the BDE's reminder has shown, grey until its time comes.
 const STEP_LOOKS = {
   completed: { label: 'Completed', variant: 'success', icon: CheckIcon, dot: 'bg-success/15 text-success' },
   sent: { label: 'Sent', variant: 'success', icon: CheckCheckIcon, dot: 'bg-success/15 text-success' },
@@ -129,6 +129,8 @@ const STEP_LOOKS = {
   overdue: { label: 'Overdue', variant: 'warning', icon: TriangleAlertIcon, dot: 'bg-warning/15 text-warning' },
   pending: { label: 'Pending', variant: 'warning', icon: CircleDotIcon, dot: 'bg-warning/15 text-warning' },
   scheduled: { label: 'Scheduled', variant: 'outline', icon: ClockIcon, dot: 'bg-muted text-muted-foreground' },
+  triggered: { label: 'Reminder triggered', variant: 'info', icon: BellRingIcon, dot: 'bg-info/15 text-info' },
+  'not-needed': { label: 'Not needed', variant: 'outline', icon: MinusIcon, dot: 'bg-muted text-muted-foreground' },
 };
 
 /** What a step's message adds under its line: that it failed, what it waits for, or that the parent has it. */
@@ -147,7 +149,8 @@ function stepNote(state, message) {
 /**
  * The five steps of PRD 3.11 as a vertical timeline: each with its state, its
  * moment and what its message adds, the first still open highlighted as the
- * current step. Nothing to act on here.
+ * current step. The pre-activity BDE reminder reads as a reminder -- scheduled,
+ * then triggered -- never as a call made or missed. Nothing to act on here.
  */
 export function WorkflowTimeline({ communication }) {
   // Its time labels move with the clock while the page stays open.
@@ -159,9 +162,9 @@ export function WorkflowTimeline({ communication }) {
     <ol className="flex flex-col">
       {tasks.map((task, index) => {
         const message = latest[task.step];
-        const state = workflowState(task, message);
+        const state = task.step === 'PRE_ACTIVITY_CALL' ? reminderState(task, booking) : workflowState(task, message);
         const look = STEP_LOOKS[state];
-        const line = stepLine(task, booking.booking_type);
+        const line = stepLine(task, booking);
         const note = stepNote(state, message);
         const isCurrent = task === current;
         return (
@@ -330,96 +333,85 @@ export function MessageRow({ message }) {
   );
 }
 
+// What the pre-activity BDE reminder is, in its Task Details card.
+const REMINDER_TYPE = "Call reminder in the BDE's Follow-ups";
+
 /**
- * The 15-minute call before the class: its reminder while it is on, its time,
- * and the outcome the BDE recorded for it -- the call's task shows the latest
- * (backend communications.services.record_call_outcome) -- or that there is none.
+ * The pre-activity BDE reminder in Task Details: whose it is, when it shows and when the class starts -- never
+ * whether the BDE called, nor a resolution, which say nothing about that. Whose: the lead's BDE now while it is
+ * still to come or on (the follow-ups follow the lead's owner), the BDE it was for once it is over.
  */
-export function CallOutcomes({ communication }) {
-  // Its time labels move with the clock while the page stays open.
+function ReminderDetails({ task, booking }) {
+  const bde = task.status === 'OPEN' ? booking.owner_bde : task.owner;
+  return (
+    <li className="bg-card rounded-lg border p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium">{stepLabel(task)}</p>
+        <TaskStateBadge task={task} booking={booking} />
+      </div>
+      <Facts
+        className="mt-2"
+        keepEmpty
+        rows={[
+          ['Assigned BDE', bde?.full_name ?? 'No BDE assigned'],
+          ['Reminder time', istMoment(task.active_from)],
+          ['Class start time', istMoment(task.due_at)],
+          ['Reminder type', REMINDER_TYPE],
+        ]}
+      />
+    </li>
+  );
+}
+
+/**
+ * Each step's task in full: who acts on it, from when, by when, until when, and how it closed -- the
+ * pre-activity BDE reminder's as a reminder (ReminderDetails).
+ */
+export function TaskDetails({ communication }) {
+  // The reminder's state moves with the clock while the page stays open.
   useClockTick();
   const { booking, tasks } = communication;
-  const calls = tasks.filter((task) => task.step === 'PRE_ACTIVITY_CALL');
-  if (!calls.length) return <Empty>No call is planned for this booking.</Empty>;
+  if (!tasks.length) return <Empty>No tasks for this booking.</Empty>;
   return (
     <ul className="flex flex-col gap-2">
-      {calls.map((task) => {
-        const reminder = callReminder(task, booking.booking_type);
-        const outcome = CALL_OUTCOMES.has(task.resolution) ? task.resolution_label : null;
-        const closed = task.status !== 'OPEN' && !outcome;
-        // In the timeline's words, as the call reads there.
-        const look = STEP_LOOKS[workflowState(task)];
-        return (
+      {tasks.map((task) =>
+        task.step === 'PRE_ACTIVITY_CALL' ? (
+          <ReminderDetails key={task.id} task={task} booking={booking} />
+        ) : (
           <li key={task.id} className="bg-card rounded-lg border p-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-medium">{stepLabel(task)}</p>
-              <Badge variant={look.variant}>{look.label}</Badge>
+              <TaskStateBadge task={task} />
             </div>
-            {reminder ? (
-              <p className="bg-warning/10 text-warning mt-2 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium">
-                <PhoneCallIcon className="size-4 shrink-0" aria-hidden="true" />
-                {reminder}
-              </p>
-            ) : null}
             <Facts
               className="mt-2"
               keepEmpty
               rows={[
-                ['Reminder from', istMoment(task.active_from)],
+                ['Owner', joined(OWNER_ROLES[task.owner_role] ?? task.owner_role, task.owner?.full_name)],
+                ['Active from', istMoment(task.active_from)],
                 ['Due', istMoment(task.due_at)],
-                ['Outcome', outcome ? joined(outcome, istMoment(task.resolved_at)) : 'No outcome recorded'],
-                ...(outcome ? [['Recorded by', task.resolved_by?.full_name]] : []),
-                ...(closed ? [['Closed', joined(task.resolution_label || task.status_label, istMoment(task.resolved_at))]] : []),
+                ['Window closes', istMoment(task.expires_at)],
+                ...(task.status === 'OPEN'
+                  ? []
+                  : [
+                      ['Resolution', task.resolution_label || task.status_label],
+                      ['Resolved', joined(istMoment(task.resolved_at), task.resolved_by && `by ${task.resolved_by.full_name}`)],
+                    ]),
               ]}
             />
-            <p className="text-muted-foreground mt-2 text-xs">A reminder to phone the parent shortly before the class starts.</p>
           </li>
-        );
-      })}
+        )
+      )}
     </ul>
   );
 }
 
-/** Each step's task in full: who acts on it, from when, by when, until when, and how it closed. */
-export function TaskDetails({ communication }) {
-  const { tasks } = communication;
-  if (!tasks.length) return <Empty>No tasks for this booking.</Empty>;
-  return (
-    <ul className="flex flex-col gap-2">
-      {tasks.map((task) => (
-        <li key={task.id} className="bg-card rounded-lg border p-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium">{stepLabel(task)}</p>
-            <TaskStateBadge task={task} />
-          </div>
-          <Facts
-            className="mt-2"
-            keepEmpty
-            rows={[
-              ['Owner', joined(OWNER_ROLES[task.owner_role] ?? task.owner_role, task.owner?.full_name)],
-              ['Active from', istMoment(task.active_from)],
-              ['Due', istMoment(task.due_at)],
-              ['Window closes', istMoment(task.expires_at)],
-              ...(task.status === 'OPEN'
-                ? []
-                : [
-                    ['Resolution', task.resolution_label || task.status_label],
-                    ['Resolved', joined(istMoment(task.resolved_at), task.resolved_by && `by ${task.resolved_by.full_name}`)],
-                  ]),
-            ]}
-          />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** The messages, the call and the tasks, a tab each, the tab bar kept in view as they scroll. */
+/** The messages and the tasks, a tab each, the tab bar kept in view as they scroll. */
 function CommunicationTabs({ communication }) {
   const { tasks, messages } = communication;
   return (
     <section
-      aria-label="Messages, call outcomes and task details"
+      aria-label="Messages and task details"
       className="min-w-0 border-t px-4 pb-4 sm:px-6 lg:overflow-y-auto lg:border-t-0"
     >
       <Tabs defaultValue="messages" className="gap-4">
@@ -428,7 +420,6 @@ function CommunicationTabs({ communication }) {
             Messages
             <TabsCount value={messages.length} />
           </TabsTrigger>
-          <TabsTrigger value="calls">Call Outcomes</TabsTrigger>
           <TabsTrigger value="tasks">
             Task Details
             <TabsCount value={tasks.length} />
@@ -444,9 +435,6 @@ function CommunicationTabs({ communication }) {
           ) : (
             <Empty>No messages yet.</Empty>
           )}
-        </TabsContent>
-        <TabsContent value="calls">
-          <CallOutcomes communication={communication} />
         </TabsContent>
         <TabsContent value="tasks">
           <TaskDetails communication={communication} />
@@ -480,8 +468,8 @@ function WorkspaceSkeleton() {
  * The body of the BDE's communication sheet, laid out from what
  * CommunicationPanel hands it (`communication`, `failure`, `retry`, the two
  * actions and the last action's `notice`): the parent's confirmation first,
- * then the workflow timeline beside the Messages, Call Outcomes and Task
- * Details tabs on a wide screen, one under the other on a narrow one. The
+ * then the workflow timeline beside the Messages and Task Details tabs on a
+ * wide screen, one under the other on a narrow one. The
  * columns scroll on their own on a wide screen; the whole body on a narrow one.
  */
 export function CommunicationWorkspace({ communication, failure, retry, notice, onRequestConfirmation, onRecordAnswer }) {

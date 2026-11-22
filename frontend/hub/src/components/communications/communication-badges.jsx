@@ -8,8 +8,9 @@ export function ParentConfirmationBadge({ status, booked }) {
   return <Badge variant={state.variant}>{state.label}</Badge>;
 }
 
-export function TaskStateBadge({ task }) {
-  const state = taskState(task);
+/** A task's state; the pre-activity BDE reminder's by its `booking` too (lib/communications reminderState). */
+export function TaskStateBadge({ task, booking }) {
+  const state = taskState(task, booking);
   return <Badge variant={state.variant}>{state.label}</Badge>;
 }
 

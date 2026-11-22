@@ -6,7 +6,7 @@ import { Panel } from '@/components/dashboard/dashboard-primitives';
 import { EmptyState } from '@/components/page/page';
 import { unplannedText } from '@/lib/communications';
 import { CommunicationBody } from './communication-details';
-import { CallOutcomes, Empty, MessageRow, ParentConfirmationCard, TaskDetails, WorkflowTimeline } from './communication-workspace';
+import { Empty, MessageRow, ParentConfirmationCard, TaskDetails, WorkflowTimeline } from './communication-workspace';
 
 function SectionSkeleton() {
   return (
@@ -30,8 +30,8 @@ function SectionSkeleton() {
  * recorded, and why not -- then, side by side on a wide screen, the
  * communication workflow (each step, where it stands and its moments) and
  * the records: every WhatsApp message, each opening onto its text, moments,
- * attempts and the provider's reports; the call before the class and its
- * outcome; and each step's task in full. Every moment is in Indian time.
+ * attempts and the provider's reports; and each step's task in full, the
+ * pre-activity BDE reminder as a reminder. Every moment is in Indian time.
  * Asking for the parent's confirmation and recording their answer are the
  * BDE's (their communication sheet): nothing here acts. Shown to holders of
  * accounts.view_all_communications; the API enforces it.
@@ -56,14 +56,13 @@ export function CommunicationSection({ state }) {
           <Panel icon={ListChecksIcon} title="Communication workflow" subtitle="Each step and where it stands, in IST">
             <WorkflowTimeline communication={communication} />
           </Panel>
-          <Panel icon={MessagesSquareIcon} title="Communication records" subtitle="Messages, the call and each step's task">
+          <Panel icon={MessagesSquareIcon} title="Communication records" subtitle="Messages and each step's task">
             <Tabs defaultValue="messages" className="gap-4">
               <TabsList>
                 <TabsTrigger value="messages">
                   Messages
                   <TabsCount value={messages.length} />
                 </TabsTrigger>
-                <TabsTrigger value="calls">Call Outcomes</TabsTrigger>
                 <TabsTrigger value="tasks">
                   Task Details
                   <TabsCount value={tasks.length} />
@@ -79,9 +78,6 @@ export function CommunicationSection({ state }) {
                 ) : (
                   <Empty>No messages yet.</Empty>
                 )}
-              </TabsContent>
-              <TabsContent value="calls">
-                <CallOutcomes communication={communication} />
               </TabsContent>
               <TabsContent value="tasks">
                 <TaskDetails communication={communication} />
