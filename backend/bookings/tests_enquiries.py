@@ -219,6 +219,15 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'source': 'REFERRAL'})), {str(self.done.id)})
         self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'source': 'DEMO_LINK'})), set())
 
+    def test_an_other_source_reads_by_its_name(self):
+        Lead.objects.filter(pk=self.done.pk).update(source=LeadSource.OTHER, source_details={'custom_source': 'Exhibition'})
+        Lead.objects.filter(pk=self.cancelled.pk).update(source=LeadSource.OTHER)
+        rows = {row['id']: row for row in self.client.get(ENQUIRIES).json()['results']}
+        self.assertEqual((rows[str(self.done.id)]['source'], rows[str(self.done.id)]['source_label']), ('OTHER', 'Exhibition'))
+        self.assertEqual(rows[str(self.cancelled.id)]['source_label'], 'Other')
+        self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'source': 'OTHER'})), {str(self.done.id), str(self.cancelled.id)})
+        self.assertEqual(self.client.get(f'{ENQUIRIES}{self.done.id}/').json()['source_label'], 'Exhibition')
+
     def test_search_by_name_or_phone(self):
         Lead.objects.filter(pk=self.new.pk).update(parent_name='Lakshmi Pillai')
         self.assertEqual(self.ids(self.client.get(ENQUIRIES, {'q': 'lakshmi'})), {str(self.new.id)})

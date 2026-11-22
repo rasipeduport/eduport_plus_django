@@ -73,7 +73,7 @@ BDE_TRANSPORTS = {**MANAGER_TRANSPORTS,
 
 
 def apply_reviewed_changes(recorded):
-    """91 reviewed existing differences, plus explicit new transport contracts."""
+    """123 reviewed existing differences, plus explicit new transport contracts."""
     expected = deepcopy(recorded)
 
     def add_fields(scenario, callers, fields):
@@ -89,6 +89,14 @@ def apply_reviewed_changes(recorded):
     # Twelve CRM responses expose the preserved original enquiry source.
     for scenario in ('leads.create', 'leads.detail', 'leads.student_timezone'):
         add_fields(scenario, ADMIN_CALLERS, ['original_source'])
+    # Thirty-two lead and booking responses carry the name an Other lead
+    # source was given ('' for every other source). Additive; no status,
+    # record or other field changes.
+    for scenario in ('leads.create', 'leads.detail', 'leads.student_timezone'):
+        add_fields(scenario, ADMIN_CALLERS, ['custom_source'])
+    for scenario in ('bookings.assign_tutor', 'bookings.cancel', 'bookings.detail', 'bookings.unassign_tutor'):
+        add_fields(scenario, ADMIN_CALLERS, ['lead.custom_source'])
+    add_fields('bookings.reschedule', ADMIN_CALLERS, ['booking.lead.custom_source'])
     # Sixteen immutable quote responses expose Chapter Plan mode and the
     # authoritative whole-AED collection breakdown. No record scope changes.
     for scenario in ('sales.quote', 'sales.quote_cancel', 'sales.quote_create', 'sales.quotes'):

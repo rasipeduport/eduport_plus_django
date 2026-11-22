@@ -1058,6 +1058,118 @@ test("Admissions Dashboard: today's bookings give each student's own time beside
   assert.deepEqual(headers(), ['Time (IST)', 'Type', 'Student', 'Tutor', 'Status', 'Open']);
 });
 
+// ------------------------------------------------------------ custom sources
+/** The control the open dialog's label `text` names (the required star aside), or null. */
+function controlFor(text, root = topDialog()) {
+  const label = [...root.querySelectorAll('label')].find((element) => clean(element.textContent).replace(/\*$/, '').trim() === text);
+  return label ? document.getElementById(label.getAttribute('for')) : null;
+}
+
+test("Leads: Other asks for the source's own name -- required, trimmed; another source hides it and sends none", async () => {
+  const posted = [];
+  serve({
+    [`GET ${LEADS}`]: list([WEBSITE]),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`POST ${LEADS}`]: (entry) => {
+      posted.push(entry.data);
+      return ok(detailOf({ ...WEBSITE, id: 'lead-new', student_name: 'Arjun', source: 'OTHER', source_label: 'Newspaper Advertisement' }));
+    },
+  });
+  await open('/leads', ADMIN);
+  await click(button('Add Lead'));
+  assert.equal(document.getElementById('enquiry-custom-source'), null, 'hidden until Other is chosen');
+  await typeInto(document.getElementById('enquiry-parent-name'), 'Meera Menon');
+  await typeInto(document.getElementById('enquiry-phone-number'), '98765 43210');
+  await typeInto(document.getElementById('enquiry-student-name'), 'Arjun');
+  await choose('enquiry-grade', 'Class 6');
+  await choose('enquiry-source', 'Other');
+  const input = document.getElementById('enquiry-custom-source');
+  assert.ok(input, 'Other shows the field');
+  assert.equal(controlFor('Specify Lead Source'), input);
+  assert.equal(input.getAttribute('placeholder'), 'Enter lead source name');
+  assert.equal(input.getAttribute('aria-required'), 'true');
+  await typeInto(input, '   ');
+  await click(button('Add lead', topDialog()));
+  assert.match(clean(topDialog().textContent), /Enter the lead source name\./);
+  assert.equal(posted.length, 0, 'a blank name is never sent');
+
+  // Another source hides the field and drops what was typed for Other.
+  await typeInto(document.getElementById('enquiry-custom-source'), 'Newspaper');
+  await choose('enquiry-source', 'Phone call');
+  assert.equal(document.getElementById('enquiry-custom-source'), null);
+  await choose('enquiry-source', 'Other');
+  assert.equal(document.getElementById('enquiry-custom-source').value, '', 'nothing carried back');
+
+  await typeInto(document.getElementById('enquiry-custom-source'), '  Newspaper Advertisement ');
+  await click(button('Add lead', topDialog()));
+  assert.deepEqual(posted, [{
+    parent_name: 'Meera Menon', phone_dial_code: '+91', phone_number: '98765 43210', student_name: 'Arjun', grade: 'Class 6',
+    source: 'OTHER', custom_source: 'Newspaper Advertisement', school_name: '', syllabus: '', country: '', student_timezone: '',
+    parent_email: '',
+  }]);
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+});
+
+test("Lead page: an Other source reads by its name; Edit lead details restores it, renames it, leaves Other, and asks for one when Other is chosen", async () => {
+  let lead = detailOf({ ...WEBSITE, source: 'OTHER', source_label: 'Exhibition' }, { original_source: 'OTHER', custom_source: 'Exhibition' });
+  const patches = [];
+  serve({
+    [`GET ${LEADS}lead-web/`]: () => ok(lead),
+    [`GET ${BDES}`]: { results: BDE_OPTIONS },
+    [`PATCH ${LEADS}lead-web/`]: (entry) => {
+      patches.push(entry.data);
+      return ok(lead);
+    },
+  });
+  await open('/leads/lead-web', ADMIN);
+  assert.equal(fields().Source, 'Exhibition');
+  assert.ok(!/\bOther\b/.test(bodyText()), 'never "Other" in its place');
+  const sourceSelect = () => controlFor('Original enquiry source').id;
+
+  await click(button('Edit lead details'));
+  assert.equal(clean(controlFor('Original enquiry source').textContent), 'Other');
+  assert.equal(controlFor('Specify Lead Source').value, 'Exhibition', 'the saved name, restored');
+  await click(button('Save', topDialog()));
+  assert.equal(patches.length, 0, 'untouched: nothing sent');
+
+  await click(button('Edit lead details'));
+  await typeInto(controlFor('Specify Lead Source'), ' Partner Referral ');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(patches.at(-1), { custom_source: 'Partner Referral' }, 'renamed, trimmed');
+
+  await click(button('Edit lead details'));
+  await choose(sourceSelect(), 'Phone call');
+  assert.equal(controlFor('Specify Lead Source'), null, 'another source hides it');
+  await choose(sourceSelect(), 'Other');
+  assert.equal(controlFor('Specify Lead Source').value, 'Exhibition', 'back to Other: the saved name again');
+  await choose(sourceSelect(), 'Phone call');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(patches.at(-1), { source: 'PHONE_CALL' }, 'leaving Other sends no name');
+
+  // Another source: choosing Other asks for its name before anything is sent.
+  lead = detailOf(WEBSITE, { original_source: 'WEBSITE', custom_source: '' });
+  const sent = patches.length;
+  await click(button('Edit lead details'));
+  assert.equal(controlFor('Specify Lead Source'), null);
+  await choose(sourceSelect(), 'Other');
+  assert.equal(controlFor('Specify Lead Source').value, '');
+  await click(button('Save', topDialog()));
+  assert.match(clean(topDialog().textContent), /Enter the lead source name\./);
+  assert.equal(patches.length, sent);
+  await typeInto(controlFor('Specify Lead Source'), 'School Campaign');
+  await click(button('Save', topDialog()));
+  assert.deepEqual(patches.at(-1), { source: 'OTHER', custom_source: 'School Campaign' });
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+
+  // An Other saved before names were: left as it is while untouched.
+  lead = detailOf({ ...WEBSITE, source: 'OTHER', source_label: 'Other' }, { original_source: 'OTHER', custom_source: '' });
+  await click(button('Edit lead details'));
+  assert.equal(controlFor('Specify Lead Source').value, '');
+  await click(button('Save', topDialog()));
+  assert.equal(patches.length, sent + 1, 'nothing sent');
+  assert.equal(document.querySelectorAll('[role="dialog"]').length, 0);
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

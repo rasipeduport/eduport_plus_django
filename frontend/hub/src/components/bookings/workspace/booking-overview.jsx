@@ -73,7 +73,7 @@ function EnquiryCard({ booking, lead, loading, showLead, user, onDetailsSaved })
       <dl className="divide-y">
         {/* How the parent first reached Eduport Plus -- never how this booking came in (the header's Came in). */}
         <Field label="Original enquiry source">
-          <FromLead loading={loading}>{lead ? lead.source_label : showLead ? null : sourceLabel(brief.source)}</FromLead>
+          <FromLead loading={loading}>{lead ? lead.source_label : showLead ? null : sourceLabel(brief.source, brief.custom_source)}</FromLead>
         </Field>
         <Field label="Status">
           <FromLead loading={loading}>{lead ? <EnquiryStatusBadge enquiry={lead} /> : null}</FromLead>
