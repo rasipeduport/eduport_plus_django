@@ -27,7 +27,9 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 
 // What the sidebar offers, workspace by workspace. Each workspace names itself
 // under the logo and lists its sections: an optional `label`, and items of
-// `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon") and
+// `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon"),
+// `counter` (a live count shown beside it while above zero: `key`, which count
+// the sidebar supplies, and `label`, what it counts, read out with it) and
 // `nested` (the item stays highlighted on the pages under its address, such as
 // one enquiry under My Enquiries) and `alsoOn` (other pages it stays
 // highlighted on, such as Global Pricing, opened from Syllabus & Plans and
@@ -40,6 +42,8 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 // none of whose items open.
 
 export const COMING_SOON = 'Coming Soon';
+// The BDE's follow-ups due today (hooks/use-follow-ups-due-today), beside Follow-ups.
+export const FOLLOW_UPS_DUE_TODAY = 'follow-ups-due-today';
 
 // The BDE workspace: their own enquiries, the Demo and Diagnostic bookings
 // made for them and what to follow up, then what is still being built and the
@@ -53,7 +57,12 @@ const BDE_WORKSPACE = {
         { title: 'My Enquiries', url: '/enquiries', icon: Inbox, nested: true },
         { title: 'Demo Bookings', url: '/demo-bookings', icon: CalendarCheck },
         { title: 'Diagnostic Bookings', url: '/diagnostic-bookings', icon: ClipboardCheck },
-        { title: 'Follow-ups', url: '/follow-ups', icon: PhoneCall },
+        {
+          title: 'Follow-ups',
+          url: '/follow-ups',
+          icon: PhoneCall,
+          counter: { key: FOLLOW_UPS_DUE_TODAY, label: 'due today' },
+        },
       ],
     },
     {

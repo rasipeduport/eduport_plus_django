@@ -1,7 +1,8 @@
 // Mounts what the Hub reads again on its own -- the refresh hooks in bare
 // probes, and the pages that use them (Follow-ups, the BDE dashboard, Sessions,
-// an administrator's booking workspace), routed the way App.jsx routes them --
-// with only the API stood in for (../sessions/api-stub.js).
+// an administrator's booking workspace), routed the way App.jsx routes them,
+// and the sidebar's live counts inside the Hub's own layout (`hub`) -- with
+// only the API stood in for (../sessions/api-stub.js).
 import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, RouterProvider, createMemoryRouter, useLocation, useNavigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ import LeadPage from '@/pages/LeadPage';
 import LeadsPage from '@/pages/LeadsPage';
 import TutorBookingWorkspacePage from '@/pages/TutorBookingWorkspacePage';
 import TutorMainDashboardPage from '@/pages/TutorMainDashboardPage';
+import SidebarLayout from '@/layout/SidebarLayout';
 import LearnAuthProvider from '../../../learn/src/context/AuthProvider';
 import LearnStudentProvider from '../../../learn/src/context/StudentProvider';
 import { useStudent } from '../../../learn/src/components/student/student-context';
@@ -62,6 +64,34 @@ function page(path, user) {
   return <RouterProvider router={router} />;
 }
 
+/**
+ * The Hub as App.jsx lays it out -- one SidebarLayout, its sidebar staying put
+ * while the pages under it change -- at `path`, for the sidebar's live counts.
+ */
+function hub(path, user) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '*',
+        element: (
+          <SidebarLayout user={user} logout={() => {}}>
+            <Routes>
+              <Route path="/follow-ups" element={<FollowUpsPage />} />
+              <Route path="/dashboard" element={<BdeDashboardPage user={user} />} />
+              <Route path="/enquiries" element={<EnquiriesPage user={user} />} />
+              <Route path="/demo-bookings" element={<BdeBookingsPage key="DEMO" user={user} type="DEMO" />} />
+              <Route path="/leads" element={<LeadsPage user={user} />} />
+            </Routes>
+          </SidebarLayout>
+        ),
+      },
+    ],
+    { initialEntries: [path] }
+  );
+  globalThis.__dfRouter = router;
+  return <RouterProvider router={router} />;
+}
+
 /** Learn's own state (useStudent) and where it is, handed to `probe` after each render. */
 function LearnProbe({ probe }) {
   const student = useStudent();
@@ -96,6 +126,7 @@ const trees = {
   live: (props) => <LiveProbe {...props} />,
   comms: (props) => <CommsProbe {...props} />,
   page: (props) => page(props.path, props.user),
+  hub: (props) => hub(props.path, props.user),
   learn: (props) => learn(props.path, props.probe),
 };
 

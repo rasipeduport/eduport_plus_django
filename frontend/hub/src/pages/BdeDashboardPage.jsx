@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import api from '@/lib/api';
+import { useSharedFollowUpSummary } from '@/hooks/use-follow-ups-due-today';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { PERMISSIONS, can } from '@/lib/access';
 import { BDE_DASHBOARD_URL, bookingTypeLabel, enquiryBookingPath, enquiryError, slotLabel, slotParts } from '@/lib/enquiries';
@@ -379,6 +380,8 @@ export default function BdeDashboardPage({ user }) {
       active = false;
     };
   }, [canFollowUp, reloadKey]);
+  // The sidebar's Due today badge takes its count from here while the dashboard is shown.
+  useSharedFollowUpSummary(followUps, canFollowUp);
 
   // Today's agenda and the follow-ups' counts move on their own: read again every minute while the tab is shown, and on coming back to it.
   useLiveRefresh(() => setReloadKey((key) => key + 1), { intervalMs: 60_000, enabled: failure?.status !== 403 });

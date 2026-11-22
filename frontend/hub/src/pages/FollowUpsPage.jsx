@@ -5,6 +5,7 @@ import { CheckCircle2Icon, SearchXIcon } from 'lucide-react';
 import api from '@/lib/api';
 import { enquiryError } from '@/lib/enquiries';
 import { BDE_FOLLOW_UPS_URL, FOLLOW_UP_DUE, FOLLOW_UP_TYPES } from '@/lib/follow-ups';
+import { useSharedFollowUpSummary } from '@/hooks/use-follow-ups-due-today';
 import { useListParams } from '@/hooks/use-list-params';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,8 @@ export default function FollowUpsPage() {
   };
   const from = { to: `${location.pathname}${location.search}`, label: 'Follow-ups' };
   const summary = data?.summary;
+  // The counts are every follow-up's whatever the tab or type shown: the sidebar's Due today badge takes them from here.
+  useSharedFollowUpSummary(summary);
   const dueLabel = FOLLOW_UP_DUE.find((option) => option.value === due)?.label;
 
   let content;
