@@ -58,11 +58,12 @@ class TutorAssignmentSerializer(serializers.Serializer):
     tutor_id = serializers.UUIDField()
 
 
-class EnquiryCreateSerializer(serializers.Serializer):
+class LeadCreateSerializer(serializers.Serializer):
     """
-    An enquiry a BDE adds by hand (bookings.enquiries.add_enquiry). Classes and
-    syllabi are the booking pages' own, so every lead reads the same whichever
-    way it arrived. There is no owner field: the lead is always the caller's.
+    A lead an administrator adds by hand (bookings.lead_admin.add_lead), with
+    the parent's email when known. Classes and syllabi are the booking pages'
+    own, so every lead reads the same whichever way it arrived. No owner
+    field: it is assigned afterwards (bookings.ownership).
     """
     parent_name = serializers.CharField(max_length=255)
     phone_dial_code = serializers.CharField(max_length=5)
@@ -78,6 +79,7 @@ class EnquiryCreateSerializer(serializers.Serializer):
     student_timezone = serializers.CharField(
         max_length=64, required=False, allow_blank=True, allow_null=True, default='', validators=[known_timezone],
     )
+    parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
 
     def validate(self, data):
         try:
@@ -85,15 +87,6 @@ class EnquiryCreateSerializer(serializers.Serializer):
         except InvalidLeadDetails as exc:
             raise serializers.ValidationError({exc.field: [exc.message]})
         return data
-
-
-class LeadCreateSerializer(EnquiryCreateSerializer):
-    """
-    A lead an administrator adds by hand (bookings.lead_admin.add_lead): an
-    enquiry's details and, when known, the parent's email. No owner field: it
-    is assigned afterwards (bookings.ownership).
-    """
-    parent_email = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
 
 
 class LeadDetailsUpdateSerializer(serializers.Serializer):

@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from accounts.authz import has_app_permission
 from core.pagination import page_params
-from core.permissions import ByMethod, HasAppPermission
+from core.permissions import HasAppPermission
 from core.timezones import DATE_PATTERN
 
 from . import bde_activity, coordination, enquiries, notes, redemo_chain, student_timezones, timeline
@@ -19,14 +19,12 @@ from .booking_service import (
 )
 from .demo_invites import invite_body, issue_invite
 from .lead_status import statuses_for
-from .leads import InvalidLeadDetails
 from .models import SLOT_CAPACITY, SLOT_MINUTES, BookingType, DemoBooking, Lead, LeadNoteRole, SlotTime, booking_model
 from .public_views import PATH_TYPES
 from .scheduling import BOOKING_TIMEZONE_NAME, PAST, booking_window, day_slots, parent_state, seat_holders
 from .serializers import (
     BookingLinkSerializer,
     CancelSerializer,
-    EnquiryCreateSerializer,
     LeadNoteSerializer,
     RedemoCloseSerializer,
     RedemoRequestSerializer,
@@ -46,6 +44,8 @@ CHANGE_STUDENT_TIMEZONE = 'accounts.change_student_timezone'
 # The filters of a BDE's Demo and Diagnostic Bookings lists: the Admin list's
 # (coordination.parse_filters) less its tutor, slot, assignment and report filters.
 BDE_BOOKING_FILTERS = ('status', 'when', 'from', 'to', 'q')
+# What a BDE adding an enquiry by hand is told: only an administrator adds a lead now.
+MANUAL_ENQUIRIES_RETIRED = 'Enquiries can no longer be added here. Ask an administrator to add the lead and assign it to you.'
 
 
 class BdeBookingLinksView(APIView):
@@ -83,8 +83,8 @@ class BdeWorkspaceView(APIView):
     """
     The BDE's own enquiries (bookings.enquiries). Guarded by catalogue
     permissions only the BDE role may hold; a superuser holds them as well
-    (decision D1) without being a BDE, owns no enquiries and may not add one,
-    so the BDE check below answers NOT_A_BDE before anything is read.
+    (decision D1) without being a BDE and owns no enquiries, so the BDE check
+    below answers NOT_A_BDE before anything is read.
     Nothing in a request chooses whose enquiries are read: always the caller's.
     """
 
@@ -122,15 +122,11 @@ class BdeEnquiriesView(BdeWorkspaceView):
          ``status`` is a LeadStatus or a stage of either type
          (lead_status.STAGES), ``source`` one of enquiries.SOURCE_FILTERS.
     POST /api/bde/enquiries/
-         Add an enquiry by hand (EnquiryCreateSerializer); 201 with the
-         enquiry, or 409 ENQUIRY_EXISTS when the phone number and student
-         already make one -- carrying ``enquiry_id`` only when it is the
-         caller's own.
+         Retired (2026-11-22): a BDE no longer adds enquiries by hand -- an
+         administrator adds the lead (bookings.lead_admin) and assigns it.
+         Answers 410 MANUAL_ENQUIRIES_RETIRED, reading and writing nothing.
     """
-    permission_classes = [IsAuthenticated, ByMethod(
-        GET=VIEW_OWN_ENQUIRIES,
-        POST=HasAppPermission('accounts.add_enquiry'),
-    )]
+    permission_classes = [IsAuthenticated, VIEW_OWN_ENQUIRIES]
 
     def get(self, request, *args, **kwargs):
         refusal = self.non_bde_refusal(request)
@@ -169,28 +165,7 @@ class BdeEnquiriesView(BdeWorkspaceView):
         refusal = self.non_bde_refusal(request)
         if refusal:
             return refusal
-        serializer = EnquiryCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return _bde_error('VALIDATION_ERROR', 'Check the enquiry details.', status.HTTP_400_BAD_REQUEST,
-                              fields=serializer.errors)
-        try:
-            lead = enquiries.add_enquiry(request.user, serializer.validated_data, request=request)
-        except InvalidLeadDetails as exc:
-            return _bde_error('VALIDATION_ERROR', exc.message, status.HTTP_400_BAD_REQUEST,
-                              fields={exc.field: [exc.message]})
-        except enquiries.EnquiryExists as exc:
-            if exc.lead is not None:
-                return _bde_error('ENQUIRY_EXISTS', 'This child is already in your enquiries.',
-                                  status.HTTP_409_CONFLICT, enquiry_id=str(exc.lead.pk))
-            return _bde_error(
-                'ENQUIRY_EXISTS',
-                'An enquiry for this child and phone number is already registered. '
-                'Ask an administrator if it should be yours.',
-                status.HTTP_409_CONFLICT,
-            )
-        now = timezone.now()
-        lead = enquiries.listed(enquiries.own_leads(request.user), now).get(pk=lead.pk)
-        return Response(_enquiry(request, lead, now), status=status.HTTP_201_CREATED)
+        return _bde_error('MANUAL_ENQUIRIES_RETIRED', MANUAL_ENQUIRIES_RETIRED, status.HTTP_410_GONE)
 
 
 class BdeEnquiryDetailView(BdeWorkspaceView):

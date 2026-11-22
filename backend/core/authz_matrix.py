@@ -653,6 +653,7 @@ SCENARIOS = [
     # A BDE's follow-ups and activity (BDE Hub redesign, Phase 6): their own leads' only.
     Scenario('bde.follow_ups.list', 'get', '/api/bde/follow-ups/'),
     Scenario('bde.activity.list', 'get', '/api/bde/activity/'),
+    # Retired (accounts.0031): kept so every caller's refusal stays pinned -- a BDE is answered 410.
     Scenario('bde.enquiries.create', 'post', '/api/bde/enquiries/', {
         'parent_name': 'Matrix Caller', 'phone_dial_code': '+91', 'phone_number': '9800000001',
         'student_name': 'Matrix Walk-in', 'grade': 'Class 6', 'source': 'WALK_IN'}),

@@ -103,9 +103,9 @@ CATALOGUE = {
     # Booking slots (the public Demo/Diagnostic booking pages; bookings app)
     'accounts.manage_booking_slots': _entry('Manage booking slots', 'Booking slots', ADMIN_ONLY),
 
-    # Enquiries (the BDE workspace: the leads a BDE owns; bookings app)
+    # Enquiries (the BDE workspace: the leads a BDE owns; bookings app).
+    # accounts.add_enquiry was retired by 0031: only an administrator adds a lead.
     'accounts.view_own_enquiries': _entry('View their own enquiries', 'Enquiries', BDE_ONLY),
-    'accounts.add_enquiry': _entry('Add enquiries', 'Enquiries', BDE_ONLY),
 
     # Booking management (Admin / Coordinator: every Demo and Diagnostic
     # booking, its parent and child, and the tutor teaching it; bookings app)

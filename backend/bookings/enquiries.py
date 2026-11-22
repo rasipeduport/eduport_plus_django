@@ -1,13 +1,14 @@
 """
 A BDE's enquiries -- their My Leads: the leads (bookings.models.Lead) the
-BDE owns, as the BDE workspace reads and adds them (/api/bde/dashboard/,
+BDE owns, as the BDE workspace reads them (/api/bde/dashboard/,
 /api/bde/enquiries/). The administrators' Leads page reads every lead with
 the same rows and status (bookings.lead_admin).
 
 A BDE owns the leads their booking links brought in (the first valid
-attribution wins, bookings.booking_service), the ones they add by hand here,
-and the ones an administrator gives them (bookings.ownership) -- for as long
-as they own them: a lead given to another BDE leaves this BDE's list at once.
+attribution wins, bookings.booking_service) and the ones an administrator
+gives them (bookings.ownership) -- for as long as they own them: a lead given
+to another BDE leaves this BDE's list at once. A BDE no longer adds a lead by
+hand (retired 2026-11-22); the ones added that way before stay theirs.
 Everything below starts from ``own_leads``: a BDE never sees another BDE's
 leads, nor leads nobody owns.
 
@@ -19,13 +20,9 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from activity.utils import log_activity
-
 from . import redemo_chain, student_timezones
 from .demo_invites import invitable
-from .lead_intake import LeadExists, create_lead
 from .lead_status import status_label, with_status
-from .leads import InvalidLeadDetails
 from .lifecycle import activity_state
 from .models import (
     BOOKING_MODELS, HOLDS_SEAT, MANUAL_LEAD_SOURCES, PUBLIC_FORM_SOURCES, BookingStatus, BookingType, DemoBooking, Lead,
@@ -47,19 +44,6 @@ MIN_PHONE_SEARCH_DIGITS = 3
 LINK_SOURCES = {BookingType.DEMO: 'DEMO_LINK', BookingType.DIAGNOSTIC: 'DIAGNOSTIC_LINK'}
 SOURCE_LABELS = {'DEMO_LINK': 'Demo link', 'DIAGNOSTIC_LINK': 'Diagnostic link', **dict(LeadSource.choices)}
 SOURCE_FILTERS = [*LINK_SOURCES.values(), LeadSource.BOOKING_PAGE, *PUBLIC_FORM_SOURCES, *MANUAL_LEAD_SOURCES]
-
-
-class EnquiryExists(Exception):
-    """
-    A lead for this phone number and student already exists. ``lead`` is it
-    when the caller owns it, and None otherwise: another BDE's lead (or one
-    nobody owns) is never named, let alone handed over -- only an
-    administrator gives a lead to a BDE.
-    """
-
-    def __init__(self, lead=None):
-        super().__init__('An enquiry for this phone number and student already exists.')
-        self.lead = lead
 
 
 # ------------------------------------------------------------------ reading
@@ -419,34 +403,3 @@ def _agenda_row(booking, now):
         'enquiry': enquiry_brief(booking.lead),
     }
 
-
-# ------------------------------------------------------------------ adding
-
-def add_enquiry(bde, details, request=None):
-    """
-    A lead ``bde`` adds by hand, owned by them from the start. ``details`` is
-    validated input (bookings.serializers.EnquiryCreateSerializer). Raises
-    InvalidLeadDetails, or EnquiryExists when the phone number and student
-    already make a lead -- whoever owns it. A parent who later books through
-    the pages lands on this lead (bookings.leads.match_lead) and it stays this
-    BDE's: a booking never changes the owner, only an administrator does.
-    """
-    if details['source'] not in MANUAL_LEAD_SOURCES:
-        raise InvalidLeadDetails('source', 'Choose how this enquiry reached you.')
-    try:
-        lead = create_lead(details, source=details['source'], created_by=bde, owner=bde)
-    except LeadExists as exc:
-        raise EnquiryExists(exc.lead if exc.lead.owner_bde_id == bde.pk else None)
-
-    # Ids and choices only, as for bookings: no names or phone numbers in a log
-    # every administrator reads.
-    log_activity(
-        action='enquiry.create',
-        entity_type='lead',
-        entity_id=lead.id,
-        entity_label=f'{lead.grade} enquiry',
-        context={'source': lead.source, 'grade': lead.grade, 'via': 'bde_workspace'},
-        request=request,
-        actor=bde,
-    )
-    return lead
