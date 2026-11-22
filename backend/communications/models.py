@@ -8,9 +8,10 @@ five steps, owned by the lead's BDE (the Admin when the lead has none):
     2 CONFIRMATION_REQUEST   message the BDE sends when they choose (target: 12 h before)
     3 PARENT_CONFIRMATION    the BDE records Confirmed / Not Confirmed; the
                              confirmed message waits until it has everything it needs
-    4 PRE_ACTIVITY_CALL      the BDE calls, from 15 minutes before until the
-                             start, and records how it went; Missed at the
-                             start without an outcome; no message
+    4 PRE_ACTIVITY_CALL      a reminder to the lead's BDE to call the parent,
+                             in their follow-ups from 15 minutes before until
+                             the start, when it closes by itself (REMINDED);
+                             nothing tracks whether they called; no message
     5 AFTER_ACTIVITY         automatic message once the booking is completed
 
 Each step is a CommunicationTask (one per booking and step), so its deadline,
@@ -22,7 +23,8 @@ message a booking is to get from one template: at most one per booking and
 template, which is what keeps an automatic send from ever happening twice.
 Its MessageAttempt rows are its send and retry history and its
 MessageStatusEvent rows what the provider reported; a CallOutcome is one
-outcome the BDE recorded for the 15-minute call. Those four, and the template
+outcome a BDE recorded for the 15-minute call while it took outcomes -- kept
+as history, never written now. Those four, and the template
 versions, are append-only: a trigger refuses every UPDATE and DELETE
 (communications.0001).
 
@@ -197,18 +199,22 @@ class TaskResolution(models.TextChoices):
     ALREADY_ACKNOWLEDGED = 'ALREADY_ACKNOWLEDGED', 'Acknowledged for the earlier booking'
     # The confirmation request once the parent has confirmed anyway.
     NOT_NEEDED = 'NOT_NEEDED', 'Not needed'
+    # How a BDE said the 15-minute call went, while it took outcomes: history
+    # only, never written now (CallOutcome).
     CALLED = 'CALLED', 'Called'
     MESSAGED = 'MESSAGED', 'Messaged'
     NO_ANSWER = 'NO_ANSWER', 'No answer'
-    # No longer written: the 15-minute call is Missed when its booking's
-    # scheduled start comes with no outcome recorded (planner.close_expired);
-    # communications.0006 made the calls closed this way before Missed too.
+    # The 15-minute call is a reminder only: it closes as this at its
+    # booking's scheduled start (planner.close_expired), whether or not the BDE
+    # called. Calls closed while it took outcomes keep theirs -- an outcome, or
+    # Missed with none (communications.0006).
     REMINDED = 'REMINDED', 'Reminder complete'
     BOOKING_CANCELLED = 'BOOKING_CANCELLED', 'Booking cancelled'
     BOOKING_RESCHEDULED = 'BOOKING_RESCHEDULED', 'Booking rescheduled'
 
 
-# How a message step is done, and what the BDE may record for the 15-minute call -- and only for it.
+# How a message step is done, and how the 15-minute call closed -- and only it: the reminder, or an outcome
+# a BDE recorded while it took them (history).
 MESSAGE_RESOLUTIONS = (
     TaskResolution.ACCEPTED, TaskResolution.SENT, TaskResolution.MARKED_SENT, TaskResolution.ALREADY_ACKNOWLEDGED,
     TaskResolution.NOT_NEEDED,
@@ -299,7 +305,7 @@ class CommunicationTask(models.Model):
                 ),
                 name='communication_tasks_resolution_matches_status',
             ),
-            # Call outcomes and the finished reminder belong to the call, and only they close it as done.
+            # The finished reminder and the call outcomes of old belong to the call, and only they close it as done.
             models.CheckConstraint(
                 condition=(
                     (Q(step=Step.PRE_ACTIVITY_CALL) & ~Q(resolution__in=MESSAGE_RESOLUTIONS))
@@ -328,9 +334,11 @@ class CommunicationTask(models.Model):
 
 class CallOutcome(models.Model):
     """
-    One outcome the BDE recorded for a booking's 15-minute call. Every one is
-    kept: a later Called after a No Answer adds a row and erases nothing. The
-    task shows the latest.
+    One outcome a BDE recorded for a booking's 15-minute call while it took
+    outcomes. History only: the call is now a reminder that closes by itself
+    (planner.close_expired) and nothing writes these, but every one is kept
+    -- append-only -- with the task, which shows the latest as its
+    resolution.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(CommunicationTask, on_delete=models.PROTECT, related_name='call_outcomes')

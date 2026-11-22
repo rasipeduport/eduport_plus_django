@@ -1,19 +1,17 @@
 """
 The BDE's communication actions (communications.services): the confirmation
 request -- available from the moment the booking is made, written once
-however often it is asked for -- its preview, and the 15-minute call, which
-opens 15 minutes before the start, keeps every outcome recorded and is never
-completed by itself. Plus the database rules the communication tables keep
-whatever writes them.
+however often it is asked for -- and its preview. The 15-minute call is a
+reminder only, with nothing to record (communications.tests_bde_followups,
+tests_planning.CallExpiryTests). Plus the database rules the communication
+tables keep whatever writes them, the call outcomes of old among them.
 """
-from datetime import timedelta
-
 from django.db import IntegrityError, connection, transaction
 from django.test import override_settings
 
 from bookings.booking_service import BookingNotOwned, cancel_booking, record_parent_confirmation
 from bookings.models import CancelReason, ParentConfirmation
-from bookings.tests_booking import NOW, start
+from bookings.tests_booking import NOW
 
 from .models import (
     CallOutcome,
@@ -32,15 +30,9 @@ from .models import (
 from .rendering import Requirement
 from .services import (
     BookingNotUpcoming,
-    CallClosed,
-    CallNotOpenYet,
     ConfirmationNotNeeded,
-    InvalidCallOutcome,
     MessageBlocked,
-    NotACall,
-    TaskClosed,
     preview,
-    record_call_outcome,
     request_confirmation,
 )
 from .tests_planning import CommunicationTestCase
@@ -106,60 +98,6 @@ class ConfirmationRequestTests(CommunicationTestCase):
         waiting = preview(booking, Step.PARENT_CONFIRMATION, now=NOW)
         self.assertIsNone(waiting.body)
         self.assertFalse(Message.objects.filter(template__step=Step.CONFIRMATION_REQUEST).exists())
-
-
-class CallTests(CommunicationTestCase):
-    def call(self, booking):
-        return booking.communication_tasks.get(step=Step.PRE_ACTIVITY_CALL)
-
-    def test_the_call_opens_fifteen_minutes_before_and_keeps_every_outcome(self):
-        booking = self.book()
-        task, starts = self.call(booking), booking.slot.starts_at
-        with self.assertRaises(CallNotOpenYet):
-            record_call_outcome(task, TaskResolution.CALLED, actor=self.bde, now=starts - timedelta(minutes=16))
-        record_call_outcome(task, TaskResolution.NO_ANSWER, actor=self.bde, owner_bde=self.bde,
-                            now=starts - timedelta(minutes=15))
-        record_call_outcome(task, TaskResolution.CALLED, actor=self.bde, now=starts - timedelta(minutes=8))
-        task.refresh_from_db()
-        self.assertEqual((task.status, task.resolution, task.resolved_by), (TaskStatus.DONE, TaskResolution.CALLED, self.bde))
-        self.assertEqual(list(task.call_outcomes.values_list('outcome', flat=True)), ['NO_ANSWER', 'CALLED'])
-        # No message goes to the parent for this step.
-        self.assertFalse(Message.objects.filter(task=task).exists())
-
-    def test_closed_at_the_start_or_once_its_tutor_starts_it(self):
-        booking = self.ready(self.book())
-        starts = booking.slot.starts_at
-        # The start closes it, before the sweep has made it Missed, and long after.
-        for moment in (starts, booking.slot.ends_at):
-            with self.assertRaises(CallClosed):
-                record_call_outcome(self.call(booking), TaskResolution.MESSAGED, actor=self.bde, now=moment)
-        # So does its tutor starting it early.
-        start(booking, minutes=-3)
-        with self.assertRaises(CallClosed):
-            record_call_outcome(self.call(booking), TaskResolution.CALLED, actor=self.bde,
-                                now=starts - timedelta(minutes=2))
-        self.assertFalse(CallOutcome.objects.exists())
-
-    def test_closed_once_the_booking_is_cancelled(self):
-        booking = self.book()
-        cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
-        with self.assertRaises(TaskClosed):
-            record_call_outcome(self.call(booking), TaskResolution.MESSAGED, actor=self.bde,
-                                now=booking.slot.starts_at - timedelta(minutes=5))
-        self.assertFalse(CallOutcome.objects.exists())
-
-    def test_only_call_outcomes_on_the_call_by_its_owner(self):
-        booking = self.book()
-        moment = booking.slot.starts_at - timedelta(minutes=10)
-        with self.assertRaises(InvalidCallOutcome):
-            record_call_outcome(self.call(booking), TaskResolution.SENT, actor=self.bde, now=moment)
-        with self.assertRaises(NotACall):
-            record_call_outcome(booking.communication_tasks.get(step=Step.ACKNOWLEDGEMENT), TaskResolution.CALLED,
-                                actor=self.bde, now=moment)
-        with self.assertRaises(BookingNotOwned):
-            record_call_outcome(self.call(booking), TaskResolution.CALLED, actor=self.other_bde,
-                                owner_bde=self.other_bde, now=moment)
-        self.assertEqual(self.call(booking).status, TaskStatus.OPEN)
 
 
 class TableRuleTests(CommunicationTestCase):

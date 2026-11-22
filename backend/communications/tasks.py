@@ -15,7 +15,9 @@ communications.sending and communications.planner, which these only call.
     recover_stuck_sends           every 5 minutes: messages claimed for more than
                                   5 minutes taken back as unknown
     close_expired_communications  every 5 minutes: tasks whose time ran out
-                                  Missed, unsent messages past their window --
+                                  Missed -- the pre-activity call's reminder
+                                  done instead, never Missed -- unsent
+                                  messages past their window --
                                   a retry left Pending included -- cancelled,
                                   never one whose outcome is unknown; a run
                                   that meets a lock past the outbox's lock
@@ -163,7 +165,8 @@ def close_expired_communications():
             logger.info('Expiry sweep skipped: a message or task is locked; the next run does it.')
             return {'busy': True}
         if missed or expired:
-            logger.info('Expiry sweep: %d task(s) missed, %d message(s) expired.', missed, expired)
+            # ``missed`` counts every task closed: the call reminders closed as done among them.
+            logger.info('Expiry sweep: %d task(s) closed, %d message(s) expired.', missed, expired)
         return {'missed': missed, 'expired': expired}
 
 

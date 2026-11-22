@@ -15,13 +15,19 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import RoleGroup
-from bookings.booking_service import cancel_booking, record_parent_confirmation, request_redemo, schedule_redemo
+from bookings.booking_service import (
+    cancel_booking,
+    record_parent_confirmation,
+    request_redemo,
+    reschedule_booking,
+    schedule_redemo,
+)
 from bookings.lead_intake import create_lead
 from bookings.lead_status import LeadStatus, with_status
-from bookings.models import BookingStatus, CancelReason, Lead, LeadSource, ParentConfirmation
+from bookings.models import BookingStatus, CancelReason, Lead, LeadSource, ParentConfirmation, RescheduleReason
 from bookings.ownership import assign_owner
 from bookings.scheduling import BOOKING_TIMEZONE, indian_today
-from bookings.tests_booking import DIAGNOSTIC, EVENING, MORNING, NOW, account, start
+from bookings.tests_booking import DAY, DEMO, DIAGNOSTIC, EVENING, MORNING, NOW, account, start
 from bookings.tests_enquiries import booking as booking_of
 from reports.models import ReportShare
 from reports.services import edit_report, record_share, submit_report
@@ -30,7 +36,7 @@ from reports.tests_services import report_input
 from . import followups, planner
 from .followups import FollowUpState, FollowUpType
 from .models import CommunicationTask, Step, TaskResolution, TaskStatus
-from .services import record_call_outcome, request_confirmation
+from .services import request_confirmation
 from .tests_planning import CommunicationTestCase
 
 URL = '/api/bde/follow-ups/'
@@ -124,7 +130,7 @@ class ConfirmationTests(FollowUpTestCase):
         [item] = self.open(now=due)
         self.assertEqual((item.type, item.id, item.due_at, item.request),
                          (FollowUpType.PARENT_CONFIRMATION, booking.id, STARTS, None))
-        self.assertEqual(item.actions, {'record_outcome': False, 'request_confirmation': True, 'record_answer': True})
+        self.assertEqual(item.actions, {'request_confirmation': True, 'record_answer': True})
         # Asked: where the request stands is shown, and asking again is not offered.
         request_confirmation(booking, actor=self.bde, owner_bde=self.bde, now=due + HOUR)
         [item] = self.open(now=due + HOUR)
@@ -170,6 +176,12 @@ class ConfirmationTests(FollowUpTestCase):
 
 
 class CallTests(FollowUpTestCase):
+    """
+    The pre-activity BDE call: a reminder to the lead's BDE now, from exactly 15
+    minutes before a Demo or Diagnostic until it starts -- nothing to record
+    on it, nothing needed to end it, never Missed.
+    """
+
     def setUp(self):
         super().setUp()
         self.booking = self.ready(self.book())
@@ -177,30 +189,84 @@ class CallTests(FollowUpTestCase):
                                    now=NOW)
         self.call = self.booking.communication_tasks.get(step=Step.PRE_ACTIVITY_CALL)
 
-    def test_from_fifteen_minutes_before_until_the_start_and_never_done_unrecorded(self):
-        self.assertEqual(self.open(now=STARTS - timedelta(minutes=16)), [])
-        [item] = self.open(now=STARTS - timedelta(minutes=15))
-        self.assertEqual((item.type, item.state, item.opens_at, item.due_at), (
-            FollowUpType.PRE_ACTIVITY_CALL, FollowUpState.DUE_TODAY, STARTS - timedelta(minutes=15), STARTS))
-        # Gone at the start, whether or not the sweep has run -- and the call nobody recorded is Missed.
-        self.assertEqual(self.open(now=STARTS), [])
-        planner.close_expired(STARTS + timedelta(minutes=3))
-        self.call.refresh_from_db()
-        self.assertEqual((self.call.status, self.call.resolution), (TaskStatus.MISSED, ''))
+    def calls(self, now, user=None):
+        """The call reminders ``user`` (the BDE) has at ``now``, as (booking, opens, due)."""
+        return [(item.booking.pk, item.opens_at, item.due_at) for item in self.open(user=user, now=now)
+                if item.type == FollowUpType.PRE_ACTIVITY_CALL]
 
-    def test_a_recorded_outcome_ends_it_and_is_kept(self):
-        record_call_outcome(self.call, TaskResolution.NO_ANSWER, actor=self.bde, owner_bde=self.bde,
-                            now=STARTS - timedelta(minutes=5))
-        self.assertEqual(self.open(now=STARTS - timedelta(minutes=4)), [])
-        planner.close_expired(STARTS)
-        self.call.refresh_from_db()
-        self.assertEqual((self.call.status, self.call.resolution, self.call.resolved_by),
-                         (TaskStatus.DONE, TaskResolution.NO_ANSWER, self.bde))
+    def test_from_exactly_fifteen_minutes_before_until_the_start(self):
+        shown = [(self.booking.pk, STARTS - timedelta(minutes=15), STARTS)]
+        self.assertEqual(self.calls(STARTS - timedelta(minutes=15, seconds=1)), [])
+        for moment in (STARTS - timedelta(minutes=15), STARTS - timedelta(minutes=7), STARTS - timedelta(seconds=1)):
+            with self.subTest(moment=moment):
+                self.assertEqual(self.calls(moment), shown)
+        [item] = self.open(now=STARTS - timedelta(minutes=15))
+        self.assertEqual((item.type, item.state, item.lead.pk), (
+            FollowUpType.PRE_ACTIVITY_CALL, FollowUpState.DUE_TODAY, self.booking.lead_id))
+        # Gone at the start, whether or not the sweep has run.
+        self.assertEqual(self.calls(STARTS), [])
+
+    def test_a_demo_and_a_diagnostic_alike(self):
+        diagnostic = self.book(DIAGNOSTIC)
+        moment = STARTS - timedelta(minutes=10)
+        items = [item for item in self.open(now=moment) if item.type == FollowUpType.PRE_ACTIVITY_CALL]
+        self.assertEqual(
+            sorted((item.booking.booking_type, item.booking.pk, item.opens_at, item.due_at) for item in items),
+            sorted([(DEMO, self.booking.pk, STARTS - timedelta(minutes=15), STARTS),
+                    (DIAGNOSTIC, diagnostic.pk, STARTS - timedelta(minutes=15), STARTS)]),
+        )
+
+    def test_only_the_leads_bde_now_sees_it(self):
+        moment = STARTS - timedelta(minutes=10)
+        self.assertEqual(len(self.calls(moment)), 1)
+        self.assertEqual(self.calls(moment, user=self.other_bde), [])
+        # Given to another BDE, it goes with the lead: theirs at once, never the BDE's before.
+        assign_owner(self.booking.lead_id, self.other_bde.pk, actor=self.admin, via='admin_leads', now=moment)
+        self.assertEqual(self.calls(moment), [])
+        self.assertEqual(self.calls(moment, user=self.other_bde),
+                         [(self.booking.pk, STARTS - timedelta(minutes=15), STARTS)])
 
     def test_gone_once_its_tutor_starts_the_class_early(self):
         self.assertEqual(len(self.open(now=STARTS - timedelta(minutes=5))), 1)
         start(self.booking, minutes=-4)
         self.assertEqual(self.open(now=STARTS - timedelta(minutes=3)), [])
+
+    def test_none_for_a_cancelled_booking(self):
+        cancel_booking(self.booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
+        self.assertEqual(self.calls(STARTS - timedelta(minutes=10)), [])
+        self.call.refresh_from_db()
+        self.assertEqual((self.call.status, self.call.resolution),
+                         (TaskStatus.CANCELLED, TaskResolution.BOOKING_CANCELLED))
+
+    def test_a_rescheduled_booking_reminds_at_its_new_time_only(self):
+        booking = self.book()
+        new = reschedule_booking(booking, DAY + timedelta(days=1), MORNING, reason_code=RescheduleReason.PARENT_REQUEST,
+                                 actor=self.admin, now=NOW).booking
+        starts = new.slot.starts_at
+
+        def mine(moment):
+            return [call for call in self.calls(moment) if call[0] in (booking.pk, new.pk)]
+
+        # Nothing at the old time, nor before the new one's 15 minutes; then the new booking's, until it starts.
+        self.assertEqual(mine(STARTS - timedelta(minutes=10)), [])
+        self.assertEqual(mine(starts - timedelta(minutes=15, seconds=1)), [])
+        self.assertEqual(mine(starts - timedelta(minutes=15)), [(new.pk, starts - timedelta(minutes=15), starts)])
+        self.assertEqual(mine(starts), [])
+        old_call = booking.communication_tasks.get(step=Step.PRE_ACTIVITY_CALL)
+        self.assertEqual((old_call.status, old_call.resolution),
+                         (TaskStatus.CANCELLED, TaskResolution.BOOKING_RESCHEDULED))
+
+    def test_nothing_to_record_nothing_needed_to_end_it_never_missed(self):
+        moment = STARTS - timedelta(minutes=5)
+        [item] = self.open(now=moment)
+        self.assertEqual(followups.row(item, moment)['actions'], {'request_confirmation': False, 'record_answer': False})
+        # Left as it is, it ends at the start: its step closes by itself as a reminder.
+        planner.close_expired(STARTS + timedelta(minutes=3))
+        self.call.refresh_from_db()
+        self.assertEqual((self.call.status, self.call.resolution, self.call.resolved_at, self.call.resolved_by),
+                         (TaskStatus.DONE, TaskResolution.REMINDED, STARTS, None))
+        self.assertFalse(self.call.call_outcomes.exists())
+        self.assertEqual(self.open(now=STARTS + timedelta(minutes=3)), [])
 
 
 class ReportTests(FollowUpTestCase):
@@ -285,30 +351,27 @@ class ApiTests(FollowUpTestCase):
                          ('NEW_ENQUIRY_CALL', 'Call new enquiry', None))
         self.assertEqual(set(row['enquiry']),
                          {'id', 'parent_name', 'student_name', 'grade', 'phone', 'phone_dial_code', 'phone_number'})
-        self.assertEqual(row['actions'],
-                         {'record_outcome': False, 'request_confirmation': False, 'record_answer': False})
+        self.assertEqual(row['actions'], {'request_confirmation': False, 'record_answer': False})
 
-    def test_the_call_outcome_is_recorded_on_the_bookings_communication(self):
+    def test_the_call_reminder_carries_the_parents_contact_and_nothing_to_record(self):
         booking = self.book(day=indian_today() + timedelta(days=2), now=timezone.now())
         now = timezone.now()
-        url = f'/api/communications/bookings/demo/{booking.pk}/call-outcome/'
         CommunicationTask.objects.filter(demo_booking=booking, step=Step.PRE_ACTIVITY_CALL).update(
-            active_from=now + HOUR, due_at=now + 2 * HOUR)
-        early = self.client.post(url, {'outcome': 'CALLED'}, format='json')
-        self.assertEqual((early.status_code, early.json()['error']), (409, 'CALL_NOT_OPEN_YET'))
-        CommunicationTask.objects.filter(demo_booking=booking, step=Step.PRE_ACTIVITY_CALL).update(
-            active_from=now - HOUR, due_at=now + HOUR)
-        self.assertEqual(self.client.post(url, {'outcome': 'MAYBE'}, format='json').json()['error'], 'INVALID_OUTCOME')
-        response = self.client.post(url, {'outcome': 'no_answer'}, format='json')
-        self.assertEqual(response.status_code, 201, response.content)
-        call = {row['step']: row for row in response.json()['tasks']}['PRE_ACTIVITY_CALL']
-        self.assertEqual((call['status'], call['resolution']), ('DONE', 'NO_ANSWER'))
-        other = APIClient()
-        other.force_authenticate(self.other_bde)
-        self.assertEqual(other.post(url, {'outcome': 'CALLED'}, format='json').status_code, 404)
-        CommunicationTask.objects.filter(demo_booking=booking, step=Step.PRE_ACTIVITY_CALL).update(due_at=now - HOUR)
-        late = self.client.post(url, {'outcome': 'CALLED'}, format='json')
-        self.assertEqual((late.status_code, late.json()['error']), (409, 'CALL_CLOSED'))
+            active_from=now - timedelta(minutes=5), due_at=now + timedelta(minutes=10))
+        response = self.client.get(URL, {'type': 'PRE_ACTIVITY_CALL'})
+        self.assertEqual(response.status_code, 200, response.content)
+        [row] = response.json()['results']
+        self.assertEqual((row['type'], row['booking']['id'], row['booking']['booking_type'], row['actions']),
+                         ('PRE_ACTIVITY_CALL', str(booking.pk), 'DEMO', {'request_confirmation': False,
+                                                                          'record_answer': False}))
+        self.assertEqual((row['enquiry']['parent_name'], row['enquiry']['phone_number']),
+                         (booking.lead.parent_name, booking.lead.phone_number))
+        # The call-outcome route is gone: nothing records how a call went.
+        gone = self.client.post(f'/api/communications/bookings/demo/{booking.pk}/call-outcome/', {'outcome': 'CALLED'},
+                                format='json')
+        self.assertEqual(gone.status_code, 404)
+        call = CommunicationTask.objects.get(demo_booking=booking, step=Step.PRE_ACTIVITY_CALL)
+        self.assertEqual((call.status, call.call_outcomes.count()), (TaskStatus.OPEN, 0))
 
     def test_filters_are_checked_and_every_other_caller_is_refused(self):
         response = self.client.get(URL, {'due': 'invalid', 'type': 'REPORT_DISCUSSION', 'enquiry': 'x'})

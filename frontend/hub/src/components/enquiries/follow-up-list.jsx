@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
-import { RecordOutcomeDialog } from '@/components/enquiries/follow-up-dialogs';
 import { ConfirmationRequestDialog } from '@/components/communications/confirmation-request-dialog';
 import { ParentAnswerDialog } from '@/components/communications/parent-answer-dialog';
 import { confirmationRequestNotice, istMoment, istParts, joined, parentAnswerNotice } from '@/lib/communications';
@@ -88,7 +87,9 @@ function Due({ value }) {
  * What the BDE does on a reminder -- each action offered only when the API
  * says the caller may take it, or the page where it is done: the enquiry, or
  * its tutor feedback, where the report is sent -- with calling or messaging
- * the parent. A Re-Demo's confirmation is the BDE's by hand: WhatsApp opens
+ * the parent. The call before a class is a reminder only: calling or
+ * messaging the parent is all it offers, and nothing is recorded on it. A
+ * Re-Demo's confirmation is the BDE's by hand: WhatsApp opens
  * with the confirmation request's own wording filled in for it (the API's
  * `parent_messages`), its time on the student's clock, for the BDE to send.
  */
@@ -122,13 +123,6 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
         aria-label={`Record the parent’s answer for ${whose}`}
       >
         Record answer
-      </Button>
-    );
-  }
-  if (actions.record_outcome) {
-    buttons.push(
-      <Button key="outcome" size="sm" onClick={act('outcome')} aria-label={`Record the outcome of ${whose}`}>
-        Record outcome
       </Button>
     );
   }
@@ -199,9 +193,10 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
  * Reminders as a list: a table where it fits, cards elsewhere. Each says what
  * is to be done and by when, for which booking and (unless `inEnquiry`, inside
  * the enquiry's own workspace) whose, with the action that does it -- asking
- * for or recording the parent's confirmation, or recording the call before a
- * class, in a dialog here; opening the enquiry, or its report to send it to
- * the parent. `onChanged` hears of each action taken here, with what to tell
+ * for or recording the parent's confirmation in a dialog here; opening the
+ * enquiry, or its report to send it to the parent; the call before a class
+ * only reminds, with the parent's number to call or message. `onChanged`
+ * hears of each action taken here, with what to tell
  * the BDE; `from` is the way back from where one opens. `empty` stands in for
  * the list while it has no rows -- its dialogs stay, so one open when a fresh
  * read leaves the list empty stays open with what was entered. `onRefused`
@@ -290,7 +285,6 @@ export function FollowUpList({ rows, pending, inEnquiry = false, from = null, on
           renderCard={renderCard}
         />
       )}
-      <RecordOutcomeDialog followUp={dialog.followUp} onRecorded={changed} onRefused={onRefused} {...dialogProps('outcome')} />
       <ConfirmationRequestDialog
         booking={dialogBooking(dialog.followUp)}
         onRequested={(data) => changed(confirmationRequestNotice(data))}

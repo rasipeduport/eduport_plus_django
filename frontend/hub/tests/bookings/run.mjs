@@ -2409,7 +2409,8 @@ test("BDE: each booking shows the parent's answer and opens its communication in
   const sheet = clean(topDialog().textContent);
   // The booking in the header, the parent's answer first, then the workflow beside the messages.
   for (const part of ['CommunicationRiya', 'Demo class', 'Sat, 31 Oct · 7:30 PM IST', 'Booked', 'Booking ID B-1',
-    'Parent confirmationConfirmedRecorded 29 Oct 2026, 4:00 PM IST by Bde One', 'Pre-activity BDE callPendingDue 31 Oct 2026, 7:30 PM IST',
+    'Parent confirmationConfirmedRecorded 29 Oct 2026, 4:00 PM IST by Bde One',
+    'Pre-activity BDE reminderReminder triggeredReminder at 31 Oct 2026, 7:15 PM IST',
     'Waiting for: Tutor assigned, Tutor Meet link']) {
     assert.ok(sheet.includes(part), `the sheet shows ${part}`);
   }
@@ -2420,13 +2421,13 @@ test("BDE: each booking shows the parent's answer and opens its communication in
     'Initial acknowledgementSentSent · 28 Oct 2026, 2:31 PM ISTRead · 28 Oct 2026, 2:40 PM IST',
     'Confirmation requestFailedTime ran out 31 Oct 2026, 7:30 PM ISTMessage failed · 29 Oct 2026, 1:31 PM IST',
     'Current stepConfirmed messageOverdueDue 31 Oct 2026, 7:30 PM ISTWaiting for: Tutor assigned, Tutor Meet link',
-    'Pre-activity BDE callPendingDue 31 Oct 2026, 7:30 PM IST',
+    'Pre-activity BDE reminderReminder triggeredReminder at 31 Oct 2026, 7:15 PM IST',
     'After-activity messageScheduledAfter the class',
   ]);
   assert.equal(timeline.querySelector('[aria-current="step"]'), timeline.children[2]);
-  // Messages first, the failed one saying so in its row; the call and the tasks a tab away.
+  // Messages first, the failed one saying so in its row; the tasks a tab away -- no call outcomes anywhere.
   assert.deepEqual([...topDialog().querySelectorAll('[role="tab"]')].map((element) => clean(element.textContent)),
-    ['Messages3', 'Call Outcomes', 'Task Details5']);
+    ['Messages3', 'Task Details5']);
   const failedRow = listItems(topDialog().querySelectorAll('ol')[1])[1];
   assert.match(failedRow, /^Confirmation requestFailedPermanent delivery failure: Message undeliverable \(131026\)WhatsApp · 29 Oct 2026, 1:31 PM IST/);
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
@@ -2437,33 +2438,66 @@ test("BDE: each booking shows the parent's answer and opens its communication in
   assert.deepEqual(Object.fromEntries(new URLSearchParams(page.location().search)), { tab: 'bookings' }, 'back on the Bookings tab');
 });
 
-test('BDE: the pre-activity call reminds from 15 minutes before the start, then reads Done, with nothing to record on it', async () => {
+test('BDE: the pre-activity BDE reminder reads as a reminder -- scheduled, then triggered -- never as a call made or missed', async () => {
   const at = (minutes) => new Date(Date.now() + minutes * 60000).toISOString();
-  const withCall = (booking, call) => {
+  const withCall = (booking, call, bookingFields = {}) => {
     const data = communication(booking);
-    return { ...data, tasks: data.tasks.map((task) => (task.step === 'PRE_ACTIVITY_CALL' ? { ...task, ...call } : task)) };
+    return { ...data, booking: { ...data.booking, ...bookingFields },
+      tasks: data.tasks.map((task) => (task.step === 'PRE_ACTIVITY_CALL' ? { ...task, ...call } : task)) };
   };
   const diagnostic = { ...BDE_BOOKED, id: 'b-3', booking_type: 'DIAGNOSTIC' };
+  const reminded = /^Pre-activity BDE reminderReminder triggeredReminder at \d{1,2} \w{3} \d{4}, .+ IST$/;
+  const past = { active_from: at(-30), due_at: at(-15) };
   const cases = [
-    // 15 minutes before, for a Demo and a Diagnostic alike.
-    [BDE_BOOKED, { active_from: at(0), due_at: at(15) }, 'Pre-activity BDE callPendingCall parent – Demo starts in 15 minutes.'],
-    [diagnostic, { active_from: at(-14), due_at: at(1) }, 'Pre-activity BDE callPendingCall parent – Diagnostic starts in 1 minute.'],
-    // Not yet: its time only.
-    [BDE_BOOKED, { active_from: at(5), due_at: at(20) }, /^Pre-activity BDE callScheduledDue \d{1,2} \w{3} \d{4}, .+ IST$/],
-    // Done at the start, by the backend: never Missed, never Overdue.
-    [BDE_BOOKED, { active_from: at(-30), due_at: at(-15), status: 'DONE', status_label: 'Done', resolution: 'REMINDED',
-      resolution_label: 'Reminder complete', resolved_at: '2026-10-31T14:00:00+00:00' },
-    'Pre-activity BDE callCompletedReminder complete · 31 Oct 2026, 7:30 PM IST'],
+    // From 15 minutes before, for a Demo and a Diagnostic alike: call the parent, the class starts soon.
+    [BDE_BOOKED, { active_from: at(0), due_at: at(15) },
+      'Pre-activity BDE reminderReminder triggeredCall parent – Demo starts in 15 minutes.'],
+    [diagnostic, { active_from: at(-14), due_at: at(1) },
+      'Pre-activity BDE reminderReminder triggeredCall parent – Diagnostic starts in 1 minute.'],
+    // Not yet: when it will show.
+    [BDE_BOOKED, { active_from: at(5), due_at: at(20) }, /^Pre-activity BDE reminderScheduledReminder at \d{1,2} \w{3} \d{4}, .+ IST$/],
+    // Closed by the backend at the start: a reminder that was triggered, nothing more.
+    [BDE_BOOKED, { ...past, status: 'DONE', status_label: 'Done', resolution: 'REMINDED', resolution_label: 'Reminder complete',
+      resolved_at: at(-15) }, reminded],
+    // Closed before as Missed, or with an outcome a BDE recorded then: never shown as Missed or Completed.
+    [BDE_BOOKED, { ...past, status: 'MISSED', status_label: 'Missed', resolved_at: at(-15) }, reminded],
+    [BDE_BOOKED, { ...past, status: 'DONE', status_label: 'Done', resolution: 'CALLED', resolution_label: 'Called',
+      resolved_at: at(-20), resolved_by: BDE_ONE }, reminded],
+    // Its booking moved: cancelled with it.
+    [BDE_BOOKED, { active_from: at(30), due_at: at(45), status: 'CANCELLED', status_label: 'Cancelled',
+      resolution: 'BOOKING_RESCHEDULED', resolution_label: 'Booking rescheduled', resolved_at: '2026-10-30T10:00:00+00:00' },
+    'Pre-activity BDE reminderCancelledBooking rescheduled · 30 Oct 2026, 3:30 PM IST'],
+    // Started by its tutor before the reminder's time: it never showed.
+    [BDE_BOOKED, { active_from: at(-10), due_at: at(5) }, 'Pre-activity BDE reminderNot neededThe class started before the reminder time',
+      { started_at: at(-12), activity_state: 'IN_PROGRESS' }],
   ];
-  for (const [booking, call, line] of cases) {
-    serve({ [`GET ${ENQUIRY_URL}`]: enquiry([booking]), [`GET ${commsUrl(booking)}`]: withCall(booking, call) });
+  for (const [booking, call, line, bookingFields] of cases) {
+    serve({ [`GET ${ENQUIRY_URL}`]: enquiry([booking]), [`GET ${commsUrl(booking)}`]: withCall(booking, call, bookingFields) });
     const page = await open(`/enquiries/lead-1?booking=${booking.id}&booking_type=${booking.booking_type}`, BDE_COMMS);
     const [steps] = topDialog().querySelectorAll('ol');
     if (line instanceof RegExp) assert.match(listItems(steps)[3], line);
     else assert.equal(listItems(steps)[3], line);
+    assert.ok(!/Missed|Completed|Called|Done/.test(listItems(steps)[3]), 'never whether the BDE called');
     assert.equal(steps.querySelectorAll('button').length, 0, 'nothing to act on in the steps');
     await page.unmount();
   }
+});
+
+test('BDE: Task Details shows the pre-activity BDE reminder as a reminder -- whose, when it shows, when the class starts', async () => {
+  serve({ [`GET ${ENQUIRY_URL}`]: enquiry([BDE_BOOKED]), [`GET ${commsUrl(BDE_BOOKED)}`]: communication(BDE_BOOKED) });
+  await open(`/enquiries/lead-1?booking=${BDE_BOOKED.id}&booking_type=DEMO`, BDE_COMMS);
+  await mouseDown(tab('Task Details5'));
+  const cards = [...topDialog().querySelectorAll('[role="tabpanel"] li')].map((element) => clean(element.textContent));
+  assert.equal(cards.length, 5);
+  const reminder = cards.find((card) => card.startsWith('Pre-activity BDE reminder'));
+  assert.equal(reminder, 'Pre-activity BDE reminderReminder triggeredAssigned BDEBde OneReminder time31 Oct 2026, 7:15 PM IST'
+    + "Class start time31 Oct 2026, 7:30 PM ISTReminder typeCall reminder in the BDE's Follow-ups");
+  for (const word of ['Outcome', 'Resolution', 'Resolved', 'Window closes', 'Missed', 'Completed']) {
+    assert.ok(!reminder.includes(word), `no ${word} on the reminder`);
+  }
+  // The message steps keep their task details as before.
+  assert.match(cards.find((card) => card.startsWith('Initial acknowledgement')),
+    /^Initial acknowledgementDoneOwnerBDE · Bde One.*ResolutionAccepted by the provider/);
 });
 
 test('BDE: no Confirmation column, Communication or request for one without accounts.view_own_lead_communications', async () => {
@@ -3742,7 +3776,7 @@ const FOLLOW_UPS = '/api/bde/follow-ups/';
 const FOLLOW_UP_BDE = { id: 'bde', role: 'BDE', permissions: [
   'accounts.record_parent_confirmation', 'accounts.send_lead_communications', 'accounts.share_booking_report',
   'accounts.view_own_enquiries', 'accounts.view_own_lead_communications', 'accounts.view_own_lead_reports'] };
-const NO_ACTIONS = { record_outcome: false, request_confirmation: false, record_answer: false };
+const NO_ACTIONS = { request_confirmation: false, record_answer: false };
 const FOLLOW_UP_TYPES = { NEW_ENQUIRY_CALL: 'Call new enquiry', PARENT_CONFIRMATION: 'Parent confirmation',
   PRE_ACTIVITY_CALL: 'Pre-activity call', TUTOR_REPORT: 'Share tutor report', REDEMO_CONFIRMATION: 'Re-Demo confirmation' };
 const FU_KIRAN = { id: 'e-kiran', parent_name: 'Ravi Menon', student_name: 'Kiran', grade: 'Class 7', phone: '+91 9876543210',
@@ -3757,8 +3791,7 @@ const followUp = (type, id, fields = {}) => ({ id, type, type_label: FOLLOW_UP_T
 const FU_NEW_CALL = followUp('NEW_ENQUIRY_CALL', 'f-call', { enquiry: FU_KIRAN, due_at: '2026-11-07T16:30:00+00:00' });
 const FU_CONFIRM = followUp('PARENT_CONFIRMATION', 'b-dona', { booking: followUpBooking('b-dona', 'DEMO', '2026-11-07'),
   actions: { ...NO_ACTIONS, request_confirmation: true, record_answer: true } });
-const FU_PRE_CALL = followUp('PRE_ACTIVITY_CALL', 't-call', { booking: followUpBooking('b-ali', 'DIAGNOSTIC', '2026-11-07'),
-  actions: { ...NO_ACTIONS, record_outcome: true } });
+const FU_PRE_CALL = followUp('PRE_ACTIVITY_CALL', 't-call', { booking: followUpBooking('b-ali', 'DIAGNOSTIC', '2026-11-07') });
 const FU_REPORT = followUp('TUTOR_REPORT', 'r-done', { state: 'PENDING', state_label: 'Pending',
   due_at: '2026-11-08T14:40:00+00:00',
   booking: followUpBooking('b-done', 'DEMO', '2026-11-06', { status: 'COMPLETED', activity_state: 'COMPLETED' }) });
@@ -3782,16 +3815,12 @@ test('Follow-ups: a Re-Demo confirmation opens WhatsApp with the confirmation re
   assert.equal(plain.getAttribute('href'), 'https://wa.me/971501234567');
 });
 
-test('Follow-ups: reminders only, each with what does it; the call is recorded here and the list read again', async () => {
-  let remaining = [FU_NEW_CALL, FU_CONFIRM, FU_PRE_CALL, FU_REPORT, FU_REDEMO];
+test('Follow-ups: reminders only, each with what does it; the call before a class only reminds, nothing to record', async () => {
+  const remaining = [FU_NEW_CALL, FU_CONFIRM, FU_PRE_CALL, FU_REPORT, FU_REDEMO];
   const count = (state) => remaining.filter((row) => row.state === state).length;
   serve({
     [`GET ${FOLLOW_UPS}`]: () => ok({ results: remaining, count: remaining.length, page: 1, page_size: 25,
       timezone: 'Asia/Kolkata', summary: { total: remaining.length, today: count('DUE_TODAY'), upcoming: count('PENDING') } }),
-    ['POST /api/communications/bookings/diagnostic/b-ali/call-outcome/']: () => {
-      remaining = remaining.filter((item) => item !== FU_PRE_CALL);
-      return ok({});
-    },
   });
   await open('/follow-ups', FOLLOW_UP_BDE);
   // Booking reminders expire; paid token reservations can remain overdue.
@@ -3813,7 +3842,12 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
     '/enquiries/e-dona?tab=feedback');
   assert.deepEqual([...call.querySelectorAll('button')].length + [...report.querySelectorAll('button')].length, 0);
   assert.ok(button('Request confirmation', confirm) && button('Record answer', confirm));
-  assert.ok(button('Record outcome', preCall));
+  // The call before a class: the parent's number to call or message, its communication to open -- nothing to record.
+  assert.equal(preCall.querySelectorAll('button').length, 0, 'no Record outcome, nor any other button');
+  assert.match(clean(preCall.textContent), /Asha Nair\+971 501234567Diagnostic test/);
+  assert.equal(preCall.querySelector('a[aria-label="Call Asha Nair"]').getAttribute('href'), 'tel:+971501234567');
+  assert.equal(preCall.querySelector('a[aria-label="WhatsApp Asha Nair"]').getAttribute('href'), 'https://wa.me/971501234567');
+  assert.ok(preCall.querySelector('a[aria-label="Open the communication for Dona’s pre-activity call"]'));
   assert.ok(button('Record answer', redemo) && !button('Request confirmation', redemo), 'a Re-Demo is confirmed by hand');
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'nothing is written by looking');
 
@@ -3821,19 +3855,7 @@ test('Follow-ups: reminders only, each with what does it; the call is recorded h
   await click(button('Record answer', redemo));
   assert.match(clean(topDialog().textContent), /Record parent's answerDona · Demo class · Mon, 9 Nov · 7:30 PM IST/);
   await click(button('Cancel', topDialog()));
-
-  // The call before a class: how it went, picked from the list, kept on its booking's communication.
-  await click(button('Record outcome', preCall));
-  assert.deepEqual([...topDialog().querySelectorAll('label')].map((element) => clean(element.textContent)),
-    ['Called', 'Messaged', 'No answer']);
-  await click(radio('No answer', topDialog()));
-  await click(button('Record outcome', topDialog()));
-  assert.deepEqual(calls('POST', '/api/communications/bookings/diagnostic/b-ali/call-outcome/').map((entry) => entry.data),
-    [{ outcome: 'NO_ANSWER' }]);
-  assert.match(bodyText(), /Recorded “No answer” for the call to Asha Nair\./);
-  assert.equal(calls('GET', FOLLOW_UPS).length, 2, 'the list and its counts are read again');
-  assert.deepEqual(rows().map((row) => clean(row.querySelector('td span').textContent)),
-    ['Call new enquiryDue today', 'Parent confirmationDue today', 'Share tutor reportPending', 'Re-Demo confirmationPending']);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.includes('call-outcome')), 'no call is ever recorded');
 });
 
 // ------------------------------------------------------- BDE Demo and Diagnostic Bookings: filters

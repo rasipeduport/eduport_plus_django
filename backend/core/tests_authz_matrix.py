@@ -76,7 +76,7 @@ ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
 ])
 # A reminder as the BDE's follow-ups list it (communications.followups.row): a new enquiry's has no booking.
 FOLLOW_UP_ROW_FIELDS = [
-    'actions', 'actions.record_answer', 'actions.record_outcome', 'actions.request_confirmation', 'booking', 'due_at',
+    'actions', 'actions.record_answer', 'actions.request_confirmation', 'booking', 'due_at',
     'enquiry', 'enquiry.grade', 'enquiry.id', 'enquiry.parent_name', 'enquiry.phone', 'enquiry.phone_dial_code',
     # parent_messages: a Re-Demo confirmation's messages to send by hand (communications.redemo_messages), else null.
     'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'parent_messages', 'request', 'state',
@@ -169,8 +169,6 @@ BDE_WORKSPACE = {
                                             'records': [], 'fields': ['error', 'message']},
     'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
                                            'records': [], 'fields': ['error', 'message']},
-    'communications.call_outcome': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
-                                    'fields': ['error', 'message']},
     # The catalogue on sale, as an administrator sees it: syllabus_a (published) only -- syllabus_b, a draft, is
     # not found -- each without its drafts, status, history or audit, and the pricing's rates; choosing days of a
     # chapter-wise syllabus is refused.
