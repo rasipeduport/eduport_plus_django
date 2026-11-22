@@ -17,9 +17,14 @@ its time is up:
                          (planner.plan_booking) -- until the answer is
                          recorded or the class starts
     PRE_ACTIVITY_CALL    from 15 minutes before a Demo or Diagnostic until it
-                         starts, or until the BDE records how the call went
-                         (its communication step; a call nobody recorded is
-                         Missed, never done: planner.close_expired)
+                         starts -- its scheduled start, or its tutor's Start
+                         if earlier: call the parent. A reminder only: nothing
+                         is recorded on it and nothing asks whether the BDE
+                         called; its communication step closes by itself at
+                         the start (planner.close_expired). A booking
+                         cancelled or moved takes its reminder with it; the
+                         booking a move makes has its own, 15 minutes before
+                         its new start
     TUTOR_REPORT         the tutor submitted the booking's report: share it
                          with the parent. Shown for 24 hours, until the BDE
                          sends it from the enquiry's tutor feedback (a
@@ -107,7 +112,7 @@ class Item:
     due_at: datetime
     booking: object = None
     state: str = ''
-    # When the call can be recorded from (its 15 minutes before the start).
+    # When the call's reminder is shown from (its 15 minutes before the start).
     opens_at: datetime = None
     # The parent confirmation's request message, once the parent was asked.
     request: Message = None
@@ -128,10 +133,9 @@ def _permissions(user, request):
     return {name: has_app_permission(user, name, request) for name in names}
 
 
-def _actions(record_outcome=False, request_confirmation=False, record_answer=False):
+def _actions(request_confirmation=False, record_answer=False):
     """What the caller may do on a reminder from the list: each action the API that owns it checks again."""
     return {
-        'record_outcome': record_outcome,
         'request_confirmation': request_confirmation,
         'record_answer': record_answer,
     }
@@ -147,7 +151,7 @@ def open_items(user, now, request=None, enquiry=None):
     items = [
         *_enquiry_calls(user, now, enquiry),
         *_confirmations(user, now, enquiry, can),
-        *_calls(user, now, enquiry, can),
+        *_calls(user, now, enquiry),
     ]
     if can[VIEW_OWN_LEAD_REPORTS]:
         items += _reports(user, now, enquiry)
@@ -266,8 +270,12 @@ def _confirmation_requests(model, bookings):
     return {getattr(message, f'{column}_id'): message for message in messages}
 
 
-def _calls(user, now, enquiry, can):
-    """The 15-minute calls open now: from 15 minutes before a booking still to come until its start."""
+def _calls(user, now, enquiry):
+    """
+    The 15-minute call reminders on now: from 15 minutes before a booking
+    still booked and not started until its start, for its lead's BDE now. A
+    reminder only, so nothing to act on but calling or messaging the parent.
+    """
     def booked(column):
         return Q(**{
             f'{column}__lead__owner_bde': user, f'{column}__status': BookingStatus.BOOKED,
@@ -282,7 +290,7 @@ def _calls(user, now, enquiry, can):
         tasks = tasks.filter(Q(demo_booking__lead_id=enquiry) | Q(diagnostic_booking__lead_id=enquiry))
     return [
         Item(FollowUpType.PRE_ACTIVITY_CALL, task.id, task.booking.lead, task.due_at, booking=task.booking,
-             opens_at=task.active_from, actions=_actions(record_outcome=can[SEND_COMMUNICATIONS]))
+             opens_at=task.active_from)
         for task in tasks
     ]
 

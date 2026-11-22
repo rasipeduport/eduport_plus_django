@@ -136,10 +136,10 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
                 <li key={task.id} className="py-2 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-medium">{stepLabel(task)}</span>
-                    <TaskStateBadge task={task} />
+                    <TaskStateBadge task={task} booking={booking} />
                   </div>
-                  {stepLine(task, booking.booking_type) ? (
-                    <p className="text-muted-foreground mt-0.5 text-xs">{stepLine(task, booking.booking_type)}</p>
+                  {stepLine(task, booking) ? (
+                    <p className="text-muted-foreground mt-0.5 text-xs">{stepLine(task, booking)}</p>
                   ) : null}
                 </li>
               ))}

@@ -71,8 +71,6 @@ from .overview import booking_communication
 from .services import (
     CommunicationPlanFailed,
     CommunicationPlanPending,
-    TaskClosed,
-    record_call_outcome,
     request_confirmation,
 )
 from .tests_planning import CommunicationTestCase
@@ -564,13 +562,6 @@ class CommunicationViewsTests(OutboxTestCase):
             response = self.post(awaiting, 'confirmation-request', {})
         self.assertEqual((response.status_code, response.json()['error']), (409, 'COMMUNICATION_PLAN_PENDING'))
 
-    def test_no_call_outcome_on_a_cancelled_booking_whose_event_waits(self):
-        booking = self.planned()
-        cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
-        call = booking.communication_tasks.get(step=Step.PRE_ACTIVITY_CALL)
-        self.assertEqual(call.status, TaskStatus.OPEN)  # its event is not applied yet
-        with self.assertRaises(TaskClosed):
-            record_call_outcome(call, 'CALLED', actor=self.admin, now=booking.slot.starts_at - timedelta(minutes=5))
 
 
 class RecordedInsideTheBusinessTransactionTests(OutboxTestCase):

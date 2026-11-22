@@ -696,9 +696,6 @@ SCENARIOS = [
              '/api/communications/bookings/demo/{booking_a}/confirmation-request/'),
     Scenario('communications.parent_confirmation', 'post',
              '/api/communications/bookings/demo/{booking_a}/parent-confirmation/', {'outcome': 'CONFIRMED'}),
-    # How the 15-minute call went, recorded from a BDE's follow-ups (or by the Admin).
-    Scenario('communications.call_outcome', 'post',
-             '/api/communications/bookings/demo/{booking_a}/call-outcome/', {'outcome': 'CALLED'}),
 
     # --- booking slots (administrators) ----------------------------------------
     # A date that stays ahead of the clock, so it is always one that may change.
