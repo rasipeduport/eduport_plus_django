@@ -1,7 +1,7 @@
 """
 The BDE workspace's dashboard and enquiries (bookings.enquiries): a BDE reads
-and adds only their own leads, statuses follow the bookings, and every other
-caller -- superusers included -- is refused.
+only their own leads (adding one by hand is retired), statuses follow the
+bookings, and every other caller -- superusers included -- is refused.
 """
 from datetime import UTC, date, datetime, time, timedelta
 
@@ -242,85 +242,45 @@ class StatusAndFilterTests(EnquiryTestCase):
         self.assertEqual((data['count'], data['page'], data['page_size'], len(data['results'])), (5, 2, 3, 2))
 
 
-class AddEnquiryTests(EnquiryTestCase):
-    def test_adding_an_enquiry(self):
-        response = self.client.post(ENQUIRIES, new_enquiry(), format='json')
-        self.assertEqual(response.status_code, 201, response.content)
-        data = response.json()
-        self.assertEqual((data['source'], data['source_label'], data['status']), ('PHONE_CALL', 'Phone call', 'NEW'))
-        self.assertEqual(data['phone'], '+91 9876543210')
-        created = Lead.objects.get(pk=data['id'])
-        self.assertEqual(created.owner_bde, self.bde)
-        self.assertIsNone(created.owner_link)
-        self.assertEqual((created.phone_key, created.student_name_key), ('+919876543210', 'kavya'))
+class ManualEnquiryRetiredTests(EnquiryTestCase):
+    """
+    A BDE no longer adds enquiries by hand (accounts.0031): an administrator
+    adds the lead and assigns it. The ones a BDE added before stay theirs.
+    """
 
-        log = ActivityLog.objects.get(action='enquiry.create')
-        self.assertEqual((log.actor, log.entity_type, log.entity_id), (self.bde, 'lead', str(created.id)))
-        self.assertEqual(log.context['source'], 'PHONE_CALL')
-        for private in ('Meera', 'Kavya', '9876543210'):
-            self.assertNotIn(private, str(log.entity_label) + str(log.context))
-
-    def test_a_duplicate_of_their_own_points_to_it(self):
-        mine = lead(self.bde, 'Kavya', phone='9876543210')
-        Lead.objects.filter(pk=mine.pk).update(phone_dial_code='+91', phone_key='+919876543210')
-        response = self.client.post(ENQUIRIES, new_enquiry(student_name='KAVYA'), format='json')
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()['enquiry_id'], str(mine.id))
-
-    def test_a_duplicate_of_someone_elses_names_nothing_and_changes_nothing(self):
-        for owner in (self.other_bde, None):
-            with self.subTest(owner=owner):
-                Lead.objects.all().delete()
-                theirs = lead(owner, 'Kavya', phone='9876543210')
-                Lead.objects.filter(pk=theirs.pk).update(phone_dial_code='+91', phone_key='+919876543210')
-                response = self.client.post(ENQUIRIES, new_enquiry(), format='json')
-                self.assertEqual(response.status_code, 409)
-                self.assertEqual(response.json()['error'], 'ENQUIRY_EXISTS')
-                self.assertNotIn('enquiry_id', response.json())
-                theirs.refresh_from_db()
-                self.assertEqual(theirs.owner_bde, owner)
-                self.assertEqual(theirs.parent_name, 'Asha Nair')
-
-    def test_invalid_details_are_refused(self):
-        cases = {
-            'source': new_enquiry(source='BOOKING_PAGE'),
-            'phone': new_enquiry(phone_number='123'),
-            'grade': new_enquiry(grade='Class 12'),
-            'parent_name': new_enquiry(parent_name='  '),
-        }
-        for field, body in cases.items():
-            with self.subTest(field=field):
+    def test_adding_an_enquiry_is_gone_and_changes_nothing(self):
+        mine = lead(self.bde, 'Riya')
+        for body in (new_enquiry(), {}, new_enquiry(owner_bde=str(self.other_bde.id))):
+            with self.subTest(body=body):
                 response = self.client.post(ENQUIRIES, body, format='json')
-                self.assertEqual(response.status_code, 400)
-                self.assertIn(field, response.json()['fields'])
-        self.assertFalse(Lead.objects.exists())
+                self.assertEqual(response.status_code, 410)
+                self.assertEqual(response.json()['error'], 'MANUAL_ENQUIRIES_RETIRED')
+                self.assertIn('Ask an administrator', response.json()['message'])
+        self.assertEqual(list(Lead.objects.values_list('pk', flat=True)), [mine.pk])
+        self.assertFalse(ActivityLog.objects.filter(action='enquiry.create').exists())
 
-    def test_an_owner_in_the_body_is_ignored(self):
-        response = self.client.post(ENQUIRIES, new_enquiry(owner_bde=str(self.other_bde.id)), format='json')
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(Lead.objects.get().owner_bde, self.bde)
-
-    def test_a_later_booking_keeps_the_enquiry_with_the_bde_who_added_it(self):
+    def test_a_later_booking_keeps_a_hand_added_enquiry_with_its_bde(self):
         SlotTime.objects.create(booking_type=DEMO, start_time=EVENING)
-        added = self.client.post(ENQUIRIES, new_enquiry(), format='json').json()
+        added = lead(self.bde, 'Kavya', phone='9876543210', source=LeadSource.PHONE_CALL, parent='Meera Menon')
+        Lead.objects.filter(pk=added.pk).update(phone_dial_code='+91', phone_key='+919876543210')
         other_link = BookingLink.objects.create(bde=self.other_bde, booking_type=DEMO)
         made, _created = create_booking(BookingRequest(
             booking_type=DEMO, date=booking_window(DEMO)[0], time=EVENING, parent_name='Meera Menon',
             phone_dial_code='+91', phone_number='9876543210', student_name='Kavya', school='KV',
             student_class='Class 7', syllabus='CBSE', ref=other_link.token,
         ))
-        self.assertEqual(str(made.lead_id), added['id'])
+        self.assertEqual(made.lead_id, added.pk)
         self.assertEqual(made.attributed_bde, self.other_bde)
-        self.assertEqual(Lead.objects.get(pk=added['id']).owner_bde, self.bde)
+        self.assertEqual(Lead.objects.get(pk=added.pk).owner_bde, self.bde)
 
         mine = self.client.get(DASHBOARD).json()
         self.assertEqual(mine['bookings'][DEMO], {'total': 1, 'upcoming': 1})
-        self.assertEqual(mine['upcoming']['rows'][0]['enquiry']['id'], added['id'])
+        self.assertEqual(mine['upcoming']['rows'][0]['enquiry']['id'], str(added.pk))
         # The other BDE's link took the booking, but the enquiry is not theirs to see.
         self.client.force_authenticate(self.other_bde)
         theirs = self.client.get(DASHBOARD).json()
         self.assertEqual((theirs['enquiries']['total'], theirs['upcoming']['total']), (0, 0))
-        self.assertEqual(self.client.get(f'{ENQUIRIES}{added["id"]}/').status_code, 404)
+        self.assertEqual(self.client.get(f'{ENQUIRIES}{added.pk}/').status_code, 404)
 
 
 class DashboardTests(EnquiryTestCase):

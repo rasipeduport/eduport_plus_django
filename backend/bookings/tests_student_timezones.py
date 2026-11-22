@@ -447,43 +447,37 @@ class CorrectionTests(StaffApiTestCase):
         self.assertEqual(self.put(root, self.admin_url(self.dubai), LONDON).status_code, 200)
 
 
-# ------------------------------------------------------------------ adding an enquiry or a lead with one
+# ------------------------------------------------------------------ adding a lead with one
+# (An administrator adds leads by hand; a BDE adding an enquiry is retired, accounts.0031.)
 
 class ManualZoneTests(TestCase):
     def setUp(self):
-        self.bde = account('bde_add', role='BDE')
         self.admin = account('admin_add', role='ADMIN')
 
-    def post(self, user, path, **overrides):
+    def post(self, **overrides):
         client = APIClient()
-        client.force_authenticate(user)
+        client.force_authenticate(self.admin)
         body = {'parent_name': 'Meera Menon', 'phone_dial_code': '+91', 'phone_number': '09876543210',
                 'student_name': 'Kavya', 'grade': 'Class 7', 'source': 'PHONE_CALL', **overrides}
-        return client.post(path, body, format='json')
+        return client.post('/api/leads/', body, format='json')
 
-    def test_an_enquiry_or_a_lead_is_added_with_a_zone_or_without_one(self):
-        for user, path in ((self.bde, '/api/bde/enquiries/'), (self.admin, '/api/leads/')):
-            with self.subTest(path=path):
-                Lead.objects.all().delete()
-                res = self.post(user, path, student_timezone=DUBAI)
-                self.assertEqual(res.status_code, 201, res.content)
-                self.assertEqual((res.json()['student_timezone'], Lead.objects.get().student_timezone), (DUBAI, DUBAI))
-                Lead.objects.all().delete()
-                for blank in ('', None):
-                    res = self.post(user, path, student_timezone=blank)
-                    self.assertEqual((res.status_code, Lead.objects.get().student_timezone), (201, ''))
-                    Lead.objects.all().delete()
-                res = self.post(user, path)
-                self.assertEqual((res.status_code, res.json()['student_timezone']), (201, None))
-                Lead.objects.all().delete()
+    def test_a_lead_is_added_with_a_zone_or_without_one(self):
+        res = self.post(student_timezone=DUBAI)
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual((res.json()['student_timezone'], Lead.objects.get().student_timezone), (DUBAI, DUBAI))
+        Lead.objects.all().delete()
+        for blank in ('', None):
+            res = self.post(student_timezone=blank)
+            self.assertEqual((res.status_code, Lead.objects.get().student_timezone), (201, ''))
+            Lead.objects.all().delete()
+        res = self.post()
+        self.assertEqual((res.status_code, res.json()['student_timezone']), (201, None))
 
     def test_a_zone_the_runtime_does_not_know_is_refused(self):
-        for user, path in ((self.bde, '/api/bde/enquiries/'), (self.admin, '/api/leads/')):
-            with self.subTest(path=path):
-                res = self.post(user, path, student_timezone='Not/AZone')
-                self.assertEqual(res.status_code, 400, res.content)
-                self.assertIn('student_timezone', res.json()['fields'])
-                self.assertFalse(Lead.objects.exists())
+        res = self.post(student_timezone='Not/AZone')
+        self.assertEqual(res.status_code, 400, res.content)
+        self.assertIn('student_timezone', res.json()['fields'])
+        self.assertFalse(Lead.objects.exists())
 
 
 # ------------------------------------------------------------------ the helpers

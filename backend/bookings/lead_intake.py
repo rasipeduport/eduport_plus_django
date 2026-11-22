@@ -52,8 +52,10 @@ def create_lead(details, *, source, created_by=None, owner=None, source_details=
     """
     A new lead from validated ``details`` -- parent_name, phone_dial_code,
     phone_number, student_name and grade; school_name, syllabus, country,
-    parent_email and student_timezone when known. ``owner`` (a BDE adding
-    their own enquiry) owns it from the start. Raises
+    parent_email and student_timezone when known. ``owner``, when given, is
+    the BDE who owns it from the start (no application code passes one today:
+    BDEs no longer add enquiries by hand, and an administrator's lead starts
+    unassigned). Raises
     bookings.leads.InvalidLeadDetails, or LeadExists when the phone number and
     student already make a lead.
     """

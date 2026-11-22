@@ -55,7 +55,6 @@ export const PERMISSIONS = {
 
   viewOwnBookingLinks: 'accounts.view_own_booking_links',
   viewOwnEnquiries: 'accounts.view_own_enquiries',
-  addEnquiry: 'accounts.add_enquiry',
   viewOwnLeadReports: 'accounts.view_own_lead_reports',
 
   // Every lead, for administrators (backend bookings.lead_views): reading, adding by hand, giving a lead to a BDE.

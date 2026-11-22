@@ -54,6 +54,7 @@ SEED_INITIAL_SALES = importlib.import_module('accounts.migrations.0023_alter_hub
 SEED_ADDITIONAL_PURCHASES = importlib.import_module('accounts.migrations.0026_additional_purchase_permission')
 SEED_SESSION_OUTCOMES = importlib.import_module('accounts.migrations.0029_correct_session_outcome_permission')
 SEED_TUTOR_EARNINGS = importlib.import_module('accounts.migrations.0030_tutor_earnings_permissions')
+RETIRE_ADD_ENQUIRY = importlib.import_module('accounts.migrations.0031_retire_add_enquiry_permission')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -176,10 +177,13 @@ NEW_ROLE_PERMISSIONS_AT_0014 = {
     'BDE': BOOKING_LINK_PERMISSIONS | ENQUIRY_PERMISSIONS,
     'SALES_TL': set(),
 }
+# 0031 retires accounts.add_enquiry: a BDE no longer adds enquiries by hand; only an administrator adds a lead.
+RETIRED_ADD_ENQUIRY = names('add_enquiry')
 # What they carry -- and, each its own modules only, may ever hold -- today.
 NEW_ROLE_PERMISSIONS = {
-    role: NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
-    | STUDENT_TIMEZONE_GRANTS.get(role, set()) | SALES_CATALOGUE_GRANTS.get(role, set()) | QUOTE_GRANTS.get(role, set()) | INITIAL_SALES_GRANTS.get(role, set())
+    role: (NEW_ROLE_PERMISSIONS_AT_0014[role] | WORKFLOW_GRANTS[role] | COMMUNICATION_GRANTS.get(role, set())
+           | STUDENT_TIMEZONE_GRANTS.get(role, set()) | SALES_CATALOGUE_GRANTS.get(role, set()) | QUOTE_GRANTS.get(role, set())
+           | INITIAL_SALES_GRANTS.get(role, set())) - RETIRED_ADD_ENQUIRY
     for role in NEW_ROLE_PERMISSIONS_AT_0014
 }
 # What every role group carries after 0010, after 0011, after 0012, after 0013, after 0014, after 0015, after 0017,
@@ -226,9 +230,10 @@ GROUP_PERMISSIONS_AT_0028 = {role: held - names('create_invitation') for role, h
 GROUP_PERMISSIONS_AT_0029 = {
     role: held | OUTCOME_CORRECTION_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0028.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {
+GROUP_PERMISSIONS_AT_0030 = {
     role: held | EARNINGS_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0029.items()
 }
+EXPECTED_GROUP_PERMISSIONS = {role: held - RETIRED_ADD_ENQUIRY for role, held in GROUP_PERMISSIONS_AT_0030.items()}
 
 
 def permission(name):
@@ -267,8 +272,8 @@ class PermissionTestCase(TestCase):
 class CatalogueTests(PermissionTestCase):
     def test_the_catalogue_includes_initial_sales(self):
         # 74 seeded up to 0026, less accounts.create_invitation (0028), plus correct_session_outcome (0029),
-        # plus Tutor Earnings' five (0030).
-        self.assertEqual(len(CATALOGUE), 79)
+        # plus Tutor Earnings' five (0030), less accounts.add_enquiry (0031).
+        self.assertEqual(len(CATALOGUE), 78)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
             | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
@@ -362,10 +367,11 @@ class CatalogueTests(PermissionTestCase):
         # 0025 changes only the invitation permission's display label. Preserve
         # the historical 0008 seed and compare the final migrated catalogue.
         self.assertEqual(dict(SEED.HUB_PERMISSIONS)['change_invitation'], "Change an invitation's email")
-        # 0028 retires create_invitation: invitations are created at enrollment only.
+        # 0028 retires create_invitation: invitations are created at enrollment only. 0031 retires
+        # add_enquiry: only an administrator adds a lead.
         self.assertEqual([
             (codename, 'Retrieve initial Learn credentials' if codename == 'change_invitation' else label)
-            for codename, label in seeded_labels if codename != 'create_invitation'
+            for codename, label in seeded_labels if codename not in ('create_invitation', 'add_enquiry')
         ], hub_permission_meta())
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES.GRANTS.items()}, SALES_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_SALES_CATALOGUE.GRANTS.items()},
@@ -924,11 +930,17 @@ class SeedFunctionTests(PermissionTestCase):
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         self.assertEqual(before, after)
 
-    def test_running_the_enquiries_seed_again_changes_nothing(self):
+    def test_running_the_enquiries_seed_again_brings_back_only_what_0031_retired(self):
+        # 0012 seeded accounts.add_enquiry, which 0031 retires: run again, 0012 gives the BDE role that row
+        # back and changes nothing else, and running 0031 again takes it away.
         before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
         SEED_ENQUIRIES.grant_bde_permissions(django_apps, self.schema_editor)
         after = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
-        self.assertEqual(before, after)
+        restored = Permission.objects.get(content_type__app_label='accounts', codename='add_enquiry').pk
+        self.assertEqual(after, {**before, 'Role: BDE': before['Role: BDE'] | {restored}})
+        RETIRE_ADD_ENQUIRY.retire_add_enquiry(django_apps, self.schema_editor)
+        self.assertEqual({g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}, before)
+        self.assertFalse(Permission.objects.filter(codename='add_enquiry').exists())
 
     def test_running_the_booking_management_seed_again_changes_nothing(self):
         before = {g.name: set(g.permissions.values_list('pk', flat=True)) for g in Group.objects.all()}
@@ -1259,7 +1271,17 @@ class MigrationReversalTests(TransactionTestCase):
         # to take all five away again.
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0030_tutor_earnings_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0030)
+
+        # 0031 retires accounts.add_enquiry, and reverses to give it back to the BDE role.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0031_retire_add_enquiry_permission')])
         self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='add_enquiry').exists())
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0030_tutor_earnings_permissions')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0030)
+        self.assertTrue(Permission.objects.filter(content_type__model='hubpermission', codename='add_enquiry').exists())
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0029_correct_session_outcome_permission')])
         self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0029)

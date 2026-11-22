@@ -36,7 +36,6 @@ APPROVED = DATA_DIR / 'approved_changes.json'
 # catalogue on sale (accounts.0021) answers it as it answers an administrator,
 # and it quotes (accounts.0022) and sees its own quotes -- never another's.
 BDE_PERMISSIONS = [
-    'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',
@@ -132,8 +131,12 @@ BDE_WORKSPACE = {
     'bde.enquiries.student_timezone': {
         'status': 200, 'records': ['lead_a'], 'fields': sorted(ENQUIRY_FIELDS + ['changed']),
     },
-    # Rolled back with the scenario, like every write the matrix makes.
-    'bde.enquiries.create': {'status': 201, 'records': ['new'], 'fields': ENQUIRY_FIELDS},
+    # Adding an enquiry by hand is retired (accounts.0031): Gone, and nothing is read or written.
+    'bde.enquiries.create': {
+        'status': 410, 'error': 'MANUAL_ENQUIRIES_RETIRED',
+        'message': 'Enquiries can no longer be added here. Ask an administrator to add the lead and assign it to you.',
+        'records': [], 'fields': ['error', 'message'],
+    },
     # booking_a's lead is not the BDE's own: answered as a booking that does not exist (Q22).
     'bde.bookings.cancel': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                             'fields': ['error', 'message']},

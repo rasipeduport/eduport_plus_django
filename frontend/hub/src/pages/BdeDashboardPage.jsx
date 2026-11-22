@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   CalendarCheck,
   CalendarClock,
@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   Inbox,
   PhoneCall,
-  PlusIcon,
   Sun,
   Users,
 } from 'lucide-react';
@@ -29,7 +28,6 @@ import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Tile } from '@/components/dashboard/kpi-cards';
 import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-primitives';
 import { ShareLinkButtons } from '@/components/dashboard/share-link-buttons';
-import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStateBadge } from '@/components/bookings/booking-badges';
 import { StudentTimeCell } from '@/components/bookings/student-time';
@@ -344,15 +342,12 @@ function UpcomingBookings({ upcoming }) {
  * signed-in BDE. Booking times are Indian time, as the booking pages offer them.
  */
 export default function BdeDashboardPage({ user }) {
-  const navigate = useNavigate();
-  const canAdd = can(user, PERMISSIONS.addEnquiry);
   const canShareLinks = can(user, PERMISSIONS.viewOwnBookingLinks);
   const canFollowUp = can(user, PERMISSIONS.viewOwnLeadCommunications);
   const [data, setData] = useState(null);
   const [followUps, setFollowUps] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -420,26 +415,12 @@ export default function BdeDashboardPage({ user }) {
               My Enquiries
             </Link>
           </Button>
-          {canAdd ? (
-            <Button variant="outline" onClick={() => setAddOpen(true)}>
-              <PlusIcon />
-              Add Enquiry
-            </Button>
-          ) : null}
         </div>
         {/* The BDE's own booking links, shared from here: the Hub has no separate Booking links page. */}
         {canShareLinks ? <ShareLinkButtons /> : null}
       </div>
 
       {content}
-
-      {canAdd ? (
-        <AddEnquiryDialog
-          open={addOpen}
-          onOpenChange={setAddOpen}
-          onCreated={(enquiry) => navigate(`/enquiries/${enquiry.id}`)}
-        />
-      ) : null}
     </Page>
   );
 }

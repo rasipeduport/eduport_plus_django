@@ -168,7 +168,9 @@ const calls = (method, url) => globalThis.__leadsApi.calls.filter((entry) => ent
 // ------------------------------------------------------------------ fixtures
 const ADMIN = { id: 'admin', role: 'ADMIN', permissions: ['accounts.add_lead', 'accounts.assign_lead_owner', 'accounts.view_all_bookings', 'accounts.view_all_leads'] };
 const VIEWER = { id: 'viewer', role: 'ADMIN', permissions: ['accounts.view_all_leads'] };
-const BDE = { id: 'bde-1', role: 'BDE', permissions: ['accounts.add_enquiry', 'accounts.view_own_booking_links', 'accounts.view_own_enquiries'] };
+const BDE = { id: 'bde-1', role: 'BDE', permissions: ['accounts.view_own_booking_links', 'accounts.view_own_enquiries'] };
+// A BDE whose /me still lists the retired accounts.add_enquiry (an older backend): nothing about adding appears either.
+const BDE_WITH_RETIRED_ADD = { ...BDE, permissions: ['accounts.add_enquiry', ...BDE.permissions] };
 
 const LEADS = '/api/leads/';
 const BDES = '/api/leads/bdes/';
@@ -416,7 +418,7 @@ test('My Enquiries: a BDE sees their own enquiries with the status their booking
   assert.match(clean(given.textContent), /Kavya.*Website.*New/);
   assert.equal(given.querySelector('a').getAttribute('href'), '/enquiries/lead-given');
   assert.ok(button('Copy Demo Link') && button('Copy Diagnostic Link'), 'the booking links are shared from My Enquiries');
-  assert.ok(button('Add Enquiry') && !button('Add lead'), 'a BDE adds enquiries');
+  assert.ok(!button('Add Enquiry') && !button('Add lead'), 'a BDE never adds an enquiry by hand');
   assert.ok(!button('Assign') && !button('Reassign'));
   assert.ok(!globalThis.__leadsApi.calls.some((entry) => entry.url.startsWith('/api/leads/')), "the administrators' API is never called");
   assert.ok((await optionsOf('Filter by status')).includes('Diagnostic completed'));
@@ -553,29 +555,21 @@ test('BDE dashboard: the Demo and Diagnostic tiles wear their colours; an empty 
   assert.match(bodyText(), /Nothing booked for today/);
 });
 
-test('BDE dashboard: Add Enquiry adds one in the workspace\'s own words and opens it', async () => {
+test('BDE dashboard and My Enquiries: no Add Enquiry anywhere, even for a /me still listing accounts.add_enquiry', async () => {
   serve({
     [`GET ${DASHBOARD}`]: dashboardOf({ date: TODAY, total: 0, rows: [] }),
     [`GET /api/bde/booking-links/`]: LINKS,
-    [`POST ${ENQUIRIES}`]: (entry) => ok({ ...detailOf({ ...WEBSITE, id: 'lead-new', owner: undefined }), student_name: entry.data.student_name }),
-    [`GET ${ENQUIRIES}lead-new/`]: detailOf({ ...WEBSITE, id: 'lead-new', owner: undefined }),
+    [`GET ${ENQUIRIES}`]: list([], 0),
   });
-  const page = await open('/dashboard', BDE);
-  assert.ok(button('Add Enquiry') && !button('Add lead'));
-  await click(button('Add Enquiry'));
-  const dialog = topDialog();
-  assert.match(clean(dialog.textContent), /^Add Enquiry.*An enquiry that reached you outside your booking links\. It is added to your enquiries straight away\./);
-  assert.doesNotMatch(clean(dialog.textContent), /\blead/i);
-  await typeInto(dialog.querySelector('#enquiry-parent-name'), 'Meera Menon');
-  await typeInto(dialog.querySelector('#enquiry-phone-number'), '9876543210');
-  await typeInto(dialog.querySelector('#enquiry-student-name'), 'Kavya');
-  await choose('enquiry-grade', 'Class 7');
-  await choose('enquiry-source', 'Phone call');
-  await click(button('Add Enquiry', topDialog()));
-  const [posted] = calls('POST', ENQUIRIES);
-  assert.equal(posted.data.student_name, 'Kavya');
-  assert.equal(posted.data.source, 'PHONE_CALL');
-  assert.equal(page.location().pathname, '/enquiries/lead-new');
+  await open('/dashboard', BDE_WITH_RETIRED_ADD);
+  assert.ok(document.querySelector('a[href="/enquiries"]'), 'My Enquiries is still offered');
+  assert.ok(button('Copy Demo Link') && button('Copy Diagnostic Link'), 'the booking links are still shared from the dashboard');
+  assert.ok(!button('Add Enquiry') && !button('Add lead'));
+  await mounted.pop().unmount();
+  await open('/enquiries', BDE_WITH_RETIRED_ADD);
+  assert.ok(!button('Add Enquiry') && !button('Add lead'));
+  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(calls('POST', ENQUIRIES).length, 0, 'nothing is ever posted to the BDE enquiries API');
 });
 
 test('BDE dashboard: a failed load offers Try again; a refusal does not', async () => {
@@ -672,11 +666,8 @@ test('My Enquiries: with nothing to list it says why -- nothing matches, or noth
   assert.equal(document.querySelector('nav[aria-label="Pagination"]'), null);
   await click(button('Clear filters'));
   assert.equal(page.location().search, '');
-  assert.match(bodyText(), /No enquiries yet.*add an enquiry that reached you another way/);
-  const addButtons = [...document.querySelectorAll('button')].filter((b) => clean(b.textContent) === 'Add Enquiry');
-  assert.equal(addButtons.length, 2, 'beside the title and in the empty list');
-  await click(addButtons[1]);
-  assert.match(clean(topDialog().textContent), /^Add Enquiry/);
+  assert.match(bodyText(), /No enquiries yet.*Share your booking links\. Enquiries they bring in, and ones an administrator assigns you, appear here\./);
+  assert.ok(!button('Add Enquiry'), 'neither beside the title nor in the empty list');
 });
 
 test('My Enquiries: a failed load offers Try again, then the list loads', async () => {

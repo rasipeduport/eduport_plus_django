@@ -47,8 +47,8 @@ ALLOWED_FOR_ANY_ACCOUNT = {
 }
 # A BDE also reads its own booking links (accounts.view_own_booking_links), its
 # dashboard and its enquiries (accounts.view_own_enquiries), and nothing more.
-# Adding an enquiry (accounts.add_enquiry) needs a valid body, so the sweep's
-# empty one is refused; tests_enquiries covers it.
+# Adding an enquiry by hand is retired (accounts.0031): the POST answers 410
+# whatever the body; tests_enquiries covers it.
 ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
     ('api/bde/booking-links/', 'get'),
     ('api/bde/dashboard/', 'get'),
@@ -69,7 +69,6 @@ ALLOWED_FOR_BDE = ALLOWED_FOR_ANY_ACCOUNT | {
 # (parent communication) open no route until their phase's code asks for them;
 # the catalogue on sale (0021) and quotes (0022) do.
 BDE_PERMISSIONS = [
-    'accounts.add_enquiry',
     'accounts.cancel_booking',
     'accounts.change_student_timezone',
     'accounts.create_demo_booking',

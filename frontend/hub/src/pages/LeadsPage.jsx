@@ -10,7 +10,7 @@ import { useListParams } from '@/hooks/use-list-params';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/table-skeleton';
-import { AddEnquiryDialog } from '@/components/enquiries/add-enquiry-dialog';
+import { AddLeadDialog } from '@/components/leads/add-lead-dialog';
 import { AssignOwnerDialog } from '@/components/leads/assign-owner-dialog';
 import { LeadFilters, LeadList } from '@/components/leads/lead-list';
 import { Page, PageHeader } from '@/components/page/page';
@@ -185,8 +185,7 @@ export default function LeadsPage({ user }) {
       {content}
 
       {canAdd ? (
-        <AddEnquiryDialog
-          admin
+        <AddLeadDialog
           open={addOpen}
           onOpenChange={setAddOpen}
           onCreated={(lead) => changed(`Added the lead for ${lead.student_name}. Assign it to a BDE when you are ready.`, lead)}
