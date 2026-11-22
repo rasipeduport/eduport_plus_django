@@ -1,9 +1,10 @@
 """
 What a BDE or the Admin do with a booking's communication (PRD 3.11): see a
-message before it goes, ask the parent to confirm, and record how the
-15-minute call went (from the BDE's follow-ups, communications.followups).
-Recording the parent's answer changes the booking, so it lives with the
-other booking writes (bookings.booking_service.record_parent_confirmation).
+message before it goes and ask the parent to confirm. Recording the parent's
+answer changes the booking, so it lives with the other booking writes
+(bookings.booking_service.record_parent_confirmation). The 15-minute call
+before a class is a reminder only (communications.followups): nothing is
+recorded on it.
 
 Each action takes the booking's locks in the order every booking write takes
 them (booking_service._locked_booking), so it queues behind a cancellation or
@@ -33,7 +34,7 @@ from bookings.models import BookingStatus, ParentConfirmation
 
 from . import outbox, planner
 from .formatting import whatsapp_message
-from .models import CALL_OUTCOMES, CallOutcome, CommunicationTask, MessageTemplate, Step, TaskStatus, template_key
+from .models import MessageTemplate, Step, template_key
 from .rendering import booking_values, is_ready, render, requirements
 
 
@@ -64,34 +65,6 @@ class MessageBlocked(CommunicationError):
     def __init__(self, missing):
         super().__init__(self.message)
         self.missing = missing
-
-
-class NotACall(CommunicationError):
-    code = 'NOT_A_CALL'
-    message = 'Only the 15-minute call takes a call outcome.'
-
-
-class InvalidCallOutcome(CommunicationError):
-    code = 'INVALID_OUTCOME'
-    message = 'Choose Called, Messaged or No Answer.'
-
-
-class CallNotOpenYet(CommunicationError):
-    code = 'CALL_NOT_OPEN_YET'
-    http_status = 409
-    message = 'This call opens 15 minutes before the start.'
-
-
-class TaskClosed(CommunicationError):
-    code = 'TASK_CLOSED'
-    http_status = 409
-    message = 'This task is closed, so nothing more can be recorded on it.'
-
-
-class CallClosed(TaskClosed):
-    """The 15-minute call closes at the start: a call with no outcome by then is Missed."""
-    code = 'CALL_CLOSED'
-    message = 'The class has started, so this call can no longer be recorded.'
 
 
 class NotPlanned(CommunicationError):
@@ -220,50 +193,6 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
         actor=actor,
     )
     return message, True
-
-
-def record_call_outcome(task, outcome, *, actor, owner_bde=None, now=None):
-    """
-    Record how the BDE's 15-minute call of ``task``'s booking went: Called,
-    Messaged or No Answer. Every outcome is kept (CallOutcome); the task is
-    Done and shows the latest, so a later Called after a No Answer erases
-    nothing. Only from 15 minutes before the start (CallNotOpenYet) until the
-    start, or until its tutor starts it if that comes first (CallClosed): at
-    the start a call with no outcome is Missed (planner.close_expired). Never
-    on a cancelled or moved booking's call (TaskClosed), whether or not its
-    event has closed the task yet. Nothing ever records one by itself.
-    """
-    if outcome not in CALL_OUTCOMES:
-        raise InvalidCallOutcome()
-    if task.step != Step.PRE_ACTIVITY_CALL:
-        raise NotACall()
-    now = now or timezone.now()
-    try:
-        with transaction.atomic():
-            _set_lock_timeout()
-            booking = _locked_booking(task.booking)
-            _check_owner(booking, owner_bde)
-            task = CommunicationTask.objects.select_for_update().get(pk=task.pk)
-            # The booking's own status, not only the task's: a cancellation or
-            # move closes the task only once its event is applied (communications.outbox).
-            if task.status not in (TaskStatus.OPEN, TaskStatus.DONE) or booking.status in (
-                    BookingStatus.CANCELLED, BookingStatus.RESCHEDULED):
-                raise TaskClosed()
-            if task.due_at <= now or booking.started_at is not None:
-                raise CallClosed()
-            if task.active_from > now:
-                raise CallNotOpenYet()
-            entry = CallOutcome.objects.create(task=task, outcome=outcome, recorded_by=actor, recorded_at=now)
-            task.status = TaskStatus.DONE
-            task.resolution = outcome
-            task.resolved_at = now
-            task.resolved_by = actor
-            task.save(update_fields=['status', 'resolution', 'resolved_at', 'resolved_by', 'updated_at'])
-    except OperationalError as exc:
-        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
-            raise BookingBusy() from exc
-        raise
-    return entry
 
 
 def _check_owner(booking, owner_bde):

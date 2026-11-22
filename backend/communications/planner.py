@@ -121,10 +121,11 @@ def plan_booking(booking, now):
     booking.lead = lead
     slot = booking.slot
     owner = lead.owner_bde
-    # (active from, due, expires): the call opens 15 minutes before and is
-    # Missed at the start without an outcome (close_expired); the after-activity
-    # step's are set on completion. A booking made within 12 hours of its start has its
-    # confirmation request due now, never at a moment already past.
+    # (active from, due, expires): the call is a reminder in the BDE's
+    # follow-ups from 15 minutes before until the start, when it closes by
+    # itself (close_expired); the after-activity step's are set on completion.
+    # A booking made within 12 hours of its start has its confirmation request
+    # due now, never at a moment already past.
     times = {
         Step.ACKNOWLEDGEMENT: (now, now + ACKNOWLEDGEMENT_TARGET, slot.starts_at),
         Step.CONFIRMATION_REQUEST: (now, max(now, slot.starts_at - CONFIRMATION_REQUEST_LEAD), slot.starts_at),
@@ -363,13 +364,13 @@ def close_expired(now, booking=None):
     """
     Tasks whose time ran out are Missed, and unsent messages past their window
     -- a retry left Pending included -- cancelled as expired; for ``booking``,
-    or all. The 15-minute call closes at the booking's scheduled start (its
-    due_at), not at the end of its window: with no outcome recorded by then
-    (services.record_call_outcome) it is Missed, as of that moment however
-    late this runs -- never done -- and the booking itself is not touched:
-    only its tutor's Start starts it. A message being sent, or one whose
-    outcome is unknown, is left as it is (_cancel_messages). Returns (tasks
-    missed, messages expired).
+    or all. The pre-activity BDE call is a reminder only: it closes at the
+    booking's scheduled start (its due_at), not at the end of its window, as
+    done -- REMINDED, as of that moment however late this runs -- and never
+    Missed, whether or not the BDE called, which nothing tracks. The booking
+    itself is not touched: only its tutor's Start starts it. A message being
+    sent, or one whose outcome is unknown, is left as it is
+    (_cancel_messages). Returns (tasks closed, messages expired).
     """
     call = Q(step=Step.PRE_ACTIVITY_CALL)
     tasks = CommunicationTask.objects.filter(
@@ -384,7 +385,10 @@ def close_expired(now, booking=None):
         expired = _cancel_messages(messages, MessageCancelReason.EXPIRED, now)
         # Both kinds locked together, in id order, before either is written.
         list(tasks.select_for_update(of=('self',)).order_by('pk').values_list('pk', flat=True))
-        calls = _update_tasks(tasks.filter(call), status=TaskStatus.MISSED, resolved_at=F('due_at'), updated_at=now)
+        calls = _update_tasks(
+            tasks.filter(call), status=TaskStatus.DONE, resolution=TaskResolution.REMINDED, resolved_at=F('due_at'),
+            updated_at=now,
+        )
         others = _update_tasks(tasks.exclude(call), status=TaskStatus.MISSED, resolved_at=now, updated_at=now)
         return calls + others, expired
 

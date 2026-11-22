@@ -127,7 +127,7 @@ def _task(task, now):
         'due_at': _when(task.due_at),
         'expires_at': _when(task.expires_at),
         # Still open past its target (the PRD's deadline); its window, expires_at, is what closes it as Missed.
-        # Never the call: a reminder only, done at its due_at (planner.close_expired).
+        # Never the call: a reminder only, closed at its due_at as REMINDED, never Missed (planner.close_expired).
         'overdue': (
             task.status == TaskStatus.OPEN and task.step != Step.PRE_ACTIVITY_CALL
             and task.due_at is not None and task.due_at < now
@@ -248,10 +248,10 @@ def _actions(booking, messages, now, user, request):
     on): ask for confirmation once while the parent has not answered
     (services.request_confirmation), and record the answer until the slot
     starts or its tutor starts it, whichever comes first
-    (booking_service.record_parent_confirmation). The 15-minute call's
-    outcome is recorded from the BDE's follow-ups (communications.followups),
-    never here. A Re-Demo is never asked for confirmation: the BDE calls its
-    parent, and may record their answer.
+    (booking_service.record_parent_confirmation). The 15-minute call is a
+    reminder in the BDE's follow-ups (communications.followups): nothing is
+    recorded on it, here or there. A Re-Demo is never asked for
+    confirmation: the BDE calls its parent, and may record their answer.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
