@@ -14836,7 +14836,7 @@
    }
   },
   "earnings.me @ su_mentor": {
-   "decision": "A tutor's own earnings (accounts.view_own_earnings): tutor_a, tutor_b and the superusers each read their own; administrators hold no My Earnings; everyone else is refused.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -14864,7 +14864,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -14890,7 +14893,7 @@
    }
   },
   "earnings.me @ su_tutor": {
-   "decision": "A tutor's own earnings (accounts.view_own_earnings): tutor_a, tutor_b and the superusers each read their own; administrators hold no My Earnings; everyone else is refused.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -14918,7 +14921,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -14944,7 +14950,7 @@
    }
   },
   "earnings.me @ superuser": {
-   "decision": "A tutor's own earnings (accounts.view_own_earnings): tutor_a, tutor_b and the superusers each read their own; administrators hold no My Earnings; everyone else is refused.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -14972,7 +14978,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -14998,7 +15007,7 @@
    }
   },
   "earnings.me @ tutor_a": {
-   "decision": "A tutor's own earnings (accounts.view_own_earnings): tutor_a, tutor_b and the superusers each read their own; administrators hold no My Earnings; everyone else is refused.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15026,7 +15035,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -15052,7 +15064,7 @@
    }
   },
   "earnings.me @ tutor_b": {
-   "decision": "A tutor's own earnings (accounts.view_own_earnings): tutor_a, tutor_b and the superusers each read their own; administrators hold no My Earnings; everyone else is refused.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15080,7 +15092,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -15248,7 +15263,7 @@
    }
   },
   "earnings.overview @ admin": {
-   "decision": "Every tutor's earnings, for administrators (accounts.view_tutor_earnings) and the superusers; the active tutors are listed. Everyone else is refused.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15259,6 +15274,7 @@
      "not_counted.NOTES_DUE",
      "not_counted.REPORT_DUE",
      "not_counted.SLOT_NOT_ENDED",
+     "not_counted.WAITING_FOR_DEMO",
      "not_counted.WAITING_FOR_RATES",
      "period",
      "period.month",
@@ -15266,7 +15282,10 @@
      "review_count",
      "totals",
      "totals.classes",
+     "totals.conversion_earned",
+     "totals.conversions",
      "totals.demo",
+     "totals.demo_earned",
      "totals.diagnostic",
      "totals.earned",
      "totals.overpaid",
@@ -15281,7 +15300,10 @@
      "tutors[].active",
      "tutors[].balance_state",
      "tutors[].classes",
+     "tutors[].conversion_earned",
+     "tutors[].conversions",
      "tutors[].demo",
+     "tutors[].demo_earned",
      "tutors[].diagnostic",
      "tutors[].earned",
      "tutors[].email",
@@ -15346,7 +15368,7 @@
    }
   },
   "earnings.overview @ su_mentor": {
-   "decision": "Every tutor's earnings, for administrators (accounts.view_tutor_earnings) and the superusers; the active tutors are listed. Everyone else is refused.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15357,6 +15379,7 @@
      "not_counted.NOTES_DUE",
      "not_counted.REPORT_DUE",
      "not_counted.SLOT_NOT_ENDED",
+     "not_counted.WAITING_FOR_DEMO",
      "not_counted.WAITING_FOR_RATES",
      "period",
      "period.month",
@@ -15364,7 +15387,10 @@
      "review_count",
      "totals",
      "totals.classes",
+     "totals.conversion_earned",
+     "totals.conversions",
      "totals.demo",
+     "totals.demo_earned",
      "totals.diagnostic",
      "totals.earned",
      "totals.overpaid",
@@ -15379,7 +15405,10 @@
      "tutors[].active",
      "tutors[].balance_state",
      "tutors[].classes",
+     "tutors[].conversion_earned",
+     "tutors[].conversions",
      "tutors[].demo",
+     "tutors[].demo_earned",
      "tutors[].diagnostic",
      "tutors[].earned",
      "tutors[].email",
@@ -15400,7 +15429,7 @@
    }
   },
   "earnings.overview @ su_tutor": {
-   "decision": "Every tutor's earnings, for administrators (accounts.view_tutor_earnings) and the superusers; the active tutors are listed. Everyone else is refused.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15411,6 +15440,7 @@
      "not_counted.NOTES_DUE",
      "not_counted.REPORT_DUE",
      "not_counted.SLOT_NOT_ENDED",
+     "not_counted.WAITING_FOR_DEMO",
      "not_counted.WAITING_FOR_RATES",
      "period",
      "period.month",
@@ -15418,7 +15448,10 @@
      "review_count",
      "totals",
      "totals.classes",
+     "totals.conversion_earned",
+     "totals.conversions",
      "totals.demo",
+     "totals.demo_earned",
      "totals.diagnostic",
      "totals.earned",
      "totals.overpaid",
@@ -15433,7 +15466,10 @@
      "tutors[].active",
      "tutors[].balance_state",
      "tutors[].classes",
+     "tutors[].conversion_earned",
+     "tutors[].conversions",
      "tutors[].demo",
+     "tutors[].demo_earned",
      "tutors[].diagnostic",
      "tutors[].earned",
      "tutors[].email",
@@ -15454,7 +15490,7 @@
    }
   },
   "earnings.overview @ superuser": {
-   "decision": "Every tutor's earnings, for administrators (accounts.view_tutor_earnings) and the superusers; the active tutors are listed. Everyone else is refused.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -15465,6 +15501,7 @@
      "not_counted.NOTES_DUE",
      "not_counted.REPORT_DUE",
      "not_counted.SLOT_NOT_ENDED",
+     "not_counted.WAITING_FOR_DEMO",
      "not_counted.WAITING_FOR_RATES",
      "period",
      "period.month",
@@ -15472,7 +15509,10 @@
      "review_count",
      "totals",
      "totals.classes",
+     "totals.conversion_earned",
+     "totals.conversions",
      "totals.demo",
+     "totals.demo_earned",
      "totals.diagnostic",
      "totals.earned",
      "totals.overpaid",
@@ -15487,7 +15527,10 @@
      "tutors[].active",
      "tutors[].balance_state",
      "tutors[].classes",
+     "tutors[].conversion_earned",
+     "tutors[].conversions",
      "tutors[].demo",
+     "tutors[].demo_earned",
      "tutors[].diagnostic",
      "tutors[].earned",
      "tutors[].email",
@@ -16377,7 +16420,7 @@
    }
   },
   "earnings.tutor @ admin": {
-   "decision": "One tutor's earnings, rates, history and payments, for administrators and the superusers.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -16413,7 +16456,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -16483,7 +16529,7 @@
    }
   },
   "earnings.tutor @ su_mentor": {
-   "decision": "One tutor's earnings, rates, history and payments, for administrators and the superusers.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -16519,7 +16565,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -16545,7 +16594,7 @@
    }
   },
   "earnings.tutor @ su_tutor": {
-   "decision": "One tutor's earnings, rates, history and payments, for administrators and the superusers.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -16581,7 +16630,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -16607,7 +16659,7 @@
    }
   },
   "earnings.tutor @ superuser": {
-   "decision": "One tutor's earnings, rates, history and payments, for administrators and the superusers.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
    "result": {
     "fields": [
      "activated_at",
@@ -16643,7 +16695,10 @@
      "summary",
      "summary.balance_state",
      "summary.classes",
+     "summary.conversion_earned",
+     "summary.conversions",
      "summary.demo",
+     "summary.demo_earned",
      "summary.diagnostic",
      "summary.earned",
      "summary.earned_all_time",
@@ -16702,7 +16757,7 @@
    }
   },
   "earnings.tutor_adjustment @ admin": {
-   "decision": "An adjustment to a tutor's earnings (accounts.correct_tutor_earnings): administrators and the superusers add it (201, rolled back).",
+   "decision": "Demo Conversion Incentive: a ledger entry also serves the Demo earning a Demo Conversion tops up (converts_id) and a Demo earning's conversion (conversion). Same callers, same status.",
    "result": {
     "fields": [
      "entry",
@@ -16710,6 +16765,8 @@
      "entry.class_end",
      "entry.class_start",
      "entry.class_type",
+     "entry.conversion",
+     "entry.converts_id",
      "entry.created_at",
      "entry.created_by",
      "entry.created_by.id",
@@ -16781,7 +16838,7 @@
    }
   },
   "earnings.tutor_adjustment @ su_mentor": {
-   "decision": "An adjustment to a tutor's earnings (accounts.correct_tutor_earnings): administrators and the superusers add it (201, rolled back).",
+   "decision": "Demo Conversion Incentive: a ledger entry also serves the Demo earning a Demo Conversion tops up (converts_id) and a Demo earning's conversion (conversion). Same callers, same status.",
    "result": {
     "fields": [
      "entry",
@@ -16789,6 +16846,8 @@
      "entry.class_end",
      "entry.class_start",
      "entry.class_type",
+     "entry.conversion",
+     "entry.converts_id",
      "entry.created_at",
      "entry.created_by",
      "entry.created_by.id",
@@ -16816,7 +16875,7 @@
    }
   },
   "earnings.tutor_adjustment @ su_tutor": {
-   "decision": "An adjustment to a tutor's earnings (accounts.correct_tutor_earnings): administrators and the superusers add it (201, rolled back).",
+   "decision": "Demo Conversion Incentive: a ledger entry also serves the Demo earning a Demo Conversion tops up (converts_id) and a Demo earning's conversion (conversion). Same callers, same status.",
    "result": {
     "fields": [
      "entry",
@@ -16824,6 +16883,8 @@
      "entry.class_end",
      "entry.class_start",
      "entry.class_type",
+     "entry.conversion",
+     "entry.converts_id",
      "entry.created_at",
      "entry.created_by",
      "entry.created_by.id",
@@ -16851,7 +16912,7 @@
    }
   },
   "earnings.tutor_adjustment @ superuser": {
-   "decision": "An adjustment to a tutor's earnings (accounts.correct_tutor_earnings): administrators and the superusers add it (201, rolled back).",
+   "decision": "Demo Conversion Incentive: a ledger entry also serves the Demo earning a Demo Conversion tops up (converts_id) and a Demo earning's conversion (conversion). Same callers, same status.",
    "result": {
     "fields": [
      "entry",
@@ -16859,6 +16920,8 @@
      "entry.class_end",
      "entry.class_start",
      "entry.class_type",
+     "entry.conversion",
+     "entry.converts_id",
      "entry.created_at",
      "entry.created_by",
      "entry.created_by.id",

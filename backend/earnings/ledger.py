@@ -6,6 +6,10 @@ rate in effect at its scheduled end (earnings.rates.RateBook), with its units,
 where the rate came from, and what made it count. Nothing else ever writes an
 earning, and no page read does.
 
+In the same run, after the classes, each enrollment whose converting Demo
+has its earning gets its Demo Conversion earning (earnings.conversions): the
+conversion rate less what the Demo earned, priced when the student enrolled.
+
 A class is earned once, ever: the database refuses a second earning for it
 (one per class type and source), the sync takes a lock so two runs never work
 side by side, and it inserts nothing that is already there. A reversed earning
@@ -30,6 +34,7 @@ from django.utils import timezone
 from bookings.models import DemoBooking, DiagnosticBooking
 from sessions.models import Session
 
+from . import conversions
 from .eligibility import activated_at, eligible_bookings, eligible_sessions
 from .models import (
     ClassType,
@@ -167,8 +172,15 @@ def reconcile(now=None, trigger=SyncTrigger.SCHEDULE):
             earnings = [entry for entry in (earning_for(candidate, book, run) for candidate in candidates) if entry]
             # Nothing already there is inserted: a class earned meanwhile is skipped, never doubled.
             EarningEntry.objects.bulk_create(earnings, ignore_conflicts=True)
+            # Then the conversions, which read the Demo earnings just written too.
+            found = conversions.pending(book)
+            converted = [conversions.earning_for(item, run) for item in found if item.state == conversions.READY]
+            # Likewise: an enrollment or a Demo converted meanwhile is skipped, never paid twice.
+            EarningEntry.objects.bulk_create(converted, ignore_conflicts=True)
             run.earned_count = EarningEntry.objects.filter(sync_run=run).count()
-            run.skipped_count = len(candidates) - len(earnings)
+            # Classes with no rate in effect or no booked length, and conversions with no incentive.
+            run.skipped_count = (len(candidates) - len(earnings)
+                                 + sum(1 for item in found if item.state == conversions.NO_INCENTIVE))
             run.finished_at = timezone.now()
             run.save(update_fields=['earned_count', 'skipped_count', 'finished_at'])
     except Exception as exc:
@@ -179,5 +191,6 @@ def reconcile(now=None, trigger=SyncTrigger.SCHEDULE):
         )
         raise
     if run.skipped_count:
-        logger.warning('Tutor Earnings sync: %s eligible class(es) could not be priced', run.skipped_count)
+        logger.warning('Tutor Earnings sync: %s eligible class(es) or conversion(s) could not be priced',
+                       run.skipped_count)
     return run

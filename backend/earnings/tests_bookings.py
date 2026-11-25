@@ -104,7 +104,7 @@ class BookingEarningsTests(TestCase):
         again = complete(again, self.other_tutor)
         self.assertEqual(self.eligible(DemoBooking), {original.pk, again.pk})
 
-        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'},
+        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'},
                                          'tutors': [{'tutor': str(self.other_tutor.pk), 'rates': {'DEMO': '350'}}],
                                          'confirm': True})
         ledger.reconcile()
@@ -120,7 +120,7 @@ class BookingEarningsTests(TestCase):
 
     def test_the_sync_earns_a_reported_booking_only_once_its_slot_has_ended(self):
         booking = self.reported(self.assigned(DIAGNOSTIC, at=MORNING))
-        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True})
+        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True})
         run = ledger.reconcile(now=booking.slot.ends_at - timedelta(minutes=5))
         self.assertEqual(run.earned_count, 0)
         run = ledger.reconcile(now=booking.slot.ends_at)
@@ -132,7 +132,7 @@ class BookingEarningsTests(TestCase):
 
     def test_a_changed_booking_earning_is_reviewed_kept_and_a_re_demo_request_leaves_it_kept(self):
         original = self.reported(self.assigned())
-        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True})
+        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True})
         ledger.reconcile()
         earning = EarningEntry.objects.get(kind=EntryKind.EARNING, source_id=original.pk)
         self.assertEqual(summaries.review_items(), [])

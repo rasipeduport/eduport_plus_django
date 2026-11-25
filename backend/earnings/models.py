@@ -10,8 +10,10 @@ they were paid -- in Indian rupees only, to the paisa.
   type. A rate is never edited: a change is a new version, in effect for the
   classes ending from then on.
 - EarningEntry: the ledger. An earning per counted class, written by the sync
-  (earnings.ledger) and never twice; reversals and adjustments by an
-  administrator, each with its reason. Rows are only ever added.
+  (earnings.ledger) and never twice -- and, when a Demo's student enrolls, a
+  Demo Conversion earning that tops the Demo's up to the conversion rate
+  (earnings.conversions); reversals and adjustments by an administrator, each
+  with its reason. Rows are only ever added.
 - EarningReview: an administrator's "Keep as earned" on an earning whose class
   changed after it earned, with the reason.
 - TutorPayment: a payment an administrator made to a tutor outside Eduport
@@ -45,19 +47,29 @@ class ClassType(models.TextChoices):
     DIAGNOSTIC = 'DIAGNOSTIC', 'Diagnostic'
     DEMO = 'DEMO', 'Demo'
     SESSION = 'SESSION', 'Normal Session'
+    # Not a class: a Demo whose student then enrolled (earnings.conversions).
+    # Its rate is the TOTAL a converted Demo earns; its earning is only the
+    # difference over what the Demo itself earned.
+    DEMO_CONVERSION = 'DEMO_CONVERSION', 'Demo Conversion'
+
+
+# The class types that are classes taught -- what the class counts add up.
+TAUGHT = (ClassType.DIAGNOSTIC, ClassType.DEMO, ClassType.SESSION)
 
 
 class RateUnit(models.TextChoices):
     CLASS = 'CLASS', 'per class'
     HOUR = 'HOUR', 'per class hour'
+    CONVERSION = 'CONVERSION', 'per converted Demo'
 
 
 # Diagnostic and Demo bookings are paid by the class (each a 60-minute slot);
-# a normal session by its booked hours.
+# a normal session by its booked hours; a Demo Conversion once per converted Demo.
 UNIT_OF = {
     ClassType.DIAGNOSTIC: RateUnit.CLASS,
     ClassType.DEMO: RateUnit.CLASS,
     ClassType.SESSION: RateUnit.HOUR,
+    ClassType.DEMO_CONVERSION: RateUnit.CONVERSION,
 }
 
 
@@ -208,6 +220,14 @@ class EarningEntry(models.Model):
     at its scheduled end and where that rate came from -- with what made it
     count in ``details``. At most one per class, ever: a reversed earning is
     never written again.
+    A Demo Conversion earning (``class_type`` DEMO_CONVERSION) is not a class:
+    its ``source_id`` is the enrollment (the initial sales.Sale), so an
+    enrollment converts once, and ``converts`` is the Demo's own earning it
+    tops up, so a Demo converts once. ``rate`` is the conversion rate -- the
+    total a converted Demo earns, in effect for the Demo's tutor when the
+    student enrolled -- and ``amount`` that rate less what the Demo earned
+    (the database checks the sum). It counts in the month of the enrollment;
+    ``class_start``/``class_end`` are the Demo's.
     REVERSAL: an administrator's reversal of an earning or an adjustment, for
     its whole amount (a deduction's reversal gives it back), with the reason;
     it counts in the same month.
@@ -236,6 +256,10 @@ class EarningEntry(models.Model):
     details = models.JSONField(default=dict, blank=True)
     reverses = models.OneToOneField(
         'self', on_delete=models.PROTECT, null=True, blank=True, related_name='reversal',
+    )
+    # A Demo Conversion earning: the Demo earning it tops up (one conversion per Demo).
+    converts = models.OneToOneField(
+        'self', on_delete=models.PROTECT, null=True, blank=True, related_name='conversion',
     )
     reason = models.TextField(blank=True, default='')
     # Who wrote it: an administrator's reversal or adjustment; none for an earning (the sync).
@@ -286,7 +310,18 @@ class EarningEntry(models.Model):
                 ),
                 name='tutor_earning_entries_kind_shape',
             ),
-            # Every class counts once: one earning per class, ever.
+            # A Demo Conversion earning, and only one, names the Demo earning it
+            # tops up, once. (Its sum -- the Demo's amount and its own make the
+            # conversion rate -- is checked by a trigger, migration 0003.)
+            models.CheckConstraint(
+                condition=(
+                    Q(kind=EntryKind.EARNING, class_type=ClassType.DEMO_CONVERSION, converts__isnull=False, units=1)
+                    | (~Q(kind=EntryKind.EARNING, class_type=ClassType.DEMO_CONVERSION) & Q(converts__isnull=True))
+                ),
+                name='tutor_earning_entries_conversion_shape',
+            ),
+            # Every class counts once: one earning per class, ever -- and every
+            # enrollment converts once (a Demo Conversion's source is its sale).
             models.UniqueConstraint(fields=['class_type', 'source_id'], condition=Q(kind=EntryKind.EARNING),
                                     name='tutor_earning_entries_one_earning_per_class'),
         ]

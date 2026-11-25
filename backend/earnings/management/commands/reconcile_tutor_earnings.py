@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from earnings import conversions
 from earnings.eligibility import activated_at
 from earnings.ledger import earning_for, reconcile, unearned_classes
 from earnings.models import SyncTrigger
@@ -49,3 +50,9 @@ class Command(BaseCommand):
         self.stdout.write(f'Would add {sum(priced.values())} earning(s): '
                           + (', '.join(f'{count} {kind}' for kind, count in sorted(priced.items())) or 'none')
                           + f'; {len(candidates) - sum(priced.values())} could not be priced.')
+        # Conversions of Demos already earned; a Demo the run earns may convert in the same run too.
+        found = conversions.pending(book)
+        ready = sum(1 for item in found if item.state == conversions.READY)
+        no_incentive = sum(1 for item in found if item.state == conversions.NO_INCENTIVE)
+        self.stdout.write(f'Would add {ready} Demo conversion(s) for Demos already earned; '
+                          f'{no_incentive} with no incentive (conversion rate not above the Demo).')

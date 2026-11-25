@@ -197,7 +197,7 @@ class ConcurrentPaymentTests(TransactionTestCase):
         Session.objects.create(student=student, tutor=self.tutor, title='Algebra', start_time=start,
                                end_time=start + timedelta(hours=2.5), status=SessionStatusChoices.ATTENDED, started_at=start,
                                started_by=self.tutor, completed_at=start + timedelta(hours=3), completed_by=self.tutor)
-        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True})
+        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True})
         ledger.reconcile()  # ₹1,000 owed
 
     def test_two_payments_at_once_never_pay_more_than_is_owed(self):
