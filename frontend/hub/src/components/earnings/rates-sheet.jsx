@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react';
 import { HistoryIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 
 import api from '@/lib/api';
-import { CLASS_TYPES, EARNINGS_API, earningsError, formatInr, rateLabel, stampLabel } from '@/lib/earnings';
+import {
+  CLASS_TYPES,
+  CONVERSION,
+  CONVERSION_NOTE,
+  EARNINGS_API,
+  earningsError,
+  formatInr,
+  rateLabel,
+  stampLabel,
+  unitPhrase,
+} from '@/lib/earnings';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +25,7 @@ import { ErrorState } from '@/components/page/states';
 
 const AMOUNT_RE = /^\s*\d+(\.\d{1,2})?\s*$/;
 const validAmount = (value) => AMOUNT_RE.test(value || '') && Number(value) > 0;
+const blankRates = () => Object.fromEntries(CLASS_TYPES.map((type) => [type.value, '']));
 const trimAmount = (value) => (value === null || value === undefined ? '' : String(value).replace(/\.00$/, ''));
 
 /** The rate history: every version, newest first, and who saved it, when and why. */
@@ -44,12 +55,13 @@ function History({ versions }) {
 }
 
 /**
- * Start pricing, once: the global rate of every class type (required) and any
- * tutors' own rates, all in effect from the activation -- so they price every
- * eligible class since then. Confirmed explicitly: it cannot be undone.
+ * Start pricing, once: the global rate of every class type and of Demo
+ * Conversion (required) and any tutors' own rates, all in effect from the
+ * activation -- so they price every eligible class, and every Demo whose
+ * student enrolled, since then. Confirmed explicitly: it cannot be undone.
  */
 function InitialPricingForm({ data, onSaved }) {
-  const [rates, setRates] = useState({ DIAGNOSTIC: '', DEMO: '', SESSION: '' });
+  const [rates, setRates] = useState(blankRates);
   const [tutors, setTutors] = useState([]);
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -94,10 +106,11 @@ function InitialPricingForm({ data, onSaved }) {
       </p>
       <fieldset className="grid gap-3 rounded-lg border p-3" disabled={pending}>
         <legend className="px-1 text-sm font-medium">Global rates (required)</legend>
+        <p className="text-muted-foreground text-xs">Demo Conversion: {CONVERSION_NOTE} At least the Demo rate.</p>
         {CLASS_TYPES.map((type) => (
           <div key={type.value} className="flex items-center justify-between gap-3">
             <Label htmlFor={`initial-${type.value}`} required>
-              {type.label} · {type.unit === 'HOUR' ? 'per class hour' : 'per class'}
+              {type.label} · {unitPhrase(type.unit)}
             </Label>
             <Input
               id={`initial-${type.value}`}
@@ -144,13 +157,14 @@ function InitialPricingForm({ data, onSaved }) {
                 <Trash2Icon />
               </Button>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2">
               {CLASS_TYPES.map((type) => (
                 <Input
                   key={type.value}
                   aria-label={`${type.label} tutor rate`}
                   inputMode="decimal"
                   placeholder={`${type.label}${type.unit === 'HOUR' ? ' / h' : ''}`}
+                  title={`${type.label} · ${unitPhrase(type.unit)}`}
                   value={row.rates[type.value] || ''}
                   onChange={(event) =>
                     setTutors((current) =>
@@ -192,7 +206,11 @@ function InitialPricingForm({ data, onSaved }) {
   );
 }
 
-/** A change of the global rates, from now on, with its reason; only the rates that differ become new versions. */
+/**
+ * A change of the global rates, from now on, with its reason; only the rates
+ * that differ become new versions. A rate with no version yet (Demo
+ * Conversion, where pricing started before it existed) may stay blank.
+ */
 function GlobalRatesForm({ data, onSaved }) {
   const current = Object.fromEntries(data.rates.map((row) => [row.class_type, trimAmount(row.amount)]));
   const [rates, setRates] = useState(current);
@@ -200,10 +218,11 @@ function GlobalRatesForm({ data, onSaved }) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
+  const fine = (type, value) => validAmount(value) || (!current[type] && !(value || '').trim());
   const changes = Object.fromEntries(
     Object.entries(rates).filter(([type, value]) => validAmount(value) && Number(value) !== Number(current[type]))
   );
-  const invalid = Object.values(rates).some((value) => !validAmount(value));
+  const invalid = Object.entries(rates).some(([type, value]) => !fine(type, value));
   const ready = Object.keys(changes).length > 0 && !invalid && reason.trim();
 
   const save = async (event) => {
@@ -229,9 +248,16 @@ function GlobalRatesForm({ data, onSaved }) {
           const type = CLASS_TYPES.find((item) => item.value === row.class_type);
           return (
             <div key={row.class_type} className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <Label htmlFor={`global-${row.class_type}`}>{type?.label}</Label>
-                <p className="text-muted-foreground text-xs">Now {rateLabel(row.amount, row.unit)}</p>
+              <div className="min-w-0 flex-1">
+                <Label htmlFor={`global-${row.class_type}`}>
+                  {type?.label} <span className="text-muted-foreground font-normal">· {unitPhrase(row.unit)}</span>
+                </Label>
+                <p className="text-muted-foreground text-xs">
+                  {row.amount ? `Now ${rateLabel(row.amount, row.unit)}` : 'Not set yet: nothing is paid for it until it is'}
+                </p>
+                {row.class_type === CONVERSION ? (
+                  <p className="text-muted-foreground text-xs">{CONVERSION_NOTE} At least the Demo rate.</p>
+                ) : null}
               </div>
               <Input
                 id={`global-${row.class_type}`}
@@ -239,7 +265,7 @@ function GlobalRatesForm({ data, onSaved }) {
                 className="w-32"
                 value={rates[row.class_type] ?? ''}
                 onChange={(event) => setRates((value) => ({ ...value, [row.class_type]: event.target.value }))}
-                aria-invalid={validAmount(rates[row.class_type]) ? undefined : true}
+                aria-invalid={fine(row.class_type, rates[row.class_type]) ? undefined : true}
               />
             </div>
           );
@@ -252,8 +278,9 @@ function GlobalRatesForm({ data, onSaved }) {
         <Textarea id="global-reason" rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
       </div>
       <p className="bg-muted/50 rounded-lg px-3 py-2 text-sm">
-        <strong>Takes effect when saved</strong>, for classes ending from then on, for every tutor on the global rate.
-        Classes already earned keep their rate; tutors with their own rate are not affected.
+        <strong>Takes effect when saved</strong>, for classes ending (and, for Demo Conversion, students enrolling) from
+        then on, for every tutor on the global rate. Classes and conversions already earned keep their rate; tutors with
+        their own rate are not affected.
       </p>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
       <Button type="submit" disabled={!ready || pending}>

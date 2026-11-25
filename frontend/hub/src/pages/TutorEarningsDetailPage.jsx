@@ -23,6 +23,7 @@ import {
   earningsError,
   formatInr,
   monthLabel,
+  CONVERSION,
   rateLabel,
   reviewDetail,
   stampLabel,
@@ -83,6 +84,9 @@ function RatesPanel({ data, onEdit }) {
                     ? 'Uses the global rate'
                     : 'No rate yet'}
               </p>
+              {row.class_type === CONVERSION ? (
+                <p className="text-muted-foreground text-xs">In all, for a converted Demo; adds the difference over the Demo</p>
+              ) : null}
             </div>
             <div className="flex flex-col items-end gap-1">
               <span className="font-medium tabular-nums">{rateLabel(row.amount, row.unit)}</span>
@@ -108,7 +112,8 @@ function RatesPanel({ data, onEdit }) {
           ))}
         </ul>
         <p className="text-muted-foreground mt-2 text-xs">
-          A change applies to classes ending after it is saved. Earned classes keep the rate stored with them.
+          A change applies to classes ending, or students enrolling, after it is saved. Earned classes and conversions keep
+          the rate stored with them.
         </p>
       </details>
     </Panel>

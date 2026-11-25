@@ -32,7 +32,7 @@ import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { FilterSelect, SearchField } from '@/components/page/list-toolbar';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
-import { BalanceBadge, MonthFilter, RateSourceBadge, SyncNote } from '@/components/earnings/parts';
+import { BalanceBadge, DemoConversionCard, MonthFilter, RateSourceBadge, SyncNote } from '@/components/earnings/parts';
 import { RatesSheet } from '@/components/earnings/rates-sheet';
 import { ReviewSheet } from '@/components/earnings/review-sheet';
 
@@ -158,6 +158,13 @@ export default function TutorEarningsPage({ user }) {
       },
       { key: 'diagnostic', header: 'Diagnostic', cell: (row) => row.diagnostic, className: 'text-right tabular-nums', headerClassName: 'text-right' },
       { key: 'demo', header: 'Demo', cell: (row) => row.demo, className: 'text-right tabular-nums', headerClassName: 'text-right' },
+      {
+        key: 'conversions',
+        header: 'Converted',
+        cell: (row) => row.conversions ?? 0,
+        className: 'text-right tabular-nums',
+        headerClassName: 'text-right',
+      },
       { key: 'sessions', header: 'Sessions', cell: (row) => row.sessions, className: 'text-right tabular-nums', headerClassName: 'text-right' },
       {
         key: 'hours',
@@ -232,6 +239,8 @@ export default function TutorEarningsPage({ user }) {
           <Tile icon={ListChecksIcon} label="Eligible classes" value={totals.classes} hint={countsLine(totals)} />
         </div>
 
+        <DemoConversionCard counts={totals} total={totals.earned} period={period} />
+
         <div className="flex flex-wrap items-center gap-2">
           <SearchField value={q} onSearch={(text) => update({ q: text })} label="Search tutors" placeholder="Tutor name or email…" />
           <MonthFilter months={data.months} value={month} onChange={(value) => update({ month: value })} />
@@ -264,7 +273,7 @@ export default function TutorEarningsPage({ user }) {
             columns={columns}
             rows={rows}
             pending={pending}
-            minTableWidth={1080}
+            minTableWidth={1160}
             renderCard={(row) => (
               <Link to={`/tutor-earnings/${row.id}`} className="bg-card flex flex-col gap-2 rounded-xl border p-4">
                 <div className="flex items-start justify-between gap-2">

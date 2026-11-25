@@ -4,6 +4,8 @@ import { AlertTriangleIcon, ShieldAlertIcon } from 'lucide-react';
 import api from '@/lib/api';
 import {
   CLASS_TYPES,
+  CONVERSION,
+  CONVERSION_NOTE,
   EARNINGS_API,
   PAYMENT_METHODS,
   classSubject,
@@ -16,6 +18,7 @@ import {
   rateLabel,
   requestKey,
   reviewDetail,
+  unitPhrase,
 } from '@/lib/earnings';
 import { FormDialog } from '@/components/form-dialog';
 import { Button } from '@/components/ui/button';
@@ -415,6 +418,13 @@ export function ReverseEntryDialog({ entry, tutorName, open, onOpenChange, onSav
           {entry.rate ? ` · ${rateLabel(entry.rate, entry.unit)}` : ''}
         </p>
       ) : null}
+      {entry?.conversion && !entry.conversion.reversed ? (
+        <p className="border-warning/40 bg-warning/10 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+          <AlertTriangleIcon className="text-warning mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          This Demo converted ({formatInr(entry.conversion.amount, { signed: true })}). Its conversion is a separate line: it
+          comes up for review once this earning is reversed, to reverse or keep.
+        </p>
+      ) : null}
       <ReasonField id="reverse-reason" value={reason} onChange={setReason} disabled={pending} hint="The tutor sees this reason." />
     </FormDialog>
   );
@@ -598,7 +608,7 @@ export function TutorRatesDialog({ tutor, rates, open, onOpenChange, onSaved }) 
       open={open}
       onOpenChange={(next) => !pending && onOpenChange(next)}
       title={`Rates for ${nameOf(tutor)}`}
-      description="Each class type uses the global rate unless a tutor rate is set. A change applies to classes ending after it is saved; earned classes keep their rate."
+      description="Each rate uses the global rate unless a tutor rate is set. A change applies to classes that end, and students who enroll, after it is saved; earned classes and conversions keep their rate."
       error={error}
       onConfirm={save}
       confirmLabel="Save tutor rates"
@@ -612,8 +622,11 @@ export function TutorRatesDialog({ tutor, rates, open, onOpenChange, onSaved }) 
         return (
           <fieldset key={type.value} className="grid gap-2 rounded-lg border p-3 text-sm" disabled={pending}>
             <legend className="px-1 font-medium">
-              {type.label} <span className="text-muted-foreground font-normal">· {type.unit === 'HOUR' ? 'per class hour' : 'per class'}</span>
+              {type.label} <span className="text-muted-foreground font-normal">· {unitPhrase(type.unit)}</span>
             </legend>
+            {type.value === CONVERSION ? (
+              <p className="text-muted-foreground -mt-1 text-xs">{CONVERSION_NOTE} At least the Demo rate.</p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
               <label className="flex items-center gap-2">
                 <input
