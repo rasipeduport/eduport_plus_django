@@ -25,7 +25,7 @@ from .formatting import whatsapp_message
 from .models import OUTCOME_UNKNOWN, Message, MessageStatus, Step, TaskResolution, TaskStatus
 from .providers.base import SendResult, StatusUpdate
 from .sending import send_message
-from .services import request_confirmation
+from .services import mark_confirmation_request_sent, request_confirmation
 from .status_updates import apply_status_update
 from .tests_planning import CommunicationTestCase
 from .tests_providers import FakeProvider, use_fake_provider
@@ -40,7 +40,7 @@ MESSAGE_FIELDS = {
     'id', 'step', 'step_label', 'status', 'status_label', 'channel', 'channel_label', 'provider', 'recipient_phone',
     'text', 'waiting_for', 'scheduled_for', 'send_before', 'queued_at', 'sent_at', 'delivered_at', 'read_at',
     'failed_at', 'cancelled_at', 'attempt_count', 'next_attempt_at', 'failure_code', 'failure_reason', 'problem',
-    'cancel_reason', 'created_by', 'created_at', 'attempts', 'events',
+    'cancel_reason', 'created_by', 'sent_by', 'created_at', 'attempts', 'events',
 }
 
 
@@ -168,7 +168,7 @@ class ContentTests(CommunicationApiTestCase):
                          ('CANCELLED', 'BOOKING_CANCELLED'))
         self.assertEqual(self.by_step(data['messages'])['ACKNOWLEDGEMENT']['cancel_reason'],
                          {'code': 'BOOKING_CANCELLED', 'label': 'Booking cancelled'})
-        self.assertEqual(data['actions'], {'request_confirmation': False, 'record_confirmation': False})
+        self.assertEqual(data['actions'], {'open_whatsapp': False, 'mark_request_sent': False, 'record_confirmation': False})
 
     def test_what_went_wrong_is_flagged(self):
         booking = self.live()
@@ -242,24 +242,31 @@ class ActionTests(CommunicationApiTestCase):
         booking = self.live()
         for user in (self.admin, self.bde):
             with self.subTest(user=user.username):
-                self.assertEqual(self.actions(user, booking), {'request_confirmation': True, 'record_confirmation': True})
-        # Asked once: not again.
+                self.assertEqual(self.actions(user, booking),
+                                 {'open_whatsapp': True, 'mark_request_sent': True, 'record_confirmation': True})
+        # A request the system was asked to send, still unsent, may still be marked as sent by hand.
         request_confirmation(booking, actor=self.bde, now=timezone.now())
-        self.assertFalse(self.actions(self.admin, booking)['request_confirmation'])
+        self.assertTrue(self.actions(self.admin, booking)['mark_request_sent'])
+        # Marked once: not again -- but WhatsApp may still be opened, to nudge the parent.
+        mark_confirmation_request_sent(booking, actor=self.bde, now=timezone.now())
+        self.assertEqual(self.actions(self.admin, booking),
+                         {'open_whatsapp': True, 'mark_request_sent': False, 'record_confirmation': True})
         # The 15-minute call is a task only: even while it is open, nothing is offered on it.
         booking.communication_tasks.filter(step=Step.PRE_ACTIVITY_CALL).update(
             active_from=timezone.now() - timedelta(minutes=1), expires_at=timezone.now() + timedelta(hours=1),
         )
-        self.assertEqual(set(self.actions(self.admin, booking)), {'request_confirmation', 'record_confirmation'})
+        self.assertEqual(set(self.actions(self.admin, booking)),
+                         {'open_whatsapp', 'mark_request_sent', 'record_confirmation'})
 
     def test_a_confirmed_parent_needs_no_request_but_may_still_be_recorded(self):
         booking = self.live()
         record_parent_confirmation(booking, ParentConfirmation.CONFIRMED, actor=self.bde, now=timezone.now())
-        self.assertEqual(self.actions(self.bde, booking), {'request_confirmation': False, 'record_confirmation': True})
+        self.assertEqual(self.actions(self.bde, booking),
+                         {'open_whatsapp': False, 'mark_request_sent': False, 'record_confirmation': True})
 
     def test_nothing_once_the_slot_has_started(self):
         booking = self.book()  # at NOW, days ago by the real clock
-        self.assertEqual(self.actions(self.admin, booking), {'request_confirmation': False, 'record_confirmation': False})
+        self.assertEqual(self.actions(self.admin, booking), {'open_whatsapp': False, 'mark_request_sent': False, 'record_confirmation': False})
 
 
 class ScopeTests(CommunicationApiTestCase):

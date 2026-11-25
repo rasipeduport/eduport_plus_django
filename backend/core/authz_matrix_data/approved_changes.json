@@ -12930,13 +12930,14 @@
    }
   },
   "communications.booking @ admin": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13027,13 +13028,14 @@
    }
   },
   "communications.booking @ su_mentor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13076,13 +13078,14 @@
    }
   },
   "communications.booking @ su_tutor": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13125,13 +13128,14 @@
    }
   },
   "communications.booking @ superuser": {
-   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.1 (booking communication, read-only): /api/communications/bookings/<type>/<id>/ shows a booking's parent communication -- the parent's confirmation, its five tasks with every call outcome, and its WhatsApp messages with their attempts and Meta's status reports. It needs accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads only, scoped in the view; tests_authz_matrix BDE_WORKSPACE). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds accounts.view_all_communications: booking_a's communication in full. booking_a is made directly in the fixture world, with no communication plan, so it has no tasks or messages (planned false).",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13209,14 +13213,155 @@
     "status": 403
    }
   },
+  "communications.confirmation_request_sent @ admin": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.confirmation_request_sent @ anon": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Not signed in: refused before anything is read.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ mentor_a": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ mentor_b": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ parent_a": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ su_mentor": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.confirmation_request_sent @ su_tutor": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.confirmation_request_sent @ superuser": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "result": {
+    "error": "NOT_PLANNED",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "records": [],
+    "status": 409
+   }
+  },
+  "communications.confirmation_request_sent @ tutor_a": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ tutor_b": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "communications.confirmation_request_sent @ unknown": {
+   "decision": "Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds no communication permission: refused before anything is read or written -- the communication carries the parent's phone number.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "communications.parent_confirmation @ admin": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13311,13 +13456,14 @@
    }
   },
   "communications.parent_confirmation @ su_mentor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13364,13 +13510,14 @@
    }
   },
   "communications.parent_confirmation @ su_tutor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13417,13 +13564,14 @@
    }
   },
   "communications.parent_confirmation @ superuser": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Explicit Start Demo / Start Diagnostic (decisions D1-D6, approved 2026-11-05): the communication overview's booking adds read-only start information -- activity_state (bookings.lifecycle) and started_at -- with no change to who reaches it. Re-Demos (bookings.redemos): a booking's communication says whether it is a Re-Demo (redemo), which has no plan -- no tasks, no messages: the BDE contacts its parent by hand -- and is never offered, nor sent, a confirmation request (409 REDEMO_MANUAL); who may read or act on it is unchanged. Communication outbox (F1, 2026-11-19): the communication adds plan_status -- PLANNED, PENDING (its plan is still on its way from the outbox), FAILED (the event that was to write it failed) or NOT_PLANNED -- beside planned, with no change to who reaches it. Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: the parent's answer (Confirmed) recorded on booking_a, answered with its communication -- rolled back with the scenario.",
    "result": {
     "fields": [
      "actions",
+     "actions.mark_request_sent",
+     "actions.open_whatsapp",
      "actions.record_confirmation",
-     "actions.request_confirmation",
      "booking",
      "booking.activity_state",
      "booking.booking_type",
@@ -13506,7 +13654,7 @@
    }
   },
   "communications.preview @ admin": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
    "result": {
     "fields": [
@@ -13515,9 +13663,12 @@
      "requirements[].code",
      "requirements[].label",
      "requirements[].met",
+     "signed_by",
+     "signed_by_caller",
      "step",
      "step_label",
-     "text"
+     "text",
+     "whatsapp_number"
     ],
     "records": [],
     "status": 200
@@ -13572,7 +13723,7 @@
    }
   },
   "communications.preview @ su_mentor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
    "result": {
     "fields": [
@@ -13581,16 +13732,19 @@
      "requirements[].code",
      "requirements[].label",
      "requirements[].met",
+     "signed_by",
+     "signed_by_caller",
      "step",
      "step_label",
-     "text"
+     "text",
+     "whatsapp_number"
     ],
     "records": [],
     "status": 200
    }
   },
   "communications.preview @ su_tutor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
    "result": {
     "fields": [
@@ -13599,16 +13753,19 @@
      "requirements[].code",
      "requirements[].label",
      "requirements[].met",
+     "signed_by",
+     "signed_by_caller",
      "step",
      "step_label",
-     "text"
+     "text",
+     "whatsapp_number"
     ],
     "records": [],
     "status": 200
    }
   },
   "communications.preview @ superuser": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
    "note": "Holds the permissions: booking_a's confirmation request as it would read now, with its requirements; writes nothing.",
    "result": {
     "fields": [
@@ -13617,9 +13774,12 @@
      "requirements[].code",
      "requirements[].label",
      "requirements[].met",
+     "signed_by",
+     "signed_by_caller",
      "step",
      "step_label",
-     "text"
+     "text",
+     "whatsapp_number"
     ],
     "records": [],
     "status": 200
@@ -13662,17 +13822,17 @@
    }
   },
   "communications.request_confirmation @ admin": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
-   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions: 410 CONFIRMATION_REQUESTS_RETIRED -- the request is sent from the caller's own WhatsApp and marked as sent instead; nothing is read or written.",
    "result": {
-    "error": "NOT_PLANNED",
+    "error": "CONFIRMATION_REQUESTS_RETIRED",
     "fields": [
      "error",
      "message"
     ],
-    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "message": "The Hub no longer sends confirmation requests itself. Reload the page, open WhatsApp from the booking, send the message from your own WhatsApp, then mark it as sent.",
     "records": [],
-    "status": 409
+    "status": 410
    }
   },
   "communications.request_confirmation @ anon": {
@@ -13724,45 +13884,45 @@
    }
   },
   "communications.request_confirmation @ su_mentor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
-   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions: 410 CONFIRMATION_REQUESTS_RETIRED -- the request is sent from the caller's own WhatsApp and marked as sent instead; nothing is read or written.",
    "result": {
-    "error": "NOT_PLANNED",
+    "error": "CONFIRMATION_REQUESTS_RETIRED",
     "fields": [
      "error",
      "message"
     ],
-    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "message": "The Hub no longer sends confirmation requests itself. Reload the page, open WhatsApp from the booking, send the message from your own WhatsApp, then mark it as sent.",
     "records": [],
-    "status": 409
+    "status": 410
    }
   },
   "communications.request_confirmation @ su_tutor": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
-   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions: 410 CONFIRMATION_REQUESTS_RETIRED -- the request is sent from the caller's own WhatsApp and marked as sent instead; nothing is read or written.",
    "result": {
-    "error": "NOT_PLANNED",
+    "error": "CONFIRMATION_REQUESTS_RETIRED",
     "fields": [
      "error",
      "message"
     ],
-    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "message": "The Hub no longer sends confirmation requests itself. Reload the page, open WhatsApp from the booking, send the message from your own WhatsApp, then mark it as sent.",
     "records": [],
-    "status": 409
+    "status": 410
    }
   },
   "communications.request_confirmation @ superuser": {
-   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer).",
-   "note": "Holds the permissions, but booking_a is made directly in the fixture world, with no communication plan: 409 NOT_PLANNED, nothing written.",
+   "decision": "Hub Phase 3.2 (the parent's confirmation): under /api/communications/bookings/<type>/<id>/, preview/ shows what a message would say now (services.preview), confirmation-request/ asks the parent to confirm (services.request_confirmation) and parent-confirmation/ records their answer (booking_service.record_parent_confirmation). Each works within the caller's communication scope -- accounts.view_all_communications (every booking: the Admin; a superuser holds every permission, D1) or accounts.view_own_lead_communications (a BDE's own leads; tests_authz_matrix BDE_WORKSPACE) -- and needs accounts.send_lead_communications (preview, request) or accounts.record_parent_confirmation (answer). Manual WhatsApp confirmation request (2026-11-25): the Hub no longer has the system send the confirmation request. Open WhatsApp fills the request into the caller's own WhatsApp from preview/ -- which now also gives whatsapp_number (the parent's number as WhatsApp addresses it, null when it is not a full international number), signed_by (the lead's BDE whose name signs it) and signed_by_caller -- and writes nothing; POST confirmation-request/mark-sent/ (accounts.send_lead_communications, within the caller's scope) records that they sent it by hand: WhatsApp (sent manually), Sent and never Delivered or Read, its step done as Sent manually, a queued request reused, never a second row. POST confirmation-request/ is retired: 410 CONFIRMATION_REQUESTS_RETIRED to whoever may call it, reading and writing nothing; everyone else as before. The communication's actions are open_whatsapp, mark_request_sent and record_confirmation (request_confirmation is gone).",
+   "note": "Holds the permissions: 410 CONFIRMATION_REQUESTS_RETIRED -- the request is sent from the caller's own WhatsApp and marked as sent instead; nothing is read or written.",
    "result": {
-    "error": "NOT_PLANNED",
+    "error": "CONFIRMATION_REQUESTS_RETIRED",
     "fields": [
      "error",
      "message"
     ],
-    "message": "This booking was made before parent communication began, so nothing can be sent for it.",
+    "message": "The Hub no longer sends confirmation requests itself. Reload the page, open WhatsApp from the booking, send the message from your own WhatsApp, then mark it as sent.",
     "records": [],
-    "status": 409
+    "status": 410
    }
   },
   "communications.request_confirmation @ tutor_a": {

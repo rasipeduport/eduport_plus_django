@@ -2542,17 +2542,28 @@ test("History: the parent's answer to the confirmation request, with why they di
 });
 
 // ------------------------------------------------ the parent's confirmation (Phase 3.2)
-// Asking the parent to confirm and recording their answer, where the API's `actions` offer them.
+// Sending the confirmation request from the BDE's own WhatsApp -- Open WhatsApp, then Mark as sent -- and
+// recording the parent's answer, where the API's `actions` offer them. The Hub never has the request sent
+// for it (POST …/confirmation-request/ answers 410).
 const AWAITING = { parent_confirmation: { status: 'AWAITING', label: 'Awaiting confirmation', at: null, by: null, reason: null } };
 const askable = (booking, extra = {}) => communication(booking, { ...AWAITING,
-  actions: { request_confirmation: true, record_confirmation: true }, ...extra });
+  actions: { open_whatsapp: true, mark_request_sent: true, record_confirmation: true }, ...extra });
 const previewUrl = (booking) => `${commsUrl(booking)}preview/`;
 const requestUrl = (booking) => `${commsUrl(booking)}confirmation-request/`;
+const markUrl = (booking) => `${commsUrl(booking)}confirmation-request/mark-sent/`;
 const answerUrl = (booking) => `${commsUrl(booking)}parent-confirmation/`;
 const READY_PREVIEW = { step: 'CONFIRMATION_REQUEST', step_label: 'Confirmation request', ready: true,
-  text: "Hi Sir/Ma'am,\n\nYour child's Demo class is scheduled for *Sat, 31 Oct 2026 at 7:30 PM IST*.\n\n*Bde One*",
-  requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming and not started', met: true }, { code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: true }] };
+  text: "Hi Sir/Ma'am,\n\nYour child's Demo class is scheduled for *Sat, 31 Oct 2026 at 7:30 PM IST* & we await your reply?\n\n*Bde One*",
+  requirements: [{ code: 'BOOKING_ACTIVE', label: 'Booking still upcoming and not started', met: true }, { code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: true }],
+  whatsapp_number: '971501234567', signed_by: BDE_ONE, signed_by_caller: true };
 const ASKED = commMessage('CONFIRMATION_REQUEST', 'Confirmation request', { created_by: BDE_ONE });
+// Sent from the BDE's own WhatsApp and marked so: Sent, by them, at 10:42 AM IST -- never delivered or read.
+const MARKED = commMessage('CONFIRMATION_REQUEST', 'Confirmation request', { status: 'SENT', status_label: 'Sent',
+  channel: 'MANUAL_WHATSAPP', channel_label: 'WhatsApp (sent manually)', sent_at: '2026-10-30T05:12:00+00:00',
+  sent_by: BDE_ONE, created_by: BDE_ONE });
+const markedActions = { open_whatsapp: true, mark_request_sent: false, record_confirmation: true };
+const whatsAppLink = (root) => [...root.querySelectorAll('a')].find((a) => clean(a.textContent) === 'Open WhatsApp');
+const MARK = 'I’ve sent it – Mark as sent';
 const cardButton = (label) => button(label, communicationCard());
 const openSheet = (user = COMMS_ADMIN) => open(`/bookings?booking=${RIYA.id}`, user);
 
@@ -2707,20 +2718,23 @@ test('Confirmation: nothing to ask or record unless the API offers it', async ()
   serve({
     [`GET ${LIST}`]: list([RIYA]),
     [`GET ${at(RIYA)}`]: detail(RIYA),
-    [`GET ${commsUrl(RIYA)}`]: askable(RIYA, { actions: { request_confirmation: false, record_confirmation: false } }),
+    [`GET ${commsUrl(RIYA)}`]: askable(RIYA, { actions: { open_whatsapp: false, mark_request_sent: false, record_confirmation: false } }),
   });
   await openSheet();
-  assert.ok(!cardButton('Request confirmation') && !cardButton('Record answer'));
+  assert.ok(!cardButton('Open WhatsApp') && !cardButton('Request confirmation') && !cardButton('Record answer'));
 });
 
-test("BDE: asks the parent to confirm and records the answer in the communication sheet; the enquiry is read again", async () => {
+test("BDE: sends the request from their own WhatsApp, marks it as sent, then records the answer; the enquiry is read again", async () => {
   let answered = false;
+  let marked = false;
   serve({
     [`GET ${ENQUIRY_URL}`]: () => ok(enquiry([{ ...BDE_BOOKED, parent_confirmation: answered ? 'CONFIRMED' : 'AWAITING' }])),
-    [`GET ${commsUrl(BDE_BOOKED)}`]: askable(BDE_BOOKED),
+    [`GET ${commsUrl(BDE_BOOKED)}`]: () => ok(marked ? askable(BDE_BOOKED, { messages: [MARKED], actions: markedActions }) : askable(BDE_BOOKED)),
     [`GET ${previewUrl(BDE_BOOKED)}`]: READY_PREVIEW,
-    [`POST ${requestUrl(BDE_BOOKED)}`]: () => ok({ ...askable(BDE_BOOKED, { messages: [ASKED],
-      actions: { request_confirmation: false, record_confirmation: true } }), created: true }),
+    [`POST ${markUrl(BDE_BOOKED)}`]: () => {
+      marked = true;
+      return ok({ ...askable(BDE_BOOKED, { messages: [MARKED], actions: markedActions }), changed: true });
+    },
     [`POST ${answerUrl(BDE_BOOKED)}`]: () => {
       answered = true;
       return ok({ ...communication(BDE_BOOKED), changed: true });
@@ -2728,17 +2742,89 @@ test("BDE: asks the parent to confirm and records the answer in the communicatio
   });
   await open(`/enquiries/lead-1?booking=${BDE_BOOKED.id}&booking_type=DEMO`, BDE_COMMS);
   const inSheet = (label) => button(label, topDialog());
-  await click(inSheet('Request confirmation'));
-  await click(inSheet('Request confirmation'));
-  assert.equal(calls('POST', requestUrl(BDE_BOOKED)).length, 1);
-  assert.match(clean(topDialog().textContent), /Confirmation request added\. It is sent to the parent on WhatsApp\./);
+  assert.ok(!inSheet('Request confirmation'), 'the Hub never sends the request itself');
+  await click(inSheet('Open WhatsApp'));
+  let dialog = topDialog();
+  assert.match(clean(dialog.textContent), /^Confirmation requestRiya · Demo class · /);
+  assert.equal(dialog.querySelector('[aria-label="Message preview"]').textContent, READY_PREVIEW.text);
+  assert.ok(!/personal WhatsApp number/.test(dialog.textContent), 'their own lead, signed with their own name: no warning');
+  // A chat with the parent's number, the request filled in -- every character encoded -- in a new tab.
+  const link = whatsAppLink(dialog);
+  assert.equal(link.getAttribute('href'), `https://wa.me/971501234567?text=${encodeURIComponent(READY_PREVIEW.text)}`);
+  assert.equal(new URL(link.href).searchParams.get('text'), READY_PREVIEW.text);
+  assert.equal(link.getAttribute('target'), '_blank');
+  assert.equal(link.getAttribute('rel'), 'noopener noreferrer');
+  // Opening WhatsApp -- however often -- writes nothing: it is not sending.
+  await click(link);
+  await click(link);
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'opening WhatsApp writes nothing');
+  // Only the BDE's own word that they sent it marks it as sent: once, by them.
+  await click(inSheet(MARK));
+  assert.equal(calls('POST', markUrl(BDE_BOOKED)).length, 1);
+  assert.equal(calls('POST', requestUrl(BDE_BOOKED)).length, 0, 'the retired endpoint is never called');
+  assert.match(clean(topDialog().textContent), /Confirmation request marked as sent from your WhatsApp\./);
+  assert.match(clean(topDialog().textContent), /Confirmation request: Sent manually by Bde One at 30 Oct 2026, 10:42 AM IST/);
+  // WhatsApp may still be opened, to nudge the parent; marking again is not offered.
+  await click(inSheet('Open WhatsApp'));
+  dialog = topDialog();
+  assert.ok(whatsAppLink(dialog) && !button(MARK, dialog), 'opened again, but not marked twice');
+  assert.match(clean(dialog.textContent), /Sent manually by Bde One at 30 Oct 2026, 10:42 AM IST/);
+  await keyDown(dialog, 'Escape');
+  // The parent's answer stays its own action.
   await click(inSheet('Record parent answer'));
   await click(radio('Confirmed', topDialog()));
   await click(inSheet('Record answer'));
   assert.equal(calls('POST', answerUrl(BDE_BOOKED)).length, 1);
+  assert.equal(calls('POST', markUrl(BDE_BOOKED)).length, 1);
   assert.equal(calls('GET', ENQUIRY_URL).length, 3, 'the enquiry is read again after each action');
   assert.match(bookingRows()[0], /Confirmed/);
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.startsWith('/api/bookings/')), "the administrators' routes are never called");
+});
+
+test('Confirmation request: sent under another name, from a number WhatsApp cannot open, or not ready yet -- each said plainly', async () => {
+  let preview = { ...READY_PREVIEW, signed_by_caller: false };
+  serve({
+    [`GET ${ENQUIRY_URL}`]: () => ok(enquiry([BDE_BOOKED])),
+    [`GET ${commsUrl(BDE_BOOKED)}`]: askable(BDE_BOOKED),
+    [`GET ${previewUrl(BDE_BOOKED)}`]: () => ok(preview),
+    [`POST ${markUrl(BDE_BOOKED)}`]: () => fail(409, { error: 'BOOKING_NOT_UPCOMING',
+      message: 'This booking is no longer upcoming, so nothing more can be sent for it.' }),
+  });
+  await open(`/enquiries/lead-1?booking=${BDE_BOOKED.id}&booking_type=DEMO`, BDE_COMMS);
+  // The confirmation request dialog, closed if it is open, then opened again from the card: a fresh preview.
+  const reopen = async () => {
+    if (/^Confirmation request/.test(clean(topDialog().textContent))) await keyDown(topDialog(), 'Escape');
+    await click(button('Open WhatsApp', topDialog()));
+    return topDialog();
+  };
+  // Signed with the lead's BDE's name, sent from the caller's own WhatsApp (an Admin on a BDE's lead): warned.
+  let dialog = await reopen();
+  assert.match(clean(dialog.textContent),
+    /This opens your own WhatsApp: the parent receives it from your personal WhatsApp number, while the message is signed with Bde One’s name\./);
+  assert.ok(whatsAppLink(dialog), 'still theirs to send');
+  // A refusal stays in the dialog to be read.
+  await click(button(MARK, dialog));
+  assert.match(clean(topDialog().textContent), /This booking is no longer upcoming, so nothing more can be sent for it\./);
+  // A number WhatsApp cannot open: no chat, the message to copy -- and copied.
+  preview = { ...READY_PREVIEW, whatsapp_number: null };
+  dialog = await reopen();
+  assert.match(clean(dialog.textContent), /The parent’s number is not a full international number/);
+  assert.ok(!whatsAppLink(dialog) && button('Open WhatsApp', dialog).disabled);
+  await withClipboard(async (written) => {
+    await click(button('Copy message', topDialog()));
+    assert.deepEqual(written, [READY_PREVIEW.text]);
+  });
+  // Copying refused by the browser: the message is shown selected, to copy by hand.
+  await withClipboard(async () => {
+    await click(button('Copy message', topDialog()));
+    assert.match(clean(topDialog().textContent), /Copying is blocked here/);
+  }, true);
+  // Not ready: what it lacks, and nothing to open, copy or mark.
+  preview = { ...READY_PREVIEW, ready: false, text: null,
+    requirements: [{ code: 'BDE_CONTACT', label: "BDE's name and mobile number", met: false }] };
+  dialog = await reopen();
+  assert.match(clean(dialog.textContent), /This message cannot be sent yet\. It still needs: BDE's name and mobile number\./);
+  for (const label of ['Copy message', 'Open WhatsApp', MARK]) assert.ok(button(label, dialog).disabled, label);
 });
 
 test("Activity feed: the parent's answer is labelled and described by its codes, naming nobody", () => {
@@ -2749,6 +2835,13 @@ test("Activity feed: the parent's answer is labelled and described by its codes,
   assert.equal(describeActivity(entry({ booking_type: 'DIAGNOSTIC', outcome: 'NOT_CONFIRMED', reason_code: 'TIME_NOT_SUITABLE' })),
     "Recorded that the parent did not confirm a diagnostic booking — Time doesn't suit");
   assert.equal(describeActivity(entry({ outcome: 'NOT_CONFIRMED' })), 'Recorded that the parent did not confirm a booking');
+});
+
+test('Activity feed: a confirmation request sent by hand is labelled and described by its type, naming nobody', () => {
+  const entry = (context) => ({ action: 'booking.confirmation_request_sent_manually', context, changes: {} });
+  assert.equal(actionLabel('booking.confirmation_request_sent_manually'), 'Confirmation request sent manually');
+  assert.equal(describeActivity(entry({ booking_type: 'DEMO', lead_id: 'lead-1', message_id: 'msg-1', channel: 'MANUAL_WHATSAPP' })),
+    'Sent the parent the confirmation request for a demo booking from WhatsApp (marked as sent)');
 });
 
 test('Activity feed: a confirmation request is labelled and described by its type, naming nobody', () => {
@@ -3776,7 +3869,7 @@ const FOLLOW_UPS = '/api/bde/follow-ups/';
 const FOLLOW_UP_BDE = { id: 'bde', role: 'BDE', permissions: [
   'accounts.record_parent_confirmation', 'accounts.send_lead_communications', 'accounts.share_booking_report',
   'accounts.view_own_enquiries', 'accounts.view_own_lead_communications', 'accounts.view_own_lead_reports'] };
-const NO_ACTIONS = { request_confirmation: false, record_answer: false };
+const NO_ACTIONS = { open_whatsapp: false, mark_request_sent: false, record_answer: false };
 const FOLLOW_UP_TYPES = { NEW_ENQUIRY_CALL: 'Call new enquiry', PARENT_CONFIRMATION: 'Parent confirmation',
   PRE_ACTIVITY_CALL: 'Pre-activity call', TUTOR_REPORT: 'Share tutor report', REDEMO_CONFIRMATION: 'Re-Demo confirmation' };
 const FU_KIRAN = { id: 'e-kiran', parent_name: 'Ravi Menon', student_name: 'Kiran', grade: 'Class 7', phone: '+91 9876543210',
@@ -3790,7 +3883,7 @@ const followUp = (type, id, fields = {}) => ({ id, type, type_label: FOLLOW_UP_T
   enquiry: FU_DONA, actions: NO_ACTIONS, ...fields });
 const FU_NEW_CALL = followUp('NEW_ENQUIRY_CALL', 'f-call', { enquiry: FU_KIRAN, due_at: '2026-11-07T16:30:00+00:00' });
 const FU_CONFIRM = followUp('PARENT_CONFIRMATION', 'b-dona', { booking: followUpBooking('b-dona', 'DEMO', '2026-11-07'),
-  actions: { ...NO_ACTIONS, request_confirmation: true, record_answer: true } });
+  actions: { ...NO_ACTIONS, open_whatsapp: true, mark_request_sent: true, record_answer: true } });
 const FU_PRE_CALL = followUp('PRE_ACTIVITY_CALL', 't-call', { booking: followUpBooking('b-ali', 'DIAGNOSTIC', '2026-11-07') });
 const FU_REPORT = followUp('TUTOR_REPORT', 'r-done', { state: 'PENDING', state_label: 'Pending',
   due_at: '2026-11-08T14:40:00+00:00',
@@ -3828,7 +3921,7 @@ test('Follow-ups: reminders only, each with what does it; the call before a clas
     ['All open5', 'Due today3', 'Upcoming2', 'Overdue']);
   assert.deepEqual(rows().map((row) => clean(row.querySelector('td').textContent)), [
     'Call new enquiryDue todayCall the parent and guide them to book a Demo or Diagnostic.',
-    'Parent confirmationDue todayAsk the parent to confirm, then record their answer.',
+    'Parent confirmationDue todaySend the confirmation request from WhatsApp, mark it as sent, then record the parent’s answer.',
     'Pre-activity callDue todayCall the parent before the class starts.',
     'Share tutor reportPendingReview the report and share it with the parent.',
     'Re-Demo confirmationPendingTell the parent the Re-Demo’s date and time, then record their answer.',
@@ -3841,14 +3934,17 @@ test('Follow-ups: reminders only, each with what does it; the call before a clas
   assert.equal(report.querySelector('a[aria-label="Open Dona’s tutor report to share it"]').getAttribute('href'),
     '/enquiries/e-dona?tab=feedback');
   assert.deepEqual([...call.querySelectorAll('button')].length + [...report.querySelectorAll('button')].length, 0);
-  assert.ok(button('Request confirmation', confirm) && button('Record answer', confirm));
+  assert.ok(button('Open WhatsApp to send the confirmation request for Dona’s parent confirmation', confirm)
+    && button('Record answer', confirm) && !button('Request confirmation', confirm));
   // The call before a class: the parent's number to call or message, its communication to open -- nothing to record.
   assert.equal(preCall.querySelectorAll('button').length, 0, 'no Record outcome, nor any other button');
   assert.match(clean(preCall.textContent), /Asha Nair\+971 501234567Diagnostic test/);
   assert.equal(preCall.querySelector('a[aria-label="Call Asha Nair"]').getAttribute('href'), 'tel:+971501234567');
   assert.equal(preCall.querySelector('a[aria-label="WhatsApp Asha Nair"]').getAttribute('href'), 'https://wa.me/971501234567');
   assert.ok(preCall.querySelector('a[aria-label="Open the communication for Dona’s pre-activity call"]'));
-  assert.ok(button('Record answer', redemo) && !button('Request confirmation', redemo), 'a Re-Demo is confirmed by hand');
+  assert.ok(button('Record answer', redemo) && !button('Open WhatsApp', redemo)
+    && !button('Open WhatsApp to send the confirmation request for Dona’s re-demo confirmation', redemo),
+  'a Re-Demo is confirmed by hand, from its own prefilled WhatsApp link');
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'nothing is written by looking');
 
   // A Re-Demo's answer is recorded in the dialog the communication sheet uses.
@@ -3856,6 +3952,45 @@ test('Follow-ups: reminders only, each with what does it; the call before a clas
   assert.match(clean(topDialog().textContent), /Record parent's answerDona · Demo class · Mon, 9 Nov · 7:30 PM IST/);
   await click(button('Cancel', topDialog()));
   assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.url.includes('call-outcome')), 'no call is ever recorded');
+});
+
+test('Follow-ups: the confirmation request opens WhatsApp filled in and is marked as sent from the list; the reminder stays until the answer', async () => {
+  const FU_URL = commsUrl(FU_CONFIRM.booking);
+  let rowsNow = [FU_CONFIRM];
+  serve({
+    [`GET ${FOLLOW_UPS}`]: () => ok({ results: rowsNow, count: rowsNow.length, page: 1, page_size: 25, timezone: 'Asia/Kolkata',
+      summary: { total: rowsNow.length, today: rowsNow.length, upcoming: 0 } }),
+    [`GET ${FU_URL}preview/`]: READY_PREVIEW,
+    [`POST ${FU_URL}confirmation-request/mark-sent/`]: () => {
+      // The reminder stays, due at the class start: only the parent's answer ends it.
+      rowsNow = [{ ...FU_CONFIRM, request: { status: 'SENT', status_label: 'Sent', channel: 'MANUAL_WHATSAPP',
+        channel_label: 'WhatsApp (sent manually)', sent_at: '2026-11-07T05:12:00+00:00', sent_by: BDE_ONE },
+      actions: { ...FU_CONFIRM.actions, mark_request_sent: false } }];
+      return ok({ changed: true });
+    },
+  });
+  await open('/follow-ups', FOLLOW_UP_BDE);
+  const openWhatsApp = 'Open WhatsApp to send the confirmation request for Dona’s parent confirmation';
+  await click(button(openWhatsApp, rows()[0]));
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /^Confirmation requestDona · Demo class · /);
+  assert.equal(whatsAppLink(dialog).getAttribute('href'), `https://wa.me/971501234567?text=${encodeURIComponent(READY_PREVIEW.text)}`);
+  await click(whatsAppLink(dialog));
+  assert.ok(!globalThis.__bookingsApi.calls.some((entry) => entry.method !== 'GET'), 'opening WhatsApp writes nothing');
+  const reads = calls('GET', FOLLOW_UPS).length;
+  await click(button(MARK, dialog));
+  assert.equal(calls('POST', `${FU_URL}confirmation-request/mark-sent/`).length, 1);
+  assert.ok(calls('GET', FOLLOW_UPS).length > reads, 'the list is read again');
+  assert.match(clean(document.body.textContent), /Confirmation request marked as sent from your WhatsApp\./);
+  // Still there, still due today -- now saying the request went by hand; it may be opened again, not marked again.
+  const [row] = rows();
+  assert.equal(clean(row.querySelector('td').textContent),
+    'Parent confirmationDue todayConfirmation request sent manually from WhatsApp. Record the parent’s answer.');
+  assert.ok(button(openWhatsApp, row) && button('Record answer', row));
+  await click(button(openWhatsApp, row));
+  assert.ok(!button(MARK, topDialog()), 'marked once: not again');
+  assert.match(clean(topDialog().textContent), /Sent manually by Bde One at 7 Nov 2026, 10:42 AM IST/);
+  assert.equal(calls('POST', `${FU_URL}confirmation-request/`).length, 0, 'the retired endpoint is never called');
 });
 
 // ------------------------------------------------------- BDE Demo and Diagnostic Bookings: filters

@@ -546,8 +546,9 @@ class CommunicationViewsTests(OutboxTestCase):
 
     def test_asking_straight_after_booking_finds_the_plan(self):
         booking = self.live()
-        response = self.post(booking, 'confirmation-request', {})
-        self.assertEqual(response.status_code, 201, response.content)
+        response = self.post(booking, 'confirmation-request/mark-sent', {})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['changed'])
 
     def test_a_failing_planner_never_fails_the_request(self):
         booking = self.live()
@@ -559,7 +560,7 @@ class CommunicationViewsTests(OutboxTestCase):
         self.assertEqual(events_of(booking.pk).first().attempts, 1)  # left for the job's retry
         awaiting = self.live()
         with mock.patch('communications.planner.plan_booking', side_effect=RuntimeError('planner down')):
-            response = self.post(awaiting, 'confirmation-request', {})
+            response = self.post(awaiting, 'confirmation-request/mark-sent', {})
         self.assertEqual((response.status_code, response.json()['error']), (409, 'COMMUNICATION_PLAN_PENDING'))
 
 
@@ -764,7 +765,7 @@ class SessionNeverWaitsForCommunicationTests(OutboxTestCase):
                 self.assertEqual(outbox.plan_status(booking), outbox.PlanStatus.FAILED)
                 path = f'/api/communications/bookings/{booking.booking_type.lower()}/{booking.pk}/'
                 # Communication actions: refused, saying why.
-                asked = self.staff_api.post(path + 'confirmation-request/', {}, format='json')
+                asked = self.staff_api.post(path + 'confirmation-request/mark-sent/', {}, format='json')
                 self.assertEqual((asked.status_code, asked.json()['error']), (409, 'COMMUNICATION_PLAN_FAILED'))
                 # The BDE's answer is a business decision: recorded whatever the plan's state.
                 with planner_down():  # and not even waiting on the worker to say how the plan stands
