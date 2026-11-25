@@ -2,7 +2,17 @@ import { Fragment, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MESSAGE_MOMENTS, istMoment, joined, messageLine, stepLabel, stepLine, unplannedText } from '@/lib/communications';
+import {
+  MESSAGE_MOMENTS,
+  confirmationRequest,
+  istMoment,
+  joined,
+  messageLine,
+  sentByHandLine,
+  stepLabel,
+  stepLine,
+  unplannedText,
+} from '@/lib/communications';
 import { MessageStateBadge, ParentConfirmationBadge, TaskStateBadge } from './communication-badges';
 import { useClockTick } from '@/hooks/use-clock-tick';
 
@@ -22,7 +32,8 @@ function Heading({ children }) {
 function MessageItem({ message }) {
   const [open, setOpen] = useState(false);
   const label = stepLabel(message);
-  const line = messageLine(message);
+  // Sent by hand: who said they sent it and when, never what WhatsApp did with it.
+  const line = sentByHandLine(message) ?? messageLine(message);
   // Why it failed, or why it is being tried again -- inline, never elsewhere.
   const failure = message.status === 'FAILED' || message.next_attempt_at ? message.failure_reason : '';
   const moments = MESSAGE_MOMENTS.filter(([, field]) => message[field]);
@@ -74,6 +85,12 @@ function MessageItem({ message }) {
                 <dd>{message.created_by.full_name}</dd>
               </>
             ) : null}
+            {message.sent_by ? (
+              <>
+                <dt className="text-muted-foreground">Sent by</dt>
+                <dd>{message.sent_by.full_name}</dd>
+              </>
+            ) : null}
           </dl>
         </div>
       ) : null}
@@ -83,30 +100,32 @@ function MessageItem({ message }) {
 
 /**
  * A booking's parent communication (backend communications.overview), in
- * three parts: the parent's confirmation -- asked for and recorded here when
- * the API's `actions` allow it and the caller handles it
- * (`onRequestConfirmation`, `onRecordAnswer`) -- the five steps of PRD 3.11,
+ * three parts: the parent's confirmation -- the request sent from the
+ * caller's own WhatsApp and marked as sent, and the answer recorded, here
+ * when the API's `actions` allow it and the caller handles it
+ * (`onOpenWhatsApp`, `onRecordAnswer`) -- the five steps of PRD 3.11,
  * each with its status and its moment, and the WhatsApp messages with their
  * status and, inline, why one failed. Every moment is in Indian time. Shared
  * by the administrators' booking sheet and the BDE's communication sheet;
  * nothing here changes anything itself.
  */
-export function CommunicationDetails({ communication, onRequestConfirmation, onRecordAnswer }) {
+export function CommunicationDetails({ communication, onOpenWhatsApp, onRecordAnswer }) {
   // Its time labels move with the clock while the page stays open.
   useClockTick();
   const { booking, parent_confirmation: confirmation, tasks, messages, actions = {} } = communication;
-  const canRequest = Boolean(actions.request_confirmation && onRequestConfirmation);
+  const canOpen = Boolean(actions.open_whatsapp && onOpenWhatsApp);
   const canRecord = Boolean(actions.record_confirmation && onRecordAnswer);
+  const requestSent = sentByHandLine(confirmationRequest(communication));
   return (
     <div className="flex flex-col gap-3">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Heading>Parent confirmation</Heading>
-          {canRequest || canRecord ? (
+          {canOpen || canRecord ? (
             <div className="flex flex-wrap gap-2">
-              {canRequest ? (
-                <Button variant="outline" size="sm" onClick={onRequestConfirmation}>
-                  Request confirmation
+              {canOpen ? (
+                <Button variant="outline" size="sm" onClick={onOpenWhatsApp}>
+                  Open WhatsApp
                 </Button>
               ) : null}
               {canRecord ? (
@@ -125,6 +144,7 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
             <Detail label="Recorded">{joined(istMoment(confirmation.at), confirmation.by && `by ${confirmation.by.full_name}`)}</Detail>
           ) : null}
           {confirmation.reason ? <Detail label="Reason">{confirmation.reason.label}</Detail> : null}
+          {requestSent ? <Detail label="Request">{requestSent}</Detail> : null}
         </dl>
       </div>
       {communication.planned ? (
@@ -171,7 +191,7 @@ export function CommunicationDetails({ communication, onRequestConfirmation, onR
 }
 
 /** CommunicationDetails once read (useBookingCommunication), or why it could not be. */
-export function CommunicationBody({ communication, failure, retry, onRequestConfirmation, onRecordAnswer }) {
+export function CommunicationBody({ communication, failure, retry, onOpenWhatsApp, onRecordAnswer }) {
   if (failure && (failure.status === 403 || failure.status === 404)) {
     return (
       <p className="text-muted-foreground py-2 text-sm">
@@ -195,7 +215,7 @@ export function CommunicationBody({ communication, failure, retry, onRequestConf
   return (
     <CommunicationDetails
       communication={communication}
-      onRequestConfirmation={onRequestConfirmation}
+      onOpenWhatsApp={onOpenWhatsApp}
       onRecordAnswer={onRecordAnswer}
     />
   );

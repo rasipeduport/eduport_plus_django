@@ -36,7 +36,7 @@ from reports.tests_services import report_input
 from . import followups, planner
 from .followups import FollowUpState, FollowUpType
 from .models import CommunicationTask, Step, TaskResolution, TaskStatus
-from .services import request_confirmation
+from .services import mark_confirmation_request_sent, request_confirmation
 from .tests_planning import CommunicationTestCase
 
 URL = '/api/bde/follow-ups/'
@@ -130,11 +130,24 @@ class ConfirmationTests(FollowUpTestCase):
         [item] = self.open(now=due)
         self.assertEqual((item.type, item.id, item.due_at, item.request),
                          (FollowUpType.PARENT_CONFIRMATION, booking.id, STARTS, None))
-        self.assertEqual(item.actions, {'request_confirmation': True, 'record_answer': True})
-        # Asked: where the request stands is shown, and asking again is not offered.
+        self.assertEqual(item.actions, {'open_whatsapp': True, 'mark_request_sent': True, 'record_answer': True})
+        # A request the system was asked to send and has not: shown, and it may still be marked as sent by hand.
         request_confirmation(booking, actor=self.bde, owner_bde=self.bde, now=due + HOUR)
         [item] = self.open(now=due + HOUR)
-        self.assertEqual((item.request.status, item.actions['request_confirmation']), ('PENDING', False))
+        self.assertEqual((item.request.status, item.actions['mark_request_sent']), ('PENDING', True))
+        # Sent from the BDE's own WhatsApp and marked so: shown as theirs, by hand. Marking it again is not
+        # offered, opening WhatsApp still is -- and the reminder stays, due at the start, until the answer.
+        mark_confirmation_request_sent(booking, actor=self.bde, owner_bde=self.bde, now=due + HOUR)
+        [item] = self.open(now=due + HOUR)
+        self.assertEqual((item.type, item.due_at), (FollowUpType.PARENT_CONFIRMATION, STARTS))
+        self.assertEqual(item.actions, {'open_whatsapp': True, 'mark_request_sent': False, 'record_answer': True})
+        request = followups.row(item, due + HOUR)['request']
+        self.assertEqual(datetime.fromisoformat(request.pop('sent_at')), due + HOUR)
+        self.assertEqual(request, {
+            'status': 'SENT', 'status_label': 'Sent', 'channel': 'MANUAL_WHATSAPP',
+            'channel_label': 'WhatsApp (sent manually)',
+            'sent_by': {'id': str(self.bde.pk), 'full_name': self.bde.full_name},
+        })
         # Answered: gone.
         record_parent_confirmation(booking, ParentConfirmation.CONFIRMED, actor=self.bde, owner_bde=self.bde,
                                    now=due + 2 * HOUR)
@@ -259,7 +272,7 @@ class CallTests(FollowUpTestCase):
     def test_nothing_to_record_nothing_needed_to_end_it_never_missed(self):
         moment = STARTS - timedelta(minutes=5)
         [item] = self.open(now=moment)
-        self.assertEqual(followups.row(item, moment)['actions'], {'request_confirmation': False, 'record_answer': False})
+        self.assertEqual(followups.row(item, moment)['actions'], {'open_whatsapp': False, 'mark_request_sent': False, 'record_answer': False})
         # Left as it is, it ends at the start: its step closes by itself as a reminder.
         planner.close_expired(STARTS + timedelta(minutes=3))
         self.call.refresh_from_db()
@@ -351,7 +364,7 @@ class ApiTests(FollowUpTestCase):
                          ('NEW_ENQUIRY_CALL', 'Call new enquiry', None))
         self.assertEqual(set(row['enquiry']),
                          {'id', 'parent_name', 'student_name', 'grade', 'phone', 'phone_dial_code', 'phone_number'})
-        self.assertEqual(row['actions'], {'request_confirmation': False, 'record_answer': False})
+        self.assertEqual(row['actions'], {'open_whatsapp': False, 'mark_request_sent': False, 'record_answer': False})
 
     def test_the_call_reminder_carries_the_parents_contact_and_nothing_to_record(self):
         booking = self.book(day=indian_today() + timedelta(days=2), now=timezone.now())
@@ -362,8 +375,7 @@ class ApiTests(FollowUpTestCase):
         self.assertEqual(response.status_code, 200, response.content)
         [row] = response.json()['results']
         self.assertEqual((row['type'], row['booking']['id'], row['booking']['booking_type'], row['actions']),
-                         ('PRE_ACTIVITY_CALL', str(booking.pk), 'DEMO', {'request_confirmation': False,
-                                                                          'record_answer': False}))
+                         ('PRE_ACTIVITY_CALL', str(booking.pk), 'DEMO', {'open_whatsapp': False, 'mark_request_sent': False, 'record_answer': False}))
         self.assertEqual((row['enquiry']['parent_name'], row['enquiry']['phone_number']),
                          (booking.lead.parent_name, booking.lead.phone_number))
         # The call-outcome route is gone: nothing records how a call went.

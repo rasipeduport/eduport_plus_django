@@ -15,7 +15,10 @@ its time is up:
                          from its confirmation request's due time -- 12 hours
                          before it, or at once for one booked later than that
                          (planner.plan_booking) -- until the answer is
-                         recorded or the class starts
+                         recorded or the class starts. The BDE sends the
+                         request from their own WhatsApp and says so (Mark
+                         as sent); neither ends the reminder -- only the
+                         answer does
     PRE_ACTIVITY_CALL    from 15 minutes before a Demo or Diagnostic until it
                          starts -- its scheduled start, or its tutor's Start
                          if earlier: call the parent. A reminder only: nothing
@@ -133,10 +136,16 @@ def _permissions(user, request):
     return {name: has_app_permission(user, name, request) for name in names}
 
 
-def _actions(request_confirmation=False, record_answer=False):
-    """What the caller may do on a reminder from the list: each action the API that owns it checks again."""
+def _actions(open_whatsapp=False, mark_request_sent=False, record_answer=False):
+    """
+    What the caller may do on a reminder from the list: each action the API
+    that owns it checks again. Open WhatsApp with the confirmation request
+    filled in (writes nothing, so it stays on once the request is sent); mark
+    the request as sent from it (communications.services); record the answer.
+    """
     return {
-        'request_confirmation': request_confirmation,
+        'open_whatsapp': open_whatsapp,
+        'mark_request_sent': mark_request_sent,
         'record_answer': record_answer,
     }
 
@@ -244,7 +253,8 @@ def _confirmations(user, now, enquiry, can):
                 FollowUpType.PARENT_CONFIRMATION, booking.id, booking.lead, booking.slot.starts_at, booking=booking,
                 request=asked,
                 actions=_actions(
-                    request_confirmation=asked is None and can[SEND_COMMUNICATIONS],
+                    open_whatsapp=can[SEND_COMMUNICATIONS],
+                    mark_request_sent=can[SEND_COMMUNICATIONS] and (asked is None or asked.markable_as_sent),
                     record_answer=can[RECORD_CONFIRMATION],
                 ),
             ))
@@ -266,7 +276,9 @@ def _column(model):
 def _confirmation_requests(model, bookings):
     """The confirmation request each of ``bookings`` has, by booking id: its parent was asked."""
     column = _column(model)
-    messages = Message.objects.filter(**{f'{column}__in': bookings}, template__step=Step.CONFIRMATION_REQUEST)
+    messages = Message.objects.filter(
+        **{f'{column}__in': bookings}, template__step=Step.CONFIRMATION_REQUEST,
+    ).select_related('sent_by')
     return {getattr(message, f'{column}_id'): message for message in messages}
 
 
@@ -334,6 +346,20 @@ def _when(value):
     return value.isoformat() if value else None
 
 
+def _request(message):
+    if message is None:
+        return None
+    sender = message.sent_by
+    return {
+        'status': message.status,
+        'status_label': message.get_status_display(),
+        'channel': message.channel,
+        'channel_label': message.get_channel_display(),
+        'sent_at': _when(message.sent_at),
+        'sent_by': {'id': str(sender.pk), 'full_name': sender.full_name or sender.email} if sender else None,
+    }
+
+
 def row(item, now):
     """One reminder as the BDE's lists show it."""
     lead = item.lead
@@ -347,10 +373,9 @@ def row(item, now):
         'state_label': FollowUpState(item.state).label,
         'due_at': _when(item.due_at),
         'opens_at': _when(item.opens_at),
-        # Whether the parent was asked to confirm, and where that message stands.
-        'request': (
-            {'status': item.request.status, 'status_label': item.request.get_status_display()} if item.request else None
-        ),
+        # Whether the parent was asked to confirm, and where that message stands: sent by hand
+        # (WhatsApp, sent manually) by whom and when, as the BDE said -- never what WhatsApp reported.
+        'request': _request(item.request),
         'booking': {
             **booking_brief(booking),
             'status': booking.status,

@@ -571,6 +571,24 @@ class Message(models.Model):
         """Failed after the provider accepted it (DELIVERY_FAILURES), not refused when sent."""
         return self.status == MessageStatus.FAILED and bool(self.provider_message_id)
 
+    @property
+    def markable_as_sent(self):
+        """
+        Whether it may still be recorded as sent by hand (Channel.MANUAL_WHATSAPP):
+        unsent and held by no provider -- Waiting, Pending, or refused when it
+        was handed over -- and not being handed over now. Never one whose
+        outcome is unknown, nor one that failed after a provider took it: the
+        provider may have delivered that one, or may still report on it.
+        """
+        if self.claimed_at is not None:
+            return False
+        if self.status in (MessageStatus.WAITING, MessageStatus.PENDING):
+            return True
+        return (
+            self.status == MessageStatus.FAILED and self.failure_code != OUTCOME_UNKNOWN
+            and not self.is_delivery_failure
+        )
+
 
 class AttemptOutcome(models.TextChoices):
     ACCEPTED = 'ACCEPTED', 'Accepted by the provider'

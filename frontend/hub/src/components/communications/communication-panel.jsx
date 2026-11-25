@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { confirmationRequestNotice, parentAnswerNotice } from '@/lib/communications';
+import { confirmationRequest, parentAnswerNotice, requestSentNotice } from '@/lib/communications';
 import { CommunicationBody } from './communication-details';
 import { ConfirmationRequestDialog } from './confirmation-request-dialog';
 import { ParentAnswerDialog } from './parent-answer-dialog';
@@ -8,8 +8,9 @@ import { ParentAnswerDialog } from './parent-answer-dialog';
 /**
  * A booking's communication with the actions it offers (Phase 3.2), shared by
  * the administrators' booking sheet and the BDE's communication sheet:
- * CommunicationBody, the Request confirmation and Record answer dialogs the
- * API's `actions` allow, and what the last action did, inline. An action is
+ * CommunicationBody, the confirmation request dialog -- Open WhatsApp, then
+ * Mark as sent -- and the Record answer dialog the API's `actions` allow, and
+ * what the last action did, inline. An action is
  * answered with the communication as it now stands; the page is told
  * (`onChanged`) so it reads the booking and its timeline again. Given a
  * function as `children`, the panel renders what it returns in the body's
@@ -21,7 +22,7 @@ export function CommunicationPanel({ state, onChanged, children }) {
   const [notice, setNotice] = useState(null);
   const booking = state.communication?.booking;
   const actions = {
-    onRequestConfirmation: () => setDialog('request'),
+    onOpenWhatsApp: () => setDialog('request'),
     onRecordAnswer: () => setDialog('answer'),
   };
 
@@ -55,9 +56,11 @@ export function CommunicationPanel({ state, onChanged, children }) {
         <>
           <ConfirmationRequestDialog
             booking={booking}
+            request={confirmationRequest(state.communication)}
+            canMark={Boolean(state.communication?.actions?.mark_request_sent)}
             open={dialog === 'request'}
             onOpenChange={(open) => setDialog(open ? 'request' : null)}
-            onRequested={(data) => done(data, confirmationRequestNotice(data))}
+            onMarked={(data) => done(data, requestSentNotice(data))}
             onRefused={refused}
           />
           <ParentAnswerDialog

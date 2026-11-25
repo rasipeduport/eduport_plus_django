@@ -9,10 +9,12 @@ import { formatShortDateInZone, formatTimeInZone } from './timezone';
 
 /** A booking's communication, read-only: GET /api/communications/bookings/<demo|diagnostic>/<id>/. */
 export const bookingCommunicationUrl = (type, id) => `/api/communications/bookings/${typePath(type)}/${id}/`;
-// What one of its messages would say now (GET ?step=<STEP>), asking the parent
-// to confirm (POST) and recording their answer (POST) -- Phase 3.2.
+// What one of its messages would say now (GET ?step=<STEP>) -- and the number WhatsApp opens with --
+// saying the confirmation request was sent from one's own WhatsApp (POST), and recording the parent's
+// answer (POST). The Hub never has the request sent for it: POST …/confirmation-request/ answers 410.
 export const messagePreviewUrl = (type, id) => `${bookingCommunicationUrl(type, id)}preview/`;
-export const confirmationRequestUrl = (type, id) => `${bookingCommunicationUrl(type, id)}confirmation-request/`;
+export const confirmationRequestSentUrl = (type, id) =>
+  `${bookingCommunicationUrl(type, id)}confirmation-request/mark-sent/`;
 export const parentConfirmationUrl = (type, id) => `${bookingCommunicationUrl(type, id)}parent-confirmation/`;
 
 // Errors answer `{ error: CODE, message }`, as the booking API's do.
@@ -122,7 +124,24 @@ const MESSAGE_STATES = {
 };
 
 export function messageState(message) {
+  if (sentByHand(message)) return { label: 'Sent manually', variant: 'success' };
   return MESSAGE_STATES[message.status] ?? { label: message.status_label || message.status, variant: 'outline' };
+}
+
+/**
+ * Whether a message was sent by hand from someone's own WhatsApp (backend Channel.MANUAL_WHATSAPP): what they
+ * said they did -- Sent at most, never Delivered or Read, which nobody can know.
+ */
+export const sentByHand = (message) => message?.channel === 'MANUAL_WHATSAPP';
+
+/** "Sent manually by Priya at 25 Nov 2026, 10:42 AM IST" -- `who` and `when` as far as they are known. */
+function manualLine(who, when) {
+  return ['Sent manually', who && `by ${who}`, when && `at ${istMoment(when)}`].filter(Boolean).join(' ');
+}
+
+/** A message sent by hand (a booking's, or a follow-up's `request`) in a line: who sent it and when; else null. */
+export function sentByHandLine(message) {
+  return sentByHand(message) ? manualLine(message.sent_by?.full_name, message.sent_at) : null;
 }
 
 /** The parts that are there, as one line: "Sent · 28 Oct 2026, 2:31 PM IST". */
@@ -204,6 +223,8 @@ export function stepLine(task, booking) {
   if (task.step === 'PRE_ACTIVITY_CALL') return reminderLine(task, booking);
   switch (task.status) {
     case 'DONE':
+      // Sent by hand: who said they sent it, and when.
+      if (task.resolution === 'MARKED_SENT') return manualLine(task.resolved_by?.full_name, task.resolved_at);
       return joined(DONE_AS[task.resolution] ?? task.resolution_label, istMoment(task.resolved_at));
     case 'MISSED':
       return task.resolved_at ? `Time ran out ${istMoment(task.resolved_at)}` : null;
@@ -263,11 +284,19 @@ export function unplannedText(communication) {
   return 'No messages were planned for this booking: it was made before parent communication began.';
 }
 
-/** What asking the parent to confirm did, in a sentence (POST …/confirmation-request/ answers `created`). */
-export function confirmationRequestNotice(data) {
-  return data.created
-    ? 'Confirmation request added. It is sent to the parent on WhatsApp.'
-    : 'A confirmation request was already added for this booking.';
+/**
+ * What marking the confirmation request as sent did, in a sentence (POST …/confirmation-request/mark-sent/
+ * answers `changed`).
+ */
+export function requestSentNotice(data) {
+  return data.changed
+    ? 'Confirmation request marked as sent from your WhatsApp. Record the parent’s answer once they reply.'
+    : 'This confirmation request was already recorded as sent.';
+}
+
+/** The confirmation request among a booking communication's messages, or null. */
+export function confirmationRequest(communication) {
+  return (communication?.messages ?? []).find((message) => message.step === 'CONFIRMATION_REQUEST') ?? null;
 }
 
 /** What recording the parent's answer did, in a sentence (POST …/parent-confirmation/ answers `changed`). */

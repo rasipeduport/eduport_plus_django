@@ -693,8 +693,11 @@ SCENARIOS = [
     Scenario('communications.booking', 'get', '/api/communications/bookings/demo/{booking_a}/'),
     Scenario('communications.preview', 'get',
              '/api/communications/bookings/demo/{booking_a}/preview/?step=CONFIRMATION_REQUEST'),
+    # Retired (410): the request is sent from the BDE's own WhatsApp and marked as sent below.
     Scenario('communications.request_confirmation', 'post',
              '/api/communications/bookings/demo/{booking_a}/confirmation-request/'),
+    Scenario('communications.confirmation_request_sent', 'post',
+             '/api/communications/bookings/demo/{booking_a}/confirmation-request/mark-sent/'),
     Scenario('communications.parent_confirmation', 'post',
              '/api/communications/bookings/demo/{booking_a}/parent-confirmation/', {'outcome': 'CONFIRMED'}),
 

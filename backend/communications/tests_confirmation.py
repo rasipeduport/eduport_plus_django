@@ -7,9 +7,11 @@ becomes ready to go. Not Confirmed needs a reason and the BDE's agreement that
 it cancels the booking, and then cancels it with the ordinary cancellation.
 A BDE answers for their own leads only; the Admin for any.
 """
+import re
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -26,6 +28,7 @@ from bookings.booking_service import (
     StartedNotConfirmable,
     assign_tutor,
     cancel_booking,
+    create_booking,
     record_parent_confirmation,
     reschedule_booking,
     set_tutor_meet_link,
@@ -41,11 +44,12 @@ from bookings.models import (
     RescheduleReason,
 )
 from bookings.scheduling import indian_today
-from bookings.tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, start
+from bookings.ownership import assign_owner
+from bookings.tests_booking import DAY, DIAGNOSTIC, EVENING, MORNING, NOW, account, link, request, start
 from reports.services import submit_report
 from reports.tests_services import report_input
 
-from .models import Message, MessageCancelReason, MessageStatus, Step, TaskResolution, TaskStatus
+from .models import Message, MessageCancelReason, MessageStatus, MessageTemplate, Step, TaskResolution, TaskStatus
 from .rendering import Requirement, requirements
 from .services import request_confirmation
 from .tests_planning import BDE_PHONE, MEET_LINK, CommunicationTestCase
@@ -357,3 +361,108 @@ class AnswerRuleTests(ConfirmationTestCase):
         # A cancellation for "Parent did not confirm" without that answer.
         self.write(booking, status=BookingStatus.CANCELLED, cancelled_at=stamp, cancel_reason_code=CancelReason.NOT_CONFIRMED)
         self.untouched(booking)
+
+
+# A phone number written out: a +, digits, and the spaces or dashes people put between them.
+PHONE_NUMBER = re.compile(r'\+?\d[\d\s-]{6,}\d')
+
+
+@override_settings(COMMUNICATIONS_FALLBACK_SENDER_NAME='', COMMUNICATIONS_FALLBACK_SENDER_PHONE='')
+class BdeContactTests(ConfirmationTestCase):
+    """
+    The Demo and Diagnostic confirmed messages -- one code path for both
+    (rendering.booking_values, sender_contact) -- sign with the name and saved
+    mobile number (accounts User.full_name and mobile_number, as Team edits
+    them) of the BDE who owns the booking's lead (Lead.owner_bde), read when
+    the message is rendered: each BDE their own, a new owner's once the lead
+    is given to them, and never a number written into the templates. While
+    there is no BDE, or no number, the message waits for it -- nothing stands
+    in for it (the central contact, for a lead nobody owns, is a setting left
+    empty here).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.other_links = {booking_type: link(self.other_bde, booking_type) for booking_type in ('DEMO', DIAGNOSTIC)}
+        self.other_tutor = account('tutor_bala', role='TUTOR', tutor_meet_link=OTHER_LINK)
+
+    def book_for_other_bde(self, booking_type, at):
+        child = next(self.children)
+        booking, _ = create_booking(request(
+            student=f'Child {child}', phone=f'05077{child:05d}', booking_type=booking_type, day=DAY, at=at,
+            ref=self.other_links[booking_type].token,
+        ), now=NOW)
+        return booking
+
+    def confirmed_and_ready(self, booking, tutor):
+        booking = assign_tutor(booking, tutor, actor=self.admin, now=NOW)[0]
+        self.confirm(booking, actor=self.admin)
+        return self.confirmed_message(booking)
+
+    def assert_signed_by(self, message, name, phone):
+        self.assertEqual(message.status, MessageStatus.PENDING)
+        self.assertEqual((message.variables['bde_name'], message.variables['bde_phone']), (name, phone))
+        self.assertIn(f'**{name}**', message.body)
+        self.assertIn(f'contact me at {phone}.', message.body)
+        # The only phone number in it is that BDE's own.
+        self.assertEqual(PHONE_NUMBER.findall(message.body), [phone])
+
+    def test_the_templates_carry_no_number_only_the_bdes_placeholders(self):
+        for key in ('DEMO_CONFIRMED', 'DIAGNOSTIC_CONFIRMED'):
+            with self.subTest(key=key):
+                body = MessageTemplate.objects.get(key=key).current_version().body
+                self.assertIn('{{bde_phone}}', body)
+                self.assertIn('{{bde_name}}', body)
+                self.assertEqual(PHONE_NUMBER.findall(body), [])
+
+    def test_each_booking_signs_with_its_own_bdes_name_and_saved_number(self):
+        other_phone = self.other_bde.mobile_number
+        self.assertNotEqual(other_phone, BDE_PHONE)
+        # One tutor for each BDE's two bookings, at different times.
+        cases = (
+            ('DEMO', EVENING, lambda: self.book('DEMO', at=EVENING), self.tutor, 'Bde Anil', BDE_PHONE),
+            (DIAGNOSTIC, MORNING, lambda: self.book(DIAGNOSTIC, at=MORNING), self.tutor, 'Bde Anil', BDE_PHONE),
+            ('DEMO', EVENING, lambda: self.book_for_other_bde('DEMO', EVENING), self.other_tutor, 'Bde Bina', other_phone),
+            (DIAGNOSTIC, MORNING, lambda: self.book_for_other_bde(DIAGNOSTIC, MORNING), self.other_tutor, 'Bde Bina',
+             other_phone),
+        )
+        for booking_type, _at, book, tutor, name, phone in cases:
+            with self.subTest(booking_type=booking_type, bde=name):
+                booking = book()
+                self.assertEqual(booking.lead.owner_bde.full_name, name)
+                self.assert_signed_by(self.confirmed_and_ready(booking, tutor), name, phone)
+
+    def test_a_lead_given_to_another_bde_signs_with_the_new_bdes_number(self):
+        for booking_type, at in (('DEMO', EVENING), (DIAGNOSTIC, MORNING)):
+            with self.subTest(booking_type=booking_type):
+                booking = self.book(booking_type, at=at)
+                self.assert_signed_by(self.confirmed_and_ready(booking, self.tutor), 'Bde Anil', BDE_PHONE)
+                assign_owner(booking.lead_id, self.other_bde.pk, actor=self.admin, via='admin_leads', now=NOW)
+                self.assert_signed_by(self.confirmed_message(booking), 'Bde Bina', self.other_bde.mobile_number)
+
+    def test_a_bde_without_a_saved_number_keeps_it_waiting_with_no_number_in_its_place(self):
+        for index, missing in enumerate(('', '   ', None)):
+            type(self.bde).objects.filter(pk=self.bde.pk).update(mobile_number=missing)
+            # A tutor of its own for each case, so its two bookings never clash with another case's.
+            tutor = account(f'tutor_case_{index}', role='TUTOR', tutor_meet_link=OTHER_LINK)
+            for booking_type, at in (('DEMO', EVENING), (DIAGNOSTIC, MORNING)):
+                with self.subTest(booking_type=booking_type, mobile_number=missing):
+                    booking = self.book(booking_type, at=at)
+                    message = self.confirmed_and_ready(booking, tutor)
+                    self.assertEqual((message.status, message.body, message.variables), (MessageStatus.WAITING, '', {}))
+                    booking.refresh_from_db()
+                    checks = dict(requirements(booking, Step.PARENT_CONFIRMATION,
+                                               message.template.current_version().body, NOW))
+                    self.assertFalse(checks[Requirement.BDE_CONTACT])
+
+    def test_a_lead_with_no_bde_keeps_it_waiting_with_no_number_in_its_place(self):
+        for booking_type, at in (('DEMO', EVENING), (DIAGNOSTIC, MORNING)):
+            with self.subTest(booking_type=booking_type):
+                booking = self.book(booking_type, owned=False, at=at)
+                self.assertIsNone(booking.lead.owner_bde_id)
+                message = self.confirmed_and_ready(booking, self.tutor)
+                self.assertEqual((message.status, message.body, message.variables), (MessageStatus.WAITING, '', {}))
+                booking.refresh_from_db()
+                checks = dict(requirements(booking, Step.PARENT_CONFIRMATION, message.template.current_version().body, NOW))
+                self.assertFalse(checks[Requirement.CENTRAL_CONTACT])
+                self.assertNotIn(Requirement.BDE_CONTACT, checks)

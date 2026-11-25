@@ -24,7 +24,7 @@ from rest_framework.test import APITestCase
 from accounts.models import RoleGroup
 from activity.models import ActivityLog
 from communications.overview import booking_communication
-from communications.services import BookingNotUpcoming, request_confirmation
+from communications.services import BookingNotUpcoming, mark_confirmation_request_sent, request_confirmation
 from communications.tests_planning import MEET_LINK
 from reports.services import submit_report
 from reports.tests_services import report_input
@@ -319,13 +319,16 @@ class AfterStartRuleTests(StartTestCase):
     def test_parent_communication_stops_at_the_start(self):
         early = self.booking.slot.starts_at - timedelta(minutes=4)
         actions = booking_communication(self.fresh(self.booking), early, self.admin)['actions']
-        self.assertEqual(actions, {'request_confirmation': True, 'record_confirmation': True})
+        # Its plan is not written here (no outbox run), so there is no request step to mark as sent yet.
+        self.assertEqual(actions, {'open_whatsapp': True, 'mark_request_sent': False, 'record_confirmation': True})
         start(self.booking, minutes=-5)
         booking = self.fresh(self.booking)
         actions = booking_communication(booking, early, self.admin)['actions']
-        self.assertEqual(actions, {'request_confirmation': False, 'record_confirmation': False})
+        self.assertEqual(actions, {'open_whatsapp': False, 'mark_request_sent': False, 'record_confirmation': False})
         with self.assertRaises(BookingNotUpcoming):
             request_confirmation(booking, actor=self.admin, now=early)
+        with self.assertRaises(BookingNotUpcoming):
+            mark_confirmation_request_sent(booking, actor=self.admin, now=early)
         for outcome in (ParentConfirmation.CONFIRMED, ParentConfirmation.NOT_CONFIRMED):
             with self.subTest(outcome=outcome), self.assertRaises(StartedNotConfirmable) as refused:
                 record_parent_confirmation(booking, outcome, reason_code='NO_RESPONSE', confirm_cancellation=True,

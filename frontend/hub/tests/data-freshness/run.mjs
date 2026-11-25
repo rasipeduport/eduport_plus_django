@@ -676,10 +676,10 @@ const PRE_CALL = { id: 't-call', type: 'PRE_ACTIVITY_CALL', type_label: 'Pre-act
     phone_dial_code: '+971', phone_number: '501234567' },
   booking: { id: 'b-dona', booking_type: 'DEMO', date: '2026-11-20', time: '19:30', starts_at: '2026-11-20T14:00:00+00:00',
     status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
-  actions: { request_confirmation: false, record_answer: false } };
+  actions: { open_whatsapp: false, mark_request_sent: false, record_answer: false } };
 // The pre-activity call only reminds, so the dialog these keep open is the parent's answer to a confirmation.
 const CONFIRM = { ...PRE_CALL, id: 'b-dona', type: 'PARENT_CONFIRMATION', type_label: 'Parent confirmation',
-  actions: { request_confirmation: false, record_answer: true } };
+  actions: { open_whatsapp: false, mark_request_sent: false, record_answer: true } };
 const followUpsPage = (rows) => ({ results: rows, count: rows.length, page: 1, page_size: 25,
   summary: { total: rows.length, today: rows.length, upcoming: 0 } });
 const PARENT_ANSWER = `${COMMS('b-dona')}parent-confirmation/`;

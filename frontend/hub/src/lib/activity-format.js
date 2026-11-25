@@ -102,6 +102,7 @@ export const ACTION_LABELS = {
   'booking.start': 'Booking started',
   'booking.complete': 'Booking completed',
   'booking.confirmation_request': 'Confirmation requested',
+  'booking.confirmation_request_sent_manually': 'Confirmation request sent manually',
   'booking.parent_confirmation': 'Parent confirmation recorded',
   // Demo invitations (backend bookings.demo_invites): ids only, never the link.
   'demo_invite.issue': 'Demo invitation issued',
@@ -494,6 +495,10 @@ export function describeActivity(row) {
     // Asking the parent to confirm (backend communications.services.request_confirmation): logged once, ids only.
     case 'booking.confirmation_request':
       return `Asked the parent to confirm ${bookingOfType(row)}`;
+    // The request sent from the actor's own WhatsApp, as they said (backend
+    // communications.services.mark_confirmation_request_sent): ids only, never delivery.
+    case 'booking.confirmation_request_sent_manually':
+      return `Sent the parent the confirmation request for ${bookingOfType(row)} from WhatsApp (marked as sent)`;
     // The parent's answer (backend booking_service.record_parent_confirmation): codes only. Not Confirmed cancels the booking.
     case 'booking.parent_confirmation': {
       if (row.context?.outcome !== 'NOT_CONFIRMED') return `Recorded the parent's confirmation of ${bookingOfType(row)}`;

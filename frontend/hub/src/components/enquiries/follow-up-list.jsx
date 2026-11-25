@@ -17,7 +17,7 @@ import { ResponsiveList } from '@/components/page/responsive-list';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { ConfirmationRequestDialog } from '@/components/communications/confirmation-request-dialog';
 import { ParentAnswerDialog } from '@/components/communications/parent-answer-dialog';
-import { confirmationRequestNotice, istMoment, istParts, joined, parentAnswerNotice } from '@/lib/communications';
+import { istMoment, istParts, joined, parentAnswerNotice, requestSentNotice } from '@/lib/communications';
 import { phoneLinks, slotLabel, whatsAppUrl } from '@/lib/enquiries';
 import { FOLLOW_UP_STATE_VARIANTS, followUpPath, followUpTask } from '@/lib/follow-ups';
 import { useClockTick } from '@/hooks/use-clock-tick';
@@ -106,10 +106,18 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
   const act = (kind) => () => onAct(kind, followUp);
 
   const buttons = [];
-  if (actions.request_confirmation) {
+  // The confirmation request is sent from the BDE's own WhatsApp: the dialog opens it, then marks it as sent.
+  if (actions.open_whatsapp) {
     buttons.push(
-      <Button key="request" size="sm" onClick={act('request')} aria-label={`Request confirmation for ${whose}`}>
-        Request confirmation
+      <Button
+        key="request"
+        size="sm"
+        variant={actions.mark_request_sent ? 'default' : 'outline'}
+        onClick={act('request')}
+        aria-label={`Open WhatsApp to send the confirmation request for ${whose}`}
+      >
+        <MessageCircleIcon />
+        Open WhatsApp
       </Button>
     );
   }
@@ -118,7 +126,7 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
       <Button
         key="answer"
         size="sm"
-        variant={actions.request_confirmation ? 'outline' : 'default'}
+        variant={actions.mark_request_sent ? 'outline' : 'default'}
         onClick={act('answer')}
         aria-label={`Record the parent’s answer for ${whose}`}
       >
@@ -192,8 +200,9 @@ function Actions({ followUp, from, inEnquiry, onAct, className }) {
 /**
  * Reminders as a list: a table where it fits, cards elsewhere. Each says what
  * is to be done and by when, for which booking and (unless `inEnquiry`, inside
- * the enquiry's own workspace) whose, with the action that does it -- asking
- * for or recording the parent's confirmation in a dialog here; opening the
+ * the enquiry's own workspace) whose, with the action that does it -- sending
+ * the confirmation request from the BDE's own WhatsApp (and marking it as
+ * sent) or recording the parent's answer, in a dialog here; opening the
  * enquiry, or its report to send it to the parent; the call before a class
  * only reminds, with the parent's number to call or message. `onChanged`
  * hears of each action taken here, with what to tell
@@ -287,7 +296,9 @@ export function FollowUpList({ rows, pending, inEnquiry = false, from = null, on
       )}
       <ConfirmationRequestDialog
         booking={dialogBooking(dialog.followUp)}
-        onRequested={(data) => changed(confirmationRequestNotice(data))}
+        request={dialog.followUp?.request ?? null}
+        canMark={Boolean(dialog.followUp?.actions?.mark_request_sent)}
+        onMarked={(data) => changed(requestSentNotice(data))}
         onRefused={onRefused}
         {...dialogProps('request')}
       />
