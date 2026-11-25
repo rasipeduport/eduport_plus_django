@@ -8,8 +8,8 @@ import {
   CircleDotIcon,
   ClipboardCheckIcon,
   ClockIcon,
+  MessageCircleIcon,
   MinusIcon,
-  SendIcon,
   TimerOffIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
@@ -20,12 +20,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MESSAGE_MOMENTS,
+  confirmationRequest,
   istMoment,
   joined,
   latestMessages,
   messageLine,
   messageState,
   reminderState,
+  sentByHandLine,
   stepLabel,
   stepLine,
   unplannedText,
@@ -65,14 +67,17 @@ export function Empty({ children }) {
 
 /**
  * The parent's answer to the confirmation request, first in the sheet: where
- * it stands, who recorded it and why not, and asking for it and recording it
- * where the API's `actions` allow -- with what the last of those did.
+ * it stands, who recorded it and why not, who sent the request by hand and
+ * when; then opening WhatsApp to send the request (and mark it as sent) and
+ * recording the answer -- two separate actions, where the API's `actions`
+ * allow -- with what the last of those did.
  */
-export function ParentConfirmationCard({ communication, notice, onRequestConfirmation, onRecordAnswer }) {
+export function ParentConfirmationCard({ communication, notice, onOpenWhatsApp, onRecordAnswer }) {
   const headingId = useId();
   const { booking, parent_confirmation: confirmation, actions = {} } = communication;
-  const canRequest = Boolean(actions.request_confirmation && onRequestConfirmation);
+  const canOpen = Boolean(actions.open_whatsapp && onOpenWhatsApp);
   const canRecord = Boolean(actions.record_confirmation && onRecordAnswer);
+  const requestSent = sentByHandLine(confirmationRequest(communication));
   return (
     <section aria-labelledby={headingId} className="bg-card rounded-xl border p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -90,13 +95,16 @@ export function ParentConfirmationCard({ communication, notice, onRequestConfirm
             ) : null}
             {confirmation.reason ? <span className="text-xs">Reason: {confirmation.reason.label}</span> : null}
           </div>
+          {requestSent ? (
+            <p className="text-muted-foreground mt-1 text-xs">Confirmation request: {requestSent}</p>
+          ) : null}
         </div>
-        {canRequest || canRecord ? (
+        {canOpen || canRecord ? (
           <div className="flex flex-wrap gap-2 *:flex-1 sm:shrink-0 sm:*:flex-none">
-            {canRequest ? (
-              <Button variant="outline" size="sm" onClick={onRequestConfirmation}>
-                <SendIcon />
-                Request confirmation
+            {canOpen ? (
+              <Button variant="outline" size="sm" onClick={onOpenWhatsApp}>
+                <MessageCircleIcon />
+                Open WhatsApp
               </Button>
             ) : null}
             {canRecord ? (
@@ -216,6 +224,8 @@ function MessageDetails({ id, message }) {
     ['Attempts', message.attempt_count ? String(message.attempt_count) : null],
     ['Channel', message.channel_label],
     ['Requested by', message.created_by?.full_name],
+    // Sent by hand: who said they sent it from their own WhatsApp.
+    ['Sent by', message.sent_by?.full_name],
     ['Added', istMoment(message.created_at)],
   ];
   const attempts = message.attempts ?? [];
@@ -294,7 +304,8 @@ export function MessageRow({ message }) {
   // Why it failed, or why it is being tried again -- in the row itself.
   const failure = failed || message.next_attempt_at ? message.failure_reason || (failed ? message.problem?.label : '') : '';
   const when = messageLine(message) ?? (message.scheduled_for ? `Scheduled for ${istMoment(message.scheduled_for)}` : null);
-  const meta = joined(message.channel_label, when);
+  // Sent by hand: who said they sent it and when -- the channel says it went from their own WhatsApp.
+  const meta = sentByHandLine(message) ?? joined(message.channel_label, when);
   return (
     <li className={cn('bg-card rounded-lg border p-3', failed && 'border-destructive/40 bg-destructive/5')}>
       <div className="flex items-start justify-between gap-3">
@@ -472,7 +483,7 @@ function WorkspaceSkeleton() {
  * wide screen, one under the other on a narrow one. The
  * columns scroll on their own on a wide screen; the whole body on a narrow one.
  */
-export function CommunicationWorkspace({ communication, failure, retry, notice, onRequestConfirmation, onRecordAnswer }) {
+export function CommunicationWorkspace({ communication, failure, retry, notice, onOpenWhatsApp, onRecordAnswer }) {
   const workflowHeadingId = useId();
   if (failure) {
     return (
@@ -489,7 +500,7 @@ export function CommunicationWorkspace({ communication, failure, retry, notice, 
         <ParentConfirmationCard
           communication={communication}
           notice={notice}
-          onRequestConfirmation={onRequestConfirmation}
+          onOpenWhatsApp={onOpenWhatsApp}
           onRecordAnswer={onRecordAnswer}
         />
       </div>

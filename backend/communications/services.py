@@ -1,6 +1,11 @@
 """
 What a BDE or the Admin do with a booking's communication (PRD 3.11): see a
-message before it goes and ask the parent to confirm. Recording the parent's
+message before it goes and ask the parent to confirm. The Hub asks by hand:
+it opens the BDE's own WhatsApp with the confirmation request filled in,
+which writes nothing, and the BDE then says they sent it
+(mark_confirmation_request_sent) -- the request is never sent through a
+provider from the Hub any more (request_confirmation stays for the system's
+own use; its endpoint answers 410). Recording the parent's
 answer changes the booking, so it lives with the other booking writes
 (bookings.booking_service.record_parent_confirmation). The 15-minute call
 before a class is a reminder only (communications.followups): nothing is
@@ -34,7 +39,7 @@ from bookings.models import BookingStatus, ParentConfirmation
 
 from . import outbox, planner
 from .formatting import whatsapp_message
-from .models import MessageTemplate, Step, template_key
+from .models import HANDED_OVER_STATUSES, MessageTemplate, Step, template_key
 from .rendering import booking_values, is_ready, render, requirements
 
 
@@ -101,6 +106,18 @@ def not_planned(booking):
     return NotPlanned()
 
 
+class RequestNotMarkable(CommunicationError):
+    """
+    The confirmation request is a provider's: being handed over now, or what
+    became of it is not known -- the provider may have delivered it -- so the
+    BDE cannot record it as sent by hand.
+    """
+    code = 'REQUEST_NOT_MARKABLE'
+    http_status = 409
+    message = ('This confirmation request is being sent through WhatsApp, or what happened to it is still being '
+               'checked, so it cannot be marked as sent by hand.')
+
+
 class RedemoManual(CommunicationError):
     """A Re-Demo (bookings.redemos): the BDE contacts its parent by hand, so nothing is sent for it."""
     code = 'REDEMO_MANUAL'
@@ -133,9 +150,10 @@ def preview(booking, step, now=None):
 
 def request_confirmation(booking, *, actor, owner_bde=None, now=None):
     """
-    The BDE (or the Admin) asks to send ``booking``'s confirmation request --
-    whenever they choose: it is available from the moment the booking is made,
-    its 12-hour target is only a target. Returns (message, created): asking
+    The system asks to send ``booking``'s confirmation request through the
+    provider, on ``actor``'s behalf. No longer reached from the Hub: its
+    endpoint answers 410, and the BDE sends the request from their own
+    WhatsApp (mark_confirmation_request_sent). Returns (message, created): asking
     again returns the message already written, so it never goes twice.
 
     Refused once the booking is no longer upcoming (BookingNotUpcoming): no
@@ -190,6 +208,82 @@ def request_confirmation(booking, *, actor, owner_bde=None, now=None):
         entity_label=slot_label(booking.slot),
         # Ids only, as for every booking entry: no parent, student, phone or message text.
         context={'booking_type': booking.booking_type, 'lead_id': str(booking.lead_id), 'message_id': str(message.pk)},
+        actor=actor,
+    )
+    return message, True
+
+
+def mark_confirmation_request_sent(booking, *, actor, owner_bde=None, now=None):
+    """
+    The BDE (or the Admin) says they sent ``booking``'s confirmation request
+    themselves, from their own WhatsApp -- the Hub's Open WhatsApp fills it in
+    and records nothing. Recorded as sent by hand by ``actor`` now
+    (planner.record_sent_by_hand): WhatsApp (sent manually), Sent and never
+    Delivered or Read, its step done as Sent manually. Returns (message,
+    changed).
+
+    One request per booking: a request already written -- asked for when the
+    Hub still sent requests itself, and unsent, held by no provider
+    (Message.markable_as_sent) -- becomes this record; no second is ever
+    written. Saying it again returns the request as it stands (changed
+    False), as it does for one already sent. Refused once the booking is no
+    longer upcoming (BookingNotUpcoming); once the parent has answered
+    (ConfirmationNotNeeded); for a Re-Demo (RedemoManual: its messages are
+    sent by hand and never recorded); for a booking with no plan
+    (NotPlanned, CommunicationPlanPending, CommunicationPlanFailed); for a
+    request a provider holds or may have delivered (RequestNotMarkable); and
+    while the message lacks something it needs (MessageBlocked). Takes the
+    booking's lock, then the request's -- the order the sender and every
+    planner change take them -- so it never races a send, an answer, a
+    cancellation or a move. Logged once, when it changes something (activity
+    ``booking.confirmation_request_sent_manually``).
+    """
+    now = now or timezone.now()
+    try:
+        with transaction.atomic():
+            _set_lock_timeout()
+            booking = _locked_booking(booking)
+            _check_owner(booking, owner_bde)
+            if (booking.status != BookingStatus.BOOKED or booking.started_at is not None
+                    or booking.slot.starts_at <= now):
+                raise BookingNotUpcoming()
+            message = (
+                booking.communication_messages.select_for_update(of=('self',)).select_related('template')
+                .filter(template__step=Step.CONFIRMATION_REQUEST).first()
+            )
+            if message is not None and message.status in HANDED_OVER_STATUSES:
+                return message, False
+            if booking.parent_confirmation != ParentConfirmation.AWAITING:
+                raise ConfirmationNotNeeded()
+            if getattr(booking, 'redemo_for_id', None):
+                raise RedemoManual()
+            task = booking.communication_tasks.filter(step=Step.CONFIRMATION_REQUEST).first()
+            if task is None:
+                raise not_planned(booking)
+            if message is not None and not message.markable_as_sent:
+                raise RequestNotMarkable()
+            version = MessageTemplate.objects.get(
+                key=template_key(booking.booking_type, Step.CONFIRMATION_REQUEST),
+            ).current_version()
+            missing = [requirement for requirement, met in requirements(
+                booking, Step.CONFIRMATION_REQUEST, version.body, now) if not met]
+            if missing:
+                raise MessageBlocked(missing)
+            message = planner.record_sent_by_hand(booking, task, actor, now, message=message)
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
+            raise BookingBusy() from exc
+        raise
+    log_activity(
+        action='booking.confirmation_request_sent_manually',
+        entity_type='booking',
+        entity_id=booking.id,
+        entity_label=slot_label(booking.slot),
+        # Ids only, as for every booking entry: no parent, student, phone or message text.
+        context={
+            'booking_type': booking.booking_type, 'lead_id': str(booking.lead_id), 'message_id': str(message.pk),
+            'channel': message.channel,
+        },
         actor=actor,
     )
     return message, True

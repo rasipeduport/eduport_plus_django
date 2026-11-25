@@ -23,7 +23,7 @@ from accounts.models import RoleGroup
 from activity.models import ActivityLog
 from communications.models import CommunicationTask, Message
 from communications.overview import booking_communication
-from communications.services import RedemoManual, request_confirmation
+from communications.services import RedemoManual, mark_confirmation_request_sent, request_confirmation
 from reports.models import DemoReport, DemoReportRevision
 from reports.services import edit_report, submit_report
 from reports.tests_services import demo_input
@@ -409,10 +409,14 @@ class CommunicationTests(RedemoTestCase):
         booking = self.book(self.ask())
         with self.assertRaises(RedemoManual):
             request_confirmation(booking, actor=self.bde, owner_bde=self.bde, now=AFTER)
+        # Its messages are sent by hand from the Re-Demo itself and never recorded: nothing to mark as sent.
+        with self.assertRaises(RedemoManual):
+            mark_confirmation_request_sent(booking, actor=self.bde, owner_bde=self.bde, now=AFTER)
         shown = booking_communication(DemoBooking.objects.select_related('slot', 'lead__owner_bde').get(pk=booking.pk),
                                       AFTER, user=self.admin)
         self.assertEqual((shown['redemo'], shown['planned'], shown['tasks'], shown['messages']), (True, False, [], []))
-        self.assertEqual(shown['actions'], {'request_confirmation': False, 'record_confirmation': True})
+        self.assertEqual(shown['actions'],
+                         {'open_whatsapp': False, 'mark_request_sent': False, 'record_confirmation': True})
         # The BDE calls the parent and records what they said; still nothing is sent.
         record_parent_confirmation(booking, ParentConfirmation.CONFIRMED, actor=self.bde, owner_bde=self.bde, now=AFTER)
         self.assertEqual(DemoBooking.objects.get(pk=booking.pk).parent_confirmation, ParentConfirmation.CONFIRMED)
@@ -621,9 +625,12 @@ class AdminApiTests(RedemoApiTestCase):
         booking = schedule_redemo(redemo, self.tutor, self.day, EVENING, actor=self.admin)
         base = f'/api/communications/bookings/demo/{booking.pk}/'
         shown = self.as_user(self.admin).get(base).data
-        self.assertEqual((shown['redemo'], shown['planned'], shown['actions']['request_confirmation']), (True, False, False))
-        res = self.as_user(self.admin).post(f'{base}confirmation-request/', {}, format='json')
+        self.assertEqual((shown['redemo'], shown['planned'], shown['actions']['open_whatsapp'],
+                          shown['actions']['mark_request_sent']), (True, False, False, False))
+        res = self.as_user(self.admin).post(f'{base}confirmation-request/mark-sent/', {}, format='json')
         self.assertEqual((res.status_code, res.data['error']), (409, 'REDEMO_MANUAL'))
+        res = self.as_user(self.admin).post(f'{base}confirmation-request/', {}, format='json')
+        self.assertEqual((res.status_code, res.data['error']), (410, 'CONFIRMATION_REQUESTS_RETIRED'))
         self.assertFalse(Message.objects.filter(demo_booking=booking).exists())
         # An ordinary Demo's communication says it is no Re-Demo.
         self.assertFalse(self.as_user(self.admin).get(f'/api/communications/bookings/demo/{self.demo.pk}/').data['redemo'])

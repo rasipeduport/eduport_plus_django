@@ -63,7 +63,9 @@ def booking_communication(booking, now, user=None, request=None):
         key=lambda task: STEP_ORDER[task.step],
     )
     messages = list(
-        booking.communication_messages.select_related('template', 'template_version', 'created_by').prefetch_related(
+        booking.communication_messages.select_related(
+            'template', 'template_version', 'created_by', 'sent_by',
+        ).prefetch_related(
             Prefetch('attempts', queryset=MessageAttempt.objects.select_related('triggered_by').order_by('number')),
             Prefetch('status_events', queryset=MessageStatusEvent.objects.order_by('occurred_at', 'received_at')),
         ).order_by('created_at')
@@ -77,7 +79,7 @@ def booking_communication(booking, now, user=None, request=None):
         'parent_confirmation': parent_confirmation(booking),
         'tasks': [_task(task, now) for task in tasks],
         'messages': [_message(message, booking, now) for message in messages],
-        'actions': _actions(booking, messages, now, user, request),
+        'actions': _actions(booking, tasks, messages, now, user, request),
     }
 
 
@@ -169,6 +171,8 @@ def _message(message, booking, now):
             {'code': message.cancel_reason, 'label': message.get_cancel_reason_display()} if message.cancel_reason else None
         ),
         'created_by': _person(message.created_by),
+        # Who sent it by hand (WhatsApp, sent manually): what they said they did, never what WhatsApp reported.
+        'sent_by': _person(message.sent_by),
         'created_at': _when(message.created_at),
         'attempts': [
             {
@@ -241,17 +245,21 @@ def _problem(message):
     return {'code': problem.value, 'label': problem.label}
 
 
-def _actions(booking, messages, now, user, request):
+def _actions(booking, tasks, messages, now, user, request):
     """
     What ``user`` could do now, by the permissions they hold and the rules the
     services apply (the caller already sees the booking, so it is theirs to act
-    on): ask for confirmation once while the parent has not answered
-    (services.request_confirmation), and record the answer until the slot
-    starts or its tutor starts it, whichever comes first
+    on). While the parent has not answered: open their own WhatsApp with the
+    confirmation request filled in -- writing nothing, so as often as they
+    like, before and after they sent it -- and, once, say they sent it
+    (services.mark_confirmation_request_sent: a booking with a plan, whose
+    request no provider holds and nobody has marked yet). Record the answer
+    until the slot starts or its tutor starts it, whichever comes first
     (booking_service.record_parent_confirmation). The 15-minute call is a
     reminder in the BDE's follow-ups (communications.followups): nothing is
-    recorded on it, here or there. A Re-Demo is never asked for
-    confirmation: the BDE calls its parent, and may record their answer.
+    recorded on it, here or there. A Re-Demo's request is never offered here:
+    its messages are the BDE's by hand from the Re-Demo itself, never
+    recorded; its answer may be recorded.
     """
     def holds(permission):
         return user is not None and has_app_permission(user, permission, request)
@@ -259,11 +267,16 @@ def _actions(booking, messages, now, user, request):
     upcoming = (
         booking.status == BookingStatus.BOOKED and booking.started_at is None and booking.slot.starts_at > now
     )
-    asked = any(message.template.step == Step.CONFIRMATION_REQUEST for message in messages)
+    asking = (
+        upcoming and booking.parent_confirmation == ParentConfirmation.AWAITING and not _is_redemo(booking)
+        and holds(SEND_COMMUNICATIONS)
+    )
+    planned = any(task.step == Step.CONFIRMATION_REQUEST for task in tasks)
+    request_message = next((message for message in messages if message.template.step == Step.CONFIRMATION_REQUEST), None)
     return {
-        'request_confirmation': (
-            upcoming and booking.parent_confirmation == ParentConfirmation.AWAITING and not asked
-            and not _is_redemo(booking) and holds(SEND_COMMUNICATIONS)
+        'open_whatsapp': asking,
+        'mark_request_sent': (
+            asking and planned and (request_message is None or request_message.markable_as_sent)
         ),
         'record_confirmation': upcoming and holds(RECORD_CONFIRMATION),
     }

@@ -24,7 +24,9 @@ from unittest import mock, skipUnless
 from django.db import OperationalError, connection, transaction
 from django.test import TransactionTestCase, override_settings
 
+from activity.models import ActivityLog
 from bookings.booking_service import (
+    _locked_booking,
     assign_tutor,
     cancel_booking,
     create_booking,
@@ -37,6 +39,7 @@ from bookings.tests_booking import DAY, DEMO, MORNING, NOW, account, link, reque
 from . import outbox, planner, sending, tasks
 from .models import (
     AttemptOutcome,
+    Channel,
     CommunicationTask,
     Message,
     MessageCancelReason,
@@ -48,7 +51,7 @@ from .models import (
 )
 from .providers.base import SendResult, StatusUpdate
 from .sending import SendOutcome, SendReport, _claim, _finish, recover_stuck_sends, send_message
-from .services import request_confirmation
+from .services import BookingNotUpcoming, RequestNotMarkable, mark_confirmation_request_sent, request_confirmation
 from .status_updates import StatusResult, apply_status_update
 from .tests_planning import MEET_LINK
 from .tests_providers import FakeProvider, use_fake_provider
@@ -550,3 +553,82 @@ class LockTimeoutTests(SeparateTransactionsTestCase):
             result = tasks.close_expired_communications()
         self.assertGreaterEqual(result['expired'], 1)
         self.assertEqual(Message.objects.get(pk=ack.pk).status, MessageStatus.CANCELLED)
+
+
+class MarkSentConcurrencyTests(LockingTestCase):
+    """
+    Marking the confirmation request as sent by hand takes the booking's slot
+    and row, then the request's -- the order the sender and every booking
+    change take them: two marks at once write one record and one log entry; a
+    mark that waits for a cancellation sees the booking cancelled; and a mark
+    racing the sender for a request the system was asked to send never lets
+    both win -- the parent gets it once, by hand or from the provider.
+    """
+
+    def test_two_marks_at_once_write_one_record(self):
+        booking = self.book()
+        together = threading.Barrier(2)
+
+        def mark():
+            together.wait(timeout=10)
+            return mark_confirmation_request_sent(booking, actor=self.bde, now=NOW)[1]
+
+        outcomes = self.run_threads(mark, mark)
+        self.assertEqual(sorted(outcomes, key=str), [False, True], outcomes)
+        message = self.message(booking, Step.CONFIRMATION_REQUEST)
+        self.assertEqual((message.status, message.channel, message.sent_by), (MessageStatus.SENT, Channel.MANUAL_WHATSAPP, self.bde))
+        self.assertEqual((message.task.status, message.task.resolution), (TaskStatus.DONE, TaskResolution.MARKED_SENT))
+        self.assertEqual(ActivityLog.objects.filter(action='booking.confirmation_request_sent_manually').count(), 1)
+
+    def test_a_mark_waits_for_a_cancellation_and_sees_it(self):
+        booking = self.book()
+        held = threading.Event()
+
+        def cancel_slowly():
+            with transaction.atomic():
+                _locked_booking(booking)
+                held.set()
+                clock.sleep(SETTLE)  # the mark reaches the booking's rows meanwhile
+                cancel_booking(booking, reason_code=CancelReason.PARENT_REQUEST, actor=self.admin, now=NOW)
+            return 'cancelled'
+
+        def mark():
+            held.wait(timeout=10)
+            try:
+                mark_confirmation_request_sent(booking, actor=self.bde, now=NOW)
+            except BookingNotUpcoming:
+                return 'not upcoming'
+            return 'marked'
+
+        self.assertEqual(self.run_threads(cancel_slowly, mark), ['cancelled', 'not upcoming'])
+        self.assertFalse(Message.objects.filter(demo_booking=booking, template__step=Step.CONFIRMATION_REQUEST).exists())
+
+    def test_a_mark_and_the_sender_never_both_win(self):
+        booking = self.book()
+        asked, _created = request_confirmation(booking, actor=self.admin, now=NOW)
+        together = threading.Barrier(2)
+
+        def send():
+            together.wait(timeout=10)
+            return send_message(asked.pk, now=NOW).outcome
+
+        def mark():
+            together.wait(timeout=10)
+            try:
+                return mark_confirmation_request_sent(booking, actor=self.bde, now=NOW)[1]
+            except RequestNotMarkable:
+                return 'not markable'
+
+        sent, marked = self.run_threads(send, mark)
+        message = Message.objects.get(pk=asked.pk)
+        if marked is True:
+            # The mark came first: the sender found nothing to send.
+            self.assertIn(sent, (SendOutcome.NOT_PENDING, SendOutcome.BUSY), (sent, marked))
+            self.assertEqual((message.status, message.channel), (MessageStatus.SENT, Channel.MANUAL_WHATSAPP))
+            self.assertEqual(FakeProvider.outbox, [])
+        else:
+            # The sender came first: the provider has it, and the mark changed nothing.
+            self.assertEqual(sent, SendOutcome.QUEUED, (sent, marked))
+            self.assertIn(marked, ('not markable', False))
+            self.assertEqual((message.channel, message.sent_by), (Channel.WHATSAPP, None))
+            self.assertEqual(len(FakeProvider.outbox), 1)

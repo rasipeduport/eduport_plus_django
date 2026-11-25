@@ -66,6 +66,7 @@ from .models import (
     HANDED_OVER_STATUSES,
     OUTCOME_UNKNOWN,
     UNSENT_STATUSES,
+    Channel,
     CommunicationTask,
     Message,
     MessageCancelReason,
@@ -428,6 +429,49 @@ def add_message(booking, step, now, **fields):
     """
     task = CommunicationTask.objects.get(**booking_field(booking), step=step)
     return _add_message(booking, task, now, **fields)
+
+
+def record_sent_by_hand(booking, task, actor, now, message=None):
+    """
+    ``booking``'s message for ``task``'s step as ``actor`` sent it by hand,
+    from their own WhatsApp, now (communications.services): ``message`` -- its
+    row, unsent and held by no provider (Message.markable_as_sent) -- or a new
+    one, never a second. Its text is the template's current version filled in
+    from the booking, as the BDE was shown it; it is Sent (Channel.MANUAL_WHATSAPP)
+    and nothing more, as nobody can know it was delivered or read; and its task
+    is done as Sent manually. Locks: the caller holds the booking's and the
+    message's.
+    """
+    if message is None:
+        message = Message(
+            **booking_field(booking),
+            task=task,
+            template=MessageTemplate.objects.get(key=template_key(booking.booking_type, task.step)),
+            scheduled_for=now,
+            send_before=booking.slot.starts_at,
+        )
+    version = message.template.current_version()
+    values = booking_values(booking)
+    message.recipient_phone = booking.lead.phone_key
+    message.template_version = version
+    message.body = render(version.body, values)
+    message.variables = message_values(version.body, values)
+    message.status = MessageStatus.SENT
+    message.channel = Channel.MANUAL_WHATSAPP
+    # No provider ever had it: a refused attempt stays in its attempts.
+    message.provider = ''
+    message.next_attempt_at = None
+    message.sent_at = now
+    message.sent_by = actor
+    if message.created_by_id is None:
+        message.created_by = actor
+    message.save()
+    _update_tasks(
+        CommunicationTask.objects.filter(pk=task.pk, status=TaskStatus.OPEN),
+        status=TaskStatus.DONE, resolution=TaskResolution.MARKED_SENT,
+        resolved_at=now, resolved_by=actor, updated_at=now,
+    )
+    return message
 
 
 # ---------------------------------------------------------------- helpers

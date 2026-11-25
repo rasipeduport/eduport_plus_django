@@ -171,7 +171,7 @@ const BDE_FOLLOW_UPS = { status: 200, body: { count: 1, page: 1, page_size: 25, 
     booking: { ...NEXT_DEMO, status: 'BOOKED', activity_state: 'UPCOMING', redemo: false },
     enquiry: { id: ENQUIRY_ID, parent_name: 'Asha Nair', student_name: 'Riya', grade: 'Class 8', phone: '+971 501234567',
       phone_dial_code: '+971', phone_number: '501234567' },
-    actions: { request_confirmation: true, record_answer: true } }] } };
+    actions: { open_whatsapp: true, mark_request_sent: true, record_answer: true } }] } };
 const BDE_ACTIVITY = { status: 200, body: { count: 1, page: 1, page_size: 30, timezone: 'Asia/Kolkata', results: [{
   id: '4f6a8b0c-2d3e-4f5a-9b0c-1d2e3f4a5b6c', kind: 'CREATED', kind_label: 'Created', at: '2026-10-27T09:00:00+05:30',
   by_you: false, detail: { origin: 'public_booking' }, booking: NEXT_DEMO,
@@ -312,7 +312,7 @@ const BOOKING_COMMUNICATION = { status: 200, body: { timezone: 'Asia/Kolkata', p
     active_from: '2026-10-28T09:00:00+00:00', due_at: '2026-10-28T12:00:00+00:00', expires_at: '2026-10-31T14:00:00+00:00',
     overdue: false, resolved_at: null, resolved_by: null }],
   messages: [],
-  actions: { request_confirmation: true, record_confirmation: true } } };
+  actions: { open_whatsapp: true, mark_request_sent: true, record_confirmation: true } } };
 function withCommunications(answers, permissions) {
   const me = answers['/api/auth/me/'];
   return {

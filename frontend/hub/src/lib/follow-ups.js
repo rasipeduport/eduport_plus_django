@@ -80,9 +80,13 @@ export function followUpTask(followUp, now = Date.now()) {
     case 'TOKEN_TUITION':
       return followUp.reservation ? tokenTask(followUp.reservation) : TASKS.TOKEN_TUITION;
     case 'PARENT_CONFIRMATION':
-      return followUp.request
+      // Sent by hand from the BDE's own WhatsApp: what they said, never what WhatsApp reported.
+      if (followUp.request?.channel === 'MANUAL_WHATSAPP') {
+        return 'Confirmation request sent manually from WhatsApp. Record the parent’s answer.';
+      }
+      return followUp.request && !followUp.actions?.mark_request_sent
         ? `Confirmation request ${REQUEST_STATES[followUp.request.status] ?? followUp.request.status_label.toLowerCase()}. Record the parent’s answer.`
-        : 'Ask the parent to confirm, then record their answer.';
+        : 'Send the confirmation request from WhatsApp, mark it as sent, then record the parent’s answer.';
     case 'PRE_ACTIVITY_CALL':
       return (
         callReminder(

@@ -75,7 +75,7 @@ ENQUIRY_FIELDS = sorted(ENQUIRY_ROW_FIELDS + [
 ])
 # A reminder as the BDE's follow-ups list it (communications.followups.row): a new enquiry's has no booking.
 FOLLOW_UP_ROW_FIELDS = [
-    'actions', 'actions.record_answer', 'actions.request_confirmation', 'booking', 'due_at',
+    'actions', 'actions.mark_request_sent', 'actions.open_whatsapp', 'actions.record_answer', 'booking', 'due_at',
     'enquiry', 'enquiry.grade', 'enquiry.id', 'enquiry.parent_name', 'enquiry.phone', 'enquiry.phone_dial_code',
     # parent_messages: a Re-Demo confirmation's messages to send by hand (communications.redemo_messages), else null.
     'enquiry.phone_number', 'enquiry.student_name', 'id', 'opens_at', 'parent_messages', 'request', 'state',
@@ -163,13 +163,19 @@ BDE_WORKSPACE = {
         'status': 200, 'records': [],
         'fields': ['booking_id', 'bookings', 'chain_ids', 'entries', 'student_timezone', 'timezone'],
     },
-    # ... and its communication too (Phase 3.1), which the BDE may neither preview, ask about nor answer for (3.2).
+    # ... and its communication too (Phase 3.1), which the BDE may neither preview, mark as sent nor answer for
+    # (3.2). The retired request endpoint answers 410 to every caller allowed to call it, reading nothing.
     'communications.booking': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                'fields': ['error', 'message']},
     'communications.preview': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.', 'records': [],
                                'fields': ['error', 'message']},
-    'communications.request_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
-                                            'records': [], 'fields': ['error', 'message']},
+    'communications.request_confirmation': {
+        'status': 410, 'error': 'CONFIRMATION_REQUESTS_RETIRED', 'records': [], 'fields': ['error', 'message'],
+        'message': ('The Hub no longer sends confirmation requests itself. Reload the page, open WhatsApp from the '
+                    'booking, send the message from your own WhatsApp, then mark it as sent.'),
+    },
+    'communications.confirmation_request_sent': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
+                                                 'records': [], 'fields': ['error', 'message']},
     'communications.parent_confirmation': {'status': 404, 'error': 'NOT_FOUND', 'message': 'No such booking.',
                                            'records': [], 'fields': ['error', 'message']},
     # The catalogue on sale, as an administrator sees it: syllabus_a (published) only -- syllabus_b, a draft, is
