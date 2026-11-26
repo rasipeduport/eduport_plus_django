@@ -122,7 +122,7 @@ export default function TutorEarningsPage({ user }) {
   if (failure?.status === 403) {
     content = <AccessDeniedState title="You don't have access to Tutor Earnings." message={failure.message} />;
   } else if (failure && !data) {
-    content = <ErrorState message={failure.message} onRetry={reload} />;
+    content = <ErrorState message={failure.message} onRetry={reload} pending={pending} />;
   } else if (!data) {
     content = (
       <div className="flex flex-col gap-4" aria-busy="true">

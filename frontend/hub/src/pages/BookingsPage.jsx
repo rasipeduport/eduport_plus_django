@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeftIcon, RefreshCwIcon } from 'lucide-react';
+import { ArrowLeftIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { PERMISSIONS, can } from '@/lib/access';
@@ -23,6 +23,7 @@ import { AssignTutorDialog } from '@/components/bookings/assign-tutor-dialog';
 import { AdminBookingFilters, BookingList } from '@/components/bookings/booking-list';
 import { RedemoList } from '@/components/bookings/redemo-list';
 import { Page, PageHeader } from '@/components/page/page';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 
 const PAGE_SIZE = 25;
@@ -50,12 +51,7 @@ function BookingsHeader({ type, onRefresh, pending }) {
     <PageHeader
       title={title}
       description={description}
-      actions={
-        <Button variant="outline" onClick={onRefresh} disabled={pending}>
-          <RefreshCwIcon />
-          Refresh
-        </Button>
-      }
+      actions={<RefreshButton size="default" onClick={onRefresh} pending={pending} />}
     />
   );
 }

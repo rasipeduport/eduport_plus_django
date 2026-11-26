@@ -1,28 +1,21 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LogOut, RefreshCw } from 'lucide-react';
-import api from '../lib/api';
 import { useStudent } from '../components/student/student-context';
+import { useStatusCheck } from '../hooks/useStatusCheck';
 
-// Shown to students whose profile is not yet linked to student records.
+// What a check that leaves the student here says.
+const OUTCOMES = {
+  waiting: { tone: 'info', text: "Your profile isn't linked yet. You'll get in as soon as it is, so check again in a little while." },
+  unreachable: { tone: 'danger', text: "We couldn't check right now. Check your internet connection and try again." },
+};
+
+// Shown to students whose profile is not yet linked to student records. Check
+// Status resolves the account again, as signing in does: linked, it opens the
+// dashboard (or choosing a child, when several are linked and none chosen);
+// expired, access ended; otherwise it says why it stays.
 export default function WaitingRoomPage() {
   const { logout } = useStudent();
-  const navigate = useNavigate();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await api.get('/api/auth/me/');
-      // check if linked successfully
-      await api.get('/api/student/dashboard/');
-      navigate('/dashboard');
-    } catch (err) {
-      console.log('Linking pending...');
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 1000);
-    }
-  };
+  const { checking, outcome, check } = useStatusCheck();
+  const said = OUTCOMES[outcome] ?? null;
 
   return (
     <div className="bg-surface flex min-h-dvh flex-col text-text-primary">
@@ -72,13 +65,21 @@ export default function WaitingRoomPage() {
           </div>
 
           <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
+            onClick={check}
+            disabled={checking}
+            aria-busy={checking || undefined}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 h-11 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover transition-colors disabled:opacity-70 cursor-pointer"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Checking...' : 'Check Status'}
+            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {checking ? 'Checking...' : 'Check Status'}
           </button>
+          <p
+            role="status"
+            aria-live="polite"
+            className={said ? `rounded-xl px-4 py-3 text-sm ${said.tone === 'danger' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'}` : 'sr-only'}
+          >
+            {said?.text ?? ''}
+          </p>
         </div>
 
         <div className="mt-8">

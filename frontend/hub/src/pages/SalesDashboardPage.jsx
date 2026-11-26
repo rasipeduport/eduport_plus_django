@@ -12,7 +12,6 @@ import {
   ListTodo,
   PieChart,
   ReceiptText,
-  RefreshCwIcon,
   Repeat,
   ShieldAlert,
   Target,
@@ -41,7 +40,6 @@ import {
 } from '@/lib/sales-dashboard';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tile } from '@/components/dashboard/kpi-cards';
 import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-primitives';
@@ -49,6 +47,7 @@ import { SalesTrendChart } from '@/components/sales/sales-trend-chart';
 import { DatePresets } from '@/components/page/date-presets';
 import { Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -726,9 +725,7 @@ export default function SalesDashboardPage() {
         actions={
           <div className="flex w-full items-start gap-2">
             <RangeFilter range={range} onChange={changeRange} />
-            <Button variant="ghost" size="icon" onClick={reload} disabled={pending} aria-label="Refresh">
-              <RefreshCwIcon />
-            </Button>
+            <RefreshButton variant="ghost" iconOnly onClick={reload} pending={pending} />
           </div>
         }
       />

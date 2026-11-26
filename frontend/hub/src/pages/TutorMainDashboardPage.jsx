@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CalendarCheck, CalendarCheck2, CalendarDays, FileClock, GraduationCap, LayoutGrid, RefreshCwIcon, School } from 'lucide-react';
+import { AlertCircle, CalendarCheck, CalendarCheck2, CalendarDays, FileClock, GraduationCap, LayoutGrid, School } from 'lucide-react';
 
 import api from '@/lib/api';
 import { ACTIVITY_VIEW, EXAM_VIEW, HOMEWORK_VIEW, PERMISSIONS, SESSION_VIEW, STUDENT_VIEW, can, canAny, canOpenPage } from '@/lib/access';
 import { indianToday } from '@/lib/bde-booking-filters';
-import { bookingError } from '@/lib/bookings';
+import { keepFailed, partsFailedMessage } from '@/lib/refresh-failures';
 import { sessionsToday } from '@/lib/session-day';
 import {
   AHEAD_ROWS,
@@ -28,12 +28,30 @@ import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { PendingReports } from '@/components/dashboard/tutor-reports';
 import { TodaysWork, UpcomingWork } from '@/components/dashboard/tutor-work';
 import { Page } from '@/components/page/page';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { ErrorState } from '@/components/page/states';
 
 const ACTIVITY_ROWS = 25;
 const FROM = TUTOR_DASHBOARDS.main;
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 const isActive = (student) => (student.status || 'active').toLowerCase() === 'active';
+// Each read's part of the dashboard, as an error names it (the seven booking reads are one part).
+const LABELS = {
+  demo: 'your bookings',
+  diagnostic: 'your bookings',
+  todays: 'your bookings',
+  later: 'your bookings',
+  demoDue: 'your bookings',
+  diagnosticDue: 'your bookings',
+  completed: 'your bookings',
+  sessions: 'your classes',
+  students: 'students',
+  homework: 'homework',
+  additionalExams: 'additional exams',
+  activity: 'recent activity',
+};
+// What a part shows before it has ever loaded: nothing (null), as for a list this account is not served.
+const NOTHING = Object.fromEntries(Object.keys(LABELS).map((name) => [name, null]));
 
 function DashboardSkeleton() {
   return (
@@ -65,8 +83,9 @@ function DashboardSkeleton() {
  * read from APIs the Hub already serves a tutor, each only with its
  * permission: their bookings (GET /api/tutor/bookings/, filtered by the API --
  * only ever their own), sessions, students, homework, additional exams and
- * their own activity. Each request fails on its own, so one refused list only
- * blanks its own part.
+ * their own activity. Each request fails on its own: a failed one keeps what
+ * its part showed before (nothing only when it never loaded), and one message
+ * names every part that failed.
  */
 export default function TutorMainDashboardPage({ user }) {
   const canSeeBookings = can(user, PERMISSIONS.viewAssignedBookings);
@@ -83,6 +102,8 @@ export default function TutorMainDashboardPage({ user }) {
     setRefreshing(true);
     setReloadKey((key) => key + 1);
   };
+  // The parts that have loaded at least once: a failure of one of these keeps it on screen.
+  const loadedParts = useRef(new Set());
 
   useEffect(() => {
     let active = true;
@@ -108,20 +129,20 @@ export default function TutorMainDashboardPage({ user }) {
       if (!active) return;
       const [demo, diagnostic, todays, later, demoDue, diagnosticDue, completed, sessions, students, homework, exams, activity] =
         results;
-      const refused = results.slice(0, 7).find((result) => result.status === 'rejected');
-      const list = (result, pick) => {
+      // A read that failed is undefined (its part keeps what it had); one never asked is null.
+      const list = (result, pick = (d) => d) => {
+        if (result.status === 'rejected') return undefined;
         const value = settledData(result);
         return value ? pick(value) : null;
       };
-      setData({
-        bookingsFailure: refused ? bookingError(refused.reason, 'Some of your bookings could not be loaded.') : null,
-        demo: settledData(demo),
-        diagnostic: settledData(diagnostic),
-        todays: settledData(todays),
-        later: settledData(later),
-        demoDue: settledData(demoDue),
-        diagnosticDue: settledData(diagnosticDue),
-        completed: settledData(completed),
+      const fresh = {
+        demo: list(demo),
+        diagnostic: list(diagnostic),
+        todays: list(todays),
+        later: list(later),
+        demoDue: list(demoDue),
+        diagnosticDue: list(diagnosticDue),
+        completed: list(completed),
         sessions: list(sessions, (d) => d.sessions ?? []),
         students: list(students, (d) => (Array.isArray(d) ? d : [])),
         homework: list(homework, (d) => d.homework ?? []),
@@ -129,7 +150,12 @@ export default function TutorMainDashboardPage({ user }) {
         // Needs Attention leaves the row out rather than showing a false zero.
         additionalExams: list(exams, (d) => d.additional_exams ?? []),
         activity: list(activity, (d) => d.results ?? []),
-      });
+      };
+      const label = (names) => [...new Set(names.map((name) => LABELS[name]))];
+      const failed = Object.keys(LABELS).filter((name) => fresh[name] === undefined);
+      const failure = partsFailedMessage(label(failed), new Set(label([...loadedParts.current])));
+      for (const name of Object.keys(LABELS)) if (fresh[name] !== undefined) loadedParts.current.add(name);
+      setData((previous) => ({ ...keepFailed(fresh, previous, NOTHING), failure }));
       setRefreshing(false);
     })();
 
@@ -249,9 +275,7 @@ export default function TutorMainDashboardPage({ user }) {
 
     content = (
       <>
-        {data.bookingsFailure ? (
-          <ErrorState message={data.bookingsFailure.message} onRetry={() => setReloadKey((key) => key + 1)} />
-        ) : null}
+        {data.failure ? <ErrorState message={data.failure} onRetry={refresh} pending={refreshing} /> : null}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tiles.map(({ key, ...tile }) => (
             <Tile key={key} {...tile} />
@@ -297,10 +321,7 @@ export default function TutorMainDashboardPage({ user }) {
         user={user}
         subtitle="Your admissions and academic work at a glance."
         actions={
-          <Button variant="ghost" size="sm" onClick={refresh} disabled={refreshing || !data}>
-            <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
-            Refresh
-          </Button>
+          <RefreshButton variant="ghost" onClick={refresh} pending={refreshing} disabled={!data} />
         }
       />
       <div className="flex flex-wrap gap-2">

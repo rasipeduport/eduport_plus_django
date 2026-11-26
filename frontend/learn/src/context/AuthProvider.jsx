@@ -29,25 +29,35 @@ export default function AuthProvider({ children }) {
   // Only the latest load counts: one an earlier, slower load would overwrite is kept.
   const loadSeq = useRef(0);
 
-  const fetchUserAndStats = async () => {
+  /**
+   * Who is signed in and where they belong, routing them there. Resolves to
+   * what it found, for a page that asked (recheck): 'ready' (a student's
+   * stats), 'waiting' (no profile linked yet), 'select' (several, none
+   * chosen), 'ended' (access ended), 'unreachable' (the API did not answer, or
+   * not usably), 'signed-out', 'redirected' (Hub, change password) or 'stale'
+   * (a later load came first). With `keepSession`, a failure to reach the API
+   * leaves the page as it is instead of signing out -- only a refused session
+   * (401/403) goes to the sign-in page.
+   */
+  const fetchUserAndStats = async ({ keepSession = false } = {}) => {
     const seq = ++loadSeq.current;
     const latest = () => seq === loadSeq.current;
     try {
       // 1. Fetch current user + linked students from session /me/
       const meResponse = await api.get('/api/auth/me/');
-      if (!latest()) return;
+      if (!latest()) return 'stale';
       const userData = meResponse.data.user;
       setUser(userData);
 
       // If staff logs into Learn, redirect them to the Hub portal
       if (userData.role !== 'STUDENT') {
         window.location.href = HUB_URL;
-        return;
+        return 'redirected';
       }
 
       if (meResponse.data.must_change_password) {
         navigate('/change-password', { replace: true });
-        return;
+        return 'redirected';
       }
 
       const profiles = meResponse.data.student_profiles || [];
@@ -63,27 +73,27 @@ export default function AuthProvider({ children }) {
       if (profiles.length === 0) {
         setStats(null);
         if (location.pathname !== '/waiting-room') navigate('/waiting-room');
-        return;
+        return 'waiting';
       }
 
       // Personas exist but every one is expired -> access ended
       if (usable.length === 0) {
         setStats(null);
         if (location.pathname !== '/access-ended') navigate('/access-ended');
-        return;
+        return 'ended';
       }
 
       // Several usable students but none chosen -> let the parent pick one
       if (!selected) {
         setStats(null);
         if (location.pathname !== '/select-profile') navigate('/select-profile');
-        return;
+        return 'select';
       }
 
       // 2. A student is selected -> fetch their dashboard stats
       try {
         const statsResponse = await api.get('/api/student/dashboard/');
-        if (!latest()) return;
+        if (!latest()) return 'stale';
         setStats(statsResponse.data);
 
         // Redirect into the app if currently on a gateway route. Note:
@@ -92,21 +102,31 @@ export default function AuthProvider({ children }) {
         if (['/waiting-room', '/access-ended', '/login'].includes(location.pathname)) {
           navigate('/dashboard');
         }
+        return 'ready';
       } catch (err) {
-        if (!latest()) return;
+        if (!latest()) return 'stale';
         const code = err.response?.data?.error;
         if (code === 'STUDENT_PROFILE_NOT_FOUND') {
           if (location.pathname !== '/waiting-room') navigate('/waiting-room');
-        } else if (code === 'STUDENT_NOT_SELECTED') {
-          if (location.pathname !== '/select-profile') navigate('/select-profile');
-        } else if (code === 'STUDENT_ACCESS_ENDED') {
-          if (location.pathname !== '/access-ended') navigate('/access-ended');
-        } else {
-          console.error('Failed to load dashboard stats', err);
+          return 'waiting';
         }
+        if (code === 'STUDENT_NOT_SELECTED') {
+          if (location.pathname !== '/select-profile') navigate('/select-profile');
+          return 'select';
+        }
+        if (code === 'STUDENT_ACCESS_ENDED') {
+          if (location.pathname !== '/access-ended') navigate('/access-ended');
+          return 'ended';
+        }
+        console.error('Failed to load dashboard stats', err);
+        return 'unreachable';
       }
-    } catch {
-      if (!latest()) return;
+    } catch (err) {
+      if (!latest()) return 'stale';
+      // Asked for on a page that is up (recheck): an API that did not answer is
+      // said there. A refused session still signs out.
+      const status = err?.response?.status;
+      if (keepSession && status !== 401 && status !== 403) return 'unreachable';
       setUser(null);
       setStudents([]);
       setStudentProfile(null);
@@ -114,10 +134,16 @@ export default function AuthProvider({ children }) {
       if (location.pathname !== '/login') {
         navigate('/login');
       }
+      return 'signed-out';
     } finally {
       setLoading(false);
     }
   };
+
+  // A gateway page's "Check" (waiting room, access ended): the same resolve as
+  // a route change, routing the student wherever they now belong, resolving to
+  // what it found for the page to say.
+  const recheck = () => fetchUserAndStats({ keepSession: true });
 
   const reloadStats = async () => {
     try {
@@ -177,5 +203,5 @@ export default function AuthProvider({ children }) {
 
   if (!user || user.must_change_password) return null;
 
-  return children({ user, students, studentProfile, stats, reloadStats, switchStudent, logout });
+  return children({ user, students, studentProfile, stats, reloadStats, switchStudent, recheck, logout });
 }

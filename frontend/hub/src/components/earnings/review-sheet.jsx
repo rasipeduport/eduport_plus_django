@@ -22,10 +22,13 @@ export function ReviewSheet({ open, onOpenChange, canCorrect, onChanged }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [reversing, setReversing] = useState(null);
   const [keeping, setKeeping] = useState(null);
+  // A read under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
     let active = true;
+    setLoading(true);
     api
       .get(`${EARNINGS_API}/review/`)
       .then((response) => {
@@ -35,6 +38,9 @@ export function ReviewSheet({ open, onOpenChange, canCorrect, onChanged }) {
       })
       .catch((err) => {
         if (active) setFailure(earningsError(err, 'Could not load what needs review.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -42,7 +48,7 @@ export function ReviewSheet({ open, onOpenChange, canCorrect, onChanged }) {
   }, [open, reloadKey]);
 
   let body;
-  if (failure && !items) body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
+  if (failure && !items) body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={loading} />;
   else if (!items) body = <Skeleton className="h-40 w-full rounded-xl" />;
   else if (!items.length) body = <p className="text-muted-foreground text-sm">Nothing needs review.</p>;
   else {

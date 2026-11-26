@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
   Loader2, Calendar, Video, FileText, 
-  BookOpen, Plus, Link2, AlertTriangle, RefreshCw, Check, ExternalLink, ChevronDown, X
+  BookOpen, Plus, Link2, AlertTriangle, Check, ExternalLink, ChevronDown, X
 } from 'lucide-react';
 import api from '../lib/api';
 import { useLiveRefresh } from '../hooks/use-live-refresh';
@@ -10,6 +10,7 @@ import { EXAM_VIEW, PERMISSIONS, can, canAny } from '../lib/access';
 import { describeApiError } from '../lib/api-errors';
 import { mentorZoneFormatter } from '../lib/timezone';
 import StaffActionsDropdown from '../components/StaffActionsDropdown';
+import { RefreshButton } from '../components/page/refresh-button';
 import { NewSessionSheet } from '../components/sessions/new-session-sheet';
 import { RescheduleSessionDialog } from '../components/sessions/reschedule-session-dialog';
 import { StartSessionButton } from '../components/sessions/start-session-button';
@@ -259,6 +260,12 @@ export default function SessionsPage({ user }) {
     }
   }, []);
   const [error, setError] = useState('');
+  // The students behind the filter and the New Session drawer (their quota and timezone): read on
+  // mount, after a new session, and on Refresh; a failed read keeps the list as it was, and says so.
+  const [studentsError, setStudentsError] = useState('');
+  // Refresh: the sessions and the students, the button turning until both have answered.
+  const [refreshingAll, setRefreshingAll] = useState(false);
+  const studentsLoaded = useRef(false);
 
   // Filtering & Search states (Hub filter bar: title, date range, tutor, columns)
   const [searchTerm, setSearchTerm] = useState('');
@@ -334,8 +341,23 @@ export default function SessionsPage({ user }) {
     try {
       const res = await api.get('/api/students/');
       setStudents(res.data);
+      setStudentsError('');
+      studentsLoaded.current = true;
     } catch (err) {
       console.error('Failed to load students', err);
+      setStudentsError(
+        studentsLoaded.current ? 'Could not refresh the student list; showing the one loaded before.' : 'Could not load the student list.'
+      );
+    }
+  };
+
+  const refreshAll = async () => {
+    if (refreshingAll) return;
+    setRefreshingAll(true);
+    try {
+      await Promise.all([fetchSessions(), fetchStudents()]);
+    } finally {
+      setRefreshingAll(false);
     }
   };
 
@@ -996,10 +1018,7 @@ export default function SessionsPage({ user }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" size="sm" onClick={() => fetchSessions()} disabled={loading || refreshing} aria-label="Refresh sessions">
-          <RefreshCw className={`size-4${loading || refreshing ? ' animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <RefreshButton onClick={refreshAll} pending={loading || refreshing || refreshingAll} ariaLabel="Refresh sessions" />
 
         {selectedStudentId && canCreate && (
           <div className="ml-auto">
@@ -1017,6 +1036,11 @@ export default function SessionsPage({ user }) {
       {error && (
         <div className="bg-red-950/40 text-red-400 text-xs p-3 rounded-lg border border-red-900/50">
           {error}
+        </div>
+      )}
+      {studentsError && (
+        <div role="alert" className="bg-red-950/40 text-red-400 text-xs p-3 rounded-lg border border-red-900/50">
+          {studentsError}
         </div>
       )}
 

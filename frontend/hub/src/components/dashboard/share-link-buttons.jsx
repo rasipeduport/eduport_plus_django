@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon, MessageCircleIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon, MessageCircleIcon, RefreshCwIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { whatsAppUrl } from '@/lib/enquiries';
@@ -144,12 +144,15 @@ export function ShareLinkButtons({ recipient = null }) {
   const [links, setLinks] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read of the links under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
   // The booking type just copied, for a moment; or the link the browser
   // refused to copy (e.g. an insecure origin), then shown selected instead.
   const { copied, manual, urlRef, copy } = useLinkCopy();
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(BOOKING_LINKS_URL)
       .then((response) => {
@@ -166,6 +169,9 @@ export function ShareLinkButtons({ recipient = null }) {
             ? response.data?.message || response.data?.detail || 'Could not load your booking links.'
             : 'Could not reach the server. Check your connection and try again.',
         });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -180,7 +186,14 @@ export function ShareLinkButtons({ recipient = null }) {
     return (
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-destructive text-sm">{failure.message}</p>
-        <Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setReloadKey((key) => key + 1)}
+          disabled={loading}
+          aria-busy={loading || undefined}
+        >
+          {loading ? <RefreshCwIcon className="animate-spin" aria-hidden="true" /> : null}
           Try again
         </Button>
       </div>

@@ -153,6 +153,8 @@ export default function SalesSyllabusEditorPage() {
   const [baseline, setBaseline] = useState(() => (creating ? emptyForm() : null));
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read of the syllabus under way (Try again, Reload the latest version).
+  const [loading, setLoading] = useState(false);
   const [pricing, setPricing] = useState(undefined); // undefined: loading; null: none set up yet
   const [pricingFailed, setPricingFailed] = useState(false);
   const [pricingKey, setPricingKey] = useState(0);
@@ -182,6 +184,7 @@ export default function SalesSyllabusEditorPage() {
   useEffect(() => {
     if (creating) return undefined;
     let active = true;
+    setLoading(true);
     api
       .get(syllabusUrl(syllabusId))
       .then((response) => {
@@ -196,6 +199,9 @@ export default function SalesSyllabusEditorPage() {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load the syllabus.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -385,8 +391,8 @@ export default function SalesSyllabusEditorPage() {
   let body;
   if (failure?.status === 403) {
     body = <AccessDeniedState title="You don't have access to syllabuses." message={failure.message} />;
-  } else if (failure) {
-    body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
+  } else if (failure && !detail) {
+    body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={loading} />;
   } else if (!creating && !detail) {
     body = <EditorSkeleton />;
   } else if (!creating && detail.status === 'INACTIVE') {
@@ -747,6 +753,11 @@ export default function SalesSyllabusEditorPage() {
       />
 
       {notice ? <Notice onDismiss={() => setNotice(null)}>{notice}</Notice> : null}
+
+      {/* A read that failed once the syllabus was on screen (Reload the latest version, say): the form stays. */}
+      {failure && detail && failure.status !== 403 ? (
+        <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={loading} />
+      ) : null}
 
       {body}
 

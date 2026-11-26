@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { CopyIcon, DownloadIcon, MessageCircleIcon, RefreshCwIcon, WalletIcon } from 'lucide-react';
+import { CopyIcon, DownloadIcon, MessageCircleIcon, WalletIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { can, PERMISSIONS } from '@/lib/access';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { ErrorState, Notice } from '@/components/page/states';
 import { Field, WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { QuoteChapters, QuoteStatusBadge } from '@/components/sales/quote-parts';
@@ -271,6 +272,8 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
+  // A read of the sale under way (Refresh, Try again, or the pending-payment poll).
+  const [loading, setLoading] = useState(false);
   const endpoint = saleUrl(enquiryId);
   const refresh = (next) => { if (next) setData(next); else setReload((key) => key + 1); onChanged?.(); };
   // A read the payment poll made: once it finds the payment settled, the workspace reads the enquiry again (its header shows Enrolled).
@@ -279,6 +282,7 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
   useEffect(() => { changedRef.current = onChanged; });
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api.get(endpoint).then(({ data: state }) => {
       if (!active) return;
       setData(state);
@@ -288,7 +292,8 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
         if (!state.payments.some((payment) => payment.status === 'PENDING')) changedRef.current?.();
       }
     })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load the initial sale.')); });
+      .catch((err) => { if (active) setError(salesError(err, 'Could not load the initial sale.')); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [endpoint, reload]);
   const pendingPayment = data?.payments.find((payment) => payment.status === 'PENDING');
@@ -297,7 +302,7 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
     const timer = setTimeout(() => { polled.current = true; setReload((key) => key + 1); }, 10000);
     return () => clearTimeout(timer);
   }, [pendingPayment, reload]);
-  if (error && !data) return <ErrorState message={error.message} onRetry={() => refresh()} />;
+  if (error && !data) return <ErrorState message={error.message} onRetry={() => refresh()} pending={loading} />;
   if (!data) return <Skeleton className="h-48 w-full" aria-busy="true" />;
   const enrolled = Boolean(data.sale?.student);
   const deadline = data.sale && !enrolled ? DEADLINE_STATUSES[data.sale.deadline_status] : null;
@@ -311,8 +316,8 @@ export function EnquirySalesPayment({ enquiryId, enquiry, user, onChanged }) {
     ...(Number(data.totals.refunded_amount) > 0 ? [["Refunded (classes unchanged)", `AED ${data.totals.refunded_amount}`], ["Net collected", `AED ${data.totals.net_collected}`]] : []),
   ];
   return <div className="flex min-w-0 flex-col gap-4">
-    <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Sales &amp; Payment</h2><Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button></div>
-    {error ? <ErrorState message={error.message} onRetry={() => refresh()} /> : null}
+    <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Sales &amp; Payment</h2><RefreshButton onClick={() => refresh()} pending={loading} /></div>
+    {error ? <ErrorState message={error.message} onRetry={() => refresh()} pending={loading} /> : null}
     {data.quote ? <QuoteSummary quote={data.quote} /> : <Notice>{data.sale?.kind === 'TOKEN' ? 'No tuition plan yet. Choose it in Plan Choosing: it is quoted as a Token Sale, and the AED 100 token is credited against it.' : 'Choose the tuition plan in Plan Choosing first: as a New Sale quote, or as a Token Sale with its AED 100 token reservation.'}</Notice>}
     {data.sale && data.account ? <StudentAccountCard enquiryId={enquiryId} account={data.account} onChanged={refresh} /> : null}
     {data.sale ? <WorkspaceCard icon={WalletIcon} title={data.sale.kind === 'TOKEN' ? `Token reservation – ${data.sale.reservation_reference}` : 'New Sale'}
