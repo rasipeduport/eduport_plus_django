@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  ArrowLeftIcon, BanIcon, ClockPlusIcon, CopyIcon, CreditCardIcon, DownloadIcon, ExternalLinkIcon, EyeIcon, MessageCircleIcon, PencilIcon,
-  PlusIcon, RefreshCwIcon, Undo2Icon, WalletIcon,
-} from 'lucide-react';
+import { ArrowLeftIcon, BanIcon, ClockPlusIcon, DownloadIcon, EyeIcon, PencilIcon, PlusIcon, Undo2Icon, WalletIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { salesError } from '@/lib/sales';
 import { wholeAed } from '@/lib/payments';
 import {
   allocationStatus, allocationUrl, chapterLabel, dueLabel, hours, OPEN_STATUSES, studentAdditionalHoursUrl, VOID_KINDS,
-  CREATING_CHECKOUT, allocationStripeExpireUrl, allocationStripeLinksUrl, checkoutStatus,
 } from '@/lib/additional-hours';
 import { formatDate } from '@/lib/utils';
-import { useLinkCopy } from '@/hooks/use-link-copy';
-import { Input } from '@/components/ui/input';
-import { FormDialog } from '@/components/form-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,7 +17,7 @@ import { ResponsiveList } from '@/components/page/responsive-list';
 import { Field, Fields, WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import {
-  AddHoursDialog, ChangeHoursDialog, CloseHoursDialog, GenerateStripeLinkDialog, RecordHoursPaymentDialog, VoidHoursPaymentDialog,
+  AddHoursDialog, ChangeHoursDialog, CloseHoursDialog, RecordHoursPaymentDialog, VoidHoursPaymentDialog,
 } from '@/components/sales/additional-hours-dialogs';
 
 // While a Stripe link is open, the hours are read again this often: the payment appears once Stripe confirms it.
@@ -193,6 +186,13 @@ function AllocationDetail({ allocationId, onBack, onChanged }) {
   const saved = (message) => (next) => { setRow(next); setNotice(message(next)); onChanged(); };
   const open = OPEN_STATUSES.includes(row.status);
   const closing = row.withdrawn ?? row.waived;
+  // One payment action, and every Stripe link lives in its dialog: it records a direct payment or generates a Stripe
+  // link -- and, while a link is open, shows that link (recording anything else waits until it is paid or expired).
+  // A Stripe payment that needs review keeps the dialog reachable even once the hours are closed.
+  const needsReview = (row.checkouts ?? []).some((checkout) => checkout.status === 'REQUIRES_REVIEW');
+  const canPay = row.can_record_payment || Boolean(row.open_checkout) || needsReview;
+  const linkChanged = (next, message) => { setRow(next); if (message) setNotice(message); onChanged(); };
+  const refresh = () => setReload((key) => key + 1);
   const payment = dialog?.payment ?? null;
   return <WorkspaceCard icon={ClockPlusIcon} title={`Additional hours ${row.reference}`} action={back}>
     <div className="flex flex-wrap items-center gap-2"><AllocationBadges row={row} />
@@ -216,23 +216,17 @@ function AllocationDetail({ allocationId, onBack, onChanged }) {
           <span className="text-muted-foreground block text-xs font-normal">{closing.reason}</span></Field> : null}
       </Fields>
     </div>
-    {row.can_record_payment || row.can_manage || row.can_generate_link ? <div className="flex flex-wrap gap-2">
-      {row.can_record_payment ? <Button size="sm" onClick={() => setDialog({ name: 'pay' })}><WalletIcon />Record payment</Button> : null}
-      {row.can_generate_link && row.stripe_configured ? <Button size="sm" variant="outline" onClick={() => setDialog({ name: 'link' })}>
-        <CreditCardIcon />Generate Stripe payment link</Button> : null}
+    {canPay || row.can_manage ? <div className="flex flex-wrap gap-2">
+      {canPay ? <Button size="sm" onClick={() => setDialog({ name: 'pay' })}><WalletIcon />Record payment</Button> : null}
       {row.can_manage ? <Button size="sm" variant="outline" onClick={() => setDialog({ name: 'change' })}><PencilIcon />Change due date or amount</Button> : null}
       {row.can_manage && open ? <Button size="sm" variant="outline" onClick={() => setDialog({ name: 'waive' })}><BanIcon />Waive what is due</Button> : null}
       {row.can_manage ? <Button size="sm" variant="outline" onClick={() => setDialog({ name: 'withdraw' })}><Undo2Icon />Withdraw hours</Button> : null}
     </div> : null}
-    {row.open_checkout ? <OpenStripeLink allocation={row} checkout={row.open_checkout}
-      onChanged={(next, message) => { setRow(next); if (message) setNotice(message); onChanged(); }}
-      onRefresh={() => setReload((key) => key + 1)} /> : null}
-    <StripeLinks checkouts={(row.checkouts ?? []).filter((checkout) => checkout.id !== row.open_checkout?.id)} />
     <HoursPayments row={row} files={files} onVoid={(item) => setDialog({ name: 'void', payment: item })} />
     {files.error ? <p role="alert" className="text-destructive text-sm">{files.error}</p> : null}
     {files.dialog}
     <RecordHoursPaymentDialog allocation={row} open={dialog?.name === 'pay'} onOpenChange={(next) => !next && setDialog(null)}
-      onSaved={saved((next) => `Payment recorded. ${wholeAed(next.outstanding_amount)} still due.`)} />
+      onSaved={saved((next) => `Payment recorded. ${wholeAed(next.outstanding_amount)} still due.`)} onChanged={linkChanged} onRefresh={refresh} />
     <ChangeHoursDialog allocation={row} open={dialog?.name === 'change'} onOpenChange={(next) => !next && setDialog(null)}
       onSaved={saved(() => 'Change saved.')} />
     <CloseHoursDialog allocation={row} closing={dialog?.name === 'withdraw' ? 'withdraw' : 'waive'} open={['waive', 'withdraw'].includes(dialog?.name)}
@@ -240,97 +234,33 @@ function AllocationDetail({ allocationId, onBack, onChanged }) {
       onSaved={saved((next) => (next.withdrawn ? `${hours(next.hours)} withdrawn from the quota.` : `${wholeAed(next.waived_amount)} waived; the hours stay.`))} />
     <VoidHoursPaymentDialog allocation={row} payment={payment} open={dialog?.name === 'void'} onOpenChange={(next) => !next && setDialog(null)}
       onSaved={saved((next) => `Payment voided. ${wholeAed(next.outstanding_amount)} still due.`)} />
-    <GenerateStripeLinkDialog allocation={row} open={dialog?.name === 'link'} onOpenChange={(next) => !next && setDialog(null)}
-      onSaved={saved((next) => `Stripe payment link for ${wholeAed(next.open_checkout?.amount)} ready to share.`)}
-      onRefresh={() => setReload((key) => key + 1)} />
   </WorkspaceCard>;
 }
 
+// Oldest first by the day the money was received; payments recorded the same day, in the order they were recorded.
+const byPaymentDate = (a, b) => a.payment_date.localeCompare(b.payment_date) || new Date(a.recorded_at) - new Date(b.recorded_at);
+
 /**
- * The hours' open Stripe link: its URL to copy, open or send, and expiring it. Paying it is the parent's, on
- * Stripe; the payment is recorded only when Stripe confirms it. While it is open nothing else may change what
- * is owed. A link Stripe has not confirmed yet is tried again with the same request -- never a second link.
+ * The hours' one payment history: every payment recorded against them, by any method, kept whatever becomes of the
+ * hours -- a voided one struck through, never removed. A Stripe link is not a payment: a Stripe payment is here only
+ * once Stripe's verified webhook recorded it. The totals are the API's, which count only payments not voided; a
+ * payment Stripe took that the hours could not take (Needs review) was never recorded, and is said so apart.
  */
-function OpenStripeLink({ allocation, checkout, onChanged, onRefresh }) {
-  const { copied, manual, urlRef, copy } = useLinkCopy();
-  const [expiring, setExpiring] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState(null);
-  const status = checkoutStatus(checkout);
-  const creating = CREATING_CHECKOUT.includes(checkout.status);
-  const url = checkout.checkout_url;
-  const message = `Eduport Plus: please pay ${wholeAed(checkout.amount)} for additional hours (${allocation.reference}) using this secure Stripe link: ${url}`;
-  const retry = async () => {
-    setPending(true); setError(null);
-    try {
-      const { data } = await api.post(allocationStripeLinksUrl(allocation.id), { request_id: checkout.id, amount: checkout.amount });
-      onChanged(data.allocation, 'Stripe confirmed the payment link.');
-    } catch (err) {
-      setError(salesError(err, 'Could not confirm the payment link.').message);
-      onRefresh();
-    } finally { setPending(false); }
-  };
-  const expire = async () => {
-    setPending(true); setError(null);
-    try {
-      const { data } = await api.post(allocationStripeExpireUrl(allocation.id, checkout.id));
-      setExpiring(false);
-      onChanged(data, 'Payment link expired.');
-    } catch (err) {
-      setError(salesError(err, 'Could not expire the payment link.').message);
-      setExpiring(false);
-      onRefresh();
-    } finally { setPending(false); }
-  };
-  return <section aria-label="Stripe payment link" className="border-info/30 bg-info/5 flex flex-col gap-2 rounded-lg border p-3 text-sm">
-    <div className="flex flex-wrap items-center justify-between gap-2"><strong>Stripe payment link · {wholeAed(checkout.amount)}</strong>
-      <Badge variant={status.variant}>{status.label}</Badge></div>
-    {creating ? <>
-      <p>Stripe has not confirmed this link yet. Trying again recovers the same link; it never creates a second one.</p>
-      <div><Button size="sm" variant="outline" onClick={retry} disabled={pending}><RefreshCwIcon />{pending ? 'Trying…' : 'Try again'}</Button></div>
-    </> : <>
-      <p className="text-muted-foreground text-xs">Created by {checkout.created_by?.name} · {dateTime(checkout.created_at)}. Share it with the parent: the payment is recorded only when Stripe confirms it. While the link is open, other payments, amount changes, waiving and withdrawing are paused.</p>
-      {url ? <Input readOnly value={url} aria-label="Payment link" onFocus={(event) => event.target.select()} /> : null}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => copy(checkout.id, url)} disabled={!url}><CopyIcon />{copied ? 'Copied' : 'Copy link'}</Button>
-        {url ? <Button size="sm" variant="outline" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLinkIcon />Open</a></Button> : null}
-        {url ? <Button size="sm" variant="outline" asChild><a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer">
-          <MessageCircleIcon />WhatsApp</a></Button> : null}
-        <Button size="sm" variant="ghost" onClick={() => setExpiring(true)}>Expire link</Button>
-      </div>
-    </>}
-    {manual ? <p ref={urlRef} className="text-muted-foreground text-sm break-all">{manual.url}</p> : null}
-    {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
-    <FormDialog open={expiring} onOpenChange={(next) => !pending && setExpiring(next)} title="Expire this payment link?"
-      description="The parent can no longer pay through it. If they have just paid, Stripe keeps it open and the payment is recorded when Stripe confirms it."
-      onConfirm={expire} confirmLabel="Expire link" pendingLabel="Expiring…" confirmVariant="destructive" pending={pending} />
-  </section>;
-}
-
-/** The hours' earlier Stripe links: what became of each -- and, for a payment Stripe took that could not be applied, why. */
-function StripeLinks({ checkouts }) {
-  if (!checkouts.length) return null;
-  return <section aria-label="Earlier Stripe links" className="flex flex-col gap-1.5">
-    <h3 className="text-sm font-semibold">Stripe links</h3>
-    <ul className="flex flex-col gap-1.5 text-sm">{checkouts.map((checkout) => {
-      const status = checkoutStatus(checkout);
-      return <li key={checkout.id} className={checkout.status === 'REQUIRES_REVIEW' ? 'border-destructive/30 bg-destructive/5 rounded-lg border px-3 py-2' : 'flex flex-wrap items-center gap-2'}>
-        <span className="flex flex-wrap items-center gap-2"><Badge variant={status.variant}>{status.label}</Badge>
-          <span>{wholeAed(checkout.amount)} · {checkout.created_by?.name} · {dateTime(checkout.created_at)}</span></span>
-        {checkout.message ? <span className={checkout.status === 'REQUIRES_REVIEW' ? 'mt-1 block' : 'text-muted-foreground text-xs'}>{checkout.message}</span> : null}
-      </li>;
-    })}</ul>
-  </section>;
-}
-
 function HoursPayments({ row, files, onVoid }) {
+  const stripePaid = (item) => item.source === 'STRIPE';
   const receipt = (item) => (item.proof_url ? <Button variant="outline" size="icon" onClick={() => files.download(item.proof_url, item.proof_name)}
     disabled={Boolean(files.pending)} aria-label={`Download receipt ${item.proof_name}`}><DownloadIcon /></Button>
-    : <span className="text-muted-foreground text-xs">{item.source === 'STRIPE' ? 'Verified by Stripe' : '—'}</span>);
-  const recorded = (item) => (item.source === 'STRIPE' ? `Paid on Stripe · link by ${item.recorded_by?.name}` : `Recorded by ${item.recorded_by?.name}`);
+    : <span className="text-muted-foreground text-xs">{stripePaid(item) ? 'Not needed' : '—'}</span>);
+  const recorded = (item) => (stripePaid(item) ? `Paid on Stripe · link by ${item.recorded_by?.name}` : `Recorded by ${item.recorded_by?.name}`);
+  // A direct payment is recorded only with its receipt and its recorder's confirmation that the money arrived (the API
+  // refuses it otherwise); a Stripe payment only on Stripe's verified webhook.
   const status = (item) => (item.voided
     ? <span><Badge variant="outline">Voided</Badge><span className="text-muted-foreground block text-xs">{KIND_LABEL[item.void.kind] ?? item.void.kind_label} · {item.void.reason}</span></span>
-    : <Badge variant="success">Received</Badge>);
+    : stripePaid(item) ? <Badge variant="success">Verified by Stripe</Badge>
+      : <span><Badge variant="success">Received</Badge><span className="text-muted-foreground block text-xs">Confirmed with receipt</span></span>);
+  const payments = [...row.payments].sort(byPaymentDate);
+  const voided = payments.filter((item) => item.voided).length;
+  const review = (row.checkouts ?? []).filter((checkout) => checkout.status === 'REQUIRES_REVIEW');
   const columns = [
     { key: 'date', header: 'Payment date', className: 'whitespace-normal', cell: (item) => <span>{formatDate(item.payment_date)}
       <span className="text-muted-foreground block text-xs">{recorded(item)} · {dateTime(item.recorded_at)}</span></span> },
@@ -344,7 +274,7 @@ function HoursPayments({ row, files, onVoid }) {
   ];
   return <section aria-label="Payments" className="flex flex-col gap-2">
     <h3 className="text-sm font-semibold">Payments</h3>
-    {row.payments.length ? <ResponsiveList label="Payments" columns={columns} rows={row.payments} minTableWidth={720}
+    {payments.length ? <ResponsiveList label="Payments" columns={columns} rows={payments} minTableWidth={720}
       renderCard={(item) => <article className="flex flex-col gap-1.5 rounded-lg border p-3 text-sm">
         <div className="flex flex-wrap items-start justify-between gap-2"><strong className={item.voided ? 'line-through' : ''}>{wholeAed(item.amount)}</strong>{status(item)}</div>
         <p>{formatDate(item.payment_date)} · {item.method_label} · {item.transaction_reference || 'No reference'}</p>
@@ -353,5 +283,14 @@ function HoursPayments({ row, files, onVoid }) {
           ? <Button size="sm" variant="outline" onClick={() => onVoid(item)} aria-label={`Void payment of ${wholeAed(item.amount)}`}>Void</Button> : null}</div>
       </article>} />
       : <p className="text-muted-foreground text-sm">No payments yet{OPEN_STATUSES.includes(row.status) ? `: ${wholeAed(row.outstanding_amount)} due by ${formatDate(row.due_date)}.` : '.'}</p>}
+    {payments.length ? <p aria-label="Payment totals" className="bg-muted/40 flex flex-wrap gap-x-4 gap-y-1 rounded-lg px-3 py-2 text-sm">
+      <span>Total received <strong className="tabular-nums">{wholeAed(row.paid_amount)}</strong></span>
+      {row.status === 'WAIVED' ? <span>Waived <strong className="tabular-nums">{wholeAed(row.waived_amount)}</strong></span>
+        : <span>Still due <strong className="tabular-nums">{wholeAed(row.outstanding_amount)}</strong></span>}
+      {voided ? <span className="text-muted-foreground">{voided} voided {voided === 1 ? 'payment' : 'payments'} not counted</span> : null}
+    </p> : null}
+    {review.length ? <p className="border-warning/40 bg-warning/10 rounded-lg border px-3 py-2 text-sm">
+      Not counted here: {review.map((checkout) => wholeAed(checkout.amount)).join(', ')} taken on Stripe {review.length === 1 ? 'needs' : 'need'} review
+      and {review.length === 1 ? 'was' : 'were'} never recorded as a payment. Open Record payment and choose Stripe to see why.</p> : null}
   </section>;
 }

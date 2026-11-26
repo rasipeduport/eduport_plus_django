@@ -11,7 +11,7 @@ import stripe
 from django.db import DatabaseError, IntegrityError, transaction
 from django.test import override_settings
 from django.utils import timezone
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from activity.models import ActivityLog
 from students.models import Student
@@ -342,3 +342,73 @@ class AdditionalHoursStripeTests(QuoteTestCase, APITestCase):
             AdditionalHoursCheckout.objects.filter(pk=checkout.pk).update(status='EXPIRED')
         with self.assertRaises(DatabaseError), transaction.atomic():
             AdditionalHoursPayment.objects.filter(method='STRIPE').update(amount=D(1))
+
+    # --- one payment history -------------------------------------------------
+
+    def test_every_recorded_payment_by_any_method_is_listed_and_never_a_link(self):
+        hours_id = self.allocation['id']
+        payments_url = f'/api/sales/additional-hours/{hours_id}/payments/'
+        self.assertEqual(self.pay(hours_id, amount='20', transaction_reference='UTR-1').status_code, 201)
+        uae = self.pay(hours_id, amount='10', method='AJAS_UAE', transaction_reference='UAE-1').json()['payment']
+        self.assertEqual(self.pay(hours_id, amount='15', method='AJAS_INDIA').status_code, 201)
+        voided = self.as_user(self.admin).post(f'{payments_url}{uae["id"]}/void/', {'kind': 'ERROR', 'reason': 'Entered twice.'}, format='json')
+        self.assertEqual(voided.status_code, 200, voided.content)
+        # Links that failed or expired, and one generated but not yet paid: none of them is a payment.
+        failed = self.linked(amount='30')
+        self.webhook(self.event(failed, 'checkout.session.async_payment_failed'))
+        expired = self.linked(amount='30')
+        self.webhook(self.event(expired, 'checkout.session.expired', payment_status='unpaid'))
+        paid = self.linked(amount='40')
+        self.assertEqual(len(self.detail()['payments']), 3, 'a link is not a payment')
+        self.webhook(self.event(paid))
+        for user in (self.admin, self.mentor):
+            with self.subTest(role=user.role):
+                state = self.detail(user)
+                rows = state['payments']
+                self.assertEqual([(row['method'], row['amount'], row['voided']) for row in rows],
+                                 [('TRANSFER', '20', False), ('AJAS_UAE', '10', True), ('AJAS_INDIA', '15', False), ('STRIPE', '40', False)])
+                # Only payments not voided count: 20 + 15 + 40 of 150.
+                self.assertEqual((state['status'], state['paid_amount'], state['outstanding_amount']), ('PARTIALLY_PAID', '75', '75'))
+                self.assertEqual(rows[1]['void']['reason'], 'Entered twice.')
+                for row in rows[:3]:
+                    self.assertEqual((row['source'], row['recorded_by']['id']), ('DIRECT', str(self.mentor.pk)))
+                    self.assertIsNotNone(row['proof_url'])
+                self.assertEqual((rows[3]['source'], rows[3]['method_label'], rows[3]['proof_url'], rows[3]['transaction_reference']),
+                                 ('STRIPE', 'Stripe', None, f'pi_{paid.pk.hex}'))
+                self.assertEqual(sorted(checkout['status'] for checkout in state['checkouts']), ['EXPIRED', 'FAILED', 'PAID'])
+        self.assertEqual(AdditionalHoursPayment.objects.count(), 4)
+
+    def test_closed_hours_keep_their_payment_history_for_the_administrator_and_their_mentor_only(self):
+        hours_id = self.allocation['id']
+        url = f'/api/sales/additional-hours/{hours_id}/'
+        admin = self.as_user(self.admin)
+        self.assertEqual(self.pay(hours_id, amount='50').status_code, 201)
+        self.webhook(self.event(self.linked(amount='40')))
+        self.assertEqual(admin.post(url + 'waive/', {'reason': 'Goodwill after a missed class.'}, format='json').status_code, 200)
+        proof_url = self.detail()['payments'][0]['proof_url']
+        for user in (self.admin, self.mentor):
+            with self.subTest(role=user.role):
+                state = self.detail(user)
+                self.assertEqual((state['status'], state['paid_amount'], state['waived_amount'], state['outstanding_amount'],
+                                  state['can_record_payment'], state['can_generate_link']), ('WAIVED', '90', '60', '0', False, False))
+                self.assertEqual([row['method'] for row in state['payments']], ['TRANSFER', 'STRIPE'])
+                self.assertEqual(self.as_user(user).get(proof_url).status_code, 200, 'the receipt still downloads')
+        self.assertEqual(self.as_user(self.other_mentor).get(url).status_code, 404)
+        self.assertEqual(self.as_user(self.other_mentor).get(proof_url).status_code, 404)
+        for user in (self.tutor, self.bde):
+            with self.subTest(role=user.role):
+                self.assertEqual(self.as_user(user).get(url).status_code, 403)
+                self.assertEqual(self.as_user(user).get(proof_url).status_code, 403)
+        self.assertIn(APIClient().get(url).status_code, (401, 403))
+
+        # Withdrawn once its only payment was voided: the voided payment stays listed and counts for nothing.
+        other = self.added(self.student, hours='1', amount='50', confirm_duplicate=True)
+        other_url = f'/api/sales/additional-hours/{other["id"]}/'
+        payment = self.pay(other['id'], amount='50', transaction_reference='UTR-W').json()['payment']
+        self.assertEqual(admin.post(f'{other_url}payments/{payment["id"]}/void/', {'kind': 'REFUNDED', 'reason': 'Money returned.'},
+                                    format='json').status_code, 200)
+        self.assertEqual(admin.post(other_url + 'withdraw/', {'reason': 'Given by mistake.'}, format='json').status_code, 200)
+        state = self.as_user(self.mentor).get(other_url).json()
+        self.assertEqual((state['status'], state['hours_status'], state['paid_amount'], state['can_record_payment']),
+                         ('CANCELLED', 'WITHDRAWN', '0', False))
+        self.assertEqual([(row['id'], row['voided'], row['void']['kind']) for row in state['payments']], [(payment['id'], True, 'REFUNDED')])
