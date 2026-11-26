@@ -26,14 +26,35 @@ export function formatInr(value, { signed = false } = {}) {
   return signed && amount > 0 ? `+${text}` : text;
 }
 
-// The three class types, in the API's order: Diagnostic and Demo are paid by the class, a normal session by the hour.
+// The rate types, in the API's order: Diagnostic and Demo are paid by the class, a normal session by the hour, and a
+// Demo Conversion once per converted Demo. A Demo Conversion is not a class: its rate is the TOTAL a converted Demo
+// earns, and it adds only the difference over what the Demo itself earned.
 export const CLASS_TYPES = [
   { value: 'DIAGNOSTIC', label: 'Diagnostic', unit: 'CLASS' },
   { value: 'DEMO', label: 'Demo', unit: 'CLASS' },
   { value: 'SESSION', label: 'Normal Sessions', unit: 'HOUR' },
+  { value: 'DEMO_CONVERSION', label: 'Demo Conversion', unit: 'CONVERSION' },
 ];
 
-const CLASS_TYPE_SINGULAR = { DIAGNOSTIC: 'Diagnostic', DEMO: 'Demo', SESSION: 'Normal Session' };
+export const CONVERSION = 'DEMO_CONVERSION';
+
+/** How a Demo Conversion is paid, in one line for the rate forms and the breakdown. */
+export const CONVERSION_NOTE =
+  'The total a converted Demo earns. When the student enrolls, the Demo’s tutor gets the difference over what the Demo earned (₹350 − ₹200 = +₹150).';
+
+const CLASS_TYPE_SINGULAR = {
+  DIAGNOSTIC: 'Diagnostic',
+  DEMO: 'Demo',
+  SESSION: 'Normal Session',
+  DEMO_CONVERSION: 'Demo conversion',
+};
+
+/** "per class hour", "per converted Demo", "per class". */
+export function unitPhrase(unit) {
+  if (unit === 'HOUR') return 'per class hour';
+  if (unit === 'CONVERSION') return 'per converted Demo';
+  return 'per class';
+}
 
 /** "Diagnostic", "Demo", "Normal Sessions" -- or one "Normal Session" with `singular`. */
 export function classTypeLabel(value, { singular = false } = {}) {
@@ -52,24 +73,36 @@ export function classesLabel(count) {
   return `${count} ${Number(count) === 1 ? 'class' : 'classes'}`;
 }
 
-/** The class counts of a period: "6 Diagnostic · 14 Demo · 38 sessions · 46.5 payable hours". */
+/** "1 conversion", "3 conversions". */
+export function conversionsLabel(count) {
+  return `${count} ${Number(count) === 1 ? 'conversion' : 'conversions'}`;
+}
+
+/**
+ * The class counts of a period: "6 Diagnostic · 14 Demo · 38 sessions · 46.5 payable hours" -- and
+ * " · 3 converted" when Demos converted (a conversion is not a class, so never in the class count).
+ */
 export function countsLine(counts) {
   const hours = trimUnits(counts.session_hours) || '0';
+  const converted = Number(counts.conversions) > 0 ? ` · ${counts.conversions} converted` : '';
   return `${counts.diagnostic} Diagnostic · ${counts.demo} Demo · ${counts.sessions} ${
     Number(counts.sessions) === 1 ? 'session' : 'sessions'
-  } · ${hours} payable ${hours === '1' ? 'hour' : 'hours'}`;
+  } · ${hours} payable ${hours === '1' ? 'hour' : 'hours'}${converted}`;
 }
 
-/** What one unit of `unit` is paid at: "₹450 / hour", "₹300 / class". */
+/** What one unit of `unit` is paid at: "₹450 / hour", "₹300 / class", "₹350 / converted Demo". */
 export function rateLabel(amount, unit) {
   if (amount === null || amount === undefined) return '—';
-  return `${formatInr(amount)} / ${unit === 'HOUR' ? 'hour' : 'class'}`;
+  const per = { HOUR: 'hour', CONVERSION: 'converted Demo' }[unit] || 'class';
+  return `${formatInr(amount)} / ${per}`;
 }
 
-/** The payable units of a line: "1.5 h" for a session, "1 class" otherwise. */
+/** The payable units of a line: "1.5 h" for a session, "2 conversions" for Demo Conversion, "1 class" otherwise. */
 export function unitsLabel(units, unit) {
   if (units === null || units === undefined) return '—';
-  return unit === 'HOUR' ? `${trimUnits(units)} h` : classesLabel(trimUnits(units));
+  if (unit === 'HOUR') return `${trimUnits(units)} h`;
+  if (unit === 'CONVERSION') return conversionsLabel(trimUnits(units));
+  return classesLabel(trimUnits(units));
 }
 
 /** "November 2026" from "2026-11". */
@@ -112,6 +145,10 @@ export const NOT_COUNTED_REASONS = {
   SLOT_NOT_ENDED: { label: 'Slot not over yet', hint: 'The report is in; it counts once the slot ends.' },
   WAITING_FOR_RATES: { label: 'Waiting for rates', hint: 'It counts; it is priced once the initial rates are set.' },
   BEING_ADDED: { label: 'Being added', hint: 'It counts; the next sync (every 10 minutes) adds it.' },
+  WAITING_FOR_DEMO: {
+    label: 'Waiting for its Demo',
+    hint: 'The student enrolled; the conversion is added once the Demo itself counts.',
+  },
 };
 
 // Why an earned class is listed for review (backend earnings.summaries.review_items).
@@ -120,6 +157,7 @@ export const REVIEW_PROBLEMS = {
   TUTOR_CHANGED: 'The class is now assigned to another tutor.',
   TIMES_CHANGED: 'The class was rescheduled after it earned.',
   NO_LONGER_ELIGIBLE: 'The class no longer meets the earning rules.',
+  DEMO_EARNING_REVERSED: 'The earning of the Demo it converted was reversed after the student enrolled.',
 };
 
 /** What changed in a review item's class, as it reads now: the problem, then the specifics. */
@@ -150,11 +188,21 @@ export function classSubject(item) {
 /**
  * Why an earning counts, from what the sync recorded: "Started 4:01 PM · notes
  * 9 Feb, 6:02 PM" for a session, "Started 11:02 AM · report 11:55 AM · slot
- * ended 12:00 PM" for a booking.
+ * ended 12:00 PM" for a booking, "Enrolled 4 Nov 2026, 5:30 PM · Demo earned
+ * ₹200 → ₹350 converted" for a Demo conversion.
  */
 export function whyItCounts(entry) {
   const details = entry?.details || {};
   if (entry?.kind !== 'EARNING') return entry?.reason || '';
+  if (entry.class_type === CONVERSION) {
+    // "Enrolled 4 Nov 2026, 5:30 PM · Demo earned ₹200 → ₹350 converted".
+    return [
+      details.converted_at ? `Enrolled ${stampLabel(details.converted_at)}` : 'Enrolled',
+      details.demo_amount ? `Demo earned ${formatInr(details.demo_amount)} → ${formatInr(details.final_amount)} converted` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
   const started = details.started_at ? `Started ${timeLabel(details.started_at)}` : 'Started';
   if (entry.class_type === 'SESSION') {
     const by = details.started_by_name ? ` by ${details.started_by_name}` : '';

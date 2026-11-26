@@ -100,7 +100,8 @@ class OverviewView(APIView):
 class RatesView(APIView):
     """
     GET  /api/earnings/rates/  the global rates, their history and each tutor's own rates
-    POST /api/earnings/rates/  {"rates": {"SESSION": "425.00"}, "reason": "..."}  change global rates, from now
+    POST /api/earnings/rates/  {"rates": {"SESSION": "425.00", "DEMO_CONVERSION": "350"}, "reason": "..."}
+         change global rates, from now
     """
     permission_classes = [IsAuthenticated, ByMethod(GET=VIEW, POST=RATES)]
 
@@ -118,10 +119,11 @@ class RatesView(APIView):
 class InitialPricingView(APIView):
     """
     POST /api/earnings/rates/initial/
-         {"global": {"DIAGNOSTIC": "300", "DEMO": "300", "SESSION": "400"},
+         {"global": {"DIAGNOSTIC": "300", "DEMO": "300", "SESSION": "400", "DEMO_CONVERSION": "450"},
           "tutors": [{"tutor": <id>, "rates": {"DEMO": "350"}}], "reason": "...", "confirm": true}
 
-    Start pricing, once: the initial rates price every eligible class from the activation.
+    Start pricing, once: the initial rates price every eligible class from the
+    activation -- and every Demo conversion (an enrollment) since then.
     """
     permission_classes = [IsAuthenticated, RATES]
 

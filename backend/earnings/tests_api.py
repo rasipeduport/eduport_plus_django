@@ -186,7 +186,7 @@ class TutorDetailTests(EarningsApiWorld):
         self.assertEqual((rates['SESSION']['amount'], rates['SESSION']['source'], rates['SESSION']['global_amount']),
                          ('450.00', 'TUTOR', '400.00'))
         self.assertEqual(rates['DEMO']['source'], 'GLOBAL')
-        self.assertEqual((len(data['rate_history']['tutor']), len(data['rate_history']['global'])), (1, 3))
+        self.assertEqual((len(data['rate_history']['tutor']), len(data['rate_history']['global'])), (1, 4))
         self.assertEqual([(item['reason'], item['source_id']) for item in data['not_counted']],
                          [('NOTES_DUE', str(notes_due.pk))])
         self.assertEqual(data['months_breakdown'][0]['earned'], '675.00')
@@ -263,7 +263,7 @@ class ActionTests(EarningsApiWorld):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertFalse(res.data['own_rates'])
         res = self.call(self.admin, 'post', 'rates-initial', data={'confirm': True, 'global': {
-            'DIAGNOSTIC': '1', 'DEMO': '1', 'SESSION': '1'}})
+            'DIAGNOSTIC': '1', 'DEMO': '1', 'SESSION': '1', 'DEMO_CONVERSION': '1'}})
         self.assertEqual((res.status_code, res.data['code']), (status.HTTP_409_CONFLICT, 'PRICING_STARTED'))
 
     def test_an_earning_in_review_is_kept_as_earned_with_its_reason(self):

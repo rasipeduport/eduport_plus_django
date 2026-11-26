@@ -45,7 +45,7 @@ from activity.utils import log_activity
 from bookings import history
 # The booking locks every booking write takes, in the order they take them.
 from bookings.booking_service import BUSY_SQLSTATES, _locked_booking, _set_lock_timeout, slot_label
-from bookings.models import CONDUCTED, BookingEventKind, BookingStatus
+from bookings.models import CONDUCTED, BookingEventKind, BookingStatus, BookingType
 from communications import outbox
 
 from .models import (
@@ -194,6 +194,10 @@ def submit_report(booking, tutor, fields, now=None):
             )
             # The after-activity message follows from this event, after the completion commits.
             outbox.booking_completed(booking, now)
+            if booking.booking_type == BookingType.DEMO:
+                # A reported Demo may complete its student's conversion: Tutor Earnings checks after this commits.
+                from earnings.hooks import conversion_may_be_due
+                conversion_may_be_due(booking.lead_id)
     except OperationalError as exc:
         if getattr(exc.__cause__, 'sqlstate', None) in BUSY_SQLSTATES:
             raise ReportBusy() from exc

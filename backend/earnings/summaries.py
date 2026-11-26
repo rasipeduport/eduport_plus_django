@@ -8,9 +8,13 @@ anything else (earnings.ledger writes earnings).
 Amounts are rupees as text with two decimals ("27625.00"); units likewise
 ("46.50"). A period is one month (the first day of it) or every month (None):
 earnings count in their entry's month -- an earning's is its class's
-scheduled end, in India time -- and payments in their payment date's. What a
-tutor is owed is always everything earned less everything paid, whatever the
-period.
+scheduled end, in India time; a Demo Conversion's, its enrollment's -- and
+payments in their payment date's. What a tutor is owed is always everything
+earned less everything paid, whatever the period.
+
+A Demo Conversion earning (earnings.conversions) is not a class: it is
+counted apart (``conversions``), never in ``classes``, and its amount is only
+the incentive over the Demo's own earning, so the Demo is never counted twice.
 """
 from collections import defaultdict
 from datetime import date
@@ -23,6 +27,7 @@ from django.utils import timezone
 from bookings.models import CONDUCTED, BookingStatus, DemoBooking, DiagnosticBooking
 from sessions.models import Session, SessionStatusChoices
 
+from . import conversions as demo_conversions
 from .eligibility import activated_at, eligible_bookings, eligible_sessions, is_eligible
 from .models import (
     CURRENCY,
@@ -41,6 +46,11 @@ from .values import india_today, month_of
 User = get_user_model()
 
 ZERO = Decimal('0.00')
+# What class_counts holds for a class type with no earnings: no classes, units or amount.
+NONE_COUNTED = (0, ZERO, ZERO)
+# A Demo Conversion's source is the enrollment's sale: an administrator reads its id, a tutor never does --
+# not as the row's source_id, nor in its details (on the conversion, its reversal, an adjustment about it).
+ADMIN_ONLY_CONVERSION_DETAILS = ('sale_id',)
 BOOKING_MODELS = ((ClassType.DIAGNOSTIC, DiagnosticBooking), (ClassType.DEMO, DemoBooking))
 
 
@@ -117,23 +127,32 @@ def _live_earnings(entries):
 # ----------------------------------------------------------------- counting
 
 def class_counts(entries, by=('tutor_id',)):
-    """{key: {type: (classes, units)}} of the unreversed earnings of ``entries``, keyed by ``by``."""
-    found = defaultdict(lambda: defaultdict(lambda: (0, ZERO)))
-    rows = _live_earnings(entries).values(*by, 'class_type').annotate(classes=Count('id'), units=Sum('units'))
+    """{key: {type: (classes, units, amount)}} of the unreversed earnings of ``entries``, keyed by ``by``."""
+    found = defaultdict(lambda: defaultdict(lambda: NONE_COUNTED))
+    rows = (_live_earnings(entries).values(*by, 'class_type')
+            .annotate(classes=Count('id'), units=Sum('units'), amount=Sum('amount')))
     for row in rows:
         key = tuple(row[name] for name in by)
-        found[key if len(by) > 1 else key[0]][row['class_type']] = (row['classes'], row['units'] or ZERO)
+        found[key if len(by) > 1 else key[0]][row['class_type']] = (
+            row['classes'], row['units'] or ZERO, row['amount'] or ZERO)
     return found
 
 
 def counts_block(counts):
-    """The class counts of one tutor (or everyone) as served: diagnostic, demo, sessions, session hours, classes."""
-    diagnostic = counts.get(ClassType.DIAGNOSTIC, (0, ZERO))[0]
-    demo = counts.get(ClassType.DEMO, (0, ZERO))[0]
-    sessions, hours = counts.get(ClassType.SESSION, (0, ZERO))
+    """
+    The class counts of one tutor (or everyone) as served: diagnostic, demo,
+    sessions, session hours and classes (the three added up) -- and, apart,
+    the Demos converted, with what the Demos earned and the conversions added
+    on top (unreversed earnings only; adjustments are not in either).
+    """
+    diagnostic = counts.get(ClassType.DIAGNOSTIC, NONE_COUNTED)[0]
+    demo, _units, demo_earned = counts.get(ClassType.DEMO, NONE_COUNTED)
+    sessions, hours, _amount = counts.get(ClassType.SESSION, NONE_COUNTED)
+    converted, _units, conversion_earned = counts.get(ClassType.DEMO_CONVERSION, NONE_COUNTED)
     return {
         'diagnostic': diagnostic, 'demo': demo, 'sessions': sessions, 'session_hours': money(hours),
         'classes': diagnostic + demo + sessions,
+        'conversions': converted, 'demo_earned': money(demo_earned), 'conversion_earned': money(conversion_earned),
     }
 
 
@@ -184,10 +203,10 @@ def overview(month=None, search='', balance='', rate='', now=None):
             'own_rates': tutor.pk in own_rates,
         })
     owed_all = [Decimal(row['outstanding']) for row in rows]
-    totals_counts = defaultdict(lambda: (0, ZERO))
+    totals_counts = defaultdict(lambda: NONE_COUNTED)
     for per_tutor in counts.values():
-        for class_type, (classes, units) in per_tutor.items():
-            totals_counts[class_type] = (totals_counts[class_type][0] + classes, totals_counts[class_type][1] + units)
+        for class_type, figures in per_tutor.items():
+            totals_counts[class_type] = tuple(a + b for a, b in zip(totals_counts[class_type], figures))
     totals = {
         'earned': money(sum(earned.values(), ZERO)),
         'paid': money(sum(paid.values(), ZERO)),
@@ -255,6 +274,16 @@ def payment_row(payment, admin):
     return row
 
 
+def _conversion_of(entry):
+    """A Demo earning's Demo Conversion, as its row shows it, or None."""
+    conversion = getattr(entry, 'conversion', None)
+    if conversion is None:
+        return None
+    return {'id': str(conversion.id), 'amount': money(conversion.amount), 'month': month_key(conversion.month),
+            'converted_at': (conversion.details or {}).get('converted_at'),
+            'reversed': getattr(conversion, 'reversal', None) is not None}
+
+
 def entry_row(entry, admin):
     reversal = getattr(entry, 'reversal', None)
     row = {
@@ -273,6 +302,9 @@ def entry_row(entry, admin):
         'reason': entry.reason or None,
         'created_at': iso(entry.created_at),
         'reverses_id': str(entry.reverses_id) if entry.reverses_id else None,
+        # A Demo Conversion: the Demo earning it tops up. A Demo earning: its conversion, if it converted.
+        'converts_id': str(entry.converts_id) if entry.converts_id else None,
+        'conversion': _conversion_of(entry) if entry.class_type == ClassType.DEMO else None,
         'reversed': reversal is not None,
         'reversal': {
             'id': str(reversal.id), 'created_at': iso(reversal.created_at), 'reason': reversal.reason,
@@ -282,11 +314,19 @@ def entry_row(entry, admin):
     if admin:
         row['rate_source'] = entry.rate_source
         row['created_by'] = person(entry.created_by)
+    elif entry.class_type == ClassType.DEMO_CONVERSION:
+        row['source_id'] = None
+        row['details'] = {key: value for key, value in row['details'].items()
+                          if key not in ADMIN_ONLY_CONVERSION_DETAILS}
     return row
 
 
 def _breakdown(period_entries, admin):
-    """Per class type: classes, units, amount, and a line per rate (and, for an administrator, per rate source)."""
+    """
+    Per class type: classes, units, amount, and a line per rate (and, for an
+    administrator, per rate source). For Demo Conversion: the Demos converted,
+    the conversion rate they reached and the incentives they added.
+    """
     by = ('class_type', 'rate', 'rate_source') if admin else ('class_type', 'rate')
     lines = defaultdict(list)
     for row in (_live_earnings(period_entries).values(*by)
@@ -312,7 +352,11 @@ def _breakdown(period_entries, admin):
 
 
 def _months(entries):
-    """Every month with entries -- newest first -- with what was earned and the classes that count."""
+    """
+    Every month with entries -- newest first -- with what was earned (every
+    entry of the month, so it adds up to the ledger) and the classes that
+    count; a Demo Conversion in its enrollment's month.
+    """
     earned = _sum_by(entries, 'month')
     counts = class_counts(entries, by=('month',))
     return [{'month': month_key(month), 'earned': money(earned[month]), **counts_block(counts.get(month, {}))}
@@ -380,7 +424,7 @@ def tutor_earnings(tutor, month=None, admin=True, now=None):
         'adjustments': money(earned - counted),
         'months_breakdown': _months(entries),
         'rates': _rates_for(tutor, book, now, admin),
-        'not_counted': not_counted(tutor, now),
+        'not_counted': not_counted(tutor, now, admin=admin),
         'payments': [payment_row(payment, admin) for payment in payments],
     }
     if admin:
@@ -396,7 +440,7 @@ def tutor_earnings(tutor, month=None, admin=True, now=None):
 def entries_page(tutor, month=None, class_type=None):
     """``tutor``'s ledger, newest first: every earning, reversal and adjustment (a queryset to page)."""
     entries = (EarningEntry.objects.filter(tutor=tutor)
-               .select_related('created_by', 'reversal', 'reversal__created_by')
+               .select_related('created_by', 'reversal', 'reversal__created_by', 'conversion', 'conversion__reversal')
                .order_by('-month', '-class_end', '-created_at'))
     if month is not None:
         entries = entries.filter(month=month)
@@ -446,8 +490,29 @@ def _pending_queries(now, tutor_id=None):
     return queries
 
 
-def not_counted(tutor, now=None):
-    """The classes of ``tutor`` not counted yet that may still count, oldest first."""
+def _conversion_items(book, tutor_id=None):
+    """
+    (reason, Conversion) of every enrollment not converted yet that may still
+    pay a Demo Conversion -- to ``tutor_id``, or anyone: one the next sync
+    writes, and one whose converting Demo may still count.
+    """
+    found = []
+    for item in demo_conversions.pending(book):
+        if tutor_id is not None and item.tutor_id != tutor_id:
+            continue
+        if item.state == demo_conversions.READY:
+            found.append(('WAITING', item))
+        elif item.state == demo_conversions.WAITING_FOR_DEMO:
+            found.append(('WAITING_FOR_DEMO', item))
+    return found
+
+
+def not_counted(tutor, now=None, admin=True):
+    """
+    The classes (and Demo conversions) of ``tutor`` not counted yet that may
+    still count, oldest first. A conversion's source is its sale: the tutor
+    (not ``admin``) reads none.
+    """
     now = now or timezone.now()
     waiting = _waiting_reason()
     items = []
@@ -469,16 +534,27 @@ def not_counted(tutor, now=None):
                     'title': None, 'student_name': booking.lead.student_name,
                     'is_redemo': getattr(booking, 'redemo_for_id', None) is not None,
                 })
+    for reason, item in _conversion_items(RateBook.load(), tutor.pk):
+        sale, demo = item.sale, item.demo
+        items.append({
+            'class_type': ClassType.DEMO_CONVERSION, 'source_id': str(sale.pk) if admin else None,
+            'reason': waiting if reason == 'WAITING' else reason,
+            'class_start': iso(demo.slot.starts_at), 'class_end': iso(demo.slot.ends_at),
+            'title': None, 'student_name': sale.student.full_name if sale.student else demo.lead.student_name,
+            'is_redemo': demo.redemo_for_id is not None, 'converted_at': iso(sale.enrolled_at),
+        })
     return sorted(items, key=lambda item: item['class_end'])
 
 
 def not_counted_counts(now=None):
-    """How many classes, across every tutor, are not counted yet for each reason."""
+    """How many classes and Demo conversions, across every tutor, are not counted yet for each reason."""
     now = now or timezone.now()
     waiting = _waiting_reason()
-    counts = {'NOTES_DUE': 0, 'REPORT_DUE': 0, 'SLOT_NOT_ENDED': 0, waiting: 0}
+    counts = {'NOTES_DUE': 0, 'REPORT_DUE': 0, 'SLOT_NOT_ENDED': 0, waiting: 0, 'WAITING_FOR_DEMO': 0}
     for reason, _class_type, queryset in _pending_queries(now):
         counts[waiting if reason == 'WAITING' else reason] += queryset.count()
+    for reason, _item in _conversion_items(RateBook.load()):
+        counts[waiting if reason == 'WAITING' else reason] += 1
     return counts
 
 
@@ -492,11 +568,11 @@ def seen(item):
 def review_items(tutor_id=None):
     """
     The earnings whose class has changed since it was earned -- no longer
-    counting, now another tutor's, scheduled differently, or gone -- unless
-    an administrator kept the earning as earned while its class reads as it
-    does now. The sync never touches an earning: an administrator reverses
-    it or keeps it as earned (earnings.corrections); an adjustment alone
-    leaves it here.
+    counting, now another tutor's, scheduled differently, or gone -- and the
+    Demo Conversions whose Demo earning has since been reversed, unless an
+    administrator kept the earning as earned while it reads as it does now.
+    The sync never touches an earning: an administrator reverses it or keeps
+    it as earned (earnings.corrections); an adjustment alone leaves it here.
     """
     earnings = _live_earnings(EarningEntry.objects.all()).select_related('tutor')
     reviews = EarningReview.objects.all()
@@ -524,6 +600,14 @@ def review_items(tutor_id=None):
             if seen(problem) in kept[entry.pk]:
                 continue
             items.append({**problem, 'entry': entry_row(entry, admin=True), 'tutor': person(entry.tutor)})
+    # A conversion stands on its Demo's earning: once that is reversed, the conversion is reviewed too.
+    for entry in earnings.filter(class_type=ClassType.DEMO_CONVERSION, converts__reversal__isnull=False):
+        problem = {'problem': 'DEMO_EARNING_REVERSED',
+                   'current': {'demo_entry_id': str(entry.converts_id), 'demo_reversed': True},
+                   'current_tutor': person(entry.tutor)}
+        if seen(problem) in kept[entry.pk]:
+            continue
+        items.append({**problem, 'entry': entry_row(entry, admin=True), 'tutor': person(entry.tutor)})
     return sorted(items, key=lambda item: item['entry']['class_end'] or '')
 
 

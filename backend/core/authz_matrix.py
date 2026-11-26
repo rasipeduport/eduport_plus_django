@@ -922,7 +922,7 @@ SCENARIOS += [
     Scenario('earnings.rates', 'get', '/api/earnings/rates/'),
     Scenario('earnings.rates_change', 'post', '/api/earnings/rates/', {'rates': {'SESSION': '410'}, 'reason': 'Matrix'}),
     Scenario('earnings.rates_initial', 'post', '/api/earnings/rates/initial/', {
-        'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True}),
+        'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True}),
     Scenario('earnings.review', 'get', '/api/earnings/review/'),
     Scenario('earnings.tutor', 'get', '/api/earnings/tutors/{tutor_a}/'),
     Scenario('earnings.tutor_entries', 'get', '/api/earnings/tutors/{tutor_a}/entries/'),
