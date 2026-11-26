@@ -70,4 +70,7 @@ def enroll(sale, purchase, actor, request=None):
     rows = list(StripeCustomer.objects.filter(account_id=sale.account_id, customer_id__isnull=False).values_list('pk', flat=True))
     StripeCustomer.objects.filter(pk__in=rows).update(student_metadata_synced=False)
     transaction.on_commit(lambda: [sync_labels(row) for row in rows])
+    # Tutor Earnings checks at once, after this commits, for the Demo this enrollment converts.
+    from earnings.hooks import conversion_may_be_due
+    conversion_may_be_due(lead.pk)
     return student

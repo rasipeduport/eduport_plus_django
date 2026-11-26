@@ -9,11 +9,12 @@ they were paid -- in Indian rupees only, to the paisa.
 - EarningsRate: every rate there has been, global or one tutor's, per class
   type. A rate is never edited: a change is a new version, in effect for the
   classes ending from then on.
-- EarningEntry: the ledger. An earning per counted class, written by the sync
-  (earnings.ledger) and never twice -- and, when a Demo's student enrolls, a
-  Demo Conversion earning that tops the Demo's up to the conversion rate
-  (earnings.conversions); reversals and adjustments by an administrator, each
-  with its reason. Rows are only ever added.
+- EarningEntry: the ledger. An earning per counted class, written by
+  earnings.ledger (the sync, or a lead's conversion check) and never twice --
+  and, when a Demo's student enrolls, a Demo Conversion earning that tops the
+  Demo's up to the conversion rate (earnings.conversions); reversals and
+  adjustments by an administrator, each with its reason. Rows are only ever
+  added.
 - EarningReview: an administrator's "Keep as earned" on an earning whose class
   changed after it earned, with the reason.
 - TutorPayment: a payment an administrator made to a tutor outside Eduport
@@ -262,7 +263,8 @@ class EarningEntry(models.Model):
         'self', on_delete=models.PROTECT, null=True, blank=True, related_name='conversion',
     )
     reason = models.TextField(blank=True, default='')
-    # Who wrote it: an administrator's reversal or adjustment; none for an earning (the sync).
+    # Who wrote it: an administrator's reversal or adjustment; none for an earning (the sync, or the
+    # conversion check -- earnings.hooks -- which leaves ``sync_run`` empty).
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='+',
     )

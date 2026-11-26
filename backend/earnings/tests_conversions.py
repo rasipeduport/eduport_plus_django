@@ -14,7 +14,9 @@ from unittest import mock
 from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import Sum
-from django.test import TestCase, TransactionTestCase
+import threading
+
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -31,7 +33,7 @@ from sales.payment_models import Sale
 from sales.student_accounts import next_reference
 from students.models import Student
 
-from . import conversions, corrections, ledger, payments, rates, summaries
+from . import conversions, corrections, hooks, ledger, payments, rates, summaries, tasks
 from .models import (
     ClassType,
     EarningEntry,
@@ -59,7 +61,9 @@ def clock(moment):
     return mock.patch('django.utils.timezone.now', return_value=moment)
 
 
-class ConversionWorld(TestCase):
+class ConversionFixtures:
+    """Bookings, tutors and enrollments for the conversion tests (a TestCase's or a TransactionTestCase's)."""
+
     def setUp(self):
         schedule()
         TutorEarningsActivation.objects.update_or_create(id=1, defaults={'activated_at': ACTIVATED})
@@ -85,14 +89,15 @@ class ConversionWorld(TestCase):
     def enroll(self, lead, when, tutor=None):
         """``lead``'s initial sale, enrolled at ``when`` as sales.enrollment.enroll leaves it (the student's tutor: ``tutor``)."""
         self.students += 1
-        student = Student.objects.create(
-            profile=person(f'conversion_student_{self.students}', role='STUDENT'),
-            student_code=f'EDP9{self.students:04d}', full_name=lead.student_name, tutor=tutor,
-        )
-        holder = StudentAccount.objects.create(reference=next_reference(), origin_lead=lead, student=student,
-                                               student_name=lead.student_name)
-        return Sale.objects.create(account=holder, enquiry=lead, original_bde=self.bde, created_by=self.bde,
-                                   kind='NEW', student=student, enrolled_at=when)
+        with transaction.atomic():
+            student = Student.objects.create(
+                profile=person(f'conversion_student_{self.students}', role='STUDENT'),
+                student_code=f'EDP9{self.students:04d}', full_name=lead.student_name, tutor=tutor,
+            )
+            holder = StudentAccount.objects.create(reference=next_reference(), origin_lead=lead, student=student,
+                                                   student_name=lead.student_name)
+            return Sale.objects.create(account=holder, enquiry=lead, original_bde=self.bde, created_by=self.bde,
+                                       kind='NEW', student=student, enrolled_at=when)
 
     def converted(self, **filters):
         return EarningEntry.objects.filter(kind=EntryKind.EARNING, class_type=CONVERSION, **filters)
@@ -107,6 +112,10 @@ class ConversionWorld(TestCase):
         with self.assertRaises(EarningsError) as caught:
             call()
         return caught.exception
+
+
+class ConversionWorld(ConversionFixtures, TestCase):
+    pass
 
 
 class ConversionTests(ConversionWorld):
@@ -806,3 +815,229 @@ class ConversionVisibilityTests(ConversionWorld):
         admin_lines = self.get(self.admin, 'tutor-entries', str(self.tutor.pk)).data['results']
         self.assertTrue(all(row['source_id'] in sale_ids and row['details']['sale_id'] == row['source_id']
                             for row in admin_lines if row['class_type'] == CONVERSION))
+
+
+STRIPE_AND_INVITATIONS = dict(STRIPE_SECRET_KEY='sk_test_unit_only', STRIPE_WEBHOOK_SECRET='whsec_unit_only',
+                              STRIPE_LIVE_MODE=False,
+                              LEARN_INVITATION_KEYS=['MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='])
+
+
+@override_settings(**STRIPE_AND_INVITATIONS)
+class ImmediateConversionTests(ConversionWorld):
+    """
+    A conversion is earned at once when its second half arrives -- the
+    payment that enrolls the student, or the Demo's report -- after that
+    commits, without waiting for the sync, which stays the backup and never
+    doubles it. Every way a first payment is verified enrolls through the same
+    step (sales.enrollment.enroll), and so asks for the check.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.price()
+        self.world = None
+
+    def sales_world(self):
+        """The sales tests' own world (a Bridge Course on sale, its pricing, a BDE), once per test."""
+        if self.world is None:
+            from sales.tests_payments import InitialPaymentTests
+            self.world = InitialPaymentTests(methodName='run')
+            self.world.client = self.world.client_class()
+            self.world.setUp()
+            self.addCleanup(self.world.tmp.cleanup)
+            self.addCleanup(self.world.storage.disable)
+        return self.world
+
+    def sale_for(self, lead):
+        """``lead``'s New Sale, started by its BDE: the world now collects for it."""
+        from sales import quotes
+        world = self.sales_world()
+        Lead.objects.filter(pk=lead.pk).update(owner_bde=world.bde, owner_assigned_at=timezone.now())
+        quotes.create_quote(world.bde, {'collection_mode': 'PARTIAL', 'syllabus': world.bridge.pk, 'revision': 1,
+                                        'plan_type': 'BRIDGE_COURSE', 'lead': lead.pk})
+        world.lead = lead
+        self.assertEqual(world.start().status_code, 201)
+        return world
+
+    def pay_directly(self, lead):
+        """A direct receipt for ``lead``, recorded and so verified at once -- with what follows its commit."""
+        world = self.sale_for(lead)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = world.collect()
+        self.assertEqual(response.status_code, 201, response.content)
+        return Sale.objects.get(enquiry=lead)
+
+    def test_a_demo_earned_first_converts_the_moment_the_payment_is_verified(self):
+        demo = self.demo()
+        ledger.reconcile()
+        sale = self.pay_directly(demo.lead)
+        conversion = self.converted().get()
+        self.assertEqual((conversion.source_id, conversion.tutor, conversion.amount, conversion.sync_run),
+                         (sale.pk, self.tutor, Decimal('150.00'), None))
+        self.assertEqual(conversion.month, month_of(sale.enrolled_at))
+
+    def test_a_demo_the_sync_has_not_earned_yet_is_earned_with_its_conversion(self):
+        demo = self.demo()
+        self.pay_directly(demo.lead)
+        earning, conversion = self.demo_earning(demo), self.converted().get()
+        # The very rows the sync would have written: the Demo at its rate, then the conversion over it.
+        self.assertEqual((earning.amount, earning.rate, earning.sync_run, earning.details['report_id']),
+                         (Decimal('200.00'), Decimal('200.00'), None, str(demo.report.pk)))
+        self.assertEqual((conversion.converts_id, conversion.amount), (earning.pk, Decimal('150.00')))
+        run = ledger.reconcile()
+        self.assertEqual((run.earned_count, self.converted().count()), (0, 1))
+
+    def test_a_payment_verified_first_converts_the_moment_the_demo_is_reported(self):
+        demo = self.demo(report=False)
+        self.pay_directly(demo.lead)
+        self.assertFalse(self.converted().exists())
+        self.assertEqual([item['reason'] for item in summaries.not_counted(self.tutor)
+                          if item['class_type'] == CONVERSION], ['WAITING_FOR_DEMO'])
+        with self.captureOnCommitCallbacks(execute=True):
+            submit_report(demo, self.tutor, report_input(demo), now=demo.slot.ends_at + timedelta(minutes=5))
+        conversion = self.converted().get()
+        self.assertEqual((conversion.amount, conversion.converts.source_id, conversion.sync_run),
+                         (Decimal('150.00'), demo.pk, None))
+
+    def test_a_stripe_payment_converts_at_once_and_its_webhook_replays_change_nothing(self):
+        demo = self.demo()
+        world = self.sale_for(demo.lead)
+        gateway, _calls = world.stripe_transport()
+        with mock.patch('sales.stripe_gateway.client', return_value=gateway):
+            self.assertEqual(world.collect(method='STRIPE').status_code, 201)
+            from sales.payment_models import Payment
+            payment = Payment.objects.get(sale__enquiry=demo.lead)
+            event = world.event(payment)
+            self.assertFalse(self.converted().exists())
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertEqual(world.webhook(event).status_code, 200)
+            self.assertEqual(self.converted().count(), 1)
+            for replay in (event, world.event(payment)):
+                with self.captureOnCommitCallbacks(execute=True):
+                    self.assertEqual(world.webhook(replay).status_code, 200)
+        self.assertEqual(self.converted().count(), 1)
+        self.assertEqual(self.converted().get().amount, Decimal('150.00'))
+
+    def test_autopay_and_every_other_verification_reaches_the_check_through_the_enrollment(self):
+        # AutoPay verifies an installment as billing does -- payments.succeed with its PaymentIntent -- and
+        # the first verified tuition enrolls through the same step as a receipt or a Checkout.
+        from sales import payments as sales_payments
+        from sales.payment_models import Payment
+        demo = self.demo()
+        world = self.sale_for(demo.lead)
+        gateway, _calls = world.stripe_transport()
+        with mock.patch('sales.stripe_gateway.client', return_value=gateway):
+            self.assertEqual(world.collect(method='STRIPE').status_code, 201)
+        payment = Payment.objects.get(sale__enquiry=demo.lead)
+        with mock.patch('earnings.hooks.conversion_may_be_due') as asked, transaction.atomic():
+            sales_payments.succeed(payment, provider_id='pi_autopay_unit', charge_id='ch_autopay_unit')
+        asked.assert_called_once_with(demo.lead_id)
+        with mock.patch('earnings.hooks.conversion_may_be_due') as asked, transaction.atomic():
+            sales_payments.succeed(Payment.objects.get(pk=payment.pk), provider_id='pi_autopay_unit')
+        asked.assert_not_called()
+
+    def test_a_demo_reported_before_its_slot_ends_converts_when_the_slot_ends(self):
+        demo = self.demo()
+        sale = self.enroll(demo.lead, demo.slot.starts_at + timedelta(minutes=55))
+        ends = demo.slot.ends_at
+        with clock(ends - timedelta(minutes=4)), \
+                mock.patch('earnings.tasks.check_demo_conversion.apply_async') as scheduled:
+            result = hooks.check_conversion(demo.lead_id)
+        self.assertEqual((result.conversion, result.due_at), (None, ends))
+        scheduled.assert_called_once_with(args=[str(demo.lead_id)], eta=ends)
+        self.assertFalse(EarningEntry.objects.exists())
+        # At the slot's end the task checks again, and never asks once more.
+        with mock.patch('earnings.tasks.check_demo_conversion.apply_async') as again:
+            self.assertEqual(tasks.check_demo_conversion(str(demo.lead_id)), {'checked': True, 'converted': True})
+        again.assert_not_called()
+        self.assertEqual(self.converted().get().source_id, sale.pk)
+
+    def test_the_check_and_the_sync_together_write_each_earning_once(self):
+        first, second = self.demo(), self.demo(student='Ali', phone='0507654321', at=MORNING)
+        self.enroll(first.lead, first.slot.ends_at + timedelta(days=1))
+        self.enroll(second.lead, second.slot.ends_at + timedelta(days=1))
+        hooks.check_conversion(first.lead_id)
+        ledger.reconcile()
+        hooks.check_conversion(first.lead_id)
+        hooks.check_conversion(second.lead_id)
+        ledger.reconcile()
+        self.assertEqual(self.converted().count(), 2)
+        self.assertEqual(EarningEntry.objects.filter(kind=EntryKind.EARNING, class_type=ClassType.DEMO).count(), 2)
+        self.assertEqual(self.earned(self.tutor), Decimal('700.00'))
+
+    def test_a_failing_check_never_fails_the_payment_and_the_sync_adds_it(self):
+        demo = self.demo()
+        with mock.patch('earnings.ledger.record_conversion', side_effect=RuntimeError('database gone')), \
+                self.assertLogs('earnings.hooks', 'ERROR'):
+            sale = self.pay_directly(demo.lead)
+        self.assertIsNotNone(sale.enrolled_at)
+        self.assertFalse(self.converted().exists())
+        ledger.reconcile()
+        self.assertEqual(self.converted().get().source_id, sale.pk)
+
+    def test_the_check_writes_nothing_while_the_sync_is_switched_off(self):
+        demo = self.demo()
+        self.enroll(demo.lead, demo.slot.ends_at + timedelta(days=1))
+        with override_settings(TUTOR_EARNINGS_SYNC_ENABLED=False):
+            self.assertIsNone(hooks.check_conversion(demo.lead_id).conversion)
+        self.assertFalse(EarningEntry.objects.exists())
+
+
+class ConcurrentConversionTests(ConversionFixtures, TransactionTestCase):
+    """The check and the sync at the same moment -- or the check while a sync holds on -- never double an earning."""
+
+    def setUp(self):
+        super().setUp()
+        self.price()
+        self.demo_booking = self.demo()
+        self.enroll(self.demo_booking.lead, self.demo_booking.slot.ends_at + timedelta(days=1))
+
+    def test_the_check_and_the_sync_at_once_write_each_earning_once(self):
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def run(work):
+            try:
+                barrier.wait(timeout=10)
+                work()
+            except Exception as exc:  # surfaced below
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=run, args=(ledger.reconcile,)),
+                   threading.Thread(target=run, args=(lambda: hooks.check_conversion(self.demo_booking.lead_id),))]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(errors, [])
+        ledger.reconcile()
+        self.assertEqual(self.converted().count(), 1)
+        self.assertEqual(EarningEntry.objects.filter(kind=EntryKind.EARNING, class_type=ClassType.DEMO).count(), 1)
+
+    def test_a_check_that_cannot_wait_for_the_sync_leaves_the_conversion_to_it(self):
+        from .values import lock_named
+        held, release = threading.Event(), threading.Event()
+
+        def hold_the_sync_lock():
+            try:
+                with transaction.atomic():
+                    lock_named('sync')
+                    held.set()
+                    release.wait(timeout=10)
+            finally:
+                connection.close()
+
+        holder = threading.Thread(target=hold_the_sync_lock)
+        holder.start()
+        self.assertTrue(held.wait(timeout=10))
+        try:
+            with mock.patch('earnings.ledger.CHECK_LOCK_TIMEOUT', '200ms'), self.assertLogs('earnings.hooks', 'ERROR'):
+                self.assertIsNone(hooks.check_conversion(self.demo_booking.lead_id))
+            self.assertFalse(self.converted().exists())
+        finally:
+            release.set()
+            holder.join()
+        ledger.reconcile()
+        self.assertEqual(self.converted().count(), 1)

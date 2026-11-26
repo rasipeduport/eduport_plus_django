@@ -43,11 +43,16 @@ if the rates changed between the Demo and the enrollment, since a rate change
 that would make it so is refused (earnings.rates) -- there is no incentive
 and nothing is written: a conversion never lowers what a Demo earned.
 
-Once: only the sync (earnings.ledger) writes it, under its lock. The
+When: at once, as soon as both halves stand -- the student enrolled and the
+Demo counts, whichever comes second (earnings.hooks: an enrollment, a Demo
+report, the end of a slot a Demo was reported in) -- and otherwise at the
+next 10-minute sync, the backup (earnings.ledger).
+
+Once: the check and the sync are the only writers, under the same lock. The
 database allows one Demo Conversion earning per sale and one per Demo
 earning, and checks its sum (migration 0003). Repeated payments, webhooks,
-enrollments or sync runs change nothing, and a reversed conversion is never
-written again. It counts in the month of the enrollment, in India time.
+enrollments, checks or sync runs change nothing, and a reversed conversion is
+never written again. It counts in the month of the enrollment, in India time.
 """
 from collections import defaultdict
 from dataclasses import dataclass
