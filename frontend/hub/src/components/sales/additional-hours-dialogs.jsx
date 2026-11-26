@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { firstMessage, salesError } from '@/lib/sales';
 import { PAYMENT_TYPES, wholeAed } from '@/lib/payments';
 import {
-  DIRECT_METHODS, VOID_KINDS, additionalHoursEligibilityUrl, allocationPaymentsUrl, allocationUrl, allocationVoidUrl, chapterLabel,
+  DIRECT_METHODS, VOID_KINDS, additionalHoursEligibilityUrl, allocationPaymentsUrl, allocationStripeLinksUrl, allocationUrl,
+  allocationVoidUrl, chapterLabel,
   classes, hours, requestKey, studentAdditionalHoursUrl, today,
 } from '@/lib/additional-hours';
 import { formatDate } from '@/lib/utils';
@@ -440,5 +441,52 @@ export function VoidHoursPaymentDialog({ allocation, payment, open, onOpenChange
       </select></div>
     <div className="grid gap-2"><Label htmlFor="void-hours-reason">Reason</Label>
       <Textarea id="void-hours-reason" rows={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></div>
+  </FormDialog>;
+}
+
+/**
+ * A Stripe Checkout link for the hours (POST additional-hours/<id>/stripe-links/): for all that is still due,
+ * or part of it -- the API refuses more. The parent pays on Stripe; only Stripe's verified webhook records the
+ * payment. The form's own key makes a repeated request return the same link, never a second one. When Stripe
+ * does not confirm the link in time, `onRefresh` shows the attempt so it can be tried again.
+ */
+export function GenerateStripeLinkDialog({ allocation, open, onOpenChange, onSaved, onRefresh }) {
+  const [amount, setAmount] = useState('');
+  const [key, setKey] = useState(requestKey);
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  useOnOpen(open, () => { setAmount(allocation?.outstanding_amount ?? ''); setKey(requestKey()); setErrors({}); setError(''); });
+
+  const save = async (event) => {
+    event.preventDefault();
+    setPending(true); setError(''); setErrors({});
+    try {
+      const { data } = await api.post(allocationStripeLinksUrl(allocation.id), { request_id: key, amount: amount.trim() });
+      onOpenChange(false);
+      onSaved?.(data.allocation);
+    } catch (err) {
+      const refused = salesError(err, 'Could not create the payment link.');
+      const found = fieldErrors(refused);
+      if (refused.code === 'EXCEEDS_OUTSTANDING') found.amount = refused.message;
+      if (refused.code === 'IDEMPOTENCY_CONFLICT') setKey(requestKey());
+      setErrors(found);
+      setError(refused.code === 'EXCEEDS_OUTSTANDING' ? '' : refused.message);
+      // Stripe may have made it (or another link is open): show the hours as they now stand.
+      if (['STRIPE_UNAVAILABLE', 'STRIPE_LINK_OPEN', 'CHECKOUT_REVIEW_REQUIRED'].includes(refused.code)) onRefresh?.();
+    } finally {
+      setPending(false);
+    }
+  };
+  return <FormDialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)} size="md" title="Generate Stripe payment link"
+    description={allocation ? `${allocation.reference} · ${wholeAed(allocation.outstanding_amount)} still due. The parent pays by card on Stripe; the payment is recorded only when Stripe confirms it, and the student’s quota does not change.` : ''}
+    formId="stripe-link-form" confirmLabel="Generate link" pendingLabel="Generating…" pending={pending} error={error} confirmDisabled={!amount}>
+    <form id="stripe-link-form" className="grid gap-2" noValidate onSubmit={save}>
+      <Label htmlFor="stripe-link-amount">Amount (whole AED)</Label>
+      <Input id="stripe-link-amount" type="number" inputMode="numeric" step="1" min="1" value={amount} onChange={(event) => setAmount(event.target.value)}
+        aria-invalid={errors.amount ? true : undefined} />
+      <p className="text-muted-foreground text-xs">All that is still due by default; a smaller amount leaves the rest to collect later.</p>
+      <FieldError message={errors.amount} />
+    </form>
   </FormDialog>;
 }
