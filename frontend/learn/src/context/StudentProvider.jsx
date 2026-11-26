@@ -4,7 +4,7 @@ import { resolveStudentZone } from '../lib/formatting';
 
 // Provides shared student state (profile, dashboard stats, auth actions) to the
 // student-facing pages via StudentContext / useStudent().
-export default function StudentProvider({ children, user, students, studentProfile, stats, reloadStats, switchStudent, logout }) {
+export default function StudentProvider({ children, user, students, studentProfile, stats, reloadStats, switchStudent, recheck, logout }) {
   const value = useMemo(() => ({
     user,
     students: students || [],
@@ -16,8 +16,9 @@ export default function StudentProvider({ children, user, students, studentProfi
     profileEmail: user?.email,
     dashboardStats: stats,
     reloadStats,
+    recheck,
     logout
-  }), [user, students, studentProfile, stats, reloadStats, switchStudent, logout]);
+  }), [user, students, studentProfile, stats, reloadStats, switchStudent, recheck, logout]);
 
   return (
     <StudentContext.Provider value={value}>
