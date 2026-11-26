@@ -162,6 +162,12 @@ window.HTMLAnchorElement.prototype.click = function click() {
 };
 
 const input = (id) => document.getElementById(id);
+// The editor's "What the PDF will print" panel, { field: line }, and its kept-wording notice,
+// { field: [as it prints now, as it would be generated] }.
+const wordingShown = () => Object.fromEntries([...document.querySelectorAll('[data-wording]')]
+  .map((line) => [line.dataset.wording, clean(line.textContent)]));
+const keptShown = () => Object.fromEntries([...document.querySelectorAll('[data-kept]')]
+  .map((line) => [line.dataset.kept, [...line.querySelectorAll('span')].map((part) => clean(part.textContent))]));
 const menuItem = (label) => [...document.querySelectorAll('[role="menuitem"]')].find((item) => clean(item.textContent) === label);
 async function openMenu(trigger) {
   trigger.focus();
@@ -272,15 +278,18 @@ test("Form: a payload carries only its structure's counts; the API's per-row err
     title: ' Grade 7 CBSE ', subtitle: '', package_title: '', grade: '7', board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE',
     plan_types: ['REGULAR'], inclusions: ['A', ' '], chapters: [{ key: 'k', id: null, name: 'Ratios', regular_classes: '2', revision_classes: '1', bridge_classes: '1' }],
   };
+  // The PDF's three lines are generated from the structure, grade, board and version, and saved as they print (D6).
   assert.deepEqual(harness.payloadOf(form), {
-    title: 'Grade 7 CBSE', subtitle: '', package_title: '', grade: 7, board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE',
+    title: 'Grade 7 CBSE', subtitle: 'Detailed Bridge Course Curriculum', package_title: 'Grade 7 CBSE – 1:1 Tuition Packages & Fee Details',
+    grade: 7, board: 'CBSE', syllabus_version: '', structure: 'BRIDGE_COURSE',
     plan_types: ['BRIDGE_COURSE'], inclusions: ['A'], chapters: [{ name: 'Ratios', bridge_classes: '1' }],
   });
+  // Nothing to type, so nothing to flag: only an Others syllabus's title is typed (D1).
   assert.deepEqual(harness.formErrors({ ...form, title: '', chapters: [{ ...form.chapters[0], name: '', bridge_classes: '1.25' }] }), {
-    title: 'Enter the title the PDF shows.',
     'chapters.0.name': 'Enter the chapter name.',
     'chapters.0.bridge_classes': 'Use whole or half classes, such as 2 or 1.5.',
   });
+  assert.deepEqual(harness.formErrors({ ...form, board: 'Others', title: ' ' }).title, 'Enter the title the PDF shows.');
   assert.deepEqual(harness.apiFieldErrors({ grade: ['Too high.'], chapters: { 2: { revision_classes: ['Use whole or half classes, such as 2 or 1.5.'] } } }), {
     grade: 'Too high.', 'chapters.2.revision_classes': 'Use whole or half classes, such as 2 or 1.5.',
   });
@@ -331,7 +340,10 @@ test('Syllabus & Plans: deactivating asks first; duplicating opens the copy as a
   await openMenu(button('Actions for Grade 6 CBSE'));
   await click(menuItem('Duplicate'));
   assert.equal(page.location().pathname, `/sales-syllabus/${COPY_ID}/edit`);
-  assert.equal(input('syllabus-title').value, 'Grade 6 CBSE (Copy)');
+  // The copy keeps its "(Copy)" title as saved, with the standard one offered beside it (D8).
+  assert.equal(input('syllabus-title'), null, 'no title to type');
+  assert.equal(wordingShown().title, 'Grade 6 CBSE (Copy)');
+  assert.deepEqual(keptShown(), { title: ['Grade 6 CBSE (Copy)', 'Grade 6 CBSE'] });
   assert.match(bodyText(), /Copied Grade 6 CBSE as a new draft/);
   await settle();
   assert.equal(page.location().state, null, 'the notice is shown once: Back or a reload never shows it again');
@@ -345,12 +357,22 @@ test('New syllabus: nothing is sent until the form is complete; chapters are add
     [`GET ${at()}`]: created,
   });
   const page = await open('/sales-syllabus/new', ADMIN);
+  // Structure, grade, board and version, in that order: the PDF's lines are generated, never typed.
+  const basics = [...document.querySelectorAll('#syllabus-structure-CHAPTER_WISE, #syllabus-grade, #syllabus-board, #syllabus-version')];
+  assert.deepEqual(basics.map((element) => element.id), ['syllabus-structure-CHAPTER_WISE', 'syllabus-grade', 'syllabus-board', 'syllabus-version']);
+  for (const id of ['syllabus-title', 'syllabus-subtitle', 'syllabus-package-title']) assert.equal(input(id), null, `no ${id} to type`);
+  assert.deepEqual(wordingShown(), {
+    title: 'Shown once a grade is chosen', subtitle: 'Detailed Chapter-Wise 1:1 Learning Plan', package_title: 'Shown once a grade is chosen',
+  });
   await click(button('Save draft'));
   assert.equal(calls('POST', SYLLABI).length, 0);
-  assert.match(bodyText(), /Enter the title the PDF shows\..*Choose the grade\..*Enter the chapter name\. Enter the number of classes\./);
+  assert.match(bodyText(), /Choose the grade\..*Enter the chapter name\. Enter the number of classes\./);
+  assert.doesNotMatch(bodyText(), /Enter the title the PDF shows/);
 
-  await typeInto(input('syllabus-title'), 'Grade 6 CBSE');
   await choose('syllabus-grade', 'Grade 6');
+  assert.deepEqual(wordingShown(), {
+    title: 'Grade 6 CBSE', subtitle: 'Detailed Chapter-Wise 1:1 Learning Plan', package_title: 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details',
+  });
   await typeInto(input('chapter-0-name'), 'Fractions');
   await typeInto(input('chapter-0-regular_classes'), '5');
   await typeInto(input('chapter-0-revision_classes'), '2');
@@ -375,6 +397,9 @@ test('New syllabus: nothing is sent until the form is complete; chapters are add
   ]);
   assert.deepEqual([sent.data.title, sent.data.grade, sent.data.board, sent.data.plan_types],
     ['Grade 6 CBSE', 6, 'CBSE', ['REGULAR', 'REVISION', 'REGULAR_REVISION']]);
+  // All three lines saved as generated, through the same create call (D6).
+  assert.deepEqual([sent.data.subtitle, sent.data.package_title, sent.data.syllabus_version],
+    ['Detailed Chapter-Wise 1:1 Learning Plan', 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details', '']);
   assert.equal(page.location().pathname, `/sales-syllabus/${ID}/edit`);
   assert.match(bodyText(), /Saved as a draft\. Preview it, then publish it when it is ready\./);
 });
@@ -386,7 +411,6 @@ test("New syllabus: the API's refusal of one chapter's count is shown on that ch
       fields: { chapters: { 0: { revision_classes: ['Ensure that there are no more than 1 decimal places.'] } } } }),
   });
   await open('/sales-syllabus/new', ADMIN);
-  await typeInto(input('syllabus-title'), 'Grade 6 CBSE');
   await choose('syllabus-grade', 'Grade 6');
   await typeInto(input('chapter-0-name'), 'Fractions');
   await typeInto(input('chapter-0-regular_classes'), '5');
@@ -407,8 +431,11 @@ test('New syllabus: a Bridge Course counts days of classes, is sold as itself, a
   assert.equal(input('chapter-0-regular_classes'), null);
   assert.match(bodyText(), /A Bridge Course is sold as the whole course, or by the day: BDEs choose any of its days when quoting/);
   assert.doesNotMatch(bodyText(), /sold as one plan/);
-  await typeInto(input('syllabus-title'), 'Grade 7 CBSE');
   await choose('syllabus-grade', 'Grade 7');
+  // A Bridge Course takes its own line under the title; its title and packages heading as a chapter-wise one's (D2, D7).
+  assert.deepEqual(wordingShown(), {
+    title: 'Grade 7 CBSE', subtitle: 'Detailed Bridge Course Curriculum', package_title: 'Grade 7 CBSE – 1:1 Tuition Packages & Fee Details',
+  });
   await typeInto(input('chapter-0-name'), 'Ratios');
   await typeInto(input('chapter-0-bridge_classes'), '1');
   assert.match(bodyText(), /Total classes: 1.*Bridge Course Package1 Class.*AED 35/);
@@ -430,6 +457,9 @@ test('New syllabus: a Bridge Course counts days of classes, is sold as itself, a
   assert.deepEqual(preview.params, { disposition: 'inline' });
   assert.deepEqual([preview.data.structure, preview.data.plan_types, preview.data.chapters],
     ['BRIDGE_COURSE', ['BRIDGE_COURSE'], [{ name: 'Ratios', bridge_classes: '1' }]]);
+  assert.deepEqual([preview.data.title, preview.data.subtitle, preview.data.package_title],
+    ['Grade 7 CBSE', 'Detailed Bridge Course Curriculum', 'Grade 7 CBSE – 1:1 Tuition Packages & Fee Details'],
+    'the preview draws the generated lines');
   assert.match(clean(topDialog().textContent), /PDF preview/);
   assert.ok(topDialog().querySelector('iframe[src^="blob:test/"]'), 'the PDF shows in the dialog');
 });
@@ -446,17 +476,34 @@ test("A draft of a published syllabus: saved without touching the published revi
     [`POST ${at('publish/')}`]: () => ok(detailOf({ published: revision(2, { title: 'Grade 6 CBSE 2027' }) })),
   });
   const page = await open(`/sales-syllabus/${ID}/edit`, ADMIN);
-  assert.equal(input('syllabus-title').value, 'Grade 6 CBSE (2027)');
+  // Saved with a title of its own: kept exactly as it is, the standard one offered beside it (D4).
+  assert.equal(wordingShown().title, 'Grade 6 CBSE (2027)');
+  assert.deepEqual(keptShown(), { title: ['Grade 6 CBSE (2027)', 'Grade 6 CBSE'] });
+  assert.doesNotMatch(bodyText(), /unsaved changes/, 'loading it changes nothing');
+  assert.equal(button('Save draft').disabled, true, 'nothing to save on load');
   assert.equal(input('syllabus-structure-BRIDGE_COURSE').disabled, true, 'the structure is fixed once published');
-  await typeInto(input('syllabus-title'), 'Grade 6 CBSE 2027');
+  // Changing the version never replaces the kept wording: the standard alternative follows it.
+  await choose('syllabus-version', 'Old Syllabus');
+  assert.equal(wordingShown().title, 'Grade 6 CBSE (2027)');
+  assert.deepEqual(keptShown(), { title: ['Grade 6 CBSE (2027)', 'Grade 6 CBSE (Old Syllabus)'] });
+  await choose('syllabus-version', 'New Syllabus');
+  assert.equal(button('Save draft').disabled, true, 'back as saved');
+  await click(button('Use standard wording'));
+  assert.deepEqual(keptShown(), {}, 'the notice goes once the standard wording is chosen');
+  assert.equal(wordingShown().title, 'Grade 6 CBSE');
   await click(button('Save draft'));
   const [put] = calls('PUT', at('draft/'));
   assert.equal(put.data.updated_at, '2026-11-09T05:00:02.123456+05:30', 'the save names the draft it edited');
+  assert.deepEqual([put.data.title, put.data.subtitle, put.data.package_title],
+    ['Grade 6 CBSE', 'Detailed Chapter-Wise 1:1 Learning Plan', 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details']);
   assert.match(bodyText(), /Draft revision 2 saved\. The published revision 1 is unchanged\./);
 
   await click(button('Publish…'));
   assert.equal(calls('POST', at('publish/')).length, 0);
   assert.match(clean(topDialog().textContent), /Publish revision 2\?.*becomes what BDEs sell from\. Revision 1 stays in the history, unchanged\./);
+  // The admin checks the three lines the PDF will print before anything is published.
+  assert.match(clean(topDialog().textContent), new RegExp('What the PDF will print\\s*TitleGrade 6 CBSE\\s*'
+    + 'Line under the titleDetailed Chapter-Wise 1:1 Learning Plan\\s*Packages page headingGrade 6 CBSE – 1:1 Tuition Packages & Fee Details'));
   await click(button('Publish', topDialog()));
   assert.deepEqual(calls('POST', at('publish/'))[0].data, { revision: 2, updated_at: '2026-11-09T06:00:00.654321+05:30' });
   assert.equal(page.location().pathname, `/sales-syllabus/${ID}`);
@@ -518,7 +565,185 @@ test('The editor: a failed pricing load says so and retries; starting a draft so
     [`POST ${at('draft/')}`]: () => fail(409, { error: 'DRAFT_EXISTS', message: 'This syllabus already has a draft. Open it to keep editing.' }),
   });
   await click(button('Start a draft', topDialog()));
-  assert.equal(input('syllabus-title').value, 'Theirs');
+  assert.equal(wordingShown().title, 'Theirs');
+});
+
+// ------------------------------------------------------------------ the PDF's generated wording
+
+// The ten reference PDFs (eduport-plus/syllabus), as each prints its three lines.
+const REFERENCE_WORDING = [
+  ['6th (New Syllabus)', 'CHAPTER_WISE', 6, 'New Syllabus', 'Grade 6 CBSE'],
+  ['6th (Old Syllabus)', 'CHAPTER_WISE', 6, 'Old Syllabus', 'Grade 6 CBSE (Old Syllabus)'],
+  ['7th (New Syllabus)', 'CHAPTER_WISE', 7, 'New Syllabus', 'Grade 7 CBSE'],
+  ['7th (Old Syllabus)', 'CHAPTER_WISE', 7, 'Old Syllabus', 'Grade 7 CBSE (Old Syllabus)'],
+  ['8th (New Syllabus)', 'CHAPTER_WISE', 8, 'New Syllabus', 'Grade 8 CBSE'],
+  ['8th (Old Syllabus)', 'CHAPTER_WISE', 8, 'Old Syllabus', 'Grade 8 CBSE (Old Syllabus)'],
+  ['9th Plan & Price', 'CHAPTER_WISE', 9, '', 'Grade 9 CBSE'],
+  ['10th Plan & Price', 'CHAPTER_WISE', 10, '', 'Grade 10 CBSE'],
+  ['7th Grade Bridge Course', 'BRIDGE_COURSE', 7, '', 'Grade 7 CBSE'],
+  ['9th Grade Bridge Course', 'BRIDGE_COURSE', 9, '', 'Grade 9 CBSE'],
+].map(([pdf, structure, grade, version, title]) => ({
+  pdf, form: { structure, grade: String(grade), board: 'CBSE', syllabus_version: version, title: '' },
+  printed: {
+    title,
+    subtitle: structure === 'BRIDGE_COURSE' ? 'Detailed Bridge Course Curriculum' : 'Detailed Chapter-Wise 1:1 Learning Plan',
+    package_title: `Grade ${grade} CBSE – 1:1 Tuition Packages & Fee Details`,
+  },
+}));
+
+test('Wording: the ten reference PDFs’ title, line under it and packages heading are generated exactly', () => {
+  for (const { pdf, form, printed } of REFERENCE_WORDING) {
+    assert.deepEqual(harness.generatedWording(form), printed, pdf);
+    assert.ok(!/Syllabus/.test(printed.package_title), `${pdf}: the packages heading never names the version`);
+  }
+  // An en dash with a space each side, and "Fee Details" (D7).
+  assert.ok(REFERENCE_WORDING.every(({ printed }) => printed.package_title.includes(' – 1:1 Tuition Packages & Fee Details')));
+  const title = (grade, board, version) => harness.generatedTitle({ grade, board, syllabus_version: version });
+  // Old adds its version, however it was typed; New and none add nothing; any other version is named as it is.
+  assert.deepEqual(['Old Syllabus', ' old syllabus ', 'OLD SYLLABUS'].map((version) => title('6', 'CBSE', version)),
+    ['Grade 6 CBSE (Old Syllabus)', 'Grade 6 CBSE (Old Syllabus)', 'Grade 6 CBSE (Old Syllabus)']);
+  assert.deepEqual(['New Syllabus', 'new syllabus', '', null].map((version) => title('6', 'CBSE', version)),
+    ['Grade 6 CBSE', 'Grade 6 CBSE', 'Grade 6 CBSE', 'Grade 6 CBSE']);
+  assert.equal(title('6', 'CBSE', 'Syllabus 2027'), 'Grade 6 CBSE (Syllabus 2027)');
+  // The other curricula follow the same pattern; Others names none, so its title starts from "Grade 6" (D1).
+  assert.deepEqual(['ICSE', 'IGCSE', 'IB'].map((board) => title('12', board, 'Old Syllabus')),
+    ['Grade 12 ICSE (Old Syllabus)', 'Grade 12 IGCSE (Old Syllabus)', 'Grade 12 IB (Old Syllabus)']);
+  assert.deepEqual([title('6', 'Others', ''), title('6', 'Others', 'Old Syllabus'), title('', 'CBSE', '')],
+    ['Grade 6', 'Grade 6 (Old Syllabus)', '']);
+  const others = harness.generatedWording({ structure: 'CHAPTER_WISE', grade: '6', board: 'Others', syllabus_version: 'Old Syllabus', title: ' Grade 6 Cambridge ' });
+  assert.deepEqual(others, {
+    title: 'Grade 6 Cambridge', subtitle: 'Detailed Chapter-Wise 1:1 Learning Plan', package_title: 'Grade 6 Others – 1:1 Tuition Packages & Fee Details',
+  });
+  assert.deepEqual(harness.generatedWording({ structure: 'BRIDGE_COURSE', grade: '', board: 'CBSE', syllabus_version: '', title: '' }),
+    { title: '', subtitle: 'Detailed Bridge Course Curriculum', package_title: '' });
+});
+
+test('Wording: what each reference syllabus prints today (sales.reference_syllabi, sales.wording) is exactly what is generated', () => {
+  // The loader's payloads: an empty line under the title, the Old ones' packages heading stored explicitly.
+  const stored = {
+    '6th (Old Syllabus)': 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details',
+    '7th (Old Syllabus)': 'Grade 7 CBSE – 1:1 Tuition Packages & Fee Details',
+    '8th (Old Syllabus)': 'Grade 8 CBSE – 1:1 Tuition Packages & Fee Details',
+  };
+  for (const { pdf, form, printed } of REFERENCE_WORDING) {
+    const loaded = { ...form, title: printed.title, subtitle: '', package_title: stored[pdf] ?? '' };
+    assert.deepEqual(harness.printedWording(loaded), printed, `${pdf} prints the same through the backend's defaults`);
+    assert.equal(harness.formFrom({ ...loaded, grade: Number(form.grade), plan_types: [], inclusions: [], chapters: [] }).wording, 'generated', pdf);
+  }
+  // The backend's default packages heading follows the title, so an Old one left empty would name its version: never generated.
+  assert.equal(harness.printedWording({ title: 'Grade 6 CBSE (Old Syllabus)', subtitle: '', package_title: '', structure: 'CHAPTER_WISE' }).package_title,
+    'Grade 6 CBSE (Old Syllabus) – 1:1 Tuition Packages & Fee Details');
+});
+
+test('Wording: a draft keeps its own wording exactly until "Use standard wording"; versions of its own stay', () => {
+  const saved = (extra) => harness.formFrom(revision(2, { is_draft: true, ...extra }));
+  // Stored explicitly as generated (the live revisions): nothing kept, and it saves what it shows.
+  const standard = saved({});
+  assert.equal(standard.wording, 'generated');
+  assert.deepEqual(harness.differingWording(standard), []);
+  assert.ok(harness.sameContent(standard, saved({})));
+  // A "(Copy)" title is kept as saved -- also when the grade changes -- with the standard one beside it (D8).
+  const copy = saved({ title: 'Grade 6 CBSE (Copy)' });
+  assert.equal(copy.wording, 'kept');
+  assert.deepEqual(harness.differingWording(copy), ['title']);
+  assert.equal(harness.payloadOf(copy).title, 'Grade 6 CBSE (Copy)');
+  const regraded = harness.withBasics(copy, { grade: '7' });
+  assert.deepEqual([harness.payloadOf(regraded).title, harness.generatedWording(regraded).title], ['Grade 6 CBSE (Copy)', 'Grade 7 CBSE']);
+  assert.deepEqual(harness.payloadOf(harness.withStandardWording(regraded)).title, 'Grade 7 CBSE');
+  // An Old draft with an empty packages heading prints the title's: kept, and saved back exactly as it was stored.
+  const old = saved({
+    title: 'Grade 6 CBSE (Old Syllabus)', syllabus_version: 'Old Syllabus', subtitle: '', package_title: '',
+    subtitle_display: 'Detailed Chapter-Wise 1:1 Learning Plan', package_title_display: 'Grade 6 CBSE (Old Syllabus) – 1:1 Tuition Packages & Fee Details',
+  });
+  assert.deepEqual(harness.differingWording(old), ['package_title']);
+  const { title, subtitle, package_title: packageTitle } = harness.payloadOf(old);
+  assert.deepEqual([title, subtitle, packageTitle], ['Grade 6 CBSE (Old Syllabus)', '', '']);
+  assert.deepEqual(harness.formWording(old).package_title, 'Grade 6 CBSE (Old Syllabus) – 1:1 Tuition Packages & Fee Details');
+  assert.deepEqual(harness.generatedWording(old).package_title, 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details');
+  // A version of its own (D3) is listed as saved, and its title is the standard one for it.
+  const own = saved({ syllabus_version: 'Syllabus 2027', title: 'Grade 6 CBSE (Syllabus 2027)' });
+  assert.equal(own.wording, 'generated');
+  assert.deepEqual(harness.versionOptions('Syllabus 2027').map((option) => option.label),
+    ['None', 'New Syllabus', 'Old Syllabus', 'Syllabus 2027 (as saved)']);
+  assert.deepEqual(harness.versionOptions('Old Syllabus').map((option) => option.value), ['', 'New Syllabus', 'Old Syllabus']);
+  assert.deepEqual(harness.versionOptions().map((option) => option.label), ['None', 'New Syllabus', 'Old Syllabus']);
+  // Others: the title starts from "Grade 6" and follows the grade and version until something is typed (D1).
+  const others = harness.withBasics({ ...harness.emptyForm(), grade: '6' }, { board: 'Others' });
+  assert.equal(others.title, 'Grade 6');
+  assert.equal(harness.withBasics(others, { syllabus_version: 'Old Syllabus' }).title, 'Grade 6 (Old Syllabus)');
+  const typed = harness.withBasics({ ...others, title: 'Grade 6 Cambridge' }, { grade: '7' });
+  assert.equal(typed.title, 'Grade 6 Cambridge');
+  assert.equal(harness.payloadOf(typed).title, 'Grade 6 Cambridge');
+});
+
+test('New syllabus: the PDF preview follows the structure, grade, board and version; Others takes a typed title', async () => {
+  serve({ [`GET ${PRICING_URL}`]: PRICING_ANSWER, [`POST ${SYLLABI}`]: detailOf({ draft: revision(1, { is_draft: true }) }), [`GET ${at()}`]: detailOf({ draft: revision(1, { is_draft: true }) }) });
+  await open('/sales-syllabus/new', ADMIN);
+  await choose('syllabus-grade', 'Grade 8');
+  await choose('syllabus-version', 'Old Syllabus');
+  assert.deepEqual(wordingShown(), {
+    title: 'Grade 8 CBSE (Old Syllabus)', subtitle: 'Detailed Chapter-Wise 1:1 Learning Plan',
+    package_title: 'Grade 8 CBSE – 1:1 Tuition Packages & Fee Details',
+  });
+  await choose('syllabus-board', 'ICSE');
+  assert.equal(wordingShown().title, 'Grade 8 ICSE (Old Syllabus)');
+  assert.equal(input('inclusion-1').value, 'Structured ICSE aligned learning', 'the inclusions still follow the board');
+  await click(input('syllabus-structure-BRIDGE_COURSE'));
+  assert.deepEqual(wordingShown(), {
+    title: 'Grade 8 ICSE (Old Syllabus)', subtitle: 'Detailed Bridge Course Curriculum',
+    package_title: 'Grade 8 ICSE – 1:1 Tuition Packages & Fee Details',
+  });
+  await choose('syllabus-version', 'None');
+  assert.equal(wordingShown().title, 'Grade 8 ICSE');
+  assert.deepEqual(keptShown(), {}, 'a new syllabus has nothing kept');
+  // Others: the one title still typed, prefilled from the grade (D1).
+  assert.equal(input('syllabus-title'), null);
+  await choose('syllabus-board', 'Others');
+  assert.equal(input('syllabus-title').value, 'Grade 8');
+  await choose('syllabus-grade', 'Grade 9');
+  assert.equal(input('syllabus-title').value, 'Grade 9', 'it follows the grade until something is typed');
+  await typeInto(input('syllabus-title'), '');
+  assert.equal(wordingShown().title, '—', 'an emptied title shows as missing, not as waiting for a grade');
+  await typeInto(input('syllabus-title'), 'Grade 9 Cambridge');
+  assert.equal(wordingShown().title, 'Grade 9 Cambridge');
+  await typeInto(input('chapter-0-name'), 'Ratios');
+  await typeInto(input('chapter-0-bridge_classes'), '1');
+  await click(button('Save draft'));
+  const [sent] = calls('POST', SYLLABI);
+  assert.deepEqual([sent.data.title, sent.data.subtitle, sent.data.package_title, sent.data.board, sent.data.syllabus_version],
+    ['Grade 9 Cambridge', 'Detailed Bridge Course Curriculum', 'Grade 9 Others – 1:1 Tuition Packages & Fee Details', 'Others', '']);
+});
+
+test('A draft with wording of its own: unchanged on load and on save; a version of its own stays; similar syllabuses share a name', async () => {
+  const kept = revision(1, {
+    is_draft: true, title: 'Grade 6 CBSE (Copy)', syllabus_version: 'Syllabus 2027', subtitle: 'Detailed Chapter wise 1:1 Learning Plan',
+    package_title: '', subtitle_display: 'Detailed Chapter wise 1:1 Learning Plan',
+    package_title_display: 'Grade 6 CBSE (Copy) – 1:1 Tuition Packages & Fee Details',
+  });
+  serve({
+    [`GET ${at()}`]: { ...detailOf({ draft: kept }), similar: [{ id: COPY_ID, title: 'Grade 6 CBSE (Syllabus 2027)', status: 'PUBLISHED' }] },
+    [`GET ${PRICING_URL}`]: PRICING_ANSWER,
+    [`PUT ${at('draft/')}`]: detailOf({ draft: kept }),
+  });
+  await open(`/sales-syllabus/${ID}/edit`, ADMIN);
+  assert.deepEqual(wordingShown(), {
+    title: 'Grade 6 CBSE (Copy)', subtitle: 'Detailed Chapter wise 1:1 Learning Plan',
+    package_title: 'Grade 6 CBSE (Copy) – 1:1 Tuition Packages & Fee Details',
+  });
+  assert.deepEqual(keptShown(), {
+    title: ['Grade 6 CBSE (Copy)', 'Grade 6 CBSE (Syllabus 2027)'],
+    subtitle: ['Detailed Chapter wise 1:1 Learning Plan', 'Detailed Chapter-Wise 1:1 Learning Plan'],
+    package_title: ['Grade 6 CBSE (Copy) – 1:1 Tuition Packages & Fee Details', 'Grade 6 CBSE – 1:1 Tuition Packages & Fee Details'],
+  });
+  assert.match(bodyText(), /This draft keeps wording from before/);
+  assert.equal(document.getElementById('syllabus-version').textContent.trim(), 'Syllabus 2027 (as saved)');
+  assert.match(bodyText(), /BDEs, quotes and PDFs will show these syllabuses under the same name\. You can still go ahead\./);
+  // Saving another change sends the wording and the version exactly as they were stored.
+  await typeInto(input('chapter-0-name'), 'Patterns In Mathematics!');
+  await click(button('Save draft'));
+  const [put] = calls('PUT', at('draft/'));
+  assert.deepEqual([put.data.title, put.data.subtitle, put.data.package_title, put.data.syllabus_version],
+    ['Grade 6 CBSE (Copy)', 'Detailed Chapter wise 1:1 Learning Plan', '', 'Syllabus 2027']);
 });
 
 test('The syllabus pages take the raw layout, like every page built on the design tokens', async () => {
@@ -552,7 +777,7 @@ test('A draft changed meanwhile is not overwritten: the editor says so and offer
     [`PUT ${at('draft/')}`]: () => fail(409, { error: 'DRAFT_CHANGED', message: 'This draft was changed or published meanwhile. Reload it to see the latest version.' }),
   });
   await open(`/sales-syllabus/${ID}/edit`, ADMIN);
-  await typeInto(input('syllabus-title'), 'Mine');
+  await typeInto(input('chapter-0-name'), 'Mine');
   await click(button('Save draft'));
   assert.match(bodyText(), /This draft was changed or published meanwhile\..*Reload the latest version/);
   await click(button('Reload the latest version'));

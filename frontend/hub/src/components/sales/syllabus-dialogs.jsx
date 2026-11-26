@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import {
   deactivateUrl,
   draftUrl,
+  printedWording,
   publishUrl,
   reactivateUrl,
   salesError,
@@ -15,8 +16,9 @@ import { FormDialog } from '@/components/form-dialog';
 /**
  * Other active syllabuses with the same grade, board, syllabus version and
  * structure (the API's `similar`, about the draft when there is one): a
- * warning only -- titles may tell offerings apart. `subject` names the
- * revision it is about ("Draft revision 2"), where the page shows more than one.
+ * warning only (D5). Their titles are generated from those same choices, so
+ * they appear under the same name. `subject` names the revision it is about
+ * ("Draft revision 2"), where the page shows more than one.
  */
 export function SimilarWarning({ similar, subject }) {
   if (!similar?.length) return null;
@@ -27,9 +29,34 @@ export function SimilarWarning({ similar, subject }) {
         <p className="font-medium">{subject ? `${subject}: similar syllabuses exist` : 'Similar syllabuses exist'}</p>
         <p className="text-muted-foreground">
           Same grade, board, syllabus version and structure:{' '}
-          {similar.map((other) => `${other.title} (${other.status.toLowerCase()})`).join(', ')}. You can still go ahead.
+          {similar.map((other) => `${other.title} (${other.status.toLowerCase()})`).join(', ')}. Titles are generated
+          from these choices, so BDEs, quotes and PDFs will show these syllabuses under the same name. You can still go
+          ahead.
         </p>
       </div>
+    </div>
+  );
+}
+
+/** The three lines a revision's PDF prints, for checking before it is published. */
+function PrintedWording({ revision }) {
+  const printed = printedWording(revision);
+  const rows = [
+    ['Title', printed.title],
+    ['Line under the title', printed.subtitle],
+    ['Packages page heading', printed.package_title],
+  ];
+  return (
+    <div className="bg-muted/40 grid gap-1 rounded-lg border p-3">
+      <p className="font-medium">What the PDF will print</p>
+      <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="wrap-anywhere">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -134,6 +161,7 @@ export function PublishDialog({ syllabusId, seen, open, onOpenChange, onPublishe
             ? ` Revision ${published.number} stays in the history, unchanged.`
             : ' This is its first publication.'}
         </p>
+        <PrintedWording revision={draft} />
         <SimilarWarning similar={detail.similar} />
         {detail.status === 'INACTIVE' ? (
           <p className="text-destructive">This syllabus is inactive. Reactivate it before publishing.</p>
