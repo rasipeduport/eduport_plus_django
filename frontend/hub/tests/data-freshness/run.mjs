@@ -1240,6 +1240,442 @@ test("Sidebar badge: an administrator's sidebar, or a BDE's without Follow-ups, 
   }
 });
 
+// =========================== Refresh audit: every Refresh, Check and Try again
+// reads what it shows once more -- disabled and turning while that read is under
+// way (a second click sends nothing), enabled again once it is answered or has
+// failed -- and a failed read keeps what was shown, saying what failed.
+
+/** An answer held until `release(data)` or `refuse(status)` (status 0: no answer at all); every call meanwhile waits on it. */
+function held() {
+  const waiting = [];
+  const answer = () => new Promise((resolve, reject) => waiting.push({ resolve, reject }));
+  answer.release = async (data) => { for (const call of waiting.splice(0)) call.resolve(data); await settle(); };
+  answer.refuse = async (status = 500, data = { message: 'Server error.' }) => {
+    for (const call of waiting.splice(0)) {
+      call.reject(Object.assign(new Error(status ? `HTTP ${status}` : 'Network Error'), status ? { response: { status, data } } : {}));
+    }
+    await settle();
+  };
+  answer.waiting = () => waiting.length;
+  return answer;
+}
+/** The first call answered with `first`; every later one by `later(entry)`. */
+const thenHeld = (first, later) => { let n = 0; return (entry) => (n++ === 0 ? first : later(entry)); };
+const spinning = (element) => Boolean(element?.querySelector('svg.animate-spin'));
+const busy = (element) => Boolean(element?.disabled) && spinning(element);
+// What each error on the page says (its message, without its Try again).
+const alerts = () => [...document.querySelectorAll('[role="alert"]')].map((element) => clean((element.querySelector('p') ?? element).textContent));
+
+// ------------------------------------------------ B4: the staff (Academics) dashboard
+const STAFF = { ...ADMIN, permissions: [...ADMIN.permissions, 'accounts.view_staff_dashboard', 'accounts.view_all_students'] };
+const STATS = { students: 1, mentors: 0, tutors: 0, pending_invitations: 0, signup_data: [], recent_signups: [] };
+const MEERA = { id: 'st-1', full_name: 'Meera Pillai', student_code: 'EDP00001', status: 'active', created_at: '2026-11-01T06:00:00Z' };
+const staffDashboard = (extra = {}) => ({ 'GET /api/dashboard/stats/': STATS, 'GET /api/students/': [MEERA],
+  'GET /api/sessions/': { sessions: [] }, 'GET /api/homework/': { homework: [] }, 'GET /api/activity/': { results: [] }, ...extra });
+
+test('Refresh audit B4: staff dashboard -- a refresh whose students and sessions fail keeps them on screen and names them', async () => {
+  let failing = false;
+  serve(staffDashboard({
+    'GET /api/students/': () => (failing ? refused(500, {}) : [MEERA]),
+    'GET /api/sessions/': () => (failing ? refused(500, {}) : { sessions: [] }),
+  }));
+  await open('page', { path: '/academics-dashboard', user: STAFF });
+  assert.match(text(), /Meera Pillai/);
+  assert.deepEqual(alerts(), [], 'nothing failed');
+  failing = true;
+  await click(button('Refresh'));
+  assert.match(text(), /Meera Pillai/, 'the students loaded before stay (emptied before the fix)');
+  assert.deepEqual(alerts(), ['Could not refresh students and sessions; showing what was loaded before.']);
+  failing = false;
+  await click(button('Try again'));
+  assert.deepEqual(alerts(), [], 'the message goes once they read again');
+  assert.equal(gets('/api/students/'), 3);
+});
+
+test('Refresh audit B4: staff dashboard -- a part that never loaded is said not to have loaded; the rest shows', async () => {
+  serve(staffDashboard({ 'GET /api/homework/': () => refused(503, {}), 'GET /api/dashboard/stats/': () => refused(500, { message: 'Stats down.' }) }));
+  await open('page', { path: '/academics-dashboard', user: STAFF });
+  assert.deepEqual(alerts(), ['Could not load the dashboard figures and homework.']);
+  assert.match(text(), /Meera Pillai/);
+});
+
+test('Refresh audit B4: staff dashboard Refresh is disabled and turning until its reads answer; a second click sends nothing', async () => {
+  const stats = held();
+  serve(staffDashboard({ 'GET /api/dashboard/stats/': thenHeld(STATS, () => stats()) }));
+  await open('page', { path: '/academics-dashboard', user: STAFF });
+  await click(button('Refresh'));
+  assert.equal(gets('/api/dashboard/stats/'), 2);
+  assert.ok(busy(button('Refresh')));
+  await click(button('Refresh'));
+  assert.equal(gets('/api/dashboard/stats/'), 2, 'a second click sends nothing');
+  await stats.refuse(0);
+  assert.equal(busy(button('Refresh')), false, 'enabled again after a network failure');
+  assert.deepEqual(alerts(), ['Could not refresh the dashboard figures; showing what was loaded before.']);
+});
+
+// ------------------------------------------------ B4: the tutor's Main and Admissions dashboards
+const TEACHER = { ...TUTOR, permissions: [...TUTOR.permissions, 'accounts.view_tutored_students', 'accounts.view_tutored_sessions'] };
+const countOnly = (count) => ({ results: [], count, page: 1, page_size: 1 });
+
+test('Refresh audit B4: Tutor Main -- failed reads keep their parts (bookings and students), each named; Try again reads them all', async () => {
+  let failing = false;
+  serve({
+    'GET /api/tutor/bookings/': () => (failing ? refused(500, {}) : countOnly(3)),
+    'GET /api/students/': () => (failing ? refused(500, {}) : [MEERA]),
+    'GET /api/sessions/': { sessions: [] },
+  });
+  await open('page', { path: '/tutor-dashboard', user: TEACHER });
+  assert.match(text(), /Assigned Bookings\s*6/);
+  assert.match(text(), /Academic Students\s*1/);
+  failing = true;
+  await click(button('Refresh'));
+  assert.match(text(), /Assigned Bookings\s*6/, 'the booking counts stay (0 before the fix)');
+  assert.match(text(), /Academic Students\s*1/, 'the students tile stays (gone before the fix)');
+  assert.deepEqual(alerts(), ['Could not refresh your bookings and students; showing what was loaded before.']);
+  failing = false;
+  const reads = gets('/api/tutor/bookings/');
+  await click(button('Try again'));
+  assert.equal(gets('/api/tutor/bookings/'), reads + 7, 'Try again is the Refresh: every read once more');
+  assert.deepEqual(alerts(), []);
+});
+
+test('Refresh audit B4: Tutor Main Refresh and its Try again are disabled and turning while they read', async () => {
+  const bookings = held();
+  let holding = false;
+  serve({ 'GET /api/tutor/bookings/': () => (holding ? bookings() : countOnly(1)), 'GET /api/students/': [], 'GET /api/sessions/': { sessions: [] } });
+  await open('page', { path: '/tutor-dashboard', user: TEACHER });
+  assert.equal(busy(button('Refresh')), false, 'idle once loaded');
+  holding = true;
+  await click(button('Refresh'));
+  assert.ok(busy(button('Refresh')));
+  const reads = gets('/api/tutor/bookings/');
+  await click(button('Refresh'));
+  assert.equal(gets('/api/tutor/bookings/'), reads, 'a second click sends nothing');
+  await bookings.refuse(500);
+  assert.equal(busy(button('Refresh')), false);
+  await click(button('Try again'));
+  assert.ok(busy(button('Try again')), 'Try again turns with it');
+  assert.ok(busy(button('Refresh')));
+  await bookings.release(countOnly(2));
+  assert.deepEqual(alerts(), []);
+});
+
+test('Refresh audit B4: Tutor Admissions -- a failed refresh keeps the counts and names your bookings; a 403 still says whose dashboard it is', async () => {
+  let failing = false;
+  serve({ 'GET /api/tutor/bookings/': () => (failing ? refused(500, {}) : countOnly(3)) });
+  await open('page', { path: '/admissions-dashboard', user: TUTOR });
+  assert.match(text(), /Demo Bookings\s*3/);
+  failing = true;
+  await click(button('Refresh'));
+  assert.match(text(), /Demo Bookings\s*3/, 'kept (0 before the fix)');
+  assert.deepEqual(alerts(), ['Could not refresh your bookings; showing what was loaded before.']);
+  await current.unmount();
+  current = null;
+  serve({ 'GET /api/tutor/bookings/': () => refused(403, { message: 'Only tutors have this dashboard.' }) });
+  await open('page', { path: '/admissions-dashboard', user: TUTOR });
+  assert.match(text(), /This dashboard belongs to tutor accounts\.\s*Only tutors have this dashboard\./);
+});
+
+// ------------------------------------------------ B2: Booking Slots
+const SLOTS_ADMIN = { id: 'slots', role: 'ADMIN', full_name: 'Slots Admin', email: 's@hub.test', permissions: ['accounts.manage_booking_slots'] };
+const SLOT_DAY = '/api/booking-slots/demo/2026-12-01/';
+const slotsPath = '/booking-slots?type=demo&date=2026-12-01';
+const SLOT_STATUSES = ['Available', 'Filling Fast', 'Only a Few Left', 'Fully Booked'];
+const daySlot = (booked, extra = {}) => ({ time: '10:00', end_time: '11:00', scheduled: true, booked, capacity: 3,
+  status: SLOT_STATUSES[booked], open_status: SLOT_STATUSES[booked], closed: false, closed_at: null, closed_by: null,
+  close_reason: '', bookings: [], ...extra });
+const slotDay = (...slots) => ({ booking_type: 'DEMO', date: '2026-12-01', timezone: 'Asia/Kolkata', slot_minutes: 60, capacity: 3,
+  parent_state: 'open', window: { first: '2026-11-30', last: '2026-12-06' }, editable: true, slots });
+
+test('Refresh audit B2: Booking Slots Refresh is disabled and turning while it reads; a second click sends nothing', async () => {
+  const day = held();
+  serve({ [`GET ${SLOT_DAY}`]: thenHeld(slotDay(daySlot(0)), () => day()) });
+  await open('page', { path: slotsPath, user: SLOTS_ADMIN });
+  assert.equal(gets(SLOT_DAY), 1);
+  await click(button('Refresh'));
+  assert.equal(gets(SLOT_DAY), 2);
+  assert.ok(busy(button('Refresh')), 'it showed nothing while reading before the fix');
+  await click(button('Refresh'));
+  assert.equal(gets(SLOT_DAY), 2, 'a second click sends nothing (it sent one before the fix)');
+  await day.release(slotDay(daySlot(1)));
+  assert.equal(busy(button('Refresh')), false);
+  assert.match(text(), /Filling Fast/);
+});
+
+test('Refresh audit B2: a failed refresh keeps the slots with the error above them; Try again turns while it reads', async () => {
+  const again = held();
+  let n = 0;
+  serve({ [`GET ${SLOT_DAY}`]: () => { n += 1; return n === 1 ? slotDay(daySlot(1)) : n === 2 ? refused(500, { message: 'Slots are unavailable.' }) : again(); } });
+  await open('page', { path: slotsPath, user: SLOTS_ADMIN });
+  await click(button('Refresh'));
+  assert.equal(button('Refresh').disabled, false, 'enabled again after the failure');
+  assert.deepEqual(alerts(), ['Slots are unavailable.']);
+  assert.match(text(), /Filling Fast/, 'the slots stay (the table was replaced by the error before the fix)');
+  await click(button('Try again'));
+  assert.ok(busy(button('Try again')));
+  await click(button('Try again'));
+  assert.equal(n, 3, 'a second click sends nothing');
+  await again.refuse(0);
+  assert.deepEqual(alerts(), ['Could not reach the server. Check your connection and try again.'], 'a network failure says so');
+  assert.match(text(), /Filling Fast/);
+});
+
+test('Refresh audit B2: Refresh after a change shows the slots as they are now, the change’s message gone with the old ones', async () => {
+  serve({
+    [`GET ${SLOT_DAY}`]: () => slotDay(daySlot(1)),
+    [`POST ${SLOT_DAY}`]: () => slotDay(daySlot(1, { status: 'Fully Booked', closed: true, closed_by: 'Slots Admin' })),
+  });
+  await open('page', { path: slotsPath, user: SLOTS_ADMIN });
+  const trigger = document.querySelector('[aria-label^="Status of"]');
+  trigger.focus();
+  await act(async () => trigger.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })));
+  await settle();
+  await click([...document.querySelectorAll('[role="option"]')].find((option) => clean(option.textContent) === 'Fully Booked'));
+  await click(button('Confirm', topDialog()));
+  assert.equal(calls('POST', SLOT_DAY).length, 1);
+  assert.ok(document.querySelector('[role="status"]'), 'the change says what it did');
+  await click(button('Refresh'));
+  assert.equal(Boolean(document.querySelector('[role="status"]')), false, 'gone with the refresh');
+  assert.equal(gets(SLOT_DAY), 2);
+});
+
+// ------------------------------------------------ C1: Sessions reads its students on Refresh
+test('Refresh audit C1: Sessions Refresh reads the students too, turning until both answer; a failed students read keeps the list and says so', async () => {
+  const students = held();
+  serve({ 'GET /api/sessions/': { sessions: [] }, 'GET /api/students/': thenHeld([MEERA], () => students()) });
+  await open('page', { path: '/sessions', user: ADMIN });
+  assert.deepEqual([gets('/api/sessions/'), gets('/api/students/')], [1, 1]);
+  await click(button('Refresh sessions'));
+  assert.deepEqual([gets('/api/sessions/'), gets('/api/students/')], [2, 2], 'the students are read again (not before the fix)');
+  assert.ok(busy(button('Refresh sessions')), 'turning until the students answer too');
+  await click(button('Refresh sessions'));
+  assert.deepEqual([gets('/api/sessions/'), gets('/api/students/')], [2, 2], 'a second click sends nothing');
+  await students.refuse(500);
+  assert.equal(busy(button('Refresh sessions')), false);
+  assert.match(text(), /Could not refresh the student list; showing the one loaded before\./);
+  await click(button('Refresh sessions'));
+  await students.release([MEERA]);
+  assert.doesNotMatch(text(), /Could not refresh the student list/, 'gone once it reads');
+});
+
+// ------------------------------------------------ C2: Invitations' first read
+const INVITER = { ...ADMIN, permissions: [...ADMIN.permissions, 'accounts.view_invitations'] };
+const INVITATION = { id: 'invite', student_id: 'student', student_name: 'Enrolled Student', student_code: 'EDP12345', username: 'edp12345',
+  role: 'STUDENT', status: 'PENDING', credentials_available: true, created_at: '2026-11-10T00:00:00Z' };
+
+test('Refresh audit C2: Invitations -- a first read that fails shows only its error, never an empty list; Try again turns, then the list shows', async () => {
+  const again = held();
+  let n = 0;
+  serve({ 'GET /api/invitations/': () => { n += 1; return n === 1 ? refused(500, { message: 'Invitations are unavailable.' }) : again(); } });
+  await open('page', { path: '/invitations', user: INVITER });
+  assert.deepEqual(alerts(), ['Invitations are unavailable.']);
+  assert.doesNotMatch(text(), /No invitations yet/, 'not an empty list ("No invitations yet" before the fix)');
+  await click(button('Try again'));
+  assert.equal(n, 2);
+  assert.ok(busy(button('Try again')));
+  await click(button('Try again'));
+  assert.equal(n, 2, 'a second click sends nothing');
+  await again.release([INVITATION]);
+  assert.deepEqual(alerts(), []);
+  assert.match(text(), /Enrolled Student/);
+});
+
+// ------------------------------------------------ A3: Learn's waiting room and access ended
+const GATE_A = { ...LEARN_A };
+const GATE_B = { ...LEARN_B };
+/** Learn's API for the gateway pages: `state.profiles` / `state.selected` as /me answers them; `state.me` (a function) overrides. */
+function gatewayApi(state) {
+  serve({
+    'GET /api/auth/me/': () => (state.me ? state.me() : { user: { id: 'u1', role: 'STUDENT', email: 'p@x.test' },
+      student_profiles: state.profiles, student_profile: state.selected ?? null, must_change_password: false }),
+    'GET /api/student/dashboard/': () => {
+      if (!state.profiles.length) return refused(404, { error: 'STUDENT_PROFILE_NOT_FOUND' });
+      if (!state.selected) return refused(400, { error: 'STUDENT_NOT_SELECTED' });
+      if (state.selected.status === 'EXPIRED') return refused(403, { error: 'STUDENT_ACCESS_ENDED' });
+      return statsOf(state.selected);
+    },
+  });
+}
+const gateway = async (path, state) => {
+  gatewayApi(state);
+  const probe = {};
+  await open('learnGateways', { path, probe });
+  assert.equal(probe.path, path, `${path} first`);
+  return probe;
+};
+const statusLine = () => clean(document.querySelector('[role="status"]')?.textContent ?? '');
+
+test('Refresh audit A3: waiting room -- still not linked: Check Status says so and stays, one /me and no dashboard read', async () => {
+  const state = { profiles: [] };
+  const probe = await gateway('/waiting-room', state);
+  const [me, dash] = [gets('/api/auth/me/'), gets('/api/student/dashboard/')];
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/waiting-room');
+  assert.equal(statusLine(), "Your profile isn't linked yet. You'll get in as soon as it is, so check again in a little while.");
+  assert.deepEqual([gets('/api/auth/me/') - me, gets('/api/student/dashboard/') - dash], [1, 0]);
+});
+
+test('Refresh audit A3: waiting room -- linked to one child opens the dashboard', async () => {
+  const state = { profiles: [] };
+  const probe = await gateway('/waiting-room', state);
+  Object.assign(state, { profiles: [GATE_A], selected: GATE_A });
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/dashboard');
+});
+
+test('Refresh audit A3: waiting room -- several children and none chosen opens choosing one (it stayed in the waiting room before)', async () => {
+  const state = { profiles: [] };
+  const probe = await gateway('/waiting-room', state);
+  Object.assign(state, { profiles: [GATE_A, GATE_B], selected: null });
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/select-profile');
+});
+
+test('Refresh audit A3: waiting room -- linked but already expired opens access ended (it stayed before)', async () => {
+  const state = { profiles: [] };
+  const probe = await gateway('/waiting-room', state);
+  Object.assign(state, { profiles: [{ ...GATE_A, status: 'EXPIRED' }], selected: null });
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/access-ended');
+});
+
+test('Refresh audit A3: waiting room -- no answer from the API says so and stays (never the sign-in page); a refused session signs in again', async () => {
+  const state = { profiles: [] };
+  const probe = await gateway('/waiting-room', state);
+  state.me = () => Promise.reject(new Error('Network Error'));
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/waiting-room', 'not sent to /login for a network failure');
+  assert.equal(statusLine(), "We couldn't check right now. Check your internet connection and try again.");
+  assert.equal(button('Check Status').disabled, false, 'enabled again after the failure');
+  state.me = () => refused(500, {});
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/waiting-room', 'a server error stays too');
+  assert.match(statusLine(), /couldn't check right now/);
+  state.me = () => refused(401, { detail: 'Not signed in.' });
+  await click(button('Check Status'));
+  assert.equal(probe.path, '/login', 'a refused session goes to sign in');
+});
+
+test('Refresh audit A3: waiting room -- Check Status is disabled and turning while it checks; a second click sends nothing', async () => {
+  const state = { profiles: [] };
+  await gateway('/waiting-room', state);
+  const me = held();
+  state.me = () => me();
+  const before = gets('/api/auth/me/');
+  await click(button('Check Status'));
+  const checking = button('Checking...');
+  assert.ok(busy(checking), 'disabled and turning');
+  await click(checking);
+  assert.equal(gets('/api/auth/me/') - before, 1, 'one check at a time');
+  await me.refuse(0);
+  assert.equal(busy(button('Check Status')), false);
+});
+
+test('Refresh audit A3: access ended -- still ended says so and stays; restored opens the dashboard; no answer says so', async () => {
+  const expired = { ...GATE_A, status: 'EXPIRED' };
+  const state = { profiles: [expired] };
+  const probe = await gateway('/access-ended', state);
+  await click(button('Check Again'));
+  assert.equal(probe.path, '/access-ended');
+  assert.equal(statusLine(), 'Your access is still ended. Contact your mentor or our support team to restore it.');
+  state.me = () => Promise.reject(new Error('Network Error'));
+  await click(button('Check Again'));
+  assert.equal(probe.path, '/access-ended');
+  assert.equal(statusLine(), "We couldn't check right now. Check your internet connection and try again.");
+  state.me = null;
+  Object.assign(state, { profiles: [GATE_A], selected: GATE_A });
+  await click(button('Check Again'));
+  assert.equal(probe.path, '/dashboard');
+});
+
+test('Refresh audit A3: access ended -- restored as several children opens choosing one; the account reset opens the waiting room', async () => {
+  for (const [after, where] of [[{ profiles: [GATE_A, GATE_B], selected: null }, '/select-profile'], [{ profiles: [], selected: null }, '/waiting-room']]) {
+    const state = { profiles: [{ ...GATE_A, status: 'EXPIRED' }] };
+    const probe = await gateway('/access-ended', state);
+    Object.assign(state, after);
+    await click(button('Check Again'));
+    assert.equal(probe.path, where);
+    await current.unmount();
+    current = null;
+  }
+});
+
+test('Refresh audit A3: access ended -- Check Again is disabled and turning while it checks', async () => {
+  const state = { profiles: [{ ...GATE_A, status: 'EXPIRED' }] };
+  await gateway('/access-ended', state);
+  const me = held();
+  state.me = () => me();
+  await click(button('Check Again'));
+  assert.ok(busy(button('Checking...')));
+  await me.refuse(503);
+  assert.equal(busy(button('Check Again')), false);
+  assert.match(statusLine(), /couldn't check right now/);
+});
+
+// ------------------------------------------------ B1: every other header Refresh, the same way
+const ADMISSIONS_ANSWER = { timezone: 'Asia/Kolkata', range: { from: '2026-11-14', to: '2026-11-20' },
+  leads: { received: 0, new: 0 }, pipeline: [], bookings: { DEMO: { total: 0, upcoming: 0 }, DIAGNOSTIC: { total: 0, upcoming: 0 } },
+  today_bookings: { date: '2026-11-20', total: 0, rows: [] },
+  pending: { unassigned_leads: 0, needs_tutor: { DEMO: 0, DIAGNOSTIC: 0 }, report_due: { DEMO: 0, DIAGNOSTIC: 0 },
+    redemo_scheduling: 0, awaiting_confirmation: { DEMO: 0, DIAGNOSTIC: 0 } },
+  recent_leads: [], activity: [] };
+const BOOKINGS_ADMIN = { ...ADMIN, permissions: [...ADMIN.permissions, 'accounts.assign_booking_tutor'] };
+
+test('Refresh audit B1: Admissions, Tutor Admissions, Demo Bookings, Re-Demo requests and My Bookings Refresh -- disabled and turning while reading, one read a click, enabled again after a failure, data kept', async () => {
+  const pages = [
+    { path: '/admissions', user: LEADS_ADMIN, url: '/api/admissions/dashboard/', first: ADMISSIONS_ANSWER, shown: /Admissions Dashboard/ },
+    { path: '/admissions-dashboard', user: TUTOR, url: '/api/tutor/bookings/', first: countOnly(2), shown: /Demo Bookings\s*2/ },
+    { path: '/bookings/demo', user: BOOKINGS_ADMIN, url: '/api/bookings/demo/', first: listOf([]), shown: /Demo Bookings/ },
+    { path: '/bookings/demo?tab=redemo', user: BOOKINGS_ADMIN, url: '/api/bookings/redemos/', first: { ...listOf([]), counts: {}, owners: [] }, shown: /Re-Demo requests/ },
+    { path: '/my-bookings/demo', user: TUTOR, url: '/api/tutor/bookings/', first: listOf([]), shown: /Demo/ },
+  ];
+  for (const { path, user, url, first, shown } of pages) {
+    const later = held();
+    let holding = false;
+    serve({ [`GET ${url}`]: () => (holding ? later() : first) });
+    await open('page', { path, user });
+    holding = true;
+    const before = gets(url);
+    assert.ok(before >= 1, `${path}: read on opening`);
+    const refresh = button('Refresh');
+    assert.ok(refresh, `${path}: a Refresh`);
+    assert.equal(busy(refresh), false, `${path}: idle once loaded`);
+    await click(refresh);
+    const reads = gets(url) - before;
+    assert.ok(reads >= 1, `${path}: Refresh reads`);
+    assert.ok(busy(button('Refresh')), `${path}: disabled and turning while it reads`);
+    await click(button('Refresh'));
+    assert.equal(gets(url) - before, reads, `${path}: a second click sends nothing`);
+    await later.refuse(500, { message: 'Unavailable for now.' });
+    assert.equal(busy(button('Refresh')), false, `${path}: enabled again after the failure`);
+    assert.match(text(), /Unavailable for now\.|Could not refresh/, `${path}: the failure is said`);
+    assert.match(text(), shown, `${path}: what was shown stays`);
+    await current.unmount();
+    current = null;
+  }
+});
+
+// ------------------------------------------------ C3: the BDE's booking links (an inline Try again)
+test('Refresh audit C3: My Enquiries booking links -- Try again is disabled and turning while it reads; a second click sends nothing', async () => {
+  const LINKS = '/api/bde/booking-links/';
+  const again = held();
+  let n = 0;
+  serve({
+    'GET /api/bde/enquiries/': listOf([]),
+    [`GET ${LINKS}`]: () => { n += 1; return n === 1 ? refused(500, { message: 'Links are unavailable.' }) : again(); },
+  });
+  await open('page', { path: '/enquiries', user: { ...ENQUIRY_BDE, permissions: [...ENQUIRY_BDE.permissions, 'accounts.view_own_booking_links'] } });
+  assert.match(text(), /Links are unavailable\./);
+  await click(button('Try again'));
+  assert.equal(n, 2);
+  assert.ok(busy(button('Try again')), 'it stayed clickable with nothing to show before');
+  await click(button('Try again'));
+  assert.equal(n, 2, 'a second click sends nothing');
+  await again.release({ links: [{ booking_type: 'DEMO', label: 'Demo class', url: 'https://eduportplus.com/demo?ref=b1' }] });
+  assert.doesNotMatch(text(), /Links are unavailable\./);
+  assert.equal(Boolean(button('Try again')), false);
+});
+
 // ---------------------------------------------------------------------- run
 let failures = 0;
 for (const { name, fn } of tests) {

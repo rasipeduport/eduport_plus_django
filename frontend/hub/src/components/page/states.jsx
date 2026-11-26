@@ -1,4 +1,4 @@
-import { AlertCircleIcon, CheckCircle2Icon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, CheckCircle2Icon, RefreshCwIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,12 @@ import { cn } from '@/lib/utils';
  * (AccessDeniedState), and the outcome of an action (Notice).
  */
 
-/** A load that failed: the message, and Try again (`onRetry`) unless retrying cannot help. */
+/**
+ * A load that failed: the message, and Try again (`onRetry`) unless retrying
+ * cannot help. While the retry's read is under way (`pending`) the button is
+ * disabled and its icon turns; a page whose retry clears the error at once
+ * shows its skeleton instead.
+ */
 export function ErrorState({ message, onRetry, pending = false, className }) {
   return (
     <div
@@ -22,7 +27,8 @@ export function ErrorState({ message, onRetry, pending = false, className }) {
       <AlertCircleIcon className="text-destructive size-4 shrink-0" aria-hidden="true" />
       <p className="min-w-0 flex-1 text-sm">{message}</p>
       {onRetry ? (
-        <Button variant="outline" size="sm" onClick={onRetry} disabled={pending}>
+        <Button variant="outline" size="sm" onClick={onRetry} disabled={pending} aria-busy={pending || undefined}>
+          {pending ? <RefreshCwIcon className="animate-spin" aria-hidden="true" /> : null}
           Try again
         </Button>
       ) : null}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BanknoteIcon, CircleCheckIcon, ClockIcon, CreditCardIcon, DownloadIcon, EyeIcon, HistoryIcon, HourglassIcon, PlusIcon,
-  RefreshCwIcon, RepeatIcon, ShoppingBagIcon, WalletIcon, ZapIcon,
+  RepeatIcon, ShoppingBagIcon, WalletIcon, ZapIcon,
 } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState, Notice } from '@/components/page/states';
+import { RefreshButton } from '@/components/page/refresh-button';
+import { useRefreshGroup, useRefreshPart } from '@/hooks/use-refresh-group';
 import { ListToolbar, FilterSelect } from '@/components/page/list-toolbar';
 import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
@@ -39,27 +41,35 @@ const dateTime = (value) => formatDate(value, { month: 'short', day: 'numeric', 
  * additional purchase -- with its balance, every payment, the total still
  * owed, and collecting it (Stripe link or a received payment with its
  * receipt). All figures are the API's, from the purchase and payment records.
+ *
+ * Refresh reads the whole tab again -- the overview, the payment history, the
+ * additional hours and any allocation open in them -- and turns until each has
+ * answered (useRefreshGroup); what was shown stays while it does, and after a
+ * failed read, with the error above it.
  */
 export function StudentFinance({ studentId }) {
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState(null);
-  const [reload, setReload] = useState(0);
   const [view, setView] = useState({ name: 'finance' });
   const [choosing, setChoosing] = useState(null);
   const autopayRef = useRef(null);
+  const group = useRefreshGroup();
+  const { key: reload, settled } = group;
+  useRefreshPart(group, 'overview');
 
   useEffect(() => {
     let active = true;
     api.get(studentFinanceUrl(studentId))
       .then(({ data }) => { if (active) { setOverview(data); setError(null); } })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load this student’s finance.')); });
+      .catch((err) => { if (active) setError(salesError(err, 'Could not load this student’s finance.')); })
+      .finally(() => { if (active) settled('overview', reload); });
     return () => { active = false; };
-  }, [studentId, reload]);
+  }, [studentId, reload, settled]);
 
-  const refresh = () => setReload((key) => key + 1);
+  const refresh = group.refresh;
   const toFinance = () => { refresh(); setView({ name: 'finance' }); };
   const open = (saleId, method = 'STRIPE') => setView({ name: 'purchase', saleId, method });
-  if (error && !overview) return <ErrorState message={error.message} onRetry={refresh} />;
+  if (error && !overview) return <ErrorState message={error.message} onRetry={refresh} pending={group.pending} />;
   if (!overview) return <Skeleton className="h-64 w-full" aria-busy="true" />;
   if (view.name === 'add') {
     return <NewPurchase studentId={studentId} onBack={() => setView({ name: 'finance' })}
@@ -75,16 +85,16 @@ export function StudentFinance({ studentId }) {
   return <div className="flex min-w-0 flex-col gap-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-semibold">Finance</h2>
-      <Button variant="outline" size="sm" onClick={refresh}><RefreshCwIcon />Refresh</Button>
+      <RefreshButton onClick={refresh} pending={group.pending} />
     </div>
-    {error ? <ErrorState message={error.message} onRetry={refresh} /> : null}
+    {error ? <ErrorState message={error.message} onRetry={refresh} pending={group.pending} /> : null}
     <SummaryCards summary={overview.summary} />
     <PurchasesOverview overview={overview} onAdd={() => setView({ name: 'add' })} onOpen={(saleId) => open(saleId)} />
     {/* Its own ledger: none of its figures is part of the summary, purchases or payments here. */}
-    <AdditionalHoursCard studentId={studentId} />
+    <AdditionalHoursCard studentId={studentId} group={group} />
     <div className="grid min-w-0 gap-6 lg:grid-cols-3">
       <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        <FinancePaymentHistory studentId={studentId} purchases={overview.purchases} reloadKey={reload} />
+        <FinancePaymentHistory studentId={studentId} purchases={overview.purchases} group={group} />
         <div ref={autopayRef} className="scroll-mt-6"><AutopayAgreements agreements={overview.autopay} /></div>
       </div>
       {/* What is owed and what to do about it come first on a phone. */}
@@ -186,7 +196,10 @@ function PaymentStatus({ row }) {
   return <Badge variant={row.status === 'SUCCEEDED' ? 'success' : row.status === 'PENDING' ? 'warning' : 'outline'}>{label}</Badge>;
 }
 
-function FinancePaymentHistory({ studentId, purchases, reloadKey }) {
+function FinancePaymentHistory({ studentId, purchases, group }) {
+  const reloadKey = group?.key ?? 0;
+  const settled = group?.settled;
+  useRefreshPart(group, 'history');
   const [filters, setFilters] = useState(NO_FILTERS);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
@@ -202,9 +215,9 @@ function FinancePaymentHistory({ studentId, purchases, reloadKey }) {
     api.get(studentPaymentsUrl(studentId), { params })
       .then(({ data: next }) => { if (active) { setData(next); setError(null); } })
       .catch((err) => { if (active) setError(salesError(err, 'Could not load the payments.')); })
-      .finally(() => { if (active) setPending(false); });
+      .finally(() => { if (active) { setPending(false); settled?.('history', reloadKey); } });
     return () => { active = false; };
-  }, [studentId, filters, page, reloadKey, retry]);
+  }, [studentId, filters, page, reloadKey, retry, settled]);
 
   const filter = (key) => (value) => { setFilters((current) => ({ ...current, [key]: value })); setPage(1); };
   const receipt = (row, label = null) => (row.proof_url ? <Button variant="outline" size={label ? 'sm' : 'icon'} onClick={() => files.download(row.proof_url, row.proof_name)}
@@ -227,7 +240,7 @@ function FinancePaymentHistory({ studentId, purchases, reloadKey }) {
       <FilterSelect label="Status" placeholder="All statuses" value={filters.status} onChange={filter('status')} options={PAYMENT_STATUSES} />
       <FilterSelect label="Method" placeholder="All methods" value={filters.method} onChange={filter('method')} options={PAYMENT_METHODS} />
     </ListToolbar>
-    {error ? <ErrorState message={error.message} onRetry={() => setRetry((key) => key + 1)} /> : null}
+    {error ? <ErrorState message={error.message} onRetry={() => setRetry((key) => key + 1)} pending={pending} /> : null}
     {!data ? <Skeleton className="h-32 w-full" aria-busy="true" />
       : data.results.length ? <ResponsiveList label="Payments" columns={columns} rows={data.results} pending={pending} minTableWidth={640}
         renderCard={(row) => <article className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
@@ -304,14 +317,17 @@ function NewPurchase({ studentId, onBack, onCreated }) {
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
+  const [pending, setPending] = useState(false);
   useEffect(() => {
     let active = true;
+    setPending(true);
     api.get(studentPurchasesUrl(studentId))
       .then(({ data }) => { if (active) { setOverview(data); setError(null); } })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load the plans on sale.')); });
+      .catch((err) => { if (active) setError(salesError(err, 'Could not load the plans on sale.')); })
+      .finally(() => { if (active) setPending(false); });
     return () => { active = false; };
   }, [studentId, reload]);
-  if (error) return <div className="flex flex-col gap-3"><div><Button variant="outline" onClick={onBack}>Back to Finance</Button></div><ErrorState message={error.message} onRetry={() => setReload((key) => key + 1)} /></div>;
+  if (error) return <div className="flex flex-col gap-3"><div><Button variant="outline" onClick={onBack}>Back to Finance</Button></div><ErrorState message={error.message} onRetry={() => setReload((key) => key + 1)} pending={pending} /></div>;
   if (!overview) return <Skeleton className="h-48 w-full" aria-busy="true" />;
   return <AddPurchase studentId={studentId} overview={overview} onBack={onBack} onCreated={onCreated} />;
 }

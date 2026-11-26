@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   FileClock,
   MessageSquareText,
-  RefreshCwIcon,
 } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -28,6 +27,7 @@ import {
   settledData,
   tutorBookings,
 } from '@/lib/tutor-dashboards';
+import { keepFailed, partsFailedMessage } from '@/lib/refresh-failures';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +37,7 @@ import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { PendingReports, RecentlyCompleted } from '@/components/dashboard/tutor-reports';
 import { TodaysBookings, UpcomingBookings } from '@/components/dashboard/tutor-work';
 import { Page, PageHeader } from '@/components/page/page';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 // The latest completed bookings and admissions activity entries listed; the
@@ -87,6 +88,8 @@ export default function TutorAdmissionsDashboardPage({ user }) {
   const [data, setData] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // The parts that have loaded at least once: a failure of one of these keeps it on screen.
+  const loadedParts = useRef(new Set());
 
   useEffect(() => {
     let active = true;
@@ -109,24 +112,37 @@ export default function TutorAdmissionsDashboardPage({ user }) {
       if (!active) return;
       const [demo, diagnostic, todays, later, demoDue, diagnosticDue, completed, ...entries] = results;
       const refused = results.slice(0, 7).find((result) => result.status === 'rejected');
+      // A read that failed is undefined: its part keeps what it had.
+      const read = (result) => (result.status === 'rejected' ? undefined : settledData(result));
       const entryPages = entries.map(settledData);
-      setData({
-        failure: refused ? bookingError(refused.reason, 'Some of your bookings could not be loaded.') : null,
-        demo: settledData(demo),
-        diagnostic: settledData(diagnostic),
-        todays: settledData(todays),
-        later: settledData(later),
-        demoDue: settledData(demoDue),
-        diagnosticDue: settledData(diagnosticDue),
-        completed: settledData(completed),
-        // Both kinds of entry, newest first, while either was read.
-        activity: entryPages.some(Boolean)
-          ? entryPages
-              .flatMap((page) => page?.results ?? [])
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-              .slice(0, ACTIVITY_ROWS)
-          : null,
-      });
+      const fresh = {
+        demo: read(demo),
+        diagnostic: read(diagnostic),
+        todays: read(todays),
+        later: read(later),
+        demoDue: read(demoDue),
+        diagnosticDue: read(diagnosticDue),
+        completed: read(completed),
+        // Both kinds of entry, newest first, while either was read; a failure of both keeps the last.
+        activity: entries.every((result) => result.status === 'rejected')
+          ? undefined
+          : entryPages.some(Boolean)
+            ? entryPages
+                .flatMap((page) => page?.results ?? [])
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, ACTIVITY_ROWS)
+            : null,
+      };
+      const label = (name) => (name === 'activity' ? 'recent activity' : 'your bookings');
+      const failed = [...new Set(Object.keys(fresh).filter((name) => fresh[name] === undefined).map(label))];
+      const loaded = new Set([...loadedParts.current].map(label));
+      for (const name of Object.keys(fresh)) if (fresh[name] !== undefined) loadedParts.current.add(name);
+      // A refused booking read keeps its status (403: this dashboard is a tutor's); the message names what failed.
+      const refusal = refused ? bookingError(refused.reason, 'Some of your bookings could not be loaded.') : null;
+      const failure = failed.length
+        ? { status: refusal?.status ?? null, message: refusal?.status === 403 ? refusal.message : partsFailedMessage(failed, loaded) }
+        : null;
+      setData((previous) => ({ ...keepFailed(fresh, previous, Object.fromEntries(Object.keys(fresh).map((name) => [name, null]))), failure }));
       setPending(false);
     })();
 
@@ -290,9 +306,7 @@ export default function TutorAdmissionsDashboardPage({ user }) {
                 Diagnostic Bookings
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" onClick={reload} disabled={pending} aria-label="Refresh">
-              <RefreshCwIcon />
-            </Button>
+            <RefreshButton variant="ghost" iconOnly onClick={reload} pending={pending} />
           </div>
         }
       />

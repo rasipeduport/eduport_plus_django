@@ -1,39 +1,23 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LogOut, RefreshCw } from 'lucide-react';
-import api from '../lib/api';
 import { useStudent } from '../components/student/student-context';
+import { useStatusCheck } from '../hooks/useStatusCheck';
+
+// What a check that leaves the student here says.
+const OUTCOMES = {
+  ended: { tone: 'info', text: 'Your access is still ended. Contact your mentor or our support team to restore it.' },
+  unreachable: { tone: 'danger', text: "We couldn't check right now. Check your internet connection and try again." },
+};
 
 // Shown when every persona on this account is expired (the terminal exit
 // state). A blocked account can still read its own personas via /me, so the
-// auth guard routes here instead of the "setting up" waiting room.
+// auth guard routes here instead of the "setting up" waiting room. Check
+// Again resolves the account again, as signing in does: access restored in
+// any shape -- one child usable again, several and none chosen, or the account
+// reset -- goes where it now belongs; otherwise it says why it stays.
 export default function AccessEndedPage() {
   const { logout } = useStudent();
-  const navigate = useNavigate();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      // If access was restored (a persona is usable again), this succeeds.
-      await api.get('/api/student/dashboard/');
-      navigate('/dashboard');
-    } catch (err) {
-      // Access can be restored in shapes other than a 200: several personas
-      // usable again but none selected, or the account reset entirely. Only
-      // STUDENT_ACCESS_ENDED means this screen still applies.
-      const code = err.response?.data?.error;
-      if (code === 'STUDENT_NOT_SELECTED') {
-        navigate('/select-profile');
-      } else if (code === 'STUDENT_PROFILE_NOT_FOUND') {
-        navigate('/waiting-room');
-      } else {
-        console.log('Access still ended...');
-      }
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 1000);
-    }
-  };
+  const { checking, outcome, check } = useStatusCheck();
+  const said = OUTCOMES[outcome] ?? null;
 
   return (
     <div className="bg-surface flex min-h-dvh flex-col text-text-primary">
@@ -84,13 +68,21 @@ export default function AccessEndedPage() {
           </div>
 
           <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
+            onClick={check}
+            disabled={checking}
+            aria-busy={checking || undefined}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 h-11 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover transition-colors disabled:opacity-70 cursor-pointer"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Checking...' : 'Check Again'}
+            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {checking ? 'Checking...' : 'Check Again'}
           </button>
+          <p
+            role="status"
+            aria-live="polite"
+            className={said ? `rounded-xl px-4 py-3 text-sm ${said.tone === 'danger' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'}` : 'sr-only'}
+          >
+            {said?.text ?? ''}
+          </p>
         </div>
 
         <div className="mt-8">

@@ -7,7 +7,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   LockIcon,
-  RefreshCwIcon,
 } from 'lucide-react';
 
 import api from '@/lib/api';
@@ -25,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState, Notice } from '@/components/page/states';
 import { cn } from '@/lib/utils';
 
@@ -352,6 +352,8 @@ export default function BookingSlotsPage() {
   const [day, setDay] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read of this type and date under way: Refresh (and Try again) turns and waits for it.
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState({ view, notice: '', error: '' });
   const [pendingChange, setPendingChange] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -359,6 +361,7 @@ export default function BookingSlotsPage() {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(`/api/booking-slots/${type}/${date}/`)
       .then((response) => {
@@ -368,6 +371,9 @@ export default function BookingSlotsPage() {
       })
       .catch((err) => {
         if (active) setFailure({ view, ...loadError(err) });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -389,6 +395,11 @@ export default function BookingSlotsPage() {
     );
   };
   const reload = () => setReloadKey((key) => key + 1);
+  // Refresh on request: the slots as they are now, so the last save's message goes with the old ones.
+  const refresh = () => {
+    setResult({ view, notice: '', error: '' });
+    reload();
+  };
 
   // Picking a status only asks: the dropdown keeps showing the saved one
   // until the change is confirmed and the API answers. Fully Booked closes an
@@ -487,15 +498,16 @@ export default function BookingSlotsPage() {
   let content;
   if (failed?.status === 403) {
     content = <AccessDeniedState title="You don't have access to booking slots." message="Ask an administrator if you need to manage them." />;
-  } else if (failed) {
-    content = <ErrorState message={failed.message} onRetry={reload} />;
+  } else if (failed && !current) {
+    content = <ErrorState message={failed.message} onRetry={reload} pending={loading} />;
   } else if (!current) {
     content = <SlotsSkeleton />;
   } else {
     const booked = slots.reduce((sum, slot) => sum + slot.booked, 0);
     const closed = slots.filter((slot) => slot.closed).length;
     content = (
-      <div className="flex flex-col gap-4">
+      <div className={cn('flex flex-col gap-4', loading && 'opacity-70 transition-opacity')} aria-busy={loading || undefined}>
+        {failed ? <ErrorState message={failed.message} onRetry={reload} pending={loading} /> : null}
         <div className="flex flex-col gap-3">
           <p className="text-sm">{parentNote(current)}</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -534,12 +546,7 @@ export default function BookingSlotsPage() {
       <PageHeader
         title="Booking Slots"
         description="The one-hour slots parents book for a demo class or a diagnostic test. Each slot's status follows its bookings; to stop new bookings, set a slot to Fully Booked. It keeps the bookings it holds (marked with a lock) until you set it back. Times are Indian time (IST)."
-        actions={
-          <Button variant="outline" onClick={reload} disabled={saving}>
-            <RefreshCwIcon />
-            Refresh
-          </Button>
-        }
+        actions={<RefreshButton size="default" onClick={refresh} pending={loading} disabled={saving} />}
       />
 
       <div className="flex flex-col gap-3">

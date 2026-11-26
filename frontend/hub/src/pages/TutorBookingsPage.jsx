@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CalendarCheck, ChevronRightIcon, ClipboardCheck, RefreshCwIcon, SearchXIcon } from 'lucide-react';
+import { CalendarCheck, ChevronRightIcon, ClipboardCheck, SearchXIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { TUTOR_BOOKINGS_URL, bookingError, isJoinable, tutorBookingPagePath } from '@/lib/bookings';
@@ -27,6 +27,7 @@ import { TutorBookingFilters } from '@/components/bookings/tutor-booking-filters
 import { EmptyState, Page, PageHeader } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
 import { ResponsiveList } from '@/components/page/responsive-list';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 import { TutorReportLink } from '@/components/reports/tutor-report-link';
 
@@ -407,12 +408,7 @@ export default function TutorBookingsPage({ type }) {
       <PageHeader
         title={title}
         description={description}
-        actions={
-          <Button variant="ghost" size="sm" onClick={reload} disabled={pending}>
-            <RefreshCwIcon />
-            Refresh
-          </Button>
-        }
+        actions={<RefreshButton variant="ghost" onClick={reload} pending={pending} />}
       />
       {content}
     </Page>

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { RefreshCwIcon } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/lib/api';
 import { EXAM_VIEW, PERMISSIONS, can, canAny } from '@/lib/access';
-import { Button } from '@/components/ui/button';
+import { keepFailed, partsFailedMessage } from '@/lib/refresh-failures';
+import { RefreshButton } from '@/components/page/refresh-button';
+import { ErrorState } from '@/components/page/states';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
@@ -15,6 +16,15 @@ import { RecentStudents } from '@/components/dashboard/recent-students';
 
 // One page of the log is fetched; the card shows five at a time and scrolls for the rest.
 const ACTIVITY_ROWS = 25;
+// Each read's part of the dashboard, as an error names it.
+const LABELS = {
+  stats: 'the dashboard figures',
+  students: 'students',
+  sessions: 'sessions',
+  homework: 'homework',
+  activity: 'recent activity',
+  additionalExams: 'additional exams',
+};
 
 function DashboardSkeleton() {
   return (
@@ -42,8 +52,9 @@ function DashboardSkeleton() {
  * The staff dashboard. Everything on it is read from endpoints the Hub
  * already serves this account: the stats endpoint (totals, sign-ups) plus the
  * students, sessions, homework and activity lists, and additional exams for
- * whoever may view exams. Each request fails on its own, so one slow or
- * refused list only blanks its own panel.
+ * whoever may view exams. Each request fails on its own: a failed one keeps
+ * what its panel showed before (empty only when it never loaded), and the
+ * message above names every part that failed.
  */
 export default function DashboardPage({ user }) {
   const canSeeExams = canAny(user, EXAM_VIEW);
@@ -59,6 +70,8 @@ export default function DashboardPage({ user }) {
     setRefreshing(true);
     setReloadKey((key) => key + 1);
   };
+  // The parts that have loaded at least once: a failure of one of these keeps it on screen.
+  const loadedParts = useRef(new Set());
 
   useEffect(() => {
     let active = true;
@@ -75,23 +88,32 @@ export default function DashboardPage({ user }) {
       const [stats, students, sessions, homework, activity, additional] = await Promise.allSettled(requests);
       if (!active) return;
 
-      const value = (result, pick) => (result.status === 'fulfilled' && result.value ? pick(result.value.data) : null);
-      setData({
+      // Undefined for a read that failed: that part keeps what it had.
+      const value = (result, pick) => (result.status === 'fulfilled' && result.value ? pick(result.value.data) : undefined);
+      const fresh = {
         stats: value(stats, (d) => d),
-        students: value(students, (d) => (Array.isArray(d) ? d : [])) ?? [],
-        sessions: value(sessions, (d) => d.sessions ?? []) ?? [],
-        homework: value(homework, (d) => d.homework ?? []) ?? [],
-        activity: value(activity, (d) => d.results ?? []) ?? [],
+        students: value(students, (d) => (Array.isArray(d) ? d : [])),
+        sessions: value(sessions, (d) => d.sessions ?? []),
+        homework: value(homework, (d) => d.homework ?? []),
+        activity: value(activity, (d) => d.results ?? []),
         // null (not an empty list) when this account is not served exams, so the
         // attention list leaves the row out rather than showing a false zero.
-        additionalExams: canSeeExams ? (value(additional, (d) => d.additional_exams ?? []) ?? []) : null,
-      });
-      if (stats.status === 'rejected') {
-        console.error('Stats loading failed', stats.reason);
-        setError(stats.reason?.response?.data?.message || 'Some dashboard figures could not be loaded.');
-      } else {
-        setError('');
-      }
+        additionalExams: canSeeExams ? value(additional, (d) => d.additional_exams ?? []) : null,
+      };
+      const failed = Object.keys(LABELS).filter((name) => fresh[name] === undefined);
+      if (failed.length) console.error('Dashboard reads failed', failed);
+      setError(partsFailedMessage(failed.map((name) => LABELS[name]), new Set([...loadedParts.current].map((name) => LABELS[name]))));
+      for (const name of Object.keys(LABELS)) if (fresh[name] !== undefined) loadedParts.current.add(name);
+      setData((previous) =>
+        keepFailed(fresh, previous, {
+          stats: null,
+          students: [],
+          sessions: [],
+          homework: [],
+          activity: [],
+          additionalExams: canSeeExams ? [] : null,
+        })
+      );
       setLoading(false);
       setRefreshing(false);
     })();
@@ -124,15 +146,10 @@ export default function DashboardPage({ user }) {
         <>
           <DashboardHeader
             user={user}
-            actions={
-              <Button variant="ghost" size="sm" onClick={refresh} disabled={refreshing}>
-                <RefreshCwIcon className={refreshing ? 'animate-spin' : undefined} />
-                Refresh
-              </Button>
-            }
+            actions={<RefreshButton variant="ghost" onClick={refresh} pending={refreshing} />}
           />
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error ? <ErrorState message={error} onRetry={refresh} pending={refreshing} /> : null}
 
           <KpiCards stats={data.stats} students={data.students} sessions={data.sessions} attentionTotal={attentionTotal} />
 

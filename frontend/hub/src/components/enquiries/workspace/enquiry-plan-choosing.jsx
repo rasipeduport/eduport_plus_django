@@ -273,6 +273,8 @@ export function EnquiryPlanChoosing({ enquiry, user }) {
   const [saved, setSaved] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read of the saved plan under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
   const [view, setView] = useState('saved');
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -288,6 +290,7 @@ export function EnquiryPlanChoosing({ enquiry, user }) {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(enquiryPlanUrl(enquiry.id))
       .then(({ data }) => {
@@ -297,6 +300,9 @@ export function EnquiryPlanChoosing({ enquiry, user }) {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load this student’s plan.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -322,7 +328,7 @@ export function EnquiryPlanChoosing({ enquiry, user }) {
     };
   }, [enquiry.id, readsSale, reloadKey]);
 
-  if (failure) return <ErrorState message={failure.message} onRetry={reload} />;
+  if (failure) return <ErrorState message={failure.message} onRetry={reload} pending={loading} />;
   if (!saved) return <Skeleton className="h-64 w-full" aria-busy="true" />;
   const configuring = view === 'configure';
   const browsing = view === 'catalogue' || (view === 'saved' && !saved.current);

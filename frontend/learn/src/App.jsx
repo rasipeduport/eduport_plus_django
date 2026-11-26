@@ -30,7 +30,7 @@ export default function App() {
           path="/*"
           element={
             <AuthProvider>
-              {({ user, students, studentProfile, stats, reloadStats, switchStudent, logout }) => (
+              {({ user, students, studentProfile, stats, reloadStats, switchStudent, recheck, logout }) => (
                 <StudentProvider
                   user={user}
                   students={students}
@@ -38,6 +38,7 @@ export default function App() {
                   stats={stats}
                   reloadStats={reloadStats}
                   switchStudent={switchStudent}
+                  recheck={recheck}
                   logout={logout}
                 >
                   <Routes>

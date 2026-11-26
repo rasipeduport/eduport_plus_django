@@ -11,7 +11,6 @@ import {
   Hourglass,
   Inbox,
   ListTodo,
-  RefreshCwIcon,
   RotateCcw,
   UserPlus,
   UserRoundX,
@@ -48,6 +47,7 @@ import { StudentTimeCell } from '@/components/bookings/student-time';
 import { DatePresets } from '@/components/page/date-presets';
 import { Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -559,9 +559,7 @@ export default function AdmissionsDashboardPage() {
         actions={
           <div className="flex w-full items-start gap-2">
             <RangeFilter range={range} onChange={changeRange} />
-            <Button variant="ghost" size="icon" onClick={reload} disabled={pending} aria-label="Refresh">
-              <RefreshCwIcon />
-            </Button>
+            <RefreshButton variant="ghost" iconOnly onClick={reload} pending={pending} />
           </div>
         }
       />

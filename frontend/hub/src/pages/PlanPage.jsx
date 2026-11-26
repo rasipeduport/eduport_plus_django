@@ -50,11 +50,14 @@ export default function PlanPage() {
   const [detail, setDetail] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read of the plan under way (Try again, Reload).
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState([]);
   const pdf = useSyllabusPdf();
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(catalogueUrl(syllabusId))
       .then((response) => {
@@ -67,6 +70,9 @@ export default function PlanPage() {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load the plan.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -100,7 +106,7 @@ export default function PlanPage() {
   if (failure && !detail) {
     return (
       <Page>
-        <ErrorState message={failure.message} onRetry={reload} />
+        <ErrorState message={failure.message} onRetry={reload} pending={loading} />
       </Page>
     );
   }
@@ -140,11 +146,13 @@ export default function PlanPage() {
             This plan was updated{refusal.revision ? ` to revision ${refusal.revision}` : ''} since you opened it. Reload it and
             {bridge ? ' choose the days again.' : ' check the quote again.'}
           </p>
-          <Button variant="outline" size="sm" onClick={reload}>
+          <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
             Reload
           </Button>
         </div>
       ) : null}
+      {/* A Reload that failed: the plan shown stays, with why above it. */}
+      {failure ? <ErrorState message={failure.message} onRetry={reload} pending={loading} /> : null}
       {gone ? <ErrorState message="This plan is no longer on sale." /> : null}
       {pdf.error && !stale && !gone ? <ErrorState message={pdf.error} /> : null}
 

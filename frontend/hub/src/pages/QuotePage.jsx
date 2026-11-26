@@ -59,12 +59,15 @@ export default function QuotePage({ user }) {
   const [quote, setQuote] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [notice, setNotice] = useFlashNotice();
   const pdf = useSyllabusPdf({ snapshot: true });
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(quoteUrl(quoteId))
       .then((response) => {
@@ -74,6 +77,9 @@ export default function QuotePage({ user }) {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load the quote.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -104,7 +110,7 @@ export default function QuotePage({ user }) {
   if (failure && !quote) {
     return (
       <Page>
-        <ErrorState message={failure.message} onRetry={reload} />
+        <ErrorState message={failure.message} onRetry={reload} pending={loading} />
       </Page>
     );
   }
