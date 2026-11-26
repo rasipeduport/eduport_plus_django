@@ -240,7 +240,7 @@ export default function StudentProfilePage({ user }) {
               onOpenTab={setTab}
               onSynced={refresh}
             />
-            {student.learning_plan ? <div className="mt-6"><WorkspaceCard title="Selected learning plan"><Fields><Field label="Syllabus">{student.learning_plan.syllabus}</Field><Field label="Plan">{quotePlanLabel(student.learning_plan)}</Field><Field label="Purchased classes">{student.learning_plan.purchased_classes}</Field><Field label="Paid class quota">{student.learning_plan.paid_classes}</Field></Fields><ul className="flex flex-col gap-1 text-sm">{student.learning_plan.chapters.map((chapter) => <li key={chapter.position}>{chapter.position}. {chapter.name} · {chapter.classes} classes</li>)}</ul></WorkspaceCard></div> : null}
+            {student.learning_plan ? <div className="mt-6"><WorkspaceCard title="Selected learning plan"><Fields><Field label="Syllabus">{student.learning_plan.syllabus}</Field><Field label="Plan">{quotePlanLabel(student.learning_plan)}</Field><Field label="Purchased classes">{student.learning_plan.purchased_classes}</Field>{student.additional_hours ? <Field label="Class quota (hrs)">{student.learning_plan.paid_classes} · incl. {student.additional_hours.active_hours} additional hrs{Number(student.additional_hours.payment_pending_hours) > 0 ? `, ${student.additional_hours.payment_pending_hours} payment pending` : ''}</Field> : <Field label="Paid class quota">{student.learning_plan.paid_classes}</Field>}</Fields><ul className="flex flex-col gap-1 text-sm">{student.learning_plan.chapters.map((chapter) => <li key={chapter.position}>{chapter.position}. {chapter.name} · {chapter.classes} classes</li>)}</ul></WorkspaceCard></div> : null}
           </TabsContent>
 
           {canFinance ? (

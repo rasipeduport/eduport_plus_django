@@ -97,6 +97,12 @@ export const PERMISSIONS = {
   manageTutorPayments: 'accounts.manage_tutor_payments',
   correctTutorEarnings: 'accounts.correct_tutor_earnings',
   viewOwnEarnings: 'accounts.view_own_earnings',
+
+  // Additional hours with deferred payment (backend accounts.0032): adding and managing them is
+  // the administrators' alone; recording their payments, the administrators' and the student's own
+  // mentor's -- the API checks the mentor on every request.
+  manageAdditionalHours: 'accounts.manage_additional_hours',
+  collectAdditionalHoursPayments: 'accounts.collect_additional_hours_payments',
 };
 
 const P = PERMISSIONS;
@@ -185,6 +191,9 @@ export const PAGE_PERMISSIONS = {
   '/sales-syllabus': [P.manageSalesSyllabi],
   '/sales-pricing': [P.manageSalesPricing],
   '/tutor-earnings': [P.viewTutorEarnings],
+  // Additional hours across students and what is still owed for them: every student's for
+  // administrators, a mentor's own students' (backend sales.additional_hours answers each its own).
+  '/additional-hours': [P.collectAdditionalHoursPayments, P.manageAdditionalHours],
 };
 
 // Pages for BDE accounts only. A superuser holds their permissions too (D1)

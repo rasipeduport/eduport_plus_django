@@ -40,6 +40,7 @@ const breadcrumbConfig = {
   // Opened from Syllabus & Plans, which it sits under in the sidebar.
   '/sales-pricing': [{ label: 'Syllabus & Plans', href: '/sales-syllabus' }, { label: 'Global Pricing' }],
   '/tutor-earnings': [{ label: 'Tutor Earnings' }],
+  '/additional-hours': [{ label: 'Additional Hours' }],
   // The Hub shows no breadcrumb on /activity -- the page carries its own
   // heading (the activity log's, or a BDE's Activity), so the crumb only repeated it.
 };

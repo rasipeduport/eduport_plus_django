@@ -2,6 +2,9 @@ from django.urls import path
 from .autopay_views import AutopayScheduleView, BeginAutopayView, RestartInitialCheckoutView, ParentAutopayActionView
 from .account_views import (BillingContactView, CancelAutopayView, IdentityCorrectionView, ResolveReviewView, SalesDashboardView,
                             StripeReviewView)
+from .additional_hours_views import (AdditionalHoursClosingView, AdditionalHoursEligibilityView, AdditionalHoursPaymentsView,
+                                     AdditionalHoursPaymentVoidView, AdditionalHoursProofView, AdditionalHoursRegisterView,
+                                     AdditionalHoursView, StudentAdditionalHoursView)
 from .purchase_views import (PurchaseAmountView, PurchaseExpireView, PurchasePaymentsView, PurchaseProofView, PurchaseView,
                              StudentFinanceView, StudentPaymentsView, StudentPurchasesView)
 
@@ -51,6 +54,21 @@ urlpatterns = [
     path('purchases/<uuid:pk>/payments/', PurchasePaymentsView.as_view(), name='purchase_payments'),
     path('purchases/<uuid:pk>/payments/<uuid:payment_id>/expire/', PurchaseExpireView.as_view(), name='purchase_expire'),
     path('purchases/<uuid:pk>/payments/<uuid:payment_id>/proof/', PurchaseProofView.as_view(), name='purchase_proof'),
+    # Additional hours with deferred payment (sales.additional_hours): added to the quota at once by an
+    # administrator, paid for later -- recorded by an administrator or the student's mentor. Its own ledger.
+    path('students/<uuid:pk>/additional-hours/', StudentAdditionalHoursView.as_view(), name='student_additional_hours'),
+    path('students/<uuid:pk>/additional-hours/eligibility/', AdditionalHoursEligibilityView.as_view(),
+         name='additional_hours_eligibility'),
+    path('additional-hours/', AdditionalHoursRegisterView.as_view(), name='additional_hours_register'),
+    path('additional-hours/<uuid:pk>/', AdditionalHoursView.as_view(), name='additional_hours'),
+    path('additional-hours/<uuid:pk>/waive/', AdditionalHoursClosingView.as_view(closing='waive'), name='additional_hours_waive'),
+    path('additional-hours/<uuid:pk>/withdraw/', AdditionalHoursClosingView.as_view(closing='withdraw'),
+         name='additional_hours_withdraw'),
+    path('additional-hours/<uuid:pk>/payments/', AdditionalHoursPaymentsView.as_view(), name='additional_hours_payments'),
+    path('additional-hours/<uuid:pk>/payments/<uuid:payment_id>/void/', AdditionalHoursPaymentVoidView.as_view(),
+         name='additional_hours_payment_void'),
+    path('additional-hours/<uuid:pk>/payments/<uuid:payment_id>/proof/', AdditionalHoursProofView.as_view(),
+         name='additional_hours_proof'),
     path('syllabi/', SyllabiView.as_view(), name='syllabi'),
     path('syllabi/pdf-preview/', SyllabusPdfPreviewView.as_view(), name='pdf_preview'),
     path('syllabi/<uuid:pk>/', SyllabusDetailView.as_view(), name='syllabus'),

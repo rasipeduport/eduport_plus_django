@@ -46,6 +46,7 @@ import QuotesPage from './pages/QuotesPage';
 import QuotePage from './pages/QuotePage';
 import TutorEarningsPage from './pages/TutorEarningsPage';
 import TutorEarningsDetailPage from './pages/TutorEarningsDetailPage';
+import AdditionalHoursPage from './pages/AdditionalHoursPage';
 import MyEarningsPage from './pages/MyEarningsPage';
 import { canOpenPage, homePage, isAdmin, isBde, isTutor } from './lib/access';
 import { legacyBookingsPath, legacyTutorBookingsPath } from './lib/bookings';
@@ -263,6 +264,7 @@ function HubRoutes({ user, logout }) {
             each action's own permission. */}
         <Route path="/tutor-earnings" element={page('/tutor-earnings', <TutorEarningsPage user={user} />)} />
         <Route path="/tutor-earnings/:tutorId" element={page('/tutor-earnings', <TutorEarningsDetailPage user={user} />)} />
+        <Route path="/additional-hours" element={page('/additional-hours', <AdditionalHoursPage />)} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </SidebarLayout>
