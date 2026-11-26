@@ -585,3 +585,4 @@ from .payment_models import Payment, Purchase, Sale, SalesSequence, StripeCustom
 from .autopay_models import AutopayAgreement, AutopayAttempt, AutopayInstallment  # noqa: E402,F401
 from .account_models import Guardian, StudentAccount, StudentGuardian, StudentIdentityCorrection  # noqa: E402,F401
 from .ledger_models import Dispute, Refund, StripeReviewItem  # noqa: E402,F401
+from .allocation_models import AdditionalHoursAllocation, AdditionalHoursPayment  # noqa: E402,F401

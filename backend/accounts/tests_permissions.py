@@ -55,6 +55,7 @@ SEED_ADDITIONAL_PURCHASES = importlib.import_module('accounts.migrations.0026_ad
 SEED_SESSION_OUTCOMES = importlib.import_module('accounts.migrations.0029_correct_session_outcome_permission')
 SEED_TUTOR_EARNINGS = importlib.import_module('accounts.migrations.0030_tutor_earnings_permissions')
 RETIRE_ADD_ENQUIRY = importlib.import_module('accounts.migrations.0031_retire_add_enquiry_permission')
+SEED_ADDITIONAL_HOURS = importlib.import_module('accounts.migrations.0032_additional_hours_permissions')
 # Staff roles added by migration 0009, after the baseline below.
 NEW_ROLES = ('BDE', 'SALES_TL')
 
@@ -104,6 +105,7 @@ ADMIN_ONLY = names(
     'view_all_communications', 'manage_message_templates', 'view_all_leads', 'add_lead',
     'manage_sales_syllabi', 'manage_sales_pricing', 'manage_sales_quotes', 'correct_session_outcome',
     'view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings',
+    'manage_additional_hours',
 )
 TUTOR_ONLY = names('view_assigned_bookings', 'submit_booking_report', 'view_own_earnings')
 # What later migrations add, one module each: BDE its booking links (0010),
@@ -171,6 +173,10 @@ OUTCOME_CORRECTION_GRANTS = {'ADMIN': OUTCOME_CORRECTION_PERMISSIONS}
 EARNINGS_ADMIN_PERMISSIONS = names('view_tutor_earnings', 'manage_tutor_rates', 'manage_tutor_payments', 'correct_tutor_earnings')
 EARNINGS_PERMISSIONS = EARNINGS_ADMIN_PERMISSIONS | names('view_own_earnings')
 EARNINGS_GRANTS = {'ADMIN': EARNINGS_ADMIN_PERMISSIONS, 'TUTOR': names('view_own_earnings')}
+# Additional hours (0032): only the Admin adds and manages them; the Admin and the student's own
+# mentor record their payments. Never a BDE's, a Sales TL's or a tutor's.
+ADDITIONAL_HOURS_PERMISSIONS = names('manage_additional_hours', 'collect_additional_hours_payments')
+ADDITIONAL_HOURS_GRANTS = {'ADMIN': ADDITIONAL_HOURS_PERMISSIONS, 'MENTOR': names('collect_additional_hours_payments')}
 # What the new roles' groups carried up to 0014: BDE its booking links and
 # enquiries, Sales TL nothing.
 NEW_ROLE_PERMISSIONS_AT_0014 = {
@@ -233,7 +239,11 @@ GROUP_PERMISSIONS_AT_0029 = {
 GROUP_PERMISSIONS_AT_0030 = {
     role: held | EARNINGS_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0029.items()
 }
-EXPECTED_GROUP_PERMISSIONS = {role: held - RETIRED_ADD_ENQUIRY for role, held in GROUP_PERMISSIONS_AT_0030.items()}
+GROUP_PERMISSIONS_AT_0031 = {role: held - RETIRED_ADD_ENQUIRY for role, held in GROUP_PERMISSIONS_AT_0030.items()}
+GROUP_PERMISSIONS_AT_0032 = {
+    role: held | ADDITIONAL_HOURS_GRANTS.get(role, set()) for role, held in GROUP_PERMISSIONS_AT_0031.items()
+}
+EXPECTED_GROUP_PERMISSIONS = GROUP_PERMISSIONS_AT_0032
 
 
 def permission(name):
@@ -272,12 +282,13 @@ class PermissionTestCase(TestCase):
 class CatalogueTests(PermissionTestCase):
     def test_the_catalogue_includes_initial_sales(self):
         # 74 seeded up to 0026, less accounts.create_invitation (0028), plus correct_session_outcome (0029),
-        # plus Tutor Earnings' five (0030), less accounts.add_enquiry (0031).
-        self.assertEqual(len(CATALOGUE), 78)
+        # plus Tutor Earnings' five (0030), less accounts.add_enquiry (0031), plus additional hours' two (0032).
+        self.assertEqual(len(CATALOGUE), 80)
         self.assertLessEqual(
             WORKFLOW_PERMISSIONS | COMMUNICATION_PERMISSIONS | LEAD_PERMISSIONS | STUDENT_TIMEZONE_PERMISSIONS
             | SALES_PERMISSIONS | SALES_CATALOGUE_PERMISSIONS | QUOTE_PERMISSIONS | INITIAL_SALES_PERMISSIONS
-            | ADDITIONAL_PURCHASE_PERMISSIONS | OUTCOME_CORRECTION_PERMISSIONS | EARNINGS_PERMISSIONS,
+            | ADDITIONAL_PURCHASE_PERMISSIONS | OUTCOME_CORRECTION_PERMISSIONS | EARNINGS_PERMISSIONS
+            | ADDITIONAL_HOURS_PERMISSIONS,
             set(CATALOGUE),
         )
         # Every permission is carried by at least one role group today.
@@ -362,7 +373,7 @@ class CatalogueTests(PermissionTestCase):
             + SEED_COMMUNICATIONS.HUB_PERMISSIONS + SEED_LEADS.HUB_PERMISSIONS + SEED_STUDENT_TIMEZONE.HUB_PERMISSIONS
             + SEED_SALES.HUB_PERMISSIONS + SEED_SALES_CATALOGUE.HUB_PERMISSIONS + SEED_SALES_QUOTES.HUB_PERMISSIONS + SEED_INITIAL_SALES.HUB_PERMISSIONS
             + SEED_ADDITIONAL_PURCHASES.HUB_PERMISSIONS + SEED_SESSION_OUTCOMES.HUB_PERMISSIONS
-            + SEED_TUTOR_EARNINGS.HUB_PERMISSIONS
+            + SEED_TUTOR_EARNINGS.HUB_PERMISSIONS + SEED_ADDITIONAL_HOURS.HUB_PERMISSIONS
         )
         # 0025 changes only the invitation permission's display label. Preserve
         # the historical 0008 seed and compare the final migrated catalogue.
@@ -384,6 +395,8 @@ class CatalogueTests(PermissionTestCase):
                          OUTCOME_CORRECTION_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_TUTOR_EARNINGS.GRANTS.items()},
                          EARNINGS_GRANTS)
+        self.assertEqual({role: names(*codenames) for role, codenames in SEED_ADDITIONAL_HOURS.GRANTS.items()},
+                         ADDITIONAL_HOURS_GRANTS)
         self.assertEqual({role: names(*codenames) for role, codenames in SEED_STUDENT_TIMEZONE.GRANTS.items()},
                          STUDENT_TIMEZONE_GRANTS)
         self.assertEqual(dict(SEED_WORKFLOW.HUB_PERMISSIONS)[SEED_LEADS.ASSIGN_OWNER], SEED_LEADS.ASSIGN_OWNER_NAMES[0])
@@ -1276,8 +1289,20 @@ class MigrationReversalTests(TransactionTestCase):
         # 0031 retires accounts.add_enquiry, and reverses to give it back to the BDE role.
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0031_retire_add_enquiry_permission')])
-        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0031)
         self.assertFalse(Permission.objects.filter(content_type__model='hubpermission', codename='add_enquiry').exists())
+
+        # 0032 gives the Admin role both additional-hours permissions and the Mentor role the payments one,
+        # and reverses to take both rows away again.
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0032_additional_hours_permissions')])
+        self.assertEqual(self.groups(), EXPECTED_GROUP_PERMISSIONS)
+        executor = MigrationExecutor(connection)
+        executor.migrate([('accounts', '0031_retire_add_enquiry_permission')])
+        self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0031)
+        self.assertFalse(Permission.objects.filter(
+            content_type__model='hubpermission', codename__in=[name.split('.', 1)[1] for name in ADDITIONAL_HOURS_PERMISSIONS],
+        ).exists())
         executor = MigrationExecutor(connection)
         executor.migrate([('accounts', '0030_tutor_earnings_permissions')])
         self.assertEqual(self.groups(), GROUP_PERMISSIONS_AT_0030)

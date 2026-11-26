@@ -193,6 +193,13 @@ CATALOGUE = {
     'accounts.manage_tutor_payments': _entry('Record and void payments to tutors', 'Earnings', ADMIN_ONLY),
     'accounts.correct_tutor_earnings': _entry('Correct tutor earnings', 'Earnings', ADMIN_ONLY),
     'accounts.view_own_earnings': _entry('View their own earnings', 'Earnings', TUTOR_ONLY),
+    # Additional hours with deferred payment (sales.additional_hours), accounts.0032:
+    # only administrators give a student additional hours and manage them (due
+    # date, amount, waiving, withdrawing, voiding a payment); an administrator or
+    # the student's own mentor records the payments -- the code checks the mentor.
+    'accounts.manage_additional_hours': _entry('Add and manage additional hours', 'Sales', ADMIN_ONLY),
+    'accounts.collect_additional_hours_payments': _entry('Record additional hours payments for their students', 'Sales',
+                                                         MENTOR_AND_ADMIN),
 }
 
 

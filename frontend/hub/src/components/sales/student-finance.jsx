@@ -24,6 +24,7 @@ import { WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { AutopayAgreement } from '@/components/sales/autopay-summary';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import { AddPurchase, PurchaseDetail } from '@/components/sales/additional-purchases';
+import { AdditionalHoursCard } from '@/components/sales/additional-hours';
 
 const HISTORY_PAGE_SIZE = 10;
 const NO_FILTERS = { sale: '', status: '', method: '' };
@@ -79,6 +80,8 @@ export function StudentFinance({ studentId }) {
     {error ? <ErrorState message={error.message} onRetry={refresh} /> : null}
     <SummaryCards summary={overview.summary} />
     <PurchasesOverview overview={overview} onAdd={() => setView({ name: 'add' })} onOpen={(saleId) => open(saleId)} />
+    {/* Its own ledger: none of its figures is part of the summary, purchases or payments here. */}
+    <AdditionalHoursCard studentId={studentId} />
     <div className="grid min-w-0 gap-6 lg:grid-cols-3">
       <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
         <FinancePaymentHistory studentId={studentId} purchases={overview.purchases} reloadKey={reload} />

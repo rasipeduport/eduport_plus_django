@@ -73,7 +73,12 @@ def serialize_student(student):
     """
     learning_plan = None
     autopay_summary = None
+    additional_hours = None
     if student.quota_source == 'PAYMENTS':
+        # Hours an administrator added on top of the plans (sales.additional_hours): already in
+        # total_class_quota, some perhaps still to be paid for. Absent when there are none.
+        from sales.additional_hours import quota_summary
+        additional_hours = quota_summary(student)
         from sales.payment_models import Purchase
         from sales.pricing import plain
         from sales import quotes
@@ -109,6 +114,7 @@ def serialize_student(student):
     return {
         **({'learning_plan': learning_plan} if learning_plan else {}),
         **({'autopay': autopay_summary} if autopay_summary else {}),
+        **({'additional_hours': additional_hours} if additional_hours else {}),
         "id": str(student.id),
         "student_code": student.student_code,
         "full_name": student.full_name,
