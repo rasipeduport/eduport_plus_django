@@ -171,6 +171,11 @@ export default function MyEarningsPage() {
               it ended -- whenever they come in. It is paid for the hours it was booked for.
             </li>
             <li>
+              <strong className="text-foreground">Demo conversion:</strong> when the student of a Demo you taught enrolls,
+              that Demo earns the conversion rate in all: you get the difference over what the Demo already earned, in the
+              month the student enrolled. If the student had more than one Demo, the last one taught before enrolling counts.
+            </li>
+            <li>
               <strong className="text-foreground">Never counted:</strong> a class nobody started, one recorded as No-show /
               Not Conducted, or one only marked attended by staff.
             </li>

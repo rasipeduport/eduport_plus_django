@@ -268,12 +268,16 @@ test('Admin overview before pricing: the initial rates are asked for, and start 
   await type(document.querySelector('#initial-DIAGNOSTIC'), '300');
   await type(document.querySelector('#initial-DEMO'), '300');
   await type(document.querySelector('#initial-SESSION'), '400.50');
+  await check([...document.querySelectorAll('input[type="checkbox"]')].at(-1));
+  assert.ok(start().disabled, 'every global rate first, Demo Conversion included');
+  await check([...document.querySelectorAll('input[type="checkbox"]')].at(-1));
+  await type(document.querySelector('#initial-DEMO_CONVERSION'), '450');
   assert.ok(start().disabled, 'pricing starts only once confirmed');
   await check([...document.querySelectorAll('input[type="checkbox"]')].at(-1));
   assert.ok(!start().disabled);
   await click(start());
   assert.deepEqual(calls('POST', '/api/earnings/rates/initial/').map((c) => c.data),
-    [{ global: { DIAGNOSTIC: '300', DEMO: '300', SESSION: '400.50' }, tutors: [], reason: '', confirm: true }]);
+    [{ global: { DIAGNOSTIC: '300', DEMO: '300', SESSION: '400.50', DEMO_CONVERSION: '450' }, tutors: [], reason: '', confirm: true }]);
 });
 
 test('Tutor page: Record payment -- checked, reviewed, sent once with its key, and confirmed when it may be a duplicate', async () => {
@@ -471,6 +475,127 @@ test('Tutor page actions follow their own permissions; nothing to pay while noth
   for (const label of ['Edit tutor rates', 'Edit']) assert.equal(buttons(label).length, 0, label);
   assert.ok(buttons('Record payment').some((el) => !el.disabled), 'still paid');
   assert.ok(text().includes('All time · 1 payment · 1 voided, not counted'), text());
+});
+
+// -------------------------------------------------------- Demo conversion
+const CONVERSION_ENTRY = entry('e-conv', 'DEMO_CONVERSION', {
+  source_id: 'sale-1', units: '1.00', unit: 'CONVERSION', rate: '350.00', amount: '150.00', rate_source: 'GLOBAL',
+  created_by: null, month: '2026-12', converts_id: 'e-demo',
+  details: { sale_id: 'sale-1', student_name: 'Riya', student_code: 'EDP00051', converted_at: '2026-12-04T12:00:00+00:00', demo_amount: '300.00',
+    conversion_rate: '350.00', incentive: '50.00', final_amount: '350.00', is_redemo: false },
+});
+const CONVERTED_DEMO = { ...ENTRIES[1], conversion: { id: 'e-conv', amount: '150.00', month: '2026-12', converted_at: '2026-12-04T12:00:00+00:00', reversed: false } };
+const CONVERTED_COUNTS = { ...COUNTS, conversions: 1, demo_earned: '300.00', conversion_earned: '150.00' };
+const conversionDetail = (admin) => detail(admin, {
+  summary: { ...detail(admin).summary, earned: '1125.00', ...CONVERTED_COUNTS },
+  breakdown: [...breakdown(admin), { class_type: 'DEMO_CONVERSION', unit: 'CONVERSION', classes: 1, units: '1.00', amount: '150.00',
+    lines: [{ rate: '350.00', classes: 1, units: '1.00', amount: '150.00', ...(admin ? { rate_source: 'GLOBAL' } : {}) }] }],
+  months_breakdown: [{ month: '2026-12', earned: '150.00', ...COUNTS, demo: 0, sessions: 0, session_hours: '0.00', classes: 0,
+    conversions: 1, demo_earned: '0.00', conversion_earned: '150.00' }, { month: '2026-11', earned: '975.00', ...COUNTS }],
+  rates: [...rates(admin), { class_type: 'DEMO_CONVERSION', unit: 'CONVERSION', amount: '350.00',
+    ...(admin ? { source: 'GLOBAL', global_amount: '350.00', effective_from: STATUS.activated_at } : {}) }],
+  // A tutor reads no source for a conversion: its sale is an administrator's.
+  not_counted: [['sale-2', 'Kabir'], ['sale-3', 'Meera']].map(([sale, student]) => ({ class_type: 'DEMO_CONVERSION',
+    source_id: admin ? sale : null, reason: 'WAITING_FOR_DEMO', class_start: '2026-12-09T10:30:00+00:00',
+    class_end: '2026-12-09T11:30:00+00:00', title: null, student_name: student, is_redemo: true, converted_at: '2026-12-09T11:00:00+00:00' })),
+});
+// The ledger as a tutor reads it: no rate source or author, and no sale on a conversion line.
+const asTutor = (row) => {
+  const { rate_source: _s, created_by: _c, ...rest } = row;
+  if (rest.class_type !== 'DEMO_CONVERSION') return rest;
+  const { sale_id: _sale, ...details } = rest.details;
+  return { ...rest, source_id: null, details };
+};
+
+test('Demo conversion as the Hub writes it: per converted Demo, apart from the class count', () => {
+  const { rateLabel, unitsLabel, countsLine, whyItCounts, classTypeLabel, unitPhrase, CLASS_TYPES } = earnings;
+  assert.deepEqual(CLASS_TYPES.map((t) => t.value), ['DIAGNOSTIC', 'DEMO', 'SESSION', 'DEMO_CONVERSION']);
+  assert.equal(rateLabel('350.00', 'CONVERSION'), '₹350 / converted Demo');
+  assert.equal(unitsLabel('2.00', 'CONVERSION'), '2 conversions');
+  assert.equal(unitPhrase('CONVERSION'), 'per converted Demo');
+  assert.equal(classTypeLabel('DEMO_CONVERSION', { singular: true }), 'Demo conversion');
+  assert.equal(countsLine(CONVERTED_COUNTS), '0 Diagnostic · 1 Demo · 1 session · 1.5 payable hours · 1 converted');
+  assert.equal(whyItCounts(CONVERSION_ENTRY), 'Enrolled 4 Dec 2026, 5:30 PM · Demo earned ₹300 → ₹350 converted');
+});
+
+test('Admin overview: the Demo conversions -- Demos, conversions, what each earned -- and a Converted column', async () => {
+  serve({ 'GET /api/earnings/overview/': { ...OVERVIEW, totals: { ...OVERVIEW.totals, ...CONVERTED_COUNTS },
+    tutors: [{ ...OVERVIEW.tutors[0], ...CONVERTED_COUNTS, conversions: 3 }, OVERVIEW.tutors[1]] } });
+  await open('overview', { user: ADMIN });
+  const shown = text();
+  for (const words of ['Demo conversions', 'Eligible Demos', 'Converted Demos', 'Demo earnings', '₹300', 'Conversion incentives', '+₹150',
+    'Total earnings', '₹1,11,425', 'Converted', '1 session · 1.5 payable hours · 1 converted']) {
+    assert.ok(shown.includes(words), `${words} in ${shown}`);
+  }
+  const headers = [...document.querySelectorAll('th')].map((th) => th.textContent.trim());
+  const at = headers.indexOf('Converted');
+  assert.ok(at > headers.indexOf('Demo'), headers.join(' | '));
+  const cells = [...document.querySelectorAll('tbody tr')][0].querySelectorAll('td');
+  assert.equal(cells[at].textContent.trim(), '3');
+});
+
+test('Tutor page: the Demo Conversion row, the conversion in the ledger, and a converted Demo marked as such', async () => {
+  serve({ [`GET ${DETAIL_URL}`]: conversionDetail(true), [`GET ${DETAIL_URL}entries/`]: page([CONVERSION_ENTRY, CONVERTED_DEMO, ENTRIES[0]]),
+    'POST /api/earnings/entries/e-demo/reverse/': { success: true, entry: { ...CONVERTED_DEMO, kind: 'REVERSAL', amount: '-300.00' } } });
+  await open('detail', { user: ADMIN, tutorId: TUTOR_ID });
+  const shown = text();
+  for (const words of ['Demo Conversion', 'rate − Demo earning', '₹350 / converted Demo', '1 conversion', '+₹150', 'Demo conversion',
+    'Enrolled 4 Dec 2026, 5:30 PM · Demo earned ₹300 → ₹350 converted', 'Converted', 'Waiting for its Demo', 'Kabir',
+    'In all, for a converted Demo', 'Conversions']) {
+    assert.ok(shown.includes(words), `${words} in ${shown}`);
+  }
+  // The class total leaves the conversion out: 1 Demo + 1 session.
+  const footer = document.querySelector('table[aria-label="Earnings by class type"] tfoot tr');
+  assert.equal(footer.querySelectorAll('td')[1].textContent.trim(), '2');
+  // Reversing a converted Demo says its conversion is a line of its own.
+  const triggers = document.querySelectorAll('button[aria-label="Actions for this earning"]');
+  const [item] = await menuItems(triggers[1]);
+  await click(item);
+  assert.ok(text().includes('This Demo converted (+₹150). Its conversion is a separate line'), text());
+});
+
+test("Tutor page: a tutor's own Demo Conversion rate -- global, or their own amount -- sent with the others", async () => {
+  serve({ [`GET ${DETAIL_URL}`]: conversionDetail(true), [`GET ${DETAIL_URL}entries/`]: page(ENTRIES), [`POST ${DETAIL_URL}rates/`]: conversionDetail(true) });
+  await open('detail', { user: ADMIN, tutorId: TUTOR_ID });
+  await click(buttons('Edit tutor rates')[0]);
+  assert.ok(text().includes('Demo Conversion · per converted Demo'), text());
+  assert.equal(document.querySelectorAll('input[name="rate-DEMO_CONVERSION"]').length, 2, 'global or tutor rate');
+  await check([...document.querySelectorAll('input[name="rate-DEMO_CONVERSION"]')][1]);
+  await type(document.querySelector('input[aria-label="Demo Conversion tutor rate in rupees"]'), '400');
+  await type(document.querySelector('#tutor-rates-reason'), 'Strong converter');
+  await click(buttons('Save tutor rates')[0]);
+  assert.deepEqual(calls('POST', `${DETAIL_URL}rates/`).map((c) => c.data), [{ rates: { DEMO_CONVERSION: '400' }, reason: 'Strong converter' }]);
+});
+
+test('Global rates: a Demo Conversion rate not set yet may stay blank, and is sent once entered', async () => {
+  const ratesData = { ...STATUS, history: [], tutors: [],
+    rates: [['DIAGNOSTIC', 'CLASS', '300.00'], ['DEMO', 'CLASS', '300.00'], ['SESSION', 'HOUR', '400.00'], ['DEMO_CONVERSION', 'CONVERSION', null]]
+      .map(([classType, unit, amount]) => ({ class_type: classType, unit, amount, effective_from: amount ? STATUS.activated_at : null })) };
+  serve({ 'GET /api/earnings/overview/': OVERVIEW, 'GET /api/earnings/rates/': ratesData, 'POST /api/earnings/rates/': ratesData });
+  await open('overview', { user: ADMIN });
+  await click(buttons('Global rates')[0]);
+  assert.ok(text().includes('Not set yet'), text());
+  assert.equal(document.querySelector('#global-DEMO_CONVERSION').getAttribute('aria-invalid'), null, 'blank is fine while it is not set');
+  await type(document.querySelector('#global-SESSION'), '425');
+  await type(document.querySelector('#global-reason'), 'Annual revision');
+  assert.ok(!buttons('Save new rates')[0].disabled, 'another rate changes without it');
+  await type(document.querySelector('#global-DEMO_CONVERSION'), '350');
+  await click(buttons('Save new rates')[0]);
+  assert.deepEqual(calls('POST', '/api/earnings/rates/').map((c) => c.data),
+    [{ rates: { SESSION: '425', DEMO_CONVERSION: '350' }, reason: 'Annual revision' }]);
+});
+
+test('My Earnings: a tutor reads their conversions and how a conversion counts', async () => {
+  serve({ 'GET /api/earnings/me/': conversionDetail(false),
+    'GET /api/earnings/me/entries/': page([CONVERSION_ENTRY, CONVERTED_DEMO].map(asTutor)) });
+  await open('mine');
+  const shown = text();
+  for (const words of ['Demo conversion:', 'the last one taught before enrolling', '₹350 / converted Demo', '+₹150', '1 converted',
+    'Kabir', 'Meera', 'Waiting for its Demo']) {
+    assert.ok(shown.includes(words), `${words} in ${shown}`);
+  }
+  assert.ok(!shown.includes('Rate source'), 'no administrator detail');
+  assert.ok(!shown.includes('sale-'), 'no sale on the page');
 });
 
 // ---------------------------------------------------------------------- run

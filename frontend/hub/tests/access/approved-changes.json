@@ -16175,7 +16175,7 @@
    }
   },
   "/tutor-earnings @ admin": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/tutor-earnings",
@@ -16214,6 +16214,7 @@
     ],
     "headers": [
      "Classes",
+     "Converted",
      "Demo",
      "Diagnostic",
      "Open",
@@ -16424,7 +16425,7 @@
    }
   },
   "/tutor-earnings @ superuser": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Tutor Earnings (accounts.0030, 2026-11-16): /tutor-earnings is no longer a Coming Soon page. It opens the Tutor Earnings overview for administrators holding accounts.view_tutor_earnings: every tutor with their classes, earned, paid and pending amounts, the period, balance and rate filters, the Global rates sheet and Needs review. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/tutor-earnings",
@@ -16463,6 +16464,7 @@
     ],
     "headers": [
      "Classes",
+     "Converted",
      "Demo",
      "Diagnostic",
      "Open",
@@ -18494,7 +18496,7 @@
    }
   },
   "/hourly-earnings @ tutor_a": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/my-earnings",
@@ -18525,6 +18527,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",
@@ -18554,7 +18557,7 @@
    }
   },
   "/hourly-earnings @ tutor_b": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/my-earnings",
@@ -18585,6 +18588,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",
@@ -18903,7 +18907,7 @@
    }
   },
   "/my-earnings @ tutor_a": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/my-earnings",
@@ -18934,6 +18938,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",
@@ -18963,7 +18968,7 @@
    }
   },
   "/my-earnings @ tutor_b": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/my-earnings",
@@ -18994,6 +18999,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",
@@ -19043,7 +19049,7 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ admin": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/tutor-earnings/{tutor_a}",
@@ -19091,6 +19097,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",
@@ -19315,7 +19322,7 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ superuser": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/tutor-earnings/{tutor_a}",
@@ -19363,6 +19370,7 @@
      "Class date",
      "Class type",
      "Classes",
+     "Conversions",
      "Demo",
      "Diagnostic",
      "Earned",

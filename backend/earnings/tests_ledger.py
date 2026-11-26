@@ -47,7 +47,7 @@ class LedgerWorld(EarningsWorld):
         self.activate(self.now - timedelta(days=30))
 
     def price(self, session='400', tutors=None, **overrides):
-        data = {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': session}, 'tutors': tutors or [],
+        data = {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': session, 'DEMO_CONVERSION': '450'}, 'tutors': tutors or [],
                 'confirm': True, **overrides}
         return rates.start_pricing(self.admin, data)
 
@@ -106,14 +106,14 @@ class PricingTests(LedgerWorld):
     def test_pricing_starts_once_with_every_global_rate_and_its_confirmation(self):
         for data, code in (
             ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300'}, 'confirm': True}, rates.INVALID_RATE),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}}, rates.NOT_CONFIRMED),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'EXAM': '5'}, 'confirm': True}, rates.INVALID_RATE),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True,
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}}, rates.NOT_CONFIRMED),
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450', 'EXAM': '5'}, 'confirm': True}, rates.INVALID_RATE),
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True,
               'tutors': [{'tutor': str(self.mentor.pk), 'rates': {'DEMO': '350'}}]}, rates.UNKNOWN_TUTOR),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True,
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True,
               'tutors': [{'tutor': 'not-an-id', 'rates': {'DEMO': '350'}}]}, rates.UNKNOWN_TUTOR),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True, 'reason': 12}, 'INVALID_INPUT'),
-            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True, 'reason': 'x' * 501},
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True, 'reason': 12}, 'INVALID_INPUT'),
+            ({'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True, 'reason': 'x' * 501},
              'INVALID_INPUT'),
         ):
             with self.subTest(data=data):
@@ -125,9 +125,10 @@ class PricingTests(LedgerWorld):
         self.assertFalse(EarningsRate.objects.exists())
         self.price()
         self.assertEqual(self.refusal(self.price).code, rates.PRICING_STARTED)
-        self.assertEqual(EarningsRate.objects.count(), 3)
+        self.assertEqual(EarningsRate.objects.count(), 4)
         log = ActivityLog.objects.get(action='earnings.start_pricing')
-        self.assertEqual(log.context['global'], {'DIAGNOSTIC': '300.00', 'DEMO': '300.00', 'SESSION': '400.00'})
+        self.assertEqual(log.context['global'], {'DIAGNOSTIC': '300.00', 'DEMO': '300.00', 'SESSION': '400.00',
+                                                  'DEMO_CONVERSION': '450.00'})
 
     def test_pricing_needs_the_activation(self):
         TutorEarningsActivation.objects.all().delete()
@@ -460,7 +461,7 @@ class ConcurrentSyncTests(TransactionTestCase):
                                    end_time=start + timedelta(hours=1), status=SessionStatusChoices.ATTENDED,
                                    started_at=start, started_by=self.tutor, completed_at=start + timedelta(hours=2),
                                    completed_by=self.tutor)
-        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400'}, 'confirm': True})
+        rates.start_pricing(self.admin, {'global': {'DIAGNOSTIC': '300', 'DEMO': '300', 'SESSION': '400', 'DEMO_CONVERSION': '450'}, 'confirm': True})
 
     def test_two_syncs_at_once_earn_each_class_once(self):
         barrier = threading.Barrier(2)

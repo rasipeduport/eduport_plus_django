@@ -1,7 +1,14 @@
 """
 The rates Tutor Earnings pays (EarningsRate): a global rate for each class
-type -- Diagnostic and Demo per class, a normal session per class hour -- and,
-for any tutor, their own rate for any type, which takes the global one's place.
+type -- Diagnostic and Demo per class, a normal session per class hour, and a
+Demo Conversion per converted Demo -- and, for any tutor, their own rate for
+any type, which takes the global one's place.
+
+The Demo Conversion rate is the TOTAL a converted Demo earns: its tutor gets
+it less what the Demo earned (earnings.conversions). So no change may leave a
+Demo Conversion rate below the Demo rate beside it -- the global pair, or any
+tutor's pair as they resolve (their own rate, else the global one): it is
+refused (INVALID_RATE). An equal rate pays no incentive.
 
 Pricing starts once (start_pricing): an administrator saves the initial global
 rates -- every class type's -- and any tutors' own, all taking effect from the
@@ -63,6 +70,10 @@ class RateBook:
     def load(cls):
         return cls(EarningsRate.objects.select_related('created_by'))
 
+    def adding(self, versions):
+        """A RateBook of these versions and ``versions`` (not saved yet): the rates as a change would leave them."""
+        return RateBook([*(version for found in self._versions.values() for version in found), *versions])
+
     def _in_effect(self, tutor_id, class_type, at):
         found = None
         for version in self._versions.get((tutor_id, class_type), ()):
@@ -103,6 +114,38 @@ def pricing():
     return TutorEarningsPricing.objects.select_related('started_by').first()
 
 
+def _inr(amount):
+    return f'₹{amount:,.2f}'.removesuffix('.00')
+
+
+def check_conversion_floor(book, at, tutor_ids=(), include_global=True):
+    """
+    Refuse (INVALID_RATE) the rates in ``book`` if, at ``at``, a Demo
+    Conversion rate in effect is below the Demo rate beside it: the global
+    pair (unless not ``include_global``), and each of ``tutor_ids``' pair as it
+    resolves (their own rate, else the global one). With no Demo Conversion
+    rate in effect there is nothing to compare.
+    """
+    field = f'rates.{ClassType.DEMO_CONVERSION}'
+    for tutor_id in ((None,) if include_global else ()) + tuple(tutor_ids):
+        conversion, _source = book.resolve(tutor_id, ClassType.DEMO_CONVERSION, at)
+        demo, _source = book.resolve(tutor_id, ClassType.DEMO, at)
+        if conversion is None or demo is None or conversion.amount >= demo.amount:
+            continue
+        rates = (f'The Demo Conversion rate ({_inr(conversion.amount)}) '
+                 f'must be at least the Demo rate ({_inr(demo.amount)})')
+        if tutor_id is None:
+            message = f'{rates}: it is the total a converted Demo earns, the Demo included.'
+        else:
+            tutor = User.objects.filter(pk=tutor_id).first()
+            message = f'For {(tutor.full_name or tutor.email) if tutor else "a tutor"}: {rates[0].lower()}{rates[1:]}.'
+        raise EarningsError(INVALID_RATE, message, field=field)
+
+
+def _touches_conversion(class_types):
+    return bool({ClassType.DEMO, ClassType.DEMO_CONVERSION} & set(class_types))
+
+
 def _rate(value, class_type, field):
     try:
         return rupees(value, field, maximum=MAX_RATE)
@@ -121,7 +164,8 @@ def _rates(raw, field, *, every_type, allow_global):
     if unknown:
         raise EarningsError(INVALID_RATE, f'Unknown class type: {sorted(unknown)[0]}.', field=field)
     if every_type and set(raw) != set(ClassType.values):
-        raise EarningsError(INVALID_RATE, 'Set a global rate for Diagnostic, Demo and Normal Sessions.', field=field)
+        raise EarningsError(INVALID_RATE,
+                            'Set a global rate for Diagnostic, Demo, Normal Sessions and Demo Conversion.', field=field)
     cleaned = {}
     for class_type, value in raw.items():
         if value is None and allow_global:
@@ -188,6 +232,7 @@ def start_pricing(actor, data, request=None):
         versions += [EarningsRate(class_type=class_type, tutor=tutor, amount=amount, effective_from=since, initial=True,
                                   reason=why, created_by=actor, created_at=now)
                      for tutor, own in tutors for class_type, amount in own.items()]
+        check_conversion_floor(RateBook(versions), since, [tutor.pk for tutor, _own in tutors])
         EarningsRate.objects.bulk_create(versions)
         started = TutorEarningsPricing.objects.create(started_at=now, started_by=actor)
     log_activity(
@@ -231,6 +276,12 @@ def set_global_rates(actor, data, request=None):
                                         created_by=actor, created_at=now))
         if not changed:
             raise EarningsError(NO_CHANGE, 'These are the rates already in effect.')
+        if _touches_conversion(version.class_type for version in changed):
+            # Every tutor with a rate of their own may now pair it with a changed global one. Only current
+            # tutors: a former tutor's rates can no longer be changed (tutor_account), so they must not block
+            # this one; a conversion of their earlier Demo still never pays below its Demo (earnings.conversions).
+            current = User.objects.filter(pk__in=book.tutors_with_own_rates(now), role='TUTOR')
+            check_conversion_floor(book.adding(changed), now, sorted(current.values_list('pk', flat=True), key=str))
         EarningsRate.objects.bulk_create(changed)
     log_activity(
         action='earnings.change_rates',
@@ -268,6 +319,9 @@ def set_tutor_rates(actor, tutor, data, request=None):
                                         reason=why, created_by=actor, created_at=now))
         if not changed:
             raise EarningsError(NO_CHANGE, "These are the tutor's rates already in effect.")
+        if _touches_conversion(version.class_type for version in changed):
+            # Only this tutor's pair changes: the global one was checked when it was saved.
+            check_conversion_floor(book.adding(changed), now, [tutor.pk], include_global=False)
         EarningsRate.objects.bulk_create(changed)
     log_activity(
         action='earnings.change_tutor_rates',
