@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftIcon, RefreshCwIcon, ShoppingBagIcon, WalletIcon } from 'lucide-react';
+import { ArrowLeftIcon, ShoppingBagIcon, WalletIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { chapterPlanError, planTypeLabel, QUOTE_COLLECTION_MODES, quotePreview, salesError } from '@/lib/sales';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshButton } from '@/components/page/refresh-button';
 import { ErrorState, Notice } from '@/components/page/states';
 import { FormDialog } from '@/components/form-dialog';
 import { WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
@@ -35,6 +36,8 @@ export function AddPurchase({ studentId, overview, onBack, onCreated }) {
   const [review, setReview] = useState(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
+  // Try again reads the same syllabus once more: choosing it again alone would not.
+  const [syllabusKey, setSyllabusKey] = useState(0);
   const requestId = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -44,11 +47,15 @@ export function AddPurchase({ studentId, overview, onBack, onCreated }) {
       .then(({ data }) => { if (active) setDetail(data.syllabus); })
       .catch((err) => { if (active) setFailure(salesError(err, 'Could not load this syllabus.')); });
     return () => { active = false; };
-  }, [studentId, syllabusId]);
+  }, [studentId, syllabusId, syllabusKey]);
 
   const chooseSyllabus = (id) => {
     setSyllabusId(id); setDetail(null); setFailure(null); setPlanType(null); setBridgeMode(null);
     setClassMode('REGULAR'); setCollectionMode(null); setChapterIds([]); setError(null);
+  };
+  const retrySyllabus = () => {
+    chooseSyllabus(syllabusId);
+    setSyllabusKey((key) => key + 1);
   };
   const bridge = detail?.structure === 'BRIDGE_COURSE';
   const plan = bridge && bridgeMode && detail.plan_types.includes('BRIDGE_COURSE') ? 'BRIDGE_COURSE' : planType;
@@ -89,7 +96,7 @@ export function AddPurchase({ studentId, overview, onBack, onCreated }) {
           {overview.catalogue.map((row) => <option key={row.id} value={row.id}>{row.title} · Grade {row.grade} · {row.board}</option>)}
         </select></div>
     </WorkspaceCard>
-    {failure ? <ErrorState message={failure.message} onRetry={() => chooseSyllabus(syllabusId)} /> : null}
+    {failure ? <ErrorState message={failure.message} onRetry={retrySyllabus} /> : null}
     {syllabusId && !detail && !failure ? <Skeleton className="h-48 w-full" aria-busy="true" /> : null}
     {detail && !detail.pricing ? <p role="status" className="text-muted-foreground text-sm">Pricing is not set up yet. A purchase cannot be priced.</p> : null}
     {detail ? <QuotePlanCard detail={detail} planType={plan} onPlanType={setPlanType} bridgeMode={bridgeMode} onBridgeMode={setBridgeMode}
@@ -123,13 +130,17 @@ export function PurchaseDetail({ saleId, initial, initialMethod = 'STRIPE', onBa
   const [state, setState] = useState(initial ?? null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
+  // A read of the purchase under way (Refresh, Try again, or the pending-payment poll).
+  const [loading, setLoading] = useState(false);
   const refresh = (next) => { if (next) setState(next); else setReload((key) => key + 1); };
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api.get(purchaseUrl(saleId))
       .then(({ data }) => { if (active) { setState(data); setError(null); } })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load this purchase.')); });
+      .catch((err) => { if (active) setError(salesError(err, 'Could not load this purchase.')); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [saleId, reload]);
   const pendingPayment = state?.payments.find((payment) => payment.status === 'PENDING');
@@ -141,16 +152,16 @@ export function PurchaseDetail({ saleId, initial, initialMethod = 'STRIPE', onBa
   }, [pendingPayment, reload]);
 
   const back = <Button variant="outline" onClick={onBack}><ArrowLeftIcon />Back to Finance</Button>;
-  if (error && !state) return <div className="flex flex-col gap-3"><div>{back}</div><ErrorState message={error.message} onRetry={() => refresh()} /></div>;
+  if (error && !state) return <div className="flex flex-col gap-3"><div>{back}</div><ErrorState message={error.message} onRetry={() => refresh()} pending={loading} /></div>;
   if (!state) return <Skeleton className="h-48 w-full" aria-busy="true" />;
   const { totals, sale } = state;
   const status = PURCHASE_STATUSES[state.payment_status];
   return <div className="flex min-w-0 flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       {back}
-      <Button variant="outline" size="sm" onClick={() => refresh()}><RefreshCwIcon />Refresh</Button>
+      <RefreshButton onClick={() => refresh()} pending={loading} />
     </div>
-    {error ? <ErrorState message={error.message} onRetry={() => refresh()} /> : null}
+    {error ? <ErrorState message={error.message} onRetry={() => refresh()} pending={loading} /> : null}
     <QuoteSummary quote={state.quote} />
     <WorkspaceCard icon={WalletIcon} title={PURCHASE_KINDS[sale.kind] ?? sale.kind} action={status ? <Badge variant={status.variant}>{status.label}</Badge> : null}>
       <SaleFields rows={[['Purchased classes', totals.purchased_classes], ['Paid classes', totals.paid_classes], ['Unpaid classes', totals.unpaid_classes],

@@ -16,6 +16,7 @@ import { ErrorState, Notice } from '@/components/page/states';
 import { ResponsiveList } from '@/components/page/responsive-list';
 import { Field, Fields, WorkspaceCard } from '@/components/bookings/redemo-workspace/parts';
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
+import { useRefreshPart } from '@/hooks/use-refresh-group';
 import {
   AddHoursDialog, ChangeHoursDialog, CloseHoursDialog, RecordHoursPaymentDialog, VoidHoursPaymentDialog,
 } from '@/components/sales/additional-hours-dialogs';
@@ -64,19 +65,25 @@ function HoursSummary({ summary }) {
  * (?hours=<id>, which the pending list links to). Hidden for an account the API
  * does not answer.
  */
-export function AdditionalHoursCard({ studentId }) {
+export function AdditionalHoursCard({ studentId, group }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const openId = searchParams.get('hours');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [hidden, setHidden] = useState(false);
   const [reload, setReload] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState('');
   const cardRef = useRef(null);
+  // The Finance tab's Refresh (StudentFinance) reads this card again too.
+  const groupKey = group?.key ?? 0;
+  const settled = group?.settled;
+  useRefreshPart(group, 'hours');
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api.get(studentAdditionalHoursUrl(studentId))
       .then(({ data: next }) => { if (active) { setData(next); setError(null); } })
       .catch((err) => {
@@ -84,9 +91,10 @@ export function AdditionalHoursCard({ studentId }) {
         const refused = salesError(err, 'Could not load the additional hours.');
         if (refused.status === 403 || refused.status === 404) setHidden(true);
         else setError(refused);
-      });
+      })
+      .finally(() => { if (active) { setLoading(false); settled?.('hours', groupKey); } });
     return () => { active = false; };
-  }, [studentId, reload]);
+  }, [studentId, reload, groupKey, settled]);
 
   // Opened from the pending list: bring the card into view once it has loaded.
   const loaded = Boolean(data);
@@ -103,17 +111,17 @@ export function AdditionalHoursCard({ studentId }) {
 
   if (hidden) return null;
   if (error && !data) {
-    return <WorkspaceCard icon={ClockPlusIcon} title="Additional hours"><ErrorState message={error.message} onRetry={refresh} /></WorkspaceCard>;
+    return <WorkspaceCard icon={ClockPlusIcon} title="Additional hours"><ErrorState message={error.message} onRetry={refresh} pending={loading} /></WorkspaceCard>;
   }
   if (!data) return <Skeleton className="h-40 w-full" aria-busy="true" />;
 
   return <div ref={cardRef} className="scroll-mt-6">
-    {openId ? <AllocationDetail key={openId} allocationId={openId} onBack={() => show(null)} onChanged={refresh} />
+    {openId ? <AllocationDetail key={openId} allocationId={openId} group={group} onBack={() => show(null)} onChanged={refresh} />
       : <WorkspaceCard icon={ClockPlusIcon} title="Additional hours"
         action={data.can_create ? <Button size="sm" onClick={() => setAdding(true)}><PlusIcon />Add additional hours</Button> : null}>
         <p className="text-muted-foreground text-sm">Hours added on top of the plans: already in the student’s class quota and usable for any session, paid for separately by their due date. None of these figures is part of the purchases, payment history or AutoPay above.</p>
         {notice ? <Notice onDismiss={() => setNotice('')}>{notice}</Notice> : null}
-        {error ? <ErrorState message={error.message} onRetry={refresh} /> : null}
+        {error ? <ErrorState message={error.message} onRetry={refresh} pending={loading} /> : null}
         <HoursSummary summary={data.summary} />
         {data.allocations.length ? <AllocationList rows={data.allocations} onOpen={show} />
           : <p className="text-muted-foreground text-sm">No additional hours yet.</p>}
@@ -155,21 +163,28 @@ const KIND_LABEL = Object.fromEntries(VOID_KINDS.map((kind) => [kind.value, kind
  * the student's mentor), changing the due date or amount, waiving, withdrawing
  * and voiding a payment (administrators).
  */
-function AllocationDetail({ allocationId, onBack, onChanged }) {
+function AllocationDetail({ allocationId, group, onBack, onChanged }) {
   const [row, setRow] = useState(null);
   const [error, setError] = useState(null);
   const [reload, setReload] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState('');
   const files = useSyllabusPdf();
+  // Open on the Finance tab: its Refresh reads these hours again too.
+  const groupKey = group?.key ?? 0;
+  const settled = group?.settled;
+  useRefreshPart(group, 'allocation');
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api.get(allocationUrl(allocationId))
       .then(({ data }) => { if (active) { setRow(data); setError(null); } })
-      .catch((err) => { if (active) setError(salesError(err, 'Could not load these additional hours.')); });
+      .catch((err) => { if (active) setError(salesError(err, 'Could not load these additional hours.')); })
+      .finally(() => { if (active) { setLoading(false); settled?.('allocation', groupKey); } });
     return () => { active = false; };
-  }, [allocationId, reload]);
+  }, [allocationId, reload, groupKey, settled]);
 
   const linkOpen = Boolean(row?.open_checkout);
   useEffect(() => {
@@ -180,7 +195,7 @@ function AllocationDetail({ allocationId, onBack, onChanged }) {
 
   const back = <Button variant="outline" size="sm" onClick={onBack}><ArrowLeftIcon />Back to additional hours</Button>;
   if (error && !row) return <WorkspaceCard icon={ClockPlusIcon} title="Additional hours" action={back}>
-    <ErrorState message={error.message} onRetry={error.status === 404 ? undefined : () => setReload((key) => key + 1)} /></WorkspaceCard>;
+    <ErrorState message={error.message} onRetry={error.status === 404 ? undefined : () => setReload((key) => key + 1)} pending={loading} /></WorkspaceCard>;
   if (!row) return <Skeleton className="h-64 w-full" aria-busy="true" />;
 
   const saved = (message) => (next) => { setRow(next); setNotice(message(next)); onChanged(); };

@@ -193,7 +193,7 @@ export default function TutorEarningsDetailPage({ user }) {
   } else if (failure?.status === 404) {
     content = <AccessDeniedState title="No such tutor." message="This account is not a tutor and has no earnings." />;
   } else if (failure && !data) {
-    content = <ErrorState message={failure.message} onRetry={() => reload()} />;
+    content = <ErrorState message={failure.message} onRetry={() => reload()} pending={pending} />;
   } else if (!data) {
     content = (
       <div className="flex flex-col gap-4" aria-busy="true">

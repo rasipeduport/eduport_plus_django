@@ -98,6 +98,8 @@ export default function EnquiryPage({ user }) {
   const [failure, setFailure] = useState(null);
   // A read in place that failed: said above the workspace, which stays.
   const [refreshFailure, setRefreshFailure] = useState(null);
+  // Its Try again under way: the button turns and waits for that read.
+  const [retryingRefresh, setRetryingRefresh] = useState(false);
   // Only the latest read in place counts; an action's own answer, or another enquiry, drops any still on its way.
   const refreshSeq = useRef(0);
   const [reloadKey, setReloadKey] = useState(0);
@@ -182,6 +184,12 @@ export default function EnquiryPage({ user }) {
       });
   };
 
+  const retryRefresh = () => {
+    if (retryingRefresh) return;
+    setRetryingRefresh(true);
+    refreshEnquiry().finally(() => setRetryingRefresh(false));
+  };
+
   // Kept open while the BDE works elsewhere: read again on coming back to the tab, at most every 30 seconds.
   useLiveRefresh(refreshEnquiry, { minGapMs: 30_000, enabled: Boolean(enquiry) && !failure });
 
@@ -243,7 +251,7 @@ export default function EnquiryPage({ user }) {
     const recipient = { dialCode: enquiry.phone_dial_code, number: enquiry.phone_number };
     content = (
       <>
-        {refreshFailure ? <ErrorState message={refreshFailure.message} onRetry={refreshEnquiry} /> : null}
+        {refreshFailure ? <ErrorState message={refreshFailure.message} onRetry={retryRefresh} pending={retryingRefresh} /> : null}
         <EnquiryHeader enquiry={enquiry} canShareLinks={canShareLinks} />
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>

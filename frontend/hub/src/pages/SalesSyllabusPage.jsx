@@ -66,6 +66,8 @@ export default function SalesSyllabusPage() {
   const [detail, setDetail] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useFlashNotice();
   const [view, setView] = useState(null); // 'published' | 'draft'
   const [action, setAction] = useState(null);
@@ -85,6 +87,7 @@ export default function SalesSyllabusPage() {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(syllabusUrl(syllabusId))
       .then((response) => {
@@ -94,6 +97,9 @@ export default function SalesSyllabusPage() {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load the syllabus.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -112,7 +118,7 @@ export default function SalesSyllabusPage() {
   if (failure && !detail) {
     return (
       <Page>
-        <ErrorState message={failure.status === 404 ? 'This syllabus does not exist.' : failure.message} onRetry={reload} />
+        <ErrorState message={failure.status === 404 ? 'This syllabus does not exist.' : failure.message} onRetry={reload} pending={loading} />
       </Page>
     );
   }

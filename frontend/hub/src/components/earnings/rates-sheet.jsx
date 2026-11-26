@@ -300,10 +300,13 @@ export function RatesSheet({ open, onOpenChange, canManage, onSaved }) {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
     let active = true;
+    setLoading(true);
     api
       .get(`${EARNINGS_API}/rates/`)
       .then((response) => {
@@ -313,6 +316,9 @@ export function RatesSheet({ open, onOpenChange, canManage, onSaved }) {
       })
       .catch((err) => {
         if (active) setFailure(earningsError(err, 'Could not load the rates.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -326,7 +332,7 @@ export function RatesSheet({ open, onOpenChange, canManage, onSaved }) {
 
   let body;
   if (failure && !data) {
-    body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
+    body = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={loading} />;
   } else if (!data) {
     body = <Skeleton className="h-64 w-full rounded-xl" />;
   } else if (!data.activated_at) {

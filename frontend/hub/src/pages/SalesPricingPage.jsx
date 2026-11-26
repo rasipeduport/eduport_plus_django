@@ -31,11 +31,14 @@ export default function SalesPricingPage() {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // A read under way: Try again turns and waits for it.
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     api
       .get(PRICING_URL)
       .then((response) => {
@@ -45,6 +48,9 @@ export default function SalesPricingPage() {
       })
       .catch((err) => {
         if (active) setFailure(salesError(err, 'Could not load the pricing.'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -57,7 +63,7 @@ export default function SalesPricingPage() {
   if (failure?.status === 403) {
     content = <AccessDeniedState title="You don't have access to the pricing." message={failure.message} />;
   } else if (failure && !data) {
-    content = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
+    content = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={loading} />;
   } else if (!data) {
     content = <Skeleton className="h-64 w-full rounded-xl" />;
   } else if (!current) {

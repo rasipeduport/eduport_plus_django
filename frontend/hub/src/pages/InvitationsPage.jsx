@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import api from '@/lib/api';
 import { TableSkeleton } from '@/components/table-skeleton';
@@ -13,32 +13,39 @@ import { ErrorState } from '@/components/page/states';
  * Invitations are created by enrollment only: "New Invitation" just says so.
  * Staff are no longer invited: their accounts are made in Team. The API
  * enforces every rule.
+ *
+ * Until the list has loaded once, a failed read shows only its error (never an
+ * empty table that reads as "no invitations"); after that, a failed read keeps
+ * the table with the error above it. Try again turns while it reads.
  */
 export default function InvitationsPage({ user }) {
-  const [invitations, setInvitations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // null until the list has loaded once.
+  const [invitations, setInvitations] = useState(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  // Only the latest read counts (a retry, or the re-read after an action); none after the page goes.
+  const seq = useRef(0);
 
   const fetchInvitations = useCallback(async () => {
-    setError('');
+    const mine = ++seq.current;
+    setPending(true);
     try {
       const response = await api.get('/api/invitations/');
+      if (mine !== seq.current) return;
       setInvitations(response.data);
+      setError('');
     } catch (err) {
+      if (mine !== seq.current) return;
       setError(err.response?.data?.message || 'Failed to fetch invitations.');
+    } finally {
+      if (mine === seq.current) setPending(false);
     }
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    (async () => {
-      await fetchInvitations();
-      if (active) setLoading(false);
-    })();
-
+    fetchInvitations();
     return () => {
-      active = false;
+      seq.current += 1;
     };
   }, [fetchInvitations]);
 
@@ -50,12 +57,12 @@ export default function InvitationsPage({ user }) {
         actions={<NewInvitation />}
       />
 
-      {error ? <ErrorState message={error} onRetry={fetchInvitations} /> : null}
+      {error ? <ErrorState message={error} onRetry={fetchInvitations} pending={pending} /> : null}
 
-      {loading ? (
-        <TableSkeleton toolbar={false} />
-      ) : (
+      {invitations ? (
         <InvitationsTable data={invitations} user={user} onChanged={fetchInvitations} />
+      ) : error ? null : (
+        <TableSkeleton toolbar={false} />
       )}
     </Page>
   );

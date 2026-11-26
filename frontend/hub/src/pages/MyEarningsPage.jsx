@@ -96,7 +96,7 @@ export default function MyEarningsPage() {
   if (failure?.status === 403) {
     content = <AccessDeniedState title="You don't have access to My Earnings." message={failure.message} />;
   } else if (failure && !data) {
-    content = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} />;
+    content = <ErrorState message={failure.message} onRetry={() => setReloadKey((key) => key + 1)} pending={pending} />;
   } else if (!data) {
     content = (
       <div className="flex flex-col gap-4" aria-busy="true">
