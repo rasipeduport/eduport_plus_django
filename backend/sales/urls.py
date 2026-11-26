@@ -4,7 +4,8 @@ from .account_views import (BillingContactView, CancelAutopayView, IdentityCorre
                             StripeReviewView)
 from .additional_hours_views import (AdditionalHoursClosingView, AdditionalHoursEligibilityView, AdditionalHoursPaymentsView,
                                      AdditionalHoursPaymentVoidView, AdditionalHoursProofView, AdditionalHoursRegisterView,
-                                     AdditionalHoursView, StudentAdditionalHoursView)
+                                     AdditionalHoursStripeExpireView, AdditionalHoursStripeLinksView, AdditionalHoursView,
+                                     StudentAdditionalHoursView)
 from .purchase_views import (PurchaseAmountView, PurchaseExpireView, PurchasePaymentsView, PurchaseProofView, PurchaseView,
                              StudentFinanceView, StudentPaymentsView, StudentPurchasesView)
 
@@ -69,6 +70,10 @@ urlpatterns = [
          name='additional_hours_payment_void'),
     path('additional-hours/<uuid:pk>/payments/<uuid:payment_id>/proof/', AdditionalHoursProofView.as_view(),
          name='additional_hours_proof'),
+    # Paid through Stripe: a Checkout link per attempt, recorded only by the verified webhook (sales.additional_hours_stripe).
+    path('additional-hours/<uuid:pk>/stripe-links/', AdditionalHoursStripeLinksView.as_view(), name='additional_hours_stripe_links'),
+    path('additional-hours/<uuid:pk>/stripe-links/<uuid:checkout_id>/expire/', AdditionalHoursStripeExpireView.as_view(),
+         name='additional_hours_stripe_expire'),
     path('syllabi/', SyllabiView.as_view(), name='syllabi'),
     path('syllabi/pdf-preview/', SyllabusPdfPreviewView.as_view(), name='pdf_preview'),
     path('syllabi/<uuid:pk>/', SyllabusDetailView.as_view(), name='syllabus'),

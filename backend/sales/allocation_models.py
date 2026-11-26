@@ -37,6 +37,10 @@ NOT_BLANK = r'\S'
 # Money received directly, with its receipt: the regular ledger's own methods, without Stripe.
 DIRECT_METHODS = ('TRANSFER', 'AJAS_UAE', 'AJAS_INDIA')
 DIRECT_METHOD_CHOICES = [(method.value, method.label) for method in PaymentMethod if method.value in DIRECT_METHODS]
+# And Stripe: paid through a Checkout link generated for the hours, recorded only by its verified webhook.
+STRIPE = 'STRIPE'
+METHODS = (*DIRECT_METHODS, STRIPE)
+METHOD_CHOICES = [*DIRECT_METHOD_CHOICES, (STRIPE, 'Stripe')]
 
 
 class VoidKind(models.TextChoices):
@@ -109,6 +113,63 @@ class AdditionalHoursAllocation(models.Model):
         ]
 
 
+class CheckoutStatus(models.TextChoices):
+    PREPARED = 'PREPARED', 'Prepared'
+    SUBMITTING = 'SUBMITTING', 'Being created at Stripe'
+    UNKNOWN = 'UNKNOWN', 'Awaiting Stripe confirmation'
+    OPEN = 'OPEN', 'Open'
+    PAID = 'PAID', 'Paid'
+    EXPIRED = 'EXPIRED', 'Expired'
+    FAILED = 'FAILED', 'Failed'
+    REQUIRES_REVIEW = 'REQUIRES_REVIEW', 'Needs review'
+
+
+# A link still live, or one Stripe may still have created: at most one per allocation.
+LIVE_CHECKOUT = ('PREPARED', 'SUBMITTING', 'UNKNOWN', 'OPEN')
+
+
+class AdditionalHoursCheckout(models.Model):
+    """
+    One Stripe Checkout Session for part or all of what an allocation still owes
+    (sales.additional_hours_stripe): its request frozen before Stripe is called,
+    created with its own idempotency key, and settled only by Stripe's signed
+    webhook, which records the payment. Never a reusable Payment Link.
+    """
+    # The generating dialog's own key: a repeated request reuses this attempt.
+    id = models.UUIDField(primary_key=True, editable=False)
+    allocation = models.ForeignKey(AdditionalHoursAllocation, on_delete=models.PROTECT, related_name='checkouts')
+    amount = models.DecimalField(max_digits=15, decimal_places=0)
+    currency = models.CharField(max_length=3, default='AED')
+    status = models.CharField(max_length=20, choices=CheckoutStatus.choices, default=CheckoutStatus.PREPARED)
+    livemode = models.BooleanField()
+    request = models.JSONField()
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, default='')
+    stripe_checkout_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    checkout_url = models.URLField(max_length=2048, blank=True, default='')
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    # Why it failed, or what an administrator must review.
+    message = models.CharField(max_length=255, blank=True, default='')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'sales_additional_hours_checkouts'
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gt=0, amount__lte=MAX_AMOUNT, currency='AED'),
+                                   name='sales_additional_hours_checkout_positive_aed'),
+            models.CheckConstraint(condition=Q(status__in=CheckoutStatus.values), name='sales_additional_hours_checkout_status'),
+            models.CheckConstraint(condition=~Q(status='PAID') | Q(stripe_checkout_id__isnull=False, stripe_payment_intent_id__isnull=False),
+                                   name='sales_additional_hours_checkout_paid_evidence'),
+            # One live link per allocation: two links paid together could never both fit what is owed.
+            models.UniqueConstraint(fields=['allocation'], condition=Q(status__in=LIVE_CHECKOUT),
+                                    name='sales_additional_hours_one_live_checkout'),
+        ]
+
+
 def proof_path(instance, filename):
     return f'additional-hours-proofs/{instance.allocation_id}/{uuid.uuid4().hex}{instance.proof_extension}'
 
@@ -120,13 +181,14 @@ class AdditionalHoursPayment(models.Model):
     allocation = models.ForeignKey(AdditionalHoursAllocation, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=15, decimal_places=0)
     currency = models.CharField(max_length=3, default='AED')
-    method = models.CharField(max_length=10, choices=DIRECT_METHOD_CHOICES)
+    method = models.CharField(max_length=10, choices=METHOD_CHOICES)
     payment_date = models.DateField()
     transaction_reference = models.CharField(max_length=REFERENCE_MAX_LENGTH, blank=True, default='')
     # The reference as compared: its letters and digits alone, upper-cased ('' when there is none).
     reference_key = models.CharField(max_length=REFERENCE_MAX_LENGTH, blank=True, default='')
+    # A direct payment's: its recorder confirms it was received, with the receipt.
     received_confirmed = models.BooleanField(default=False)
-    proof = models.FileField(upload_to=proof_path, max_length=512)
+    proof = models.FileField(upload_to=proof_path, max_length=512, blank=True)
     proof_name = models.CharField(max_length=255, blank=True)
     proof_content_type = models.CharField(max_length=100, blank=True)
     proof_extension = models.CharField(max_length=10, blank=True)
@@ -137,15 +199,29 @@ class AdditionalHoursPayment(models.Model):
     voided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='+')
     void_kind = models.CharField(max_length=10, blank=True, default='', choices=VoidKind.choices)
     void_reason = models.TextField(blank=True, default='')
+    # A Stripe payment's: the Checkout that took it and Stripe's own references. Evidence, set once.
+    checkout = models.OneToOneField(AdditionalHoursCheckout, on_delete=models.PROTECT, null=True, blank=True,
+                                    related_name='payment')
+    stripe_checkout_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_charge_id = models.CharField(max_length=255, blank=True, default='')
+    # Who paid, as Stripe reported it (name, email, card brand/last4). Evidence only.
+    payer_details = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'sales_additional_hours_payments'
         ordering = ['recorded_at', 'id']
         constraints = [
             models.CheckConstraint(condition=Q(amount__gt=0, currency='AED'), name='sales_additional_hours_payment_positive_aed'),
-            models.CheckConstraint(condition=Q(method__in=DIRECT_METHODS), name='sales_additional_hours_payment_method'),
-            models.CheckConstraint(condition=Q(received_confirmed=True) & ~Q(proof=''),
-                                   name='sales_additional_hours_payment_receipt'),
+            models.CheckConstraint(condition=Q(method__in=METHODS), name='sales_additional_hours_payment_known_method'),
+            # A direct payment carries its receipt and its recorder's confirmation; a Stripe payment, the Checkout and
+            # PaymentIntent Stripe's verified webhook named -- and no receipt.
+            models.CheckConstraint(
+                condition=(Q(method__in=DIRECT_METHODS, received_confirmed=True, checkout__isnull=True, stripe_checkout_id__isnull=True,
+                             stripe_payment_intent_id__isnull=True) & ~Q(proof=''))
+                | Q(method=STRIPE, proof='', checkout__isnull=False, stripe_checkout_id__isnull=False,
+                    stripe_payment_intent_id__isnull=False),
+                name='sales_additional_hours_payment_evidence'),
             models.CheckConstraint(condition=Q(reference_key='') | Q(reference_key__regex=r'^[A-Z0-9]+$'),
                                    name='sales_additional_hours_payment_reference_key'),
             models.CheckConstraint(

@@ -3759,6 +3759,107 @@ test('Additional hours: a due date the API finds past is shown under the due-dat
   assert.equal(occurrences(topDialog(), PAST), 1, 'under the field only, not repeated as the dialog’s error');
 });
 
+// ------------------------------------------------------------------ additional hours · Stripe links
+const LINK_URL = 'https://checkout.stripe.com/c/pay/hours1';
+const stripeCheckout = (extra = {}) => ({ id: 'link-1', amount: '100', currency: 'AED', status: 'OPEN', status_label: 'Open', checkout_url: LINK_URL,
+  message: null, created_by: { id: 'admin-h', name: 'Asha Admin' }, created_at: '2026-11-26T05:00:00+00:00', closed_at: null, ...extra });
+const linkable = (extra = {}) => allocation({ can_generate_link: true, stripe_configured: true, open_checkout: null, checkouts: [], ...extra });
+const withLink = (checkout = stripeCheckout(), extra = {}) => allocation({ can_record_payment: false, can_generate_link: false, stripe_configured: true,
+  open_checkout: checkout, checkouts: [checkout], ...extra });
+const linkSection = () => document.querySelector('[aria-label="Stripe payment link"]');
+
+test('Additional hours · Stripe: an administrator generates a link for what is still due, copies it, and expiring it frees the hours again', async () => {
+  let linked, expired = false;
+  const copiedTexts = [];
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { copiedTexts.push(text); } } });
+  serve(financeServe({
+    [`GET ${ALLOCATION}`]: linkable(),
+    [`POST ${ALLOCATION}stripe-links/`]: ({ data }) => { linked = data; return ok({ checkout: stripeCheckout(), allocation: withLink() }); },
+    [`POST ${ALLOCATION}stripe-links/link-1/expire/`]: () => { expired = true;
+      return ok(linkable({ checkouts: [stripeCheckout({ status: 'EXPIRED', status_label: 'Expired', checkout_url: null, message: 'Expired by Asha Admin.' })] })); },
+  }));
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_ADMIN);
+  await click(button('Generate Stripe payment link'));
+  assert.match(clean(topDialog().textContent), /AED 100 still due.*recorded only when Stripe confirms it, and the student’s quota does not change/);
+  assert.equal(input('stripe-link-amount').value, '100', 'all that is still due by default');
+  await submitForm('stripe-link-form');
+  assert.match(linked.request_id, /^[0-9a-f-]{36}$/);
+  assert.equal(linked.amount, '100');
+  assert.match(bodyText(), /Stripe payment link for AED 100 ready to share\./);
+  assert.match(clean(linkSection().textContent), /Stripe payment link · AED 100Open.*Created by Asha Admin.*other payments, amount changes, waiving and withdrawing are paused/);
+  assert.equal(linkSection().querySelector('input[aria-label="Payment link"]').value, LINK_URL);
+  assert.equal(button('Record payment'), undefined, 'no other payment while the link is open');
+  assert.equal(button('Generate Stripe payment link'), undefined, 'one open link at a time');
+  await click(button('Copy link', linkSection()));
+  assert.deepEqual(copiedTexts, [LINK_URL]);
+  assert.ok(button('Copied', linkSection()));
+  assert.match([...linkSection().querySelectorAll('a')].find((a) => clean(a.textContent) === 'WhatsApp').href, /wa\.me\/\?text=.*AH-000001.*checkout\.stripe\.com/);
+  await click(button('Expire link', linkSection()));
+  await click(button('Expire link', topDialog()));
+  assert.equal(expired, true);
+  assert.equal(linkSection(), null);
+  assert.match(bodyText(), /Payment link expired\..*Stripe links.*Expired.*AED 100 · Asha Admin.*Expired by Asha Admin\./);
+  assert.ok(button('Generate Stripe payment link'));
+});
+
+test('Additional hours · Stripe: a mentor links part of what is due; Stripe payments show as verified, and one that could not be applied says why', async () => {
+  let linked;
+  const mentorView = { can_manage: false, can_void_payments: false };
+  const stripePaid = hoursPayment({ id: 'pay-s', amount: '60', method: 'STRIPE', method_label: 'Stripe', source: 'STRIPE', transaction_reference: 'pi_123',
+    proof_url: null, proof_name: '', stripe_payment_intent_id: 'pi_123', stripe_checkout_id: 'cs_1' });
+  const review = stripeCheckout({ id: 'link-0', status: 'REQUIRES_REVIEW', status_label: 'Needs review', checkout_url: null, amount: '150',
+    message: 'Paid at Stripe (pi_999) after what was still due was waived: not recorded. Refund or resolve it in Stripe.' });
+  serve(financeServe({
+    [`GET ${ALLOCATION}`]: linkable({ ...mentorView, payments: [hoursPayment(), stripePaid], checkouts: [review] }),
+    [`POST ${ALLOCATION}stripe-links/`]: ({ data }) => { linked = data;
+      return ok({ checkout: stripeCheckout({ amount: '40' }), allocation: withLink(stripeCheckout({ amount: '40', created_by: { id: 'mentor-1', name: 'Meera Mentor' } }), mentorView) }); },
+  }));
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_MENTOR);
+  assert.match(bodyText(), /Paid on Stripe · link by Meera Mentor.*AED 60Stripepi_123ReceivedVerified by Stripe/);
+  assert.equal(button('Download receipt '), undefined, 'a Stripe payment has no receipt to download');
+  assert.match(bodyText(), /Stripe links.*Needs review.*AED 150.*after what was still due was waived: not recorded\. Refund or resolve it in Stripe\./);
+  await click(button('Generate Stripe payment link'));
+  await typeText(input('stripe-link-amount'), '40');
+  await submitForm('stripe-link-form');
+  assert.equal(linked.amount, '40');
+  assert.match(clean(linkSection().textContent), /AED 40.*Created by Meera Mentor/);
+  assert.equal(button('Waive what is due'), undefined);
+});
+
+test('Additional hours · Stripe: a link Stripe has not confirmed is tried again with the same request; refusals are shown', async () => {
+  const unknown = stripeCheckout({ id: 'link-9', status: 'UNKNOWN', status_label: 'Awaiting Stripe confirmation', checkout_url: null, amount: '100' });
+  let detail = linkable();
+  const bodies = [];
+  serve(financeServe({
+    [`GET ${ALLOCATION}`]: () => ok(detail),
+    [`POST ${ALLOCATION}stripe-links/`]: ({ data }) => {
+      bodies.push(data);
+      if (data.amount === '500') return fail(409, { error: 'EXCEEDS_OUTSTANDING', message: 'The link can be for at most the AED 100 still due.', outstanding: '100' });
+      if (bodies.length === 2) {
+        detail = withLink(unknown);
+        return fail(503, { error: 'STRIPE_UNAVAILABLE', message: 'Stripe has not confirmed the link yet. Try again: the same link is recovered, never a second one.' });
+      }
+      return ok({ checkout: stripeCheckout({ id: 'link-9' }), allocation: withLink(stripeCheckout({ id: 'link-9' })) });
+    },
+  }));
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_ADMIN);
+  await click(button('Generate Stripe payment link'));
+  await typeText(input('stripe-link-amount'), '500');
+  await submitForm('stripe-link-form');
+  assert.match(clean(input('stripe-link-amount').parentElement.textContent), /at most the AED 100 still due/);
+  await typeText(input('stripe-link-amount'), '100');
+  await submitForm('stripe-link-form');
+  assert.match(clean(topDialog().textContent), /Stripe has not confirmed the link yet/);
+  assert.equal(bodies[1].request_id, bodies[0].request_id, 'the dialog keeps its request');
+  // Behind the dialog, the hours now show the unconfirmed link.
+  await click(button('Cancel', topDialog()));
+  assert.match(clean(linkSection().textContent), /Awaiting Stripe.*Stripe has not confirmed this link yet/);
+  await click(button('Try again', linkSection()));
+  assert.deepEqual(bodies.at(-1), { request_id: 'link-9', amount: '100' }, 'the same link, never a second one');
+  assert.match(bodyText(), /Stripe confirmed the payment link\./);
+  assert.equal(linkSection().querySelector('input').value, LINK_URL);
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

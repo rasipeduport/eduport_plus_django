@@ -933,6 +933,10 @@ SCENARIOS += [
     Scenario('additional_hours.payment_void', 'post', '/api/sales/additional-hours/{stu_a}/payments/{stu_a}/void/',
              {'kind': 'ERROR', 'reason': 'Matrix void.'}),
     Scenario('additional_hours.proof', 'get', '/api/sales/additional-hours/{stu_a}/payments/{stu_a}/proof/'),
+    # Paid through Stripe: a Checkout link, generated or expired by an administrator or the student's mentor.
+    Scenario('additional_hours.stripe_link', 'post', '/api/sales/additional-hours/{stu_a}/stripe-links/', lambda w: {
+        'request_id': str(fixed_id('additional_hours_stripe_link'))}),
+    Scenario('additional_hours.stripe_expire', 'post', '/api/sales/additional-hours/{stu_a}/stripe-links/{stu_a}/expire/', {}),
 ]
 
 

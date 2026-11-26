@@ -13,6 +13,10 @@ export const additionalHoursEligibilityUrl = (studentId) => `${studentAdditional
 export const allocationUrl = (id) => `${ADDITIONAL_HOURS_URL}${id}/`;
 export const allocationPaymentsUrl = (id) => `${allocationUrl(id)}payments/`;
 export const allocationVoidUrl = (id, paymentId) => `${allocationPaymentsUrl(id)}${paymentId}/void/`;
+// Paid through Stripe: a Checkout link per attempt (backend sales.additional_hours_stripe); only Stripe's
+// verified webhook records the payment, never the parent's return from Checkout.
+export const allocationStripeLinksUrl = (id) => `${allocationUrl(id)}stripe-links/`;
+export const allocationStripeExpireUrl = (id, checkoutId) => `${allocationStripeLinksUrl(id)}${checkoutId}/expire/`;
 /** Where an allocation opens: its student's Finance tab, scrolled to it. */
 export const allocationPath = (row) => `/students/${row.student.id}?tab=finance&hours=${row.id}`;
 
@@ -33,6 +37,18 @@ const STATUSES = {
   CANCELLED: { label: 'Withdrawn', variant: 'outline' },
 };
 export const allocationStatus = (row) => STATUSES[row.status] ?? { label: row.status, variant: 'outline' };
+
+// A Stripe link's state: still being created at Stripe, open, or closed one way or another.
+export const CREATING_CHECKOUT = ['PREPARED', 'SUBMITTING', 'UNKNOWN'];
+const CHECKOUT_STATUSES = {
+  OPEN: { label: 'Open', variant: 'info' },
+  PAID: { label: 'Paid', variant: 'success' },
+  EXPIRED: { label: 'Expired', variant: 'outline' },
+  FAILED: { label: 'Failed', variant: 'outline' },
+  REQUIRES_REVIEW: { label: 'Needs review', variant: 'destructive' },
+};
+export const checkoutStatus = (row) =>
+  CHECKOUT_STATUSES[row.status] ?? (CREATING_CHECKOUT.includes(row.status) ? { label: 'Awaiting Stripe', variant: 'warning' } : { label: row.status, variant: 'outline' });
 export const OPEN_STATUSES = ['PENDING', 'PARTIALLY_PAID'];
 
 // The pending list's views: open (pending or partly paid, the default), overdue, each status, or everything.
