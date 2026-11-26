@@ -4057,6 +4057,248 @@ test('Additional hours · payments: closed hours keep their whole history, reada
   assert.equal(paymentTotals(), 'Total received AED 0Still due AED 01 voided payment not counted');
 });
 
+// ------------------------------------------------------------------ Refresh & Try again (Refresh audit A1, A2, B3, C3)
+// Every Refresh and Try again here reads what it shows once more: disabled and
+// turning while that read is under way (a second click sends nothing), enabled
+// again once it is answered or has failed, and a failed read keeps what was
+// shown with the error above it.
+
+/** An answer held until `release(data)` or `refuse(status)`; every call made meanwhile waits on it. */
+function held() {
+  const waiting = [];
+  const answer = () => new Promise((resolve, reject) => waiting.push({ resolve, reject }));
+  answer.release = async (data) => { for (const call of waiting.splice(0)) call.resolve({ status: 200, data }); await settle(); };
+  answer.refuse = async (status = 500, data = { message: 'Server error.' }) => {
+    for (const call of waiting.splice(0)) call.reject(Object.assign(new Error(`HTTP ${status}`), { response: { status, data } }));
+    await settle();
+  };
+  answer.waiting = () => waiting.length;
+  return answer;
+}
+/** Answers the first call with `first`, and every later one with `later` (a function of the call). */
+const thenHeld = (first, later) => { let n = 0; return (entry) => (n++ === 0 ? ok(first) : later(entry)); };
+const spinning = (element) => Boolean(element?.querySelector('svg.animate-spin'));
+const busy = (element) => Boolean(element?.disabled) && spinning(element);
+
+test('Refresh audit A1: Add purchase — Try again after a failed syllabus read reads it once more and shows its plans', async () => {
+  let reads = 0;
+  const again = held();
+  serve(financeServe({
+    [`GET ${PURCHASES}`]: ({ params }) => {
+      if (params?.syllabus !== BRIDGE_ID) return ok(purchasesOverview());
+      reads += 1;
+      return reads === 1 ? fail(500, { message: 'The syllabus could not be read.' }) : again();
+    },
+  }));
+  await open(financePath, BUYING_MENTOR);
+  await click(button('New purchase'));
+  await pickOption('purchase-syllabus', BRIDGE_ID);
+  assert.equal(reads, 1);
+  assert.match(bodyText(), /The syllabus could not be read\./);
+  await click(button('Try again'));
+  assert.equal(reads, 2, 'Try again reads the syllabus again (it read nothing before the fix)');
+  assert.doesNotMatch(bodyText(), /The syllabus could not be read\./, 'the error goes while it reads');
+  assert.ok(document.querySelector('[aria-busy="true"]'), 'its skeleton shows meanwhile');
+  await again.release(purchasesOverview({ syllabus: bridgeOnSale() }));
+  assert.ok(radio('Full Bridge Course'), "the syllabus's plans show");
+  assert.equal(reads, 2);
+});
+
+test('Refresh audit A1: a second failure shows the error again, and Try again still reads', async () => {
+  let reads = 0;
+  serve(financeServe({
+    [`GET ${PURCHASES}`]: ({ params }) => {
+      if (params?.syllabus !== BRIDGE_ID) return ok(purchasesOverview());
+      reads += 1;
+      return reads < 3 ? fail(503, { message: 'Try later.' }) : ok(purchasesOverview({ syllabus: bridgeOnSale() }));
+    },
+  }));
+  await open(financePath, BUYING_MENTOR);
+  await click(button('New purchase'));
+  await pickOption('purchase-syllabus', BRIDGE_ID);
+  await click(button('Try again'));
+  assert.equal(reads, 2);
+  assert.match(bodyText(), /Try later\./);
+  await click(button('Try again'));
+  assert.equal(reads, 3);
+  assert.ok(radio('Full Bridge Course'));
+});
+
+test('Refresh audit A2: Finance Refresh reads the overview, payment history and additional hours once each, turning until all three answer', async () => {
+  const hours = held();
+  serve(financeServe({ [`GET ${HOURS}`]: thenHeld(hoursOverview(), () => hours()) }));
+  await open(financePath, HOURS_ADMIN);
+  const counts = () => [calls('GET', FINANCE).length, calls('GET', STUDENT_PAYMENTS).length, calls('GET', HOURS).length];
+  assert.deepEqual(counts(), [1, 1, 1]);
+  assert.equal(busy(button('Refresh')), false);
+  await click(button('Refresh'));
+  assert.deepEqual(counts(), [2, 2, 2], 'the additional hours are read again with the rest');
+  assert.ok(busy(button('Refresh')), 'disabled and turning while the hours are still on their way');
+  await click(button('Refresh'));
+  assert.deepEqual(counts(), [2, 2, 2], 'a second click sends nothing');
+  await hours.release(hoursOverview({ summary: hoursSummary({ received: '150', outstanding: '0' }) }));
+  assert.equal(busy(button('Refresh')), false, 'enabled again once every part has answered');
+  assert.equal(button('Refresh').disabled, false);
+  assert.match(bodyText(), /ReceivedAED 150OutstandingAED 0/, 'the card shows the fresh figures');
+});
+
+test('Refresh audit A2: a failed refresh keeps the additional hours shown with the error above them; its Try again turns while it reads', async () => {
+  const again = held();
+  let reads = 0;
+  serve(financeServe({ [`GET ${HOURS}`]: () => { reads += 1; return reads === 1 ? ok(hoursOverview()) : reads === 2 ? fail(500, { message: 'Hours are unavailable.' }) : again(); } }));
+  await open(financePath, HOURS_ADMIN);
+  await click(button('Refresh'));
+  assert.equal(reads, 2);
+  assert.equal(button('Refresh').disabled, false, 'the refresh ends on the failure too');
+  assert.match(bodyText(), /Hours are unavailable\..*Hours added3 hrs/, 'the figures loaded before stay, the error above them');
+  await click(button('Try again'));
+  assert.equal(reads, 3);
+  assert.ok(busy(button('Try again')), 'Try again is disabled and turning while it reads');
+  await click(button('Try again'));
+  assert.equal(reads, 3, 'a second click sends nothing');
+  await again.release(hoursOverview({ summary: hoursSummary({ hours_added: '5' }) }));
+  assert.equal(Boolean(button('Try again')), false, 'the error goes with the answer');
+  assert.match(bodyText(), /Hours added5 hrs/);
+});
+
+test('Refresh audit A2: with an allocation open in the card, Refresh reads it again too and waits for it', async () => {
+  const detail = held();
+  serve(financeServe({ [`GET ${ALLOCATION}`]: thenHeld(allocation(), () => detail()) }));
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_ADMIN);
+  assert.equal(calls('GET', ALLOCATION).length, 1);
+  await click(button('Refresh'));
+  assert.deepEqual([calls('GET', HOURS).length, calls('GET', ALLOCATION).length], [2, 2]);
+  assert.ok(busy(button('Refresh')));
+  await detail.release(allocation({ paid_amount: '150', outstanding_amount: '0', status: 'PAID' }));
+  assert.equal(busy(button('Refresh')), false);
+});
+
+test('Refresh audit A2: a failure of every part still ends the refresh; the overview keeps its figures with the error', async () => {
+  serve(financeServe({
+    [`GET ${FINANCE}`]: thenHeld(financeOverview(), () => fail(500, { message: 'Finance is unavailable.' })),
+    [`GET ${STUDENT_PAYMENTS}`]: thenHeld(paymentsPage([historyRow()]), () => fail(500, { message: 'Payments are unavailable.' })),
+    [`GET ${HOURS}`]: thenHeld(hoursOverview(), () => fail(500, { message: 'Hours are unavailable.' })),
+  }));
+  await open(financePath, HOURS_ADMIN);
+  await click(button('Refresh'));
+  assert.equal(button('Refresh').disabled, false);
+  assert.match(bodyText(), /Finance is unavailable\./);
+  assert.match(bodyText(), /Payments are unavailable\./);
+  assert.match(bodyText(), /Hours are unavailable\./);
+  assert.match(bodyText(), /Total classes purchased10/, 'the overview loaded before stays');
+});
+
+test('Refresh audit B3: a purchase’s Refresh is disabled and turning while it reads; a failure keeps the purchase with the error above it', async () => {
+  const read = held();
+  serve(financeServe({
+    [`GET ${FINANCE}`]: financeOverview({ purchases: [financeRow({ id: 'additional-sale', kind: 'ADDITIONAL', quote_reference: 'Q-000020' })] }),
+    [`GET ${PURCHASE}`]: thenHeld(purchaseState({ can_collect: false }), () => read()),
+  }));
+  await open(financePath, BUYING_MENTOR);
+  await click(button('View details'));
+  assert.equal(calls('GET', PURCHASE).length, 1);
+  assert.match(bodyText(), /Outstanding balanceAED 333/);
+  await click(button('Refresh'));
+  assert.equal(calls('GET', PURCHASE).length, 2);
+  assert.ok(busy(button('Refresh')));
+  await click(button('Refresh'));
+  assert.equal(calls('GET', PURCHASE).length, 2, 'a second click sends nothing');
+  await read.refuse(500, { message: 'The purchase could not be read.' });
+  assert.equal(busy(button('Refresh')), false, 'enabled again after the failure');
+  assert.match(bodyText(), /The purchase could not be read\..*Outstanding balanceAED 333/, 'the purchase stays, the error above it');
+  await click(button('Try again'));
+  assert.equal(calls('GET', PURCHASE).length, 3);
+  assert.ok(busy(button('Try again')));
+  await read.release(purchaseState({ can_collect: false, totals: { ...purchaseState().totals, outstanding_amount: '0', paid_amount: '333' } }));
+  assert.equal(Boolean(button('Try again')), false);
+  assert.match(bodyText(), /Outstanding balanceAED 0/);
+});
+
+test('Refresh audit B3: Sales & Payment’s Refresh is disabled and turning while it reads; a failure keeps the sale with the error', async () => {
+  const read = held();
+  studentApi({ [`GET ${SALE_URL}`]: thenHeld(saleState(), () => read()) });
+  await open(paymentPath, PAYMENT_BDE);
+  assert.equal(calls('GET', SALE_URL).length, 1);
+  const enquiryReads = calls('GET', `${ENQUIRIES}${RIYA.id}/`).length;
+  await click(button('Refresh'));
+  assert.equal(calls('GET', SALE_URL).length, 2);
+  assert.equal(calls('GET', `${ENQUIRIES}${RIYA.id}/`).length, enquiryReads + 1, 'the enquiry header is read with it, as before');
+  assert.ok(busy(button('Refresh')));
+  await click(button('Refresh'));
+  assert.equal(calls('GET', SALE_URL).length, 2, 'a second click sends nothing');
+  await read.refuse(500, { message: 'The sale could not be read.' });
+  assert.equal(busy(button('Refresh')), false);
+  assert.match(bodyText(), /The sale could not be read\..*Purchased classes10/, 'the sale stays, the error above it');
+  await click(button('Try again'));
+  assert.ok(busy(button('Try again')));
+  await read.release(saleState());
+  assert.equal(Boolean(button('Try again')), false);
+});
+
+test('Refresh audit C3: Try again turns and is disabled while it reads on the plans on sale, a quote, the pricing, a syllabus and a plan', async () => {
+  const pages = [
+    { path: financePath, user: BUYING_MENTOR, url: PURCHASES, setup: () => click(button('New purchase')), ready: /Choose a syllabus/ },
+    { path: `/quotes/${QUOTE_ID}`, user: QUOTER, url: `${QUOTES}${QUOTE_ID}/`, ready: /Q-0000/ },
+    { path: '/sales-pricing', user: ADMIN, url: '/api/sales/pricing/', ready: /Pricing/ },
+    { path: `/sales-syllabus/${BRIDGE_ID}`, user: ADMIN, url: `${SYLLABI}${BRIDGE_ID}/`, ready: null },
+    { path: `/plans/${BRIDGE_ID}`, user: QUOTER, url: onSale(BRIDGE_ID), ready: null },
+  ];
+  for (const { path, user, url, setup } of pages) {
+    const again = held();
+    let reads = 0;
+    serve(financeServe({ [`GET ${url}`]: () => { reads += 1; return reads === 1 ? fail(500, { message: 'Unavailable for now.' }) : again(); } }));
+    await open(path, user);
+    if (setup) await setup();
+    assert.match(bodyText(), /Unavailable for now\./, `${path}: the error`);
+    await click(button('Try again'));
+    assert.equal(reads, 2, `${path}: Try again reads once`);
+    assert.ok(busy(button('Try again')), `${path}: disabled and turning while it reads`);
+    await click(button('Try again'));
+    assert.equal(reads, 2, `${path}: a second click sends nothing`);
+    await again.refuse(500, { message: 'Still unavailable.' });
+    assert.equal(busy(button('Try again')), false, `${path}: enabled again after a failure`);
+    assert.match(bodyText(), /Still unavailable\./);
+    await mounted.pop().unmount();
+  }
+});
+
+test('Refresh audit C3: a plan whose Reload fails keeps the plan shown and says why', async () => {
+  let reads = 0;
+  serve({
+    [`GET ${onSale(BRIDGE_ID)}`]: () => { reads += 1; return reads === 1 ? ok(bridgeOnSale()) : fail(503, { message: 'The plan could not be read.' }); },
+    [`POST ${onSale(BRIDGE_ID, 'selection/pdf/')}`]: () => fail(409, { error: 'REVISION_CHANGED', message: 'Updated.', revision: 2 }),
+  });
+  await open(`/plans/${BRIDGE_ID}`, QUOTER);
+  await click(dayBox(1));
+  await click(button('Preview PDF'));
+  assert.match(bodyText(), /This plan was updated to revision 2/);
+  await click(button('Reload'));
+  assert.equal(reads, 2);
+  assert.match(bodyText(), /The plan could not be read\./, 'the failure is said (before, nothing was)');
+  assert.match(bodyText(), /of 10 days chosen/, 'the plan stays');
+  assert.ok(button('Try again'));
+});
+
+chartTest('Refresh audit B1: the Sales Dashboard Refresh is disabled and turning while it reads; a failure keeps the figures with the error', async () => {
+  const later = held();
+  let holding = false;
+  serve({ [`GET ${SALES_DASHBOARD}`]: () => (holding ? later() : ok(salesDashboard())) });
+  await open('/sales-dashboard', SALES_ADMIN);
+  const refresh = () => button('Refresh');
+  assert.equal(busy(refresh()), false);
+  assert.equal(refresh().getAttribute('aria-label'), 'Refresh', 'still the icon button it was, named for screen readers');
+  holding = true;
+  await click(refresh());
+  assert.equal(calls('GET', SALES_DASHBOARD).length, 2);
+  assert.ok(busy(refresh()), 'disabled and turning (the icon stood still before)');
+  await click(refresh());
+  assert.equal(calls('GET', SALES_DASHBOARD).length, 2, 'a second click sends nothing');
+  await later.refuse(500, { message: 'The dashboard could not be read.' });
+  assert.equal(busy(refresh()), false);
+  assert.match(bodyText(), /The dashboard could not be read\./);
+  assert.match(bodyText(), /Bala BDE/, 'the figures shown before stay');
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

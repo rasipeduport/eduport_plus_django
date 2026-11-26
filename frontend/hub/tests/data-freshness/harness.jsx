@@ -21,10 +21,17 @@ import LeadPage from '@/pages/LeadPage';
 import LeadsPage from '@/pages/LeadsPage';
 import TutorBookingWorkspacePage from '@/pages/TutorBookingWorkspacePage';
 import TutorMainDashboardPage from '@/pages/TutorMainDashboardPage';
+import TutorAdmissionsDashboardPage from '@/pages/TutorAdmissionsDashboardPage';
+import BookingSlotsPage from '@/pages/BookingSlotsPage';
+import BookingsPage from '@/pages/BookingsPage';
+import InvitationsPage from '@/pages/InvitationsPage';
+import TutorBookingsPage from '@/pages/TutorBookingsPage';
 import SidebarLayout from '@/layout/SidebarLayout';
 import LearnAuthProvider from '../../../learn/src/context/AuthProvider';
 import LearnStudentProvider from '../../../learn/src/context/StudentProvider';
 import { useStudent } from '../../../learn/src/components/student/student-context';
+import LearnWaitingRoomPage from '../../../learn/src/pages/WaitingRoomPage';
+import LearnAccessEndedPage from '../../../learn/src/pages/AccessEndedPage';
 
 function LiveProbe({ onRefresh, options }) {
   useLiveRefresh(onRefresh, options);
@@ -56,6 +63,11 @@ function page(path, user) {
       { path: '/tutor-dashboard', element: <TutorMainDashboardPage user={user} /> },
       { path: '/academics-dashboard', element: <DashboardPage user={user} /> },
       { path: '/admissions', element: <AdmissionsDashboardPage user={user} /> },
+      { path: '/admissions-dashboard', element: <TutorAdmissionsDashboardPage user={user} /> },
+      { path: '/booking-slots', element: <BookingSlotsPage /> },
+      { path: '/bookings/demo', element: <BookingsPage key="DEMO" user={user} type="DEMO" /> },
+      { path: '/invitations', element: <InvitationsPage user={user} /> },
+      { path: '/my-bookings/demo', element: <TutorBookingsPage key="DEMO" type="DEMO" /> },
     ],
     { initialEntries: [path] }
   );
@@ -122,12 +134,45 @@ function learn(path, probe) {
   );
 }
 
+/** Where Learn is, on every page (the gateway pages included), handed to `probe.path`. */
+function LearnPath({ probe }) {
+  const location = useLocation();
+  useEffect(() => {
+    probe.path = location.pathname;
+  });
+  return null;
+}
+
+/**
+ * Learn as App.jsx nests it at `path`, with its two gateway pages for real --
+ * the waiting room and access ended -- and every other route a probe.
+ */
+function learnGateways(path, probe) {
+  return (
+    <MemoryRouter initialEntries={[path]}>
+      <LearnPath probe={probe} />
+      <LearnAuthProvider>
+        {(props) => (
+          <LearnStudentProvider {...props}>
+            <Routes>
+              <Route path="/waiting-room" element={<LearnWaitingRoomPage />} />
+              <Route path="/access-ended" element={<LearnAccessEndedPage />} />
+              <Route path="*" element={<LearnProbe probe={probe} />} />
+            </Routes>
+          </LearnStudentProvider>
+        )}
+      </LearnAuthProvider>
+    </MemoryRouter>
+  );
+}
+
 const trees = {
   live: (props) => <LiveProbe {...props} />,
   comms: (props) => <CommsProbe {...props} />,
   page: (props) => page(props.path, props.user),
   hub: (props) => hub(props.path, props.user),
   learn: (props) => learn(props.path, props.probe),
+  learnGateways: (props) => learnGateways(props.path, props.probe),
 };
 
 export async function mount(kind, props = {}) {
