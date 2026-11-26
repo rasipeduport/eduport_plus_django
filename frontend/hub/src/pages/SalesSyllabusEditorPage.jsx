@@ -19,27 +19,31 @@ import {
   BOARDS,
   GRADES,
   MAX_INCLUSIONS,
+  OTHER_BOARD,
   PDF_PREVIEW_URL,
   PLAN_TYPES,
   PRICING_URL,
   STRUCTURES,
   STRUCTURE_PLAN_TYPES,
-  SUBTITLES,
   SYLLABI_URL,
-  SYLLABUS_VERSIONS,
   apiFieldErrors,
   defaultInclusions,
+  differingWording,
   draftUrl,
   emptyForm,
   formErrors,
   formFrom,
+  formWording,
   formatAmount,
+  generatedWording,
   packagePrices,
-  packageTitleFor,
   payloadOf,
   salesError,
   sameContent,
   syllabusUrl,
+  versionOptions,
+  withBasics,
+  withStandardWording,
 } from '@/lib/sales';
 import { useFlashNotice } from '@/hooks/use-flash-notice';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
@@ -59,23 +63,124 @@ import { PublishDialog, SimilarWarning, SyllabusActionDialog } from '@/component
 import { useSyllabusPdf } from '@/components/sales/syllabus-pdf';
 import { cn } from '@/lib/utils';
 
-// Where each of the form's errors is shown: the id of the field to focus.
+// Where each of the form's errors is shown: the id of the field to focus. The PDF's lines are
+// generated, so their errors show on the "What the PDF will print" panel -- an Others title's on
+// its own input, the one line still typed.
+const WORDING_ID = 'syllabus-wording';
 const FIELD_IDS = {
   title: 'syllabus-title',
   grade: 'syllabus-grade',
   board: 'syllabus-board',
   syllabus_version: 'syllabus-version',
   structure: 'syllabus-structure-CHAPTER_WISE',
-  subtitle: 'syllabus-subtitle',
-  package_title: 'syllabus-package-title',
+  subtitle: WORDING_ID,
+  package_title: WORDING_ID,
   plan_types: 'plan-type-REGULAR',
   inclusions: 'inclusion-0',
   chapters: 'add-chapter',
 };
 const fieldId = (key) => FIELD_IDS[key] ?? (key.startsWith('chapters.') ? `chapter-${key.split('.').slice(1).join('-')}` : null);
+const fieldElement = (key) =>
+  document.getElementById(fieldId(key) ?? '') ?? (key === 'title' ? document.getElementById(WORDING_ID) : null);
+
+// The version choice's stand-in for None: a Select item cannot take the empty value.
+const NO_VERSION = '__none__';
+const WORDING_LABELS = { title: 'Title', subtitle: 'Line under the title', package_title: 'Packages page heading' };
+// A generated line with nothing to show yet: before the grade is chosen, or an Others title left empty.
+const missingLine = (form) => (form.grade ? '—' : 'Shown once a grade is chosen');
 
 function FieldError({ message }) {
   return message ? <p className="text-destructive text-sm">{message}</p> : null;
+}
+
+/**
+ * What the PDF will print, read-only: the title, the line under it and the packages page's
+ * heading -- generated from the structure, grade, board and version, or a kept draft's own.
+ */
+function WordingPreview({ form, errors }) {
+  const wording = formWording(form);
+  const kept = form.wording === 'kept';
+  const pending = missingLine(form);
+  const rows = [
+    ['title', wording.title || pending],
+    ['subtitle', wording.subtitle],
+    ['package_title', wording.package_title || pending],
+  ];
+  const messages = [...new Set(['title', 'subtitle', 'package_title'].map((field) => errors[field]).filter(Boolean))];
+  return (
+    <section
+      id={WORDING_ID}
+      tabIndex={-1}
+      aria-labelledby="syllabus-wording-heading"
+      className="bg-muted/40 grid gap-2 rounded-lg border p-3 outline-none md:col-span-2"
+    >
+      <div>
+        <h3 id="syllabus-wording-heading" className="text-sm font-medium">
+          What the PDF will print
+        </h3>
+        <p className="text-muted-foreground text-xs">
+          {kept
+            ? 'This draft’s own wording, kept as it was saved.'
+            : 'Generated from the structure, grade, board and version. Nothing to type.'}
+        </p>
+      </div>
+      <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[11rem_minmax(0,1fr)]">
+        {rows.map(([field, value]) => (
+          <div key={field} className="contents">
+            <dt className="text-muted-foreground">{WORDING_LABELS[field]}</dt>
+            <dd className={cn('wrap-anywhere', field === 'title' && 'font-medium')} data-wording={field}>
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {messages.map((message) => (
+        <FieldError key={message} message={message} />
+      ))}
+    </section>
+  );
+}
+
+/**
+ * A draft saved with wording of its own -- a title typed before, a copy's "(Copy)", a version of
+ * its own -- keeps it until the Admin chooses the generated lines (D4, D8): each line that
+ * differs, as it prints now and as it would be generated.
+ */
+function KeptWordingNotice({ form, onUseStandard, disabled }) {
+  const fields = differingWording(form);
+  if (!fields.length) return null;
+  const printed = formWording(form);
+  const standard = generatedWording(form);
+  return (
+    <div className="border-warning/30 bg-warning/5 grid gap-2 rounded-lg border px-3 py-2 text-sm md:col-span-2" role="note">
+      <div className="flex gap-2">
+        <AlertCircleIcon className="text-warning mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="font-medium">This draft keeps wording from before</p>
+          <p className="text-muted-foreground">
+            It was saved with wording of its own, which stays as it is until you choose the standard wording.
+          </p>
+        </div>
+      </div>
+      <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[11rem_minmax(0,1fr)]">
+        {fields.map((field) => (
+          <div key={field} className="contents">
+            <dt className="text-muted-foreground">{WORDING_LABELS[field]}</dt>
+            <dd className="wrap-anywhere" data-kept={field}>
+              Prints now: <span className="font-medium">{printed[field] || '—'}</span>
+              <br />
+              Standard: <span className="font-medium">{standard[field] || missingLine(form)}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div>
+        <Button type="button" variant="outline" size="sm" onClick={onUseStandard} disabled={disabled}>
+          Use standard wording
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function OptionSelect({ id, value, onChange, placeholder, options, disabled, invalid }) {
@@ -259,7 +364,7 @@ export default function SalesSyllabusEditorPage() {
   useEffect(() => {
     if (!focusRequest || pending) return undefined;
     const timer = setTimeout(() => {
-      const element = document.getElementById(fieldId(focusRequest) ?? '');
+      const element = fieldElement(focusRequest);
       element?.focus();
       element?.scrollIntoView?.({ block: 'center' });
       setFocusRequest(null);
@@ -281,14 +386,19 @@ export default function SalesSyllabusEditorPage() {
     return false;
   };
 
+  // Structure, grade, board and version: the PDF's generated lines follow them (lib/sales withBasics).
   const setStructure = (structure) =>
-    setForm((current) => ({ ...current, structure, plan_types: [...STRUCTURE_PLAN_TYPES[structure]].slice(0, 3) }));
+    setForm((current) => withBasics(current, { structure, plan_types: [...STRUCTURE_PLAN_TYPES[structure]].slice(0, 3) }));
+  const setGrade = (grade) => setForm((current) => withBasics(current, { grade }));
+  const setVersion = (value) =>
+    setForm((current) => withBasics(current, { syllabus_version: value === NO_VERSION ? '' : value }));
   const setBoard = (board) =>
     setForm((current) => {
       // The inclusions follow the board while they are still the reference's ("Structured CBSE aligned learning").
       const untouched = JSON.stringify(current.inclusions) === JSON.stringify(defaultInclusions(current.board));
-      return { ...current, board, inclusions: untouched ? defaultInclusions(board) : current.inclusions };
+      return withBasics(current, { board, inclusions: untouched ? defaultInclusions(board) : current.inclusions });
     });
+  const applyStandardWording = () => setForm((current) => withStandardWording(current));
   const togglePlanType = (planType) =>
     setForm((current) => ({
       ...current,
@@ -413,6 +523,7 @@ export default function SalesSyllabusEditorPage() {
     );
   } else {
     const bridge = form.structure === 'BRIDGE_COURSE';
+    const others = form.board === OTHER_BOARD;
     const locked = Boolean(detail?.structure_locked);
     const planTypes = bridge ? ['BRIDGE_COURSE'] : form.plan_types;
     const packages = pricing ? packagePrices(planTypes, form.chapters, pricing) : [];
@@ -429,26 +540,28 @@ export default function SalesSyllabusEditorPage() {
       >
         <WorkspaceCard icon={FileTextIcon} title="1. Basic information">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="syllabus-title" required>
-                Title
-              </Label>
-              <Input
-                id="syllabus-title"
-                value={form.title}
-                onChange={(event) => set('title', event.target.value)}
-                placeholder="Grade 6 CBSE"
-                maxLength={120}
-                aria-required="true"
-                aria-invalid={errors.title ? true : undefined}
-                aria-describedby="syllabus-title-help"
-                disabled={pending}
-              />
-              <p id="syllabus-title-help" className="text-muted-foreground text-xs">
-                The blue heading of the PDF, exactly as you type it.
-              </p>
-              <FieldError message={errors.title} />
-            </div>
+            <fieldset className="grid gap-2 md:col-span-2" disabled={pending || locked}>
+              <legend className="mb-2 text-sm font-medium">Structure</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {STRUCTURES.map((structure) => (
+                  <ChoiceCard
+                    key={structure.value}
+                    type="radio"
+                    id={`syllabus-structure-${structure.value}`}
+                    name="structure"
+                    checked={form.structure === structure.value}
+                    onChange={() => setStructure(structure.value)}
+                    disabled={pending || locked}
+                    label={structure.label}
+                    description={structure.description}
+                  />
+                ))}
+              </div>
+              {locked ? (
+                <p className="text-muted-foreground text-xs">The structure is fixed once a syllabus is published.</p>
+              ) : null}
+              <FieldError message={errors.structure} />
+            </fieldset>
             <div className="grid gap-2">
               <Label htmlFor="syllabus-grade" required>
                 Grade
@@ -456,7 +569,7 @@ export default function SalesSyllabusEditorPage() {
               <OptionSelect
                 id="syllabus-grade"
                 value={form.grade}
-                onChange={(value) => set('grade', value)}
+                onChange={setGrade}
                 placeholder="Choose the grade"
                 options={GRADES}
                 disabled={pending}
@@ -481,71 +594,44 @@ export default function SalesSyllabusEditorPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="syllabus-version">Syllabus version</Label>
-              <Input
+              <OptionSelect
                 id="syllabus-version"
-                list="syllabus-version-options"
-                value={form.syllabus_version}
-                onChange={(event) => set('syllabus_version', event.target.value)}
-                placeholder="New Syllabus"
-                maxLength={50}
-                aria-invalid={errors.syllabus_version ? true : undefined}
+                value={form.syllabus_version || NO_VERSION}
+                onChange={setVersion}
+                placeholder="None"
+                options={versionOptions(detail?.draft?.syllabus_version).map((option) => ({
+                  ...option,
+                  value: option.value || NO_VERSION,
+                }))}
                 disabled={pending}
+                invalid={errors.syllabus_version}
               />
-              <datalist id="syllabus-version-options">
-                {SYLLABUS_VERSIONS.map((version) => (
-                  <option key={version} value={version} />
-                ))}
-              </datalist>
               <FieldError message={errors.syllabus_version} />
             </div>
-            <fieldset className="grid gap-2 md:col-span-2" disabled={pending || locked}>
-              <legend className="mb-2 text-sm font-medium">Structure</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {STRUCTURES.map((structure) => (
-                  <ChoiceCard
-                    key={structure.value}
-                    type="radio"
-                    id={`syllabus-structure-${structure.value}`}
-                    name="structure"
-                    checked={form.structure === structure.value}
-                    onChange={() => setStructure(structure.value)}
-                    disabled={pending || locked}
-                    label={structure.label}
-                    description={structure.description}
-                  />
-                ))}
+            {others ? (
+              <div className="grid gap-2">
+                <Label htmlFor="syllabus-title" required>
+                  Title
+                </Label>
+                <Input
+                  id="syllabus-title"
+                  value={form.title}
+                  onChange={(event) => set('title', event.target.value)}
+                  placeholder="Grade 6"
+                  maxLength={120}
+                  aria-required="true"
+                  aria-invalid={errors.title ? true : undefined}
+                  aria-describedby="syllabus-title-help"
+                  disabled={pending}
+                />
+                <p id="syllabus-title-help" className="text-muted-foreground text-xs">
+                  Others names no curriculum, so this title is yours to complete.
+                </p>
+                <FieldError message={errors.title} />
               </div>
-              {locked ? (
-                <p className="text-muted-foreground text-xs">The structure is fixed once a syllabus is published.</p>
-              ) : null}
-              <FieldError message={errors.structure} />
-            </fieldset>
-            <div className="grid gap-2">
-              <Label htmlFor="syllabus-subtitle">Line under the title</Label>
-              <Input
-                id="syllabus-subtitle"
-                value={form.subtitle}
-                onChange={(event) => set('subtitle', event.target.value)}
-                placeholder={SUBTITLES[form.structure]}
-                maxLength={120}
-                aria-invalid={errors.subtitle ? true : undefined}
-                disabled={pending}
-              />
-              <FieldError message={errors.subtitle} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="syllabus-package-title">Packages page title</Label>
-              <Input
-                id="syllabus-package-title"
-                value={form.package_title}
-                onChange={(event) => set('package_title', event.target.value)}
-                placeholder={packageTitleFor(form.title.trim())}
-                maxLength={160}
-                aria-invalid={errors.package_title ? true : undefined}
-                disabled={pending}
-              />
-              <FieldError message={errors.package_title} />
-            </div>
+            ) : null}
+            <WordingPreview form={form} errors={others ? { ...errors, title: undefined } : errors} />
+            <KeptWordingNotice form={form} onUseStandard={applyStandardWording} disabled={pending} />
           </div>
         </WorkspaceCard>
 
