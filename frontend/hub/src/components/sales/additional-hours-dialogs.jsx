@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { AlertTriangleIcon } from 'lucide-react';
+import { AlertTriangleIcon, CreditCardIcon } from 'lucide-react';
 
 import api from '@/lib/api';
 import { firstMessage, salesError } from '@/lib/sales';
 import { PAYMENT_TYPES, wholeAed } from '@/lib/payments';
 import {
-  DIRECT_METHODS, VOID_KINDS, additionalHoursEligibilityUrl, allocationPaymentsUrl, allocationStripeLinksUrl, allocationUrl,
+  DIRECT_METHODS, VOID_KINDS, additionalHoursEligibilityUrl, allocationPaymentsUrl, allocationStatus, allocationStripeLinksUrl, allocationUrl,
   allocationVoidUrl, chapterLabel,
   classes, hours, requestKey, studentAdditionalHoursUrl, today,
 } from '@/lib/additional-hours';
@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { FormDialog } from '@/components/form-dialog';
 import { ErrorState } from '@/components/page/states';
+import { OpenStripeLink, StripeLinkHistory } from '@/components/sales/additional-hours-stripe-link';
 
 const SELECT = 'border-input bg-background h-9 w-full rounded-md border px-3 text-sm';
 
@@ -228,14 +229,78 @@ export function AddHoursDialog({ studentId, student, open, onOpenChange, onCreat
   </Dialog>;
 }
 
+const STRIPE = 'STRIPE';
+const manualBlank = () => ({ amount: '', payment_date: today(), reference: '', notes: '' });
+
+/** Why nothing more can be paid on closed hours, in words: "These hours are paid", "…withdrawn". */
+const closedNote = (allocation) => `These hours are ${allocationStatus(allocation).label.toLowerCase()}`;
+
 /**
- * Money received for the hours, with its receipt (POST additional-hours/<id>/payments/): part or all of what is
- * still due -- the API refuses more. Recording a payment never changes the quota. A likely duplicate is asked
- * about once; the form's own key makes a repeated submission record it once.
+ * Stripe as a payment method, and the only place the hours' Stripe links are shown: what is still due, the amount
+ * to collect and Generate Stripe payment link (POST additional-hours/<id>/stripe-links/, the one Stripe
+ * integration) -- or, once a link is open, that link with its actions -- and every earlier link below. Generating
+ * creates no payment: only Stripe's verified webhook records one. A link Stripe did not confirm in time is shown
+ * (`onRefresh`) to be tried again; a payment Stripe took that could not be applied says why (Needs review).
  */
-export function RecordHoursPaymentDialog({ allocation, open, onOpenChange, onSaved }) {
-  const blank = { amount: '', method: DIRECT_METHODS[0].value, payment_date: today(), reference: '', notes: '' };
-  const [form, setForm] = useState(blank);
+function StripePaymentPanel({ allocation, onChanged, onRefresh }) {
+  const [amount, setAmount] = useState(allocation.outstanding_amount ?? '');
+  const [key, setKey] = useState(requestKey);
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const earlier = (allocation.checkouts ?? []).filter((checkout) => checkout.id !== allocation.open_checkout?.id);
+
+  const generate = async () => {
+    setPending(true); setError(''); setErrors({});
+    try {
+      const { data } = await api.post(allocationStripeLinksUrl(allocation.id), { request_id: key, amount: String(amount).trim() });
+      setKey(requestKey());  // A later link is a new request; this one stays the link just made.
+      onChanged?.(data.allocation, `Stripe payment link for ${wholeAed(data.checkout.amount)} ready to share.`);
+    } catch (err) {
+      const refused = salesError(err, 'Could not create the payment link.');
+      const found = fieldErrors(refused);
+      if (refused.code === 'EXCEEDS_OUTSTANDING') found.amount = refused.message;
+      if (refused.code === 'IDEMPOTENCY_CONFLICT') setKey(requestKey());
+      setErrors(found);
+      setError(refused.code === 'EXCEEDS_OUTSTANDING' ? '' : refused.message);
+      // Stripe may have made it (or another link is open): show the hours as they now stand.
+      if (['STRIPE_UNAVAILABLE', 'STRIPE_LINK_OPEN', 'CHECKOUT_REVIEW_REQUIRED'].includes(refused.code)) onRefresh?.();
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return <div className="grid gap-3">
+    <p className="bg-muted/50 flex justify-between rounded-lg px-3 py-2 text-sm"><span className="text-muted-foreground">Outstanding</span>
+      <strong className="tabular-nums">{wholeAed(allocation.outstanding_amount)}</strong></p>
+    {allocation.open_checkout ? <OpenStripeLink allocation={allocation} checkout={allocation.open_checkout} onChanged={onChanged} onRefresh={onRefresh} />
+      : !allocation.can_generate_link ? <p className="text-muted-foreground text-sm">{closedNote(allocation)}: no new link can be generated.</p>
+      : <div className="grid gap-2">
+        <Label htmlFor="stripe-link-amount">Amount to collect (whole AED)</Label>
+        <Input id="stripe-link-amount" type="number" inputMode="numeric" step="1" min="1" value={amount} onChange={(event) => setAmount(event.target.value)}
+          aria-invalid={errors.amount ? true : undefined} />
+        <p className="text-muted-foreground text-xs">All that is still due by default; a smaller amount leaves the rest to collect later.</p>
+        <FieldError message={errors.amount} />
+        {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
+        <div><Button type="button" onClick={generate} disabled={pending || !amount}><CreditCardIcon />{pending ? 'Generating…' : 'Generate Stripe payment link'}</Button></div>
+      </div>}
+    <StripeLinkHistory checkouts={earlier} />
+    <p className="text-muted-foreground text-xs">The parent pays by card on Stripe. The payment is recorded only when Stripe confirms it, and the student’s quota does not change.</p>
+  </div>;
+}
+
+/**
+ * Record payment, for an administrator or the student's mentor: money already received by a direct method, with
+ * its receipt (POST additional-hours/<id>/payments/) -- part or all of what is still due, the API refuses more, a
+ * likely duplicate is asked about once, and the form's own key records a repeated submission once -- or Stripe, a
+ * link the parent pays (StripePaymentPanel), with every Stripe link the hours have had. Crossing between Stripe and a
+ * direct method starts the other side clean; between direct methods what was typed stays. While a Stripe link is
+ * open -- or once the hours are closed, opened only for a Stripe payment that needs review -- the dialog opens on
+ * Stripe, and a direct payment waits. Nothing here changes the quota.
+ */
+export function RecordHoursPaymentDialog({ allocation, open, onOpenChange, onSaved, onChanged, onRefresh }) {
+  const [method, setMethod] = useState(DIRECT_METHODS[0].value);
+  const [form, setForm] = useState(manualBlank);
   const [proof, setProof] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
   const [key, setKey] = useState(requestKey);
@@ -244,16 +309,29 @@ export function RecordHoursPaymentDialog({ allocation, open, onOpenChange, onSav
   const [duplicate, setDuplicate] = useState(null);
   const [separate, setSeparate] = useState(false);
   const [pending, setPending] = useState(false);
+  const resetDirect = () => {
+    setForm(manualBlank()); setProof(null); setConfirmed(false); setErrors({}); setError(''); setDuplicate(null); setSeparate(false);
+  };
   useOnOpen(open, () => {
-    setForm(blank); setProof(null); setConfirmed(false); setKey(requestKey()); setErrors({}); setError(''); setDuplicate(null); setSeparate(false);
+    resetDirect(); setKey(requestKey());
+    setMethod(allocation?.open_checkout || !allocation?.can_record_payment ? STRIPE : DIRECT_METHODS[0].value);
   });
+  const stripe = method === STRIPE;
+  const linkOpen = Boolean(allocation?.open_checkout);
+  const blocked = linkOpen || !allocation?.can_record_payment;
+  const choose = (event) => {
+    const next = event.target.value;
+    if ((next === STRIPE) !== stripe) resetDirect();
+    else { setDuplicate(null); setSeparate(false); }
+    setMethod(next);
+  };
   const set = (field) => (event) => { setForm((value) => ({ ...value, [field]: event.target.value })); setDuplicate(null); setSeparate(false); };
 
   const submit = async (event) => {
     event.preventDefault();
     setPending(true); setError(''); setErrors({});
     const body = new FormData();
-    for (const [field, value] of Object.entries({ request_id: key, amount: form.amount.trim(), method: form.method, payment_date: form.payment_date,
+    for (const [field, value] of Object.entries({ request_id: key, amount: form.amount.trim(), method, payment_date: form.payment_date,
       transaction_reference: form.reference.trim(), notes: form.notes.trim(), received_confirmed: confirmed, confirm_duplicate: separate })) {
       body.append(field, String(value));
     }
@@ -284,43 +362,52 @@ export function RecordHoursPaymentDialog({ allocation, open, onOpenChange, onSav
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>Record payment</DialogTitle>
-        <DialogDescription>{allocation ? `${allocation.reference} · ${hours(allocation.hours)} · ${wholeAed(outstanding)} still due. ` : ''}Record money already received; the student’s quota does not change.</DialogDescription>
+        <DialogDescription>{allocation ? `${allocation.reference} · ${hours(allocation.hours)} · ${wholeAed(outstanding)} still due. ` : ''}{stripe
+          ? 'Send the parent a Stripe payment link.' : 'Record money already received; the student’s quota does not change.'}</DialogDescription>
       </DialogHeader>
-      <form id="hours-payment-form" className="grid gap-4" noValidate onSubmit={submit}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2"><Label htmlFor="hours-payment-amount">Amount received (whole AED)</Label>
-            <Input id="hours-payment-amount" type="number" inputMode="numeric" step="1" min="1" value={form.amount} onChange={set('amount')} aria-invalid={errors.amount ? true : undefined} />
-            <button type="button" className="text-link self-start text-xs underline-offset-4 hover:underline" onClick={() => setForm((value) => ({ ...value, amount: String(outstanding) }))}>
-              Pay the full {wholeAed(outstanding)} still due</button>
-            <FieldError message={errors.amount} /></div>
-          <div className="grid gap-2"><Label htmlFor="hours-payment-date">Payment date</Label>
-            <Input id="hours-payment-date" type="date" max={today()} value={form.payment_date} onChange={set('payment_date')} aria-invalid={errors.payment_date ? true : undefined} />
-            <FieldError message={errors.payment_date} /></div>
-        </div>
-        <div className="grid gap-2"><Label htmlFor="hours-payment-method">Payment method</Label>
-          <select id="hours-payment-method" className={SELECT} value={form.method} onChange={set('method')}>
-            {DIRECT_METHODS.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
-          </select></div>
-        <div className="grid gap-2"><Label htmlFor="hours-payment-proof">Payment screenshot / receipt</Label>
-          <Input id="hours-payment-proof" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => setProof(event.target.files?.[0] ?? null)} />
-          <FieldError message={errors.proof} /></div>
-        <div className="grid gap-2"><Label htmlFor="hours-payment-reference">Transaction reference (optional)</Label>
-          <Input id="hours-payment-reference" maxLength={255} value={form.reference} onChange={set('reference')} aria-invalid={errors.transaction_reference ? true : undefined} />
-          <FieldError message={errors.transaction_reference} /></div>
-        <div className="grid gap-2"><Label htmlFor="hours-payment-notes">Notes (optional)</Label>
-          <Textarea id="hours-payment-notes" rows={2} maxLength={1000} value={form.notes} onChange={set('notes')} /></div>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="accent-primary mt-1" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm this amount has actually been received.</label>
-        {duplicate ? <div role="alert" className="border-warning/40 bg-warning/10 grid gap-2 rounded-lg border px-3 py-3 text-sm">
-          <p className="flex items-center gap-2 font-medium"><AlertTriangleIcon className="text-warning size-4" aria-hidden="true" />Possible duplicate</p>
-          <p>{duplicate}</p>
-          <label className="flex items-center gap-2 font-medium"><input type="checkbox" className="accent-primary size-4" checked={separate} onChange={(event) => setSeparate(event.target.checked)} />This is a separate payment</label>
-        </div> : null}
-      </form>
-      {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
+      <div className="grid gap-2"><Label htmlFor="hours-payment-method">Payment method</Label>
+        <select id="hours-payment-method" className={SELECT} value={method} onChange={choose}>
+          <option value={STRIPE} disabled={!allocation?.stripe_configured}>Stripe{allocation?.stripe_configured ? '' : ' (not configured)'}</option>
+          {DIRECT_METHODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select></div>
+      {stripe && allocation ? <StripePaymentPanel allocation={allocation} onChanged={onChanged} onRefresh={onRefresh} /> : <>
+        {blocked ? <p role="alert" className="border-warning/40 bg-warning/10 rounded-lg border px-3 py-2 text-sm">{linkOpen
+          ? 'A Stripe payment link is open for these hours. Choose Stripe above to share or expire it; another payment can be recorded once it is paid or expired.'
+          : `${closedNote(allocation)}: no further payment can be recorded.`}</p> : null}
+        <form id="hours-payment-form" className="grid gap-4" noValidate onSubmit={submit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2"><Label htmlFor="hours-payment-amount">Amount received (whole AED)</Label>
+              <Input id="hours-payment-amount" type="number" inputMode="numeric" step="1" min="1" value={form.amount} onChange={set('amount')} aria-invalid={errors.amount ? true : undefined} />
+              <button type="button" className="text-link self-start text-xs underline-offset-4 hover:underline" onClick={() => setForm((value) => ({ ...value, amount: String(outstanding) }))}>
+                Pay the full {wholeAed(outstanding)} still due</button>
+              <FieldError message={errors.amount} /></div>
+            <div className="grid gap-2"><Label htmlFor="hours-payment-date">Payment date</Label>
+              <Input id="hours-payment-date" type="date" max={today()} value={form.payment_date} onChange={set('payment_date')} aria-invalid={errors.payment_date ? true : undefined} />
+              <FieldError message={errors.payment_date} /></div>
+          </div>
+          <div className="grid gap-2"><Label htmlFor="hours-payment-proof">Payment screenshot / receipt</Label>
+            <Input id="hours-payment-proof" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => setProof(event.target.files?.[0] ?? null)} />
+            <FieldError message={errors.proof} /></div>
+          <div className="grid gap-2"><Label htmlFor="hours-payment-reference">Transaction reference (optional)</Label>
+            <Input id="hours-payment-reference" maxLength={255} value={form.reference} onChange={set('reference')} aria-invalid={errors.transaction_reference ? true : undefined} />
+            <FieldError message={errors.transaction_reference} /></div>
+          <div className="grid gap-2"><Label htmlFor="hours-payment-notes">Notes (optional)</Label>
+            <Textarea id="hours-payment-notes" rows={2} maxLength={1000} value={form.notes} onChange={set('notes')} /></div>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="accent-primary mt-1" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I confirm this amount has actually been received.</label>
+          {duplicate ? <div role="alert" className="border-warning/40 bg-warning/10 grid gap-2 rounded-lg border px-3 py-3 text-sm">
+            <p className="flex items-center gap-2 font-medium"><AlertTriangleIcon className="text-warning size-4" aria-hidden="true" />Possible duplicate</p>
+            <p>{duplicate}</p>
+            <label className="flex items-center gap-2 font-medium"><input type="checkbox" className="accent-primary size-4" checked={separate} onChange={(event) => setSeparate(event.target.checked)} />This is a separate payment</label>
+          </div> : null}
+        </form>
+        {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
+      </>}
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>Cancel</Button>
-        <Button type="submit" form="hours-payment-form" disabled={pending || !form.amount || !proof || !confirmed || (duplicate && !separate)}>
-          {pending ? 'Recording…' : 'Record payment'}</Button>
+        {stripe ? <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button> : <>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>Cancel</Button>
+          <Button type="submit" form="hours-payment-form" disabled={pending || blocked || !form.amount || !proof || !confirmed || (duplicate && !separate)}>
+            {pending ? 'Recording…' : 'Record payment'}</Button>
+        </>}
       </DialogFooter>
     </DialogContent>
   </Dialog>;
@@ -441,52 +528,5 @@ export function VoidHoursPaymentDialog({ allocation, payment, open, onOpenChange
       </select></div>
     <div className="grid gap-2"><Label htmlFor="void-hours-reason">Reason</Label>
       <Textarea id="void-hours-reason" rows={3} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /></div>
-  </FormDialog>;
-}
-
-/**
- * A Stripe Checkout link for the hours (POST additional-hours/<id>/stripe-links/): for all that is still due,
- * or part of it -- the API refuses more. The parent pays on Stripe; only Stripe's verified webhook records the
- * payment. The form's own key makes a repeated request return the same link, never a second one. When Stripe
- * does not confirm the link in time, `onRefresh` shows the attempt so it can be tried again.
- */
-export function GenerateStripeLinkDialog({ allocation, open, onOpenChange, onSaved, onRefresh }) {
-  const [amount, setAmount] = useState('');
-  const [key, setKey] = useState(requestKey);
-  const [errors, setErrors] = useState({});
-  const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
-  useOnOpen(open, () => { setAmount(allocation?.outstanding_amount ?? ''); setKey(requestKey()); setErrors({}); setError(''); });
-
-  const save = async (event) => {
-    event.preventDefault();
-    setPending(true); setError(''); setErrors({});
-    try {
-      const { data } = await api.post(allocationStripeLinksUrl(allocation.id), { request_id: key, amount: amount.trim() });
-      onOpenChange(false);
-      onSaved?.(data.allocation);
-    } catch (err) {
-      const refused = salesError(err, 'Could not create the payment link.');
-      const found = fieldErrors(refused);
-      if (refused.code === 'EXCEEDS_OUTSTANDING') found.amount = refused.message;
-      if (refused.code === 'IDEMPOTENCY_CONFLICT') setKey(requestKey());
-      setErrors(found);
-      setError(refused.code === 'EXCEEDS_OUTSTANDING' ? '' : refused.message);
-      // Stripe may have made it (or another link is open): show the hours as they now stand.
-      if (['STRIPE_UNAVAILABLE', 'STRIPE_LINK_OPEN', 'CHECKOUT_REVIEW_REQUIRED'].includes(refused.code)) onRefresh?.();
-    } finally {
-      setPending(false);
-    }
-  };
-  return <FormDialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)} size="md" title="Generate Stripe payment link"
-    description={allocation ? `${allocation.reference} · ${wholeAed(allocation.outstanding_amount)} still due. The parent pays by card on Stripe; the payment is recorded only when Stripe confirms it, and the student’s quota does not change.` : ''}
-    formId="stripe-link-form" confirmLabel="Generate link" pendingLabel="Generating…" pending={pending} error={error} confirmDisabled={!amount}>
-    <form id="stripe-link-form" className="grid gap-2" noValidate onSubmit={save}>
-      <Label htmlFor="stripe-link-amount">Amount (whole AED)</Label>
-      <Input id="stripe-link-amount" type="number" inputMode="numeric" step="1" min="1" value={amount} onChange={(event) => setAmount(event.target.value)}
-        aria-invalid={errors.amount ? true : undefined} />
-      <p className="text-muted-foreground text-xs">All that is still due by default; a smaller amount leaves the rest to collect later.</p>
-      <FieldError message={errors.amount} />
-    </form>
   </FormDialog>;
 }
