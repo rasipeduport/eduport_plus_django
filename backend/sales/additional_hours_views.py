@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import ByMethod, HasAppPermission
-from . import additional_hours
+from . import additional_hours, additional_hours_stripe
 from .allocation_models import (DIRECT_METHOD_CHOICES, HOUR_STEP, MAX_AMOUNT, MAX_HOURS, NOTES_MAX_LENGTH,
                                 REASON_MAX_LENGTH, REFERENCE_MAX_LENGTH, VoidKind)
 from .services import SalesError
@@ -217,3 +217,40 @@ class AdditionalHoursProofView(APIView):
         response['Cache-Control'] = 'private, no-store'
         response['X-Content-Type-Options'] = 'nosniff'
         return response
+
+
+class StripeLinkSerializer(serializers.Serializer):
+    request_id = serializers.UUIDField()
+    # Part of what is still due; all of it when absent.
+    amount = serializers.DecimalField(max_digits=15, decimal_places=0, min_value=1, max_value=MAX_AMOUNT, required=False, allow_null=True)
+
+
+class AdditionalHoursStripeLinksView(APIView):
+    """POST /api/sales/additional-hours/<id>/stripe-links/ — a Stripe Checkout link for what is still due (or part of it).
+
+    The student's mentor or an administrator; only Stripe's verified webhook records the payment.
+    """
+    permission_classes = [IsAuthenticated, COLLECT]
+
+    def post(self, request, pk):
+        serializer = StripeLinkSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer, 'Check the payment link.')
+        try:
+            checkout, created = additional_hours_stripe.generate_link(request.user, pk, serializer.validated_data, request)
+            return Response({'checkout': additional_hours.checkout_data(checkout),
+                             'allocation': additional_hours.detail(request.user, pk, request)}, status=201 if created else 200)
+        except SalesError as exc:
+            return _refused(exc)
+
+
+class AdditionalHoursStripeExpireView(APIView):
+    """POST /api/sales/additional-hours/<id>/stripe-links/<checkout id>/expire/ — close an unpaid link at Stripe."""
+    permission_classes = [IsAuthenticated, COLLECT]
+
+    def post(self, request, pk, checkout_id):
+        try:
+            additional_hours_stripe.expire_link(request.user, pk, checkout_id, request)
+            return Response(additional_hours.detail(request.user, pk, request))
+        except SalesError as exc:
+            return _refused(exc)

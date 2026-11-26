@@ -3633,6 +3633,294 @@
     "status": 403
    }
   },
+  "additional_hours.stripe_expire @ admin": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ anon": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_expire @ mentor_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ mentor_b": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ parent_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_expire @ su_mentor": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ su_tutor": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ superuser": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_expire @ tutor_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_expire @ tutor_b": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_expire @ unknown": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_link @ admin": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ anon": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "Authentication credentials were not provided.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_link @ mentor_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ mentor_b": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ parent_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_link @ su_mentor": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ su_tutor": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ superuser": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "error": "NOT_FOUND",
+    "fields": [
+     "error",
+     "message"
+    ],
+    "message": "No such additional hours among your students.",
+    "records": [],
+    "status": 404
+   }
+  },
+  "additional_hours.stripe_link @ tutor_a": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_link @ tutor_b": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
+  "additional_hours.stripe_link @ unknown": {
+   "decision": "Additional hours paid through Stripe (2026-11-26): new routes generating a Stripe Checkout link for an allocation and expiring an open one, for the same audience as recording its payments: accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) -- a mentor for their own students only, which the service checks. No permission was added.",
+   "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Administrators and mentors reach the service, which answers NOT_FOUND (404): the matrix world has no additional hours ({stu_a} stands in for an allocation and a link). The payment itself is recorded only by Stripe's signed webhook, outside this matrix.",
+   "result": {
+    "detail": "You do not have permission to perform this action.",
+    "fields": [
+     "detail"
+    ],
+    "records": [],
+    "status": 403
+   }
+  },
   "additional_hours.student @ admin": {
    "decision": "Additional hours with deferred payment (2026-11-26): new routes for hours an administrator adds to an enrolled, payment-managed student's quota at once, with their own payment ledger. accounts.manage_additional_hours (ADMIN only, accounts.0032) adds, changes, waives and withdraws them and voids their payments; accounts.collect_additional_hours_payments (MENTOR and ADMIN, accounts.0032) reads them and records payments.",
    "note": "Callers without the permission are refused (403): tutors, parents, unknown roles, BDE and Sales TL. Mentors are refused every administrator route (adding, eligibility, changing, waiving, withdrawing, voiding); they read their own students' hours (another mentor's student is NOT_FOUND, 404) and their own students in the list. The matrix students are managed in the enrolment sheet, so adding hours is refused NOT_ELIGIBLE (409) and an allocation or payment that does not exist is NOT_FOUND (404).",

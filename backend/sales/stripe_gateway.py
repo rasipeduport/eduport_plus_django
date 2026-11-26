@@ -165,6 +165,10 @@ def process_event(event, source='WEBHOOK'):
         _pending_evidence(event_type, obj)
     if not livemode_ok:
         record.outcome, record.error = 'REJECTED', 'Stripe test/live mode mismatch.'
+    elif event_type.startswith('checkout.session.') and obj.get('metadata', {}).get('additional_hours_checkout_id'):
+        # Additional hours paid through a Stripe link (sales.additional_hours_stripe): their own ledger, never tuition.
+        from .additional_hours_stripe import process_event as process_additional_hours_event
+        process_additional_hours_event(event, record)
     elif event_type in BILLING_EVENTS:
         from .billing import process_event as process_billing_event
         process_billing_event(event, record)

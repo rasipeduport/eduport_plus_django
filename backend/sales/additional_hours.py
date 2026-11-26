@@ -33,7 +33,8 @@ from students.models import Student
 
 from . import payments, quotes
 from .account_models import StudentAccount
-from .allocation_models import AdditionalHoursAllocation, AdditionalHoursPayment, VoidKind
+from .allocation_models import (LIVE_CHECKOUT, STRIPE, AdditionalHoursAllocation, AdditionalHoursCheckout, AdditionalHoursPayment,
+                                CheckoutStatus, VoidKind)
 from .autopay_models import AutopayAgreement, AutopayInstallment
 from .payment_models import INITIAL_KINDS, Payment, PaymentStatus, Purchase
 from .pricing import plain
@@ -266,11 +267,23 @@ def payment_data(payment):
         'payment_date': payment.payment_date.isoformat(), 'transaction_reference': payment.transaction_reference,
         'notes': payment.notes, 'recorded_by': _person(payment.recorded_by), 'recorded_at': payment.recorded_at.isoformat(),
         'proof_name': payment.proof_name,
-        'proof_url': f'/api/sales/additional-hours/{payment.allocation_id}/payments/{payment.pk}/proof/',
+        'proof_url': f'/api/sales/additional-hours/{payment.allocation_id}/payments/{payment.pk}/proof/' if payment.proof else None,
+        # Paid through a Stripe link: recorded by Stripe's verified webhook, with its references instead of a receipt.
+        'source': 'STRIPE' if payment.method == STRIPE else 'DIRECT',
+        'stripe_checkout_id': payment.stripe_checkout_id, 'stripe_payment_intent_id': payment.stripe_payment_intent_id,
         'voided': payment.voided_at is not None,
         'void': {'at': payment.voided_at.isoformat(), 'by': _person(payment.voided_by), 'kind': payment.void_kind,
                  'kind_label': payment.get_void_kind_display(), 'reason': payment.void_reason} if payment.voided_at else None,
     }
+
+
+def checkout_data(checkout):
+    """A Stripe link: its amount and state; its URL only while it can still be paid."""
+    return {'id': str(checkout.pk), 'amount': plain(checkout.amount), 'currency': checkout.currency, 'status': checkout.status,
+            'status_label': checkout.get_status_display(),
+            'checkout_url': checkout.checkout_url or None if checkout.status == CheckoutStatus.OPEN else None,
+            'message': checkout.message or None, 'created_by': _person(checkout.created_by),
+            'created_at': checkout.created_at.isoformat(), 'closed_at': checkout.closed_at.isoformat() if checkout.closed_at else None}
 
 
 def _closing(at, by, reason):
@@ -287,6 +300,8 @@ def allocation_data(allocation, actor=None, request=None, paid=None, last_paid_o
         paid = paid_amount(allocation)
         last_paid_on = allocation.payments.filter(LIVE).aggregate(n=Max('payment_date'))['n']
     figures = state(allocation, paid)
+    checkouts = list(allocation.checkouts.all())
+    live = next((checkout for checkout in checkouts if checkout.status in LIVE_CHECKOUT), None)
     purchase, quote, chapter = allocation.purchase, allocation.purchase.quote, allocation.chapter
     manager = bool(actor) and is_manager(actor, request)
     closed = bool(allocation.waived_at or allocation.withdrawn_at)
@@ -307,18 +322,24 @@ def allocation_data(allocation, actor=None, request=None, paid=None, last_paid_o
         'last_payment_date': last_paid_on.isoformat() if last_paid_on else None,
         'waived': _closing(allocation.waived_at, allocation.waived_by, allocation.waive_reason),
         'withdrawn': _closing(allocation.withdrawn_at, allocation.withdrawn_by, allocation.withdraw_reason),
-        'can_record_payment': figures['status'] in OPEN_STATUSES,
+        # While a Stripe link is live, nothing else may change what is owed (sales.additional_hours_stripe).
+        'can_record_payment': figures['status'] in OPEN_STATUSES and live is None,
+        'can_generate_link': figures['status'] in OPEN_STATUSES and live is None,
+        'stripe_configured': payments.stripe_configured(),
+        'open_checkout': checkout_data(live) if live else None,
         'can_manage': manager and not closed,
         'can_void_payments': manager and not allocation.waived_at,
     }
     if rows is not None:
         data['payments'] = [payment_data(row) for row in rows]
+        data['checkouts'] = [checkout_data(checkout) for checkout in checkouts]
     return data
 
 
 def _allocations():
     return AdditionalHoursAllocation.objects.select_related(
-        'student', 'purchase__sale', 'purchase__quote__revision', 'chapter', 'created_by', 'waived_by', 'withdrawn_by')
+        'student', 'purchase__sale', 'purchase__quote__revision', 'chapter', 'created_by', 'waived_by', 'withdrawn_by').prefetch_related(
+        Prefetch('checkouts', queryset=AdditionalHoursCheckout.objects.select_related('created_by')))
 
 
 def _with_payments(rows):
@@ -385,6 +406,12 @@ def quota_summary(student):
 
 
 # ------------------------------------------------------------------ changes
+
+def _refuse_while_link_open(allocation, what):
+    """A live Stripe link was generated for what is owed now: nothing may change it until it is paid or expired."""
+    if allocation.checkouts.filter(status__in=LIVE_CHECKOUT).exists():
+        raise refusal('STRIPE_LINK_OPEN', f'A Stripe payment link is open for these hours. Expire it before {what}.', 409)
+
 
 def _audit(action, allocation, actor, request=None, changes=None, **context):
     log_activity(action=action, entity_type='additional_hours', entity_id=allocation.pk, entity_label=allocation.reference,
@@ -472,6 +499,7 @@ def update(actor, allocation_id, data, request=None):
             changes['due_date'] = {'old': allocation.due_date.isoformat(), 'new': data['due_date'].isoformat()}
             allocation.due_date = data['due_date']
         if data.get('amount') is not None and data['amount'] != allocation.amount:
+            _refuse_while_link_open(allocation, 'changing the amount')
             paid = paid_amount(allocation)
             if data['amount'] < paid:
                 raise refusal('AMOUNT_BELOW_PAID', f'AED {plain(paid)} is already paid: the amount cannot be less.',
@@ -492,6 +520,7 @@ def waive(actor, allocation_id, data, request=None):
         allocation = visible_allocation(actor, allocation_id, request, lock=True)
         if allocation.waived_at or allocation.withdrawn_at:
             raise refusal('ALLOCATION_CLOSED', 'These hours are already waived or withdrawn.')
+        _refuse_while_link_open(allocation, 'waiving what is due')
         remaining = allocation.amount - paid_amount(allocation)
         if remaining <= 0:
             raise refusal('ALLOCATION_PAID', 'These hours are paid in full: nothing is left to waive.')
@@ -512,6 +541,7 @@ def withdraw(actor, allocation_id, data, request=None):
         allocation = visible_allocation(actor, allocation_id, request, lock=True)
         if allocation.waived_at or allocation.withdrawn_at:
             raise refusal('ALLOCATION_CLOSED', 'These hours are already waived or withdrawn.')
+        _refuse_while_link_open(allocation, 'withdrawing the hours')
         if allocation.payments.filter(LIVE).exists():
             raise refusal('HAS_PAYMENTS', 'Payments are recorded for these hours. Void them (as refunded) before '
                                           'withdrawing the hours.')
@@ -598,6 +628,7 @@ def record_payment(actor, allocation_id, data, request=None):
                 return existing, False
             if allocation.waived_at or allocation.withdrawn_at:
                 raise refusal('ALLOCATION_CLOSED', 'These hours are waived or withdrawn: they take no further payment.')
+            _refuse_while_link_open(allocation, 'recording another payment')
             remaining = allocation.amount - paid_amount(allocation)
             if remaining <= 0:
                 raise refusal('ALLOCATION_PAID', 'These hours are already paid in full.')
