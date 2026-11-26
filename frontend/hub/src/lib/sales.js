@@ -101,14 +101,19 @@ export const PRIVILEGE_PLAN_TYPES = ['REGULAR', 'REVISION', 'BRIDGE_COURSE'];
 // The curricula, as the lead forms and the Hub name them.
 export const BOARDS = SYLLABI.map((board) => ({ value: board, label: board }));
 export const GRADES = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: `Grade ${index + 1}` }));
+// The syllabus versions the editor offers (None is the empty version). A draft saved with any
+// other value keeps it: the editor lists it as one more choice (versionOptions).
 export const SYLLABUS_VERSIONS = ['New Syllabus', 'Old Syllabus'];
 
-// The reference PDFs' wording, which the API fills in when a line is left empty.
+// The reference PDFs' wording (backend sales.wording): the line under the title follows the
+// structure, and the packages page's heading ends with this suffix.
 export const SUBTITLES = {
   CHAPTER_WISE: 'Detailed Chapter-Wise 1:1 Learning Plan',
   BRIDGE_COURSE: 'Detailed Bridge Course Curriculum',
 };
-export const packageTitleFor = (title) => `${title || 'Grade 6 CBSE'} – 1:1 Tuition Packages & Fee Details`;
+export const PACKAGE_TITLE_SUFFIX = ' – 1:1 Tuition Packages & Fee Details';
+// The board that names no curriculum: its title is typed, starting from "Grade 6".
+export const OTHER_BOARD = 'Others';
 export const defaultInclusions = (board) => [
   'Personalized 1:1 live sessions',
   `Structured ${board || 'CBSE'} aligned learning`,
@@ -497,12 +502,113 @@ export function chapterRow(chapter = {}) {
   };
 }
 
+// ---------------------------------------------------------------- the PDF's wording
+
+const WORDING_FIELDS = ['title', 'subtitle', 'package_title'];
+
+/** A title's version words: none for New Syllabus or no version, " (Old Syllabus)" for Old, else the version itself. */
+function versionSuffix(version) {
+  const text = String(version ?? '').trim();
+  const key = text.toLowerCase();
+  if (!text || key === 'new syllabus') return '';
+  return key === 'old syllabus' ? ' (Old Syllabus)' : ` (${text})`;
+}
+
+/**
+ * The title the reference PDFs print for a syllabus of `grade`, `board` and `syllabus_version`:
+ * "Grade 6 CBSE", "Grade 6 CBSE (Old Syllabus)" -- the same for a Bridge Course (D2). Others
+ * names no curriculum, so its title is typed, starting from "Grade 6" (D1). Empty without a grade.
+ */
+export function generatedTitle({ grade, board, syllabus_version: version }) {
+  if (grade === '' || grade === null || grade === undefined) return '';
+  const name = board === OTHER_BOARD ? `Grade ${grade}` : `Grade ${grade} ${board}`;
+  return `${name}${versionSuffix(version)}`;
+}
+
+/**
+ * The three lines the PDF prints, generated from the form's structure, grade, board and version
+ * (D6): the title, the line under it (its structure's) and the packages page's heading, "Grade 6
+ * CBSE – 1:1 Tuition Packages & Fee Details" -- never with the version (D7). An Others syllabus's
+ * title is the one typed.
+ */
+export function generatedWording(form) {
+  const graded = !(form.grade === '' || form.grade === null || form.grade === undefined);
+  return {
+    title: form.board === OTHER_BOARD ? String(form.title ?? '').trim() : generatedTitle(form),
+    subtitle: SUBTITLES[form.structure] ?? '',
+    package_title: graded ? `Grade ${form.grade} ${form.board}${PACKAGE_TITLE_SUFFIX}` : '',
+  };
+}
+
+/**
+ * What the PDF prints for `content` (a revision, or the form) as it is saved: its own lines, and
+ * where one is empty the backend's default for it (sales.wording, which the API also answers as
+ * `subtitle_display` and `package_title_display`).
+ */
+export function printedWording(content) {
+  const title = String(content.title ?? '').trim();
+  return {
+    title,
+    subtitle:
+      content.subtitle_display ?? (String(content.subtitle ?? '').trim() || (SUBTITLES[content.structure] ?? '')),
+    package_title:
+      content.package_title_display ??
+      (String(content.package_title ?? '').trim() || `${title}${PACKAGE_TITLE_SUFFIX}`.slice(0, 160)),
+  };
+}
+
+/** What the form's PDF will print: the generated lines, or the draft's own while it keeps them. */
+export function formWording(form) {
+  return form.wording === 'kept' ? printedWording(form) : generatedWording(form);
+}
+
+/** The lines of the form's PDF that differ from the generated ones (a draft that keeps its own wording, D4). */
+export function differingWording(form) {
+  if (form.wording !== 'kept') return [];
+  const printed = printedWording(form);
+  const standard = generatedWording(form);
+  return WORDING_FIELDS.filter((field) => printed[field] !== standard[field]);
+}
+
+/** The form with its PDF's lines generated from now on ("Use standard wording"): what it saves is what it shows. */
+export function withStandardWording(form) {
+  return { ...form, wording: 'generated' };
+}
+
+/**
+ * The form with its structure, grade, board or version changed (`changes`). While an Others
+ * syllabus's title is still the one it started from, it follows them; one typed stays. A kept
+ * wording never changes here: only "Use standard wording" replaces it (D4).
+ */
+export function withBasics(form, changes) {
+  const next = { ...form, ...changes };
+  if (next.board === OTHER_BOARD && form.wording !== 'kept') {
+    const typed = form.title.trim();
+    if (form.board !== OTHER_BOARD || !typed || typed === generatedTitle(form)) next.title = generatedTitle(next);
+  }
+  return next;
+}
+
+/**
+ * The versions the editor offers -- None (''), New Syllabus, Old Syllabus -- and `saved`, a
+ * draft's own version, when it is none of these: it stays as it was saved (D3).
+ */
+export function versionOptions(saved = '') {
+  const options = [{ value: '', label: 'None' }, ...SYLLABUS_VERSIONS.map((version) => ({ value: version, label: version }))];
+  const own = String(saved ?? '');
+  return own && !options.some((option) => option.value === own) ? [...options, { value: own, label: `${own} (as saved)` }] : options;
+}
+
 /** A new syllabus's form. */
 export function emptyForm() {
   return {
+    // Typed only for an Others syllabus; every other title is generated (generatedWording).
     title: '',
     subtitle: '',
     package_title: '',
+    // 'generated': the PDF's lines follow the structure, grade, board and version. 'kept': a draft
+    // saved with other wording keeps it, as saved, until "Use standard wording" (D4).
+    wording: 'generated',
     grade: '',
     board: 'CBSE',
     syllabus_version: '',
@@ -513,12 +619,17 @@ export function emptyForm() {
   };
 }
 
-/** A revision from the API as the editor's form. */
+/**
+ * A revision from the API as the editor's form. Its wording is kept exactly as saved when what
+ * its PDF prints differs from the generated lines (a title typed before, a copy's "(Copy)", a
+ * version of its own): loading a draft never changes it (D4, D8).
+ */
 export function formFrom(revision) {
-  return {
+  const form = {
     title: revision.title,
     subtitle: revision.subtitle,
     package_title: revision.package_title,
+    wording: 'generated',
     grade: String(revision.grade),
     board: revision.board,
     syllabus_version: revision.syllabus_version ?? '',
@@ -527,16 +638,24 @@ export function formFrom(revision) {
     inclusions: [...revision.inclusions],
     chapters: revision.chapters.map(chapterRow),
   };
+  const printed = printedWording(revision);
+  const standard = generatedWording(form);
+  return WORDING_FIELDS.every((field) => printed[field] === standard[field]) ? form : { ...form, wording: 'kept' };
 }
 
-/** The editor's form as the API takes it (SyllabusContentSerializer): counts of the form's structure only. */
+/**
+ * The editor's form as the API takes it (SyllabusContentSerializer): its PDF's three lines --
+ * generated, or a kept draft's own as saved -- and counts of the form's structure only.
+ */
 export function payloadOf(form) {
   const bridge = form.structure === 'BRIDGE_COURSE';
   const count = (value) => (String(value ?? '').trim() === '' ? null : String(value).trim());
+  const wording =
+    form.wording === 'kept'
+      ? { title: form.title.trim(), subtitle: form.subtitle.trim(), package_title: form.package_title.trim() }
+      : generatedWording(form);
   return {
-    title: form.title.trim(),
-    subtitle: form.subtitle.trim(),
-    package_title: form.package_title.trim(),
+    ...wording,
     grade: form.grade === '' ? null : Number(form.grade),
     board: form.board,
     syllabus_version: form.syllabus_version.trim(),
@@ -564,7 +683,8 @@ export function sameContent(a, b) {
  */
 export function formErrors(form) {
   const errors = {};
-  if (!form.title.trim()) errors.title = 'Enter the title the PDF shows.';
+  // Only an Others syllabus's title is typed; a kept draft's is the one it was saved with.
+  if ((form.board === OTHER_BOARD || form.wording === 'kept') && !form.title.trim()) errors.title = 'Enter the title the PDF shows.';
   if (!form.grade) errors.grade = 'Choose the grade.';
   if (!form.board) errors.board = 'Choose the board.';
   if (form.structure === 'CHAPTER_WISE' && !form.plan_types.length) errors.plan_types = 'Choose at least one plan type.';
