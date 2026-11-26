@@ -910,6 +910,32 @@ SCENARIOS += [
 ]
 
 
+# Additional hours with deferred payment (sales.additional_hours): administrators
+# add and manage them; an administrator or the student's own mentor reads them
+# and records payments. The matrix students are managed in the enrolment sheet
+# and have none, so adding is refused NOT_ELIGIBLE (rolled back) and an
+# allocation or payment ({stu_a} stands in for its ID) is NOT_FOUND.
+SCENARIOS += [
+    Scenario('additional_hours.student', 'get', '/api/sales/students/{stu_a}/additional-hours/'),
+    Scenario('additional_hours.foreign', 'get', '/api/sales/students/{stu_b}/additional-hours/'),
+    Scenario('additional_hours.create', 'post', '/api/sales/students/{stu_a}/additional-hours/', lambda w: {
+        'request_id': str(fixed_id('additional_hours_request')), 'purchase': str(fixed_id('additional_hours_plan')),
+        'hours': '2', 'amount': '100', 'due_date': '2099-01-01', 'reason': 'Matrix additional hours.'}),
+    Scenario('additional_hours.eligibility', 'get', '/api/sales/students/{stu_a}/additional-hours/eligibility/'),
+    Scenario('additional_hours.register', 'get', '/api/sales/additional-hours/'),
+    Scenario('additional_hours.read', 'get', '/api/sales/additional-hours/{stu_a}/'),
+    Scenario('additional_hours.change', 'patch', '/api/sales/additional-hours/{stu_a}/',
+             {'due_date': '2099-01-02', 'change_reason': 'Matrix change.'}),
+    Scenario('additional_hours.waive', 'post', '/api/sales/additional-hours/{stu_a}/waive/', {'reason': 'Matrix waiver.'}),
+    Scenario('additional_hours.withdraw', 'post', '/api/sales/additional-hours/{stu_a}/withdraw/', {'reason': 'Matrix withdrawal.'}),
+    Scenario('additional_hours.payment', 'post', '/api/sales/additional-hours/{stu_a}/payments/', lambda w: {
+        'request_id': str(fixed_id('additional_hours_payment')), 'amount': '50', 'method': 'TRANSFER'}),
+    Scenario('additional_hours.payment_void', 'post', '/api/sales/additional-hours/{stu_a}/payments/{stu_a}/void/',
+             {'kind': 'ERROR', 'reason': 'Matrix void.'}),
+    Scenario('additional_hours.proof', 'get', '/api/sales/additional-hours/{stu_a}/payments/{stu_a}/proof/'),
+]
+
+
 # Tutor Earnings (earnings app): every tutor's earnings, the rates, payments
 # and ledger corrections are the administrators' (and the superusers'); a
 # tutor reads their own under /me/. The matrix world has the activation (its
