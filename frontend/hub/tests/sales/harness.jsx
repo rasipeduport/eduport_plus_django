@@ -3,7 +3,7 @@
 // /sales-syllabus/new, /sales-syllabus/:syllabusId and .../edit), Global
 // Pricing (/sales-pricing), the BDE's Plans & Pricing (/plans,
 // /plans/:syllabusId), Quotes (/quotes, /quotes/:quoteId), the Sales Dashboard
-// (/sales-dashboard), a student's profile (/students/:studentId, for its
+// (/sales-dashboard), Additional Hours (/additional-hours), a student's profile (/students/:studentId, for its
 // Purchases tab) and an administrator's lead (/leads/:leadId, for its Plan
 // Choosing and Sales & Payment tabs) -- with only the API a stand-in (api-stub.js).
 import { act } from 'react';
@@ -23,6 +23,7 @@ import SalesSyllabusEditorPage from '@/pages/SalesSyllabusEditorPage';
 import SalesSyllabusPage from '@/pages/SalesSyllabusPage';
 import StudentProfilePage from '@/pages/StudentProfilePage';
 import SidebarLayout from '@/layout/SidebarLayout';
+import AdditionalHoursPage from '@/pages/AdditionalHoursPage';
 
 // With `layout`, inside the Hub's own SidebarLayout, as App.jsx places every page.
 export async function mount(path, user, { layout = false } = {}) {
@@ -53,6 +54,7 @@ export async function mount(path, user, { layout = false } = {}) {
       { path: '/quotes/:quoteId', element: inLayout(<QuotePage user={user} />) },
       { path: '/students/:studentId', element: inLayout(<StudentProfilePage user={user} />) },
       { path: '/sales-dashboard', element: inLayout(<SalesDashboardPage />) },
+      { path: '/additional-hours', element: inLayout(<AdditionalHoursPage />) },
     ],
     { initialEntries: [path] }
   );

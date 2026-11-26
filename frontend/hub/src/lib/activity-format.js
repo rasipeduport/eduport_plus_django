@@ -43,6 +43,13 @@ export const ACTION_LABELS = {
   'earnings.reverse_entry': 'Earning reversed',
   'earnings.keep_entry': 'Earning kept as earned',
   'earnings.add_adjustment': 'Earnings adjusted',
+  // Additional hours with deferred payment (backend sales.additional_hours).
+  'additional_hours.create': 'Additional hours added',
+  'additional_hours.update': 'Additional hours changed',
+  'additional_hours.waive': 'Additional hours payment waived',
+  'additional_hours.withdraw': 'Additional hours withdrawn',
+  'additional_hours.payment_record': 'Additional hours payment recorded',
+  'additional_hours.payment_void': 'Additional hours payment voided',
   'session.correct_outcome': 'Outcome corrected',
   'session.revoke_outcome': 'Outcome removed',
   'session.cancel': 'Session cancelled',
@@ -179,6 +186,7 @@ export const ENTITY_NOUN = {
   syllabus: 'Syllabus',
   pricing_version: 'Pricing',
   quote: 'Quote',
+  additional_hours: 'Additional hours',
 };
 
 /** Who made an entry: their name or email -- or, with no account behind it, the page a parent used. */
@@ -573,6 +581,19 @@ export function describeActivity(row) {
       return `Kept ${formatInr(row.context?.amount)} as earned${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
     case 'earnings.add_adjustment':
       return `Adjusted ${row.entity_label ?? 'a tutor'}'s earnings by ${formatInr(row.changes?.amount?.new, { signed: true })}`;
+    // Additional hours (backend sales.additional_hours): the hours and money as logged.
+    case 'additional_hours.create':
+      return `Added ${row.context?.hours ?? 'additional'} hrs to the quota${row.context?.amount ? `, ${formatAmount(row.context.amount, 'AED').trim()} due by ${row.context.due_date}` : ''}`;
+    case 'additional_hours.update':
+      return `Changed ${Object.keys(row.changes || {}).map((field) => field.replace('_', ' ')).join(' and ') || 'the additional hours'}${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'additional_hours.waive':
+      return `Waived ${formatAmount(row.context?.waived_amount ?? '', 'AED').trim()} still due${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'additional_hours.withdraw':
+      return `Withdrew ${row.context?.hours ?? 'the'} hrs from the quota${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
+    case 'additional_hours.payment_record':
+      return `Recorded a payment of ${formatAmount(row.context?.amount ?? '', 'AED').trim()} for additional hours`;
+    case 'additional_hours.payment_void':
+      return `Voided a payment of ${formatAmount(row.context?.amount ?? '', 'AED').trim()}${row.context?.reason ? ` — ${row.context.reason}` : ''}`;
     case 'booking_schedule.update': {
       const parts = [];
       if (row.context?.added?.length) parts.push(`added ${row.context.added.join(', ')}`);

@@ -19523,6 +19523,392 @@
      "GET /api/auth/me/"
     ]
    }
+  },
+  "/additional-hours @ admin": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/additional-hours @ bde": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/enquiries",
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/follow-ups",
+     "/sales",
+     "/plans",
+     "/quotes",
+     "/activity"
+    ],
+    "buttons": [
+     "Demo Link",
+     "Diagnostic Link",
+     "More ways to share the demo link",
+     "More ways to share the diagnostic link",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/demo-bookings",
+     "/diagnostic-bookings",
+     "/enquiries",
+     "/enquiries/{enquiry_a}",
+     "/enquiries/{enquiry_a}?tab=bookings&highlight={id}",
+     "/enquiries?status=BOOKED",
+     "/follow-ups?due=today"
+    ],
+    "headers": [
+     "Open",
+     "Parent",
+     "Student",
+     "Type",
+     "When"
+    ],
+    "tabs": [],
+    "filters": [],
+    "menus": [
+     "Copy Link | Preview Link | Share on WhatsApp"
+    ],
+    "calls": [
+     "GET /api/auth/me/",
+     "GET /api/bde/booking-links/",
+     "GET /api/bde/dashboard/",
+     "GET /api/bde/follow-ups/"
+    ]
+   }
+  },
+  "/additional-hours @ mentor_a": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/activity"
+    ],
+    "buttons": [
+     "{week}",
+     "Refresh",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_c}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/additional-hours @ parent_a": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/additional-hours",
+    "noAccess": false,
+    "nav": [],
+    "buttons": [],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/additional-hours @ sales_tl": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/additional-hours",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/additional-hours @ su_mentor": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/leads",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity",
+     "/bookings",
+     "/booking-slots"
+    ],
+    "buttons": [
+     "{week}",
+     "Refresh",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/activity",
+     "/exams",
+     "/homework",
+     "/invitations",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "/students/{stu_p}",
+     "/students/{stu_c}",
+     "/students/{stu_b}",
+     "/students/{stu_a}"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/additional-exams/",
+     "GET /api/auth/me/",
+     "GET /api/dashboard/stats/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/"
+    ]
+   }
+  },
+  "/additional-hours @ superuser": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions",
+     "/leads",
+     "/bookings/demo",
+     "/bookings/diagnostic",
+     "/booking-slots",
+     "/sales-dashboard",
+     "/sales-syllabus",
+     "/quotes",
+     "/tutor-earnings",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/exams",
+     "/homework",
+     "/team",
+     "/invitations",
+     "/activity"
+    ],
+    "buttons": [
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
+  },
+  "/additional-hours @ tutor_a": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "Refresh",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard",
+     "/activity",
+     "/admissions-dashboard",
+     "/homework",
+     "/my-bookings/demo/{my_booking_a}",
+     "/my-bookings/demo?view=completed&feedback=due",
+     "/my-bookings/diagnostic/{id}",
+     "/my-bookings/diagnostic?view=completed&feedback=due",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students",
+     "https://meet.google.com/abc-defg-hij"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/",
+     "GET /api/tutor/bookings/"
+    ]
+   }
+  },
+  "/additional-hours @ tutor_b": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/dashboard",
+    "noAccess": false,
+    "nav": [
+     "/dashboard",
+     "/admissions-dashboard",
+     "/my-bookings/demo",
+     "/my-bookings/diagnostic",
+     "/academics-dashboard",
+     "/students",
+     "/sessions",
+     "/homework",
+     "/my-earnings",
+     "/activity"
+    ],
+    "buttons": [
+     "Refresh",
+     "Toggle Sidebar"
+    ],
+    "links": [
+     "/academics-dashboard",
+     "/activity",
+     "/admissions-dashboard",
+     "/homework",
+     "/my-bookings/demo?view=completed&feedback=due",
+     "/my-bookings/diagnostic?view=completed&feedback=due",
+     "/sessions",
+     "/sessions?tab=needs_action",
+     "/students"
+    ],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/activity/",
+     "GET /api/auth/me/",
+     "GET /api/homework/",
+     "GET /api/sessions/",
+     "GET /api/students/",
+     "GET /api/tutor/bookings/"
+    ]
+   }
+  },
+  "/additional-hours @ unknown": {
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "result": {
+    "at": "/additional-hours",
+    "noAccess": true,
+    "nav": [],
+    "buttons": [
+     "Sign out"
+    ],
+    "links": [],
+    "headers": [],
+    "tabs": [],
+    "filters": [],
+    "menus": [],
+    "calls": [
+     "GET /api/auth/me/"
+    ]
+   }
   }
  }
 }

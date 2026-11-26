@@ -3438,6 +3438,327 @@ chartTest('Sales Dashboard: another span asks for its own dates; empty dates, a 
   assert.match(bodyText(), /Could not load the sales dashboard\./);
 });
 
+// ------------------------------------------------------------------ additional hours (deferred payment)
+const HOURS = `/api/sales/students/${PURCHASE_STUDENT}/additional-hours/`;
+const ELIGIBILITY = `${HOURS}eligibility/`;
+const ALLOCATION_ID = 'alloc-1';
+const ALLOCATION = `/api/sales/additional-hours/${ALLOCATION_ID}/`;
+const HOURS_PERMISSIONS = ['accounts.collect_additional_hours_payments', 'accounts.manage_additional_hours'];
+const HOURS_ADMIN = { id: 'admin-h', role: 'ADMIN', permissions: ['accounts.view_all_students', 'accounts.create_additional_purchases', ...HOURS_PERMISSIONS] };
+const HOURS_MENTOR = { ...BUYING_MENTOR, permissions: [...BUYING_MENTOR.permissions, 'accounts.collect_additional_hours_payments'] };
+const hoursSummary = (extra = {}) => ({ hours_added: '3', payment_pending_hours: '3', amount: '150', received: '50', outstanding: '100',
+  waived: '0', overdue_count: 0, overdue_amount: '0', ...extra });
+const hoursPayment = (extra = {}) => ({ id: 'pay-1', amount: '50', currency: 'AED', method: 'TRANSFER', method_label: 'Account Transfer',
+  payment_date: '2026-11-20', transaction_reference: 'UTR-11', notes: '', recorded_by: { id: 'mentor-1', name: 'Meera Mentor' },
+  recorded_at: '2026-11-20T06:30:00+00:00', proof_name: 'receipt.png', proof_url: `${ALLOCATION}payments/pay-1/proof/`, voided: false, void: null, ...extra });
+const allocation = (extra = {}) => ({ id: ALLOCATION_ID, reference: 'AH-000001',
+  student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' },
+  plan: { purchase_id: 'purchase-1', sale_id: 'initial-sale', kind: 'NEW', quote_reference: 'Q-000007', syllabus: 'Grade 6 CBSE',
+    plan_type: 'REGULAR', plan_type_label: 'Regular' },
+  chapter: { id: 'chapter-3', position: 3, name: 'Number Play' }, hours: '3', hours_status: 'ACTIVE', amount: '150', currency: 'AED',
+  due_date: '2026-12-10', reason: 'Extra practice before the finals.', quota_before: '10', quota_after: '13',
+  created_by: { id: 'admin-h', name: 'Asha Admin' }, created_at: '2026-11-20T05:00:00+00:00', status: 'PARTIALLY_PAID', paid_amount: '50',
+  outstanding_amount: '100', waived_amount: '0', overdue: false, days_overdue: 0, last_payment_date: '2026-11-20', waived: null, withdrawn: null,
+  can_record_payment: true, can_manage: true, can_void_payments: true, payments: [hoursPayment()], ...extra });
+const hoursOverview = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun', quota_source: 'PAYMENTS' },
+  summary: hoursSummary(), allocations: [allocation()], can_create: true, ...extra });
+const eligiblePlan = (extra = {}) => ({ id: 'purchase-1', sale_id: 'initial-sale', kind: 'NEW', kind_label: 'Initial enrollment',
+  quote_reference: 'Q-000007', syllabus: 'Grade 6 CBSE', revision: 1, grade: 6, board: 'CBSE', plan_type: 'REGULAR', plan_type_label: 'Regular',
+  class_mode: null, collection_mode: 'FULL', autopay_status: null, purchased_at: '2026-11-09T06:30:00+00:00', classes: '10', paid_classes: '10',
+  credited_classes: '10', uncredited_classes: '0', unpaid_classes: '0', package_amount: '500', outstanding_amount: '0', payment_link_pending: false,
+  rate_per_class: '50', additional_hours: '0', chapters: [{ id: 'chapter-1', position: 1, name: 'Patterns', classes: '4' },
+    { id: 'chapter-3', position: 3, name: 'Number Play', classes: '4' }], uncredited_payments: [], ...extra });
+const eligibility = (extra = {}) => ({ student: { id: PURCHASE_STUDENT, student_code: 'EDP00018', full_name: 'Arjun' }, eligible: true, problems: [],
+  quota: { quota: '10', credited_plan_classes: '10', additional_hours: '0', expected_quota: '10', reconciles: true },
+  plans: [eligiblePlan(), eligiblePlan({ id: 'purchase-2', kind: 'ADDITIONAL', kind_label: 'Additional purchase', quote_reference: 'Q-000020',
+    syllabus: 'Grade 7 CBSE', plan_type: 'BRIDGE_COURSE', plan_type_label: 'Bridge Course', chapters: [] })], today: '2026-11-26', ...extra });
+const hoursPage = (results, extra = {}) => ({ results, count: results.length, page: 1, page_size: 25,
+  summary: hoursSummary(), ...extra });
+const submitForm =(id) => fire(document.getElementById(id), new window.Event('submit', { bubbles: true, cancelable: true }));
+const financeServe = (extra = {}) => ({
+  [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: studentProfile(), [`GET ${FINANCE}`]: financeOverview(),
+  [`GET ${STUDENT_PAYMENTS}`]: paymentsPage([historyRow()]), [`GET ${HOURS}`]: hoursOverview(), ...extra,
+});
+
+test('Additional hours: on the Finance tab, apart from every tuition figure; an administrator adds hours after the API’s eligibility check', async () => {
+  let created;
+  serve(financeServe({
+    [`GET ${ELIGIBILITY}`]: eligibility(),
+    [`POST ${HOURS}`]: ({ data }) => { created = data; return ok(allocation({ id: 'alloc-2', reference: 'AH-000002', status: 'PENDING', paid_amount: '0',
+      outstanding_amount: '150', payments: [] })); },
+  }));
+  await open(financePath, HOURS_ADMIN);
+  // Its own card, own figures: the tuition summary still reads the purchases only.
+  assert.match(bodyText(), /Total classes purchased10.*Purchases overview.*Additional hours.*None of these figures is part of the purchases, payment history or AutoPay above/);
+  assert.match(bodyText(), /Hours added3 hrsPayment pending3 hrsAmountAED 150ReceivedAED 50OutstandingAED 100OverdueNone/);
+  assert.match(bodyText(), /AH-000001.*Q-000007 · Grade 6 CBSE3\. Number Play3 hrsAED 150AED 50AED 100.*Partially paid/);
+  await click(button('Add additional hours'));
+  assert.equal(calls('GET', ELIGIBILITY).length, 1);
+  const dialog = topDialog();
+  assert.match(clean(dialog.textContent), /Initial enrollment · Q-000007.*Additional purchase · Q-000020/);
+  assert.equal(button('Review', dialog).disabled, true, 'a plan, hours, amount, due date and reason first');
+  await click(radio('Initial enrollment · Q-000007'));
+  await pickOption('hours-chapter', 'chapter-3');
+  await typeText(input('hours-hours'), '3');
+  await typeText(input('hours-amount'), '150');
+  assert.match(clean(dialog.textContent), /A guide only: at this plan’s AED 50 a class, AED 150/);
+  await typeText(input('hours-due'), '2026-12-10');
+  await typeText(input('hours-reason'), 'Extra practice before the finals.');
+  await submitForm('add-hours-form');
+  assert.match(clean(topDialog().textContent), /Add these hours now\?.*Arjun · EDP00018.*Q-000007 · Grade 6 CBSE · Regular.*3\. Number Play.*3 hrs · quota 10 hrs → 13 hrs now.*AED 150 due by/);
+  await click(button('Add hours', topDialog()));
+  const { request_id: requestId, ...rest } = created;
+  assert.match(requestId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(rest, { purchase: 'purchase-1', chapter: 'chapter-3', hours: '3', amount: '150', due_date: '2026-12-10',
+    reason: 'Extra practice before the finals.', confirm_duplicate: false });
+  assert.match(bodyText(), /3 hrs added to the quota \(AH-000002\); AED 150 due by/);
+  assert.equal(calls('GET', HOURS).length, 2, 'the card reloads its own figures');
+  assert.equal(calls('GET', FINANCE).length, 1, 'the tuition figures are not touched');
+});
+
+test('Additional hours: whatever keeps hours from being added is shown as the API states it; a likely duplicate is confirmed once', async () => {
+  const problems = [
+    { code: 'PAID_CLASSES_NOT_CREDITED', message: '4 paid classes (4 hrs) were never added to this student’s quota. Resolve this payment/quota mismatch before adding hours.',
+      payments: [{ payment_id: 'p-9', payment_date: '2026-11-15', amount: '200', classes: '4', payment_type: 'BALANCE', quote_reference: 'Q-000007' }] },
+    { code: 'PLAN_CLASSES_UNPAID', message: 'A plan still has unpaid classes.', plans: [{ quote_reference: 'Q-000020', syllabus: 'Grade 7 CBSE',
+      kind: 'ADDITIONAL', unpaid_classes: '10', outstanding_amount: '333', autopay_status: null, collection_mode: 'FULL' }] },
+  ];
+  serve(financeServe({ [`GET ${ELIGIBILITY}`]: eligibility({ eligible: false, problems }) }));
+  await open(financePath, HOURS_ADMIN);
+  await click(button('Add additional hours'));
+  const text = clean(topDialog().textContent);
+  assert.match(text, /Paid classes not added to the quota4 paid classes \(4 hrs\) were never added.*Nov 15, 2026 · AED 200 · 4 classes · Balance payment · Q-000007/);
+  assert.match(text, /A plan still has unpaid classes.*Q-000020 · Grade 7 CBSE · 10 classes unpaid · AED 333 outstanding/);
+  assert.equal(button('Review', topDialog()), undefined, 'no form while the API refuses');
+  assert.ok(button('Close', topDialog()));
+  await mounted.pop().unmount();
+
+  const bodies = [];
+  serve(financeServe({
+    [`GET ${ELIGIBILITY}`]: eligibility({ plans: [eligiblePlan()] }),
+    [`POST ${HOURS}`]: ({ data }) => {
+      bodies.push(data);
+      return data.confirm_duplicate ? ok(allocation({ id: 'alloc-3', reference: 'AH-000003' }))
+        : fail(409, { error: 'POSSIBLE_DUPLICATE', message: '3 hrs were already added against this plan on 20 Nov 2026 by Asha Admin (AH-000001).' });
+    },
+  }));
+  await open(financePath, HOURS_ADMIN);
+  await click(button('Add additional hours'));
+  assert.equal(radio('Initial enrollment · Q-000007').checked, true, 'one plan is chosen for you');
+  await typeText(input('hours-hours'), '3');
+  await typeText(input('hours-amount'), '150');
+  await typeText(input('hours-due'), '2026-12-10');
+  await typeText(input('hours-reason'), 'More practice.');
+  await submitForm('add-hours-form');
+  await click(button('Add hours', topDialog()));
+  assert.match(clean(topDialog().textContent), /Possible duplicate3 hrs were already added against this plan/);
+  assert.equal(button('Add hours', topDialog()).disabled, true);
+  await click(checkbox('These are further hours'));
+  await click(button('Add hours', topDialog()));
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[1].request_id, bodies[0].request_id, 'the same request, confirmed');
+  assert.deepEqual([bodies[0].confirm_duplicate, bodies[1].confirm_duplicate, bodies[1].chapter], [false, true, null]);
+  assert.match(bodyText(), /added to the quota \(AH-000003\)/);
+});
+
+test('Additional hours: a mentor reads their student’s hours and records a payment with its receipt -- never adds, changes or voids', async () => {
+  let posted;
+  const mentorView = { can_manage: false, can_void_payments: false };
+  serve(financeServe({
+    [`GET ${HOURS}`]: hoursOverview({ can_create: false, allocations: [allocation(mentorView)] }),
+    [`GET ${ALLOCATION}`]: allocation(mentorView),
+    [`POST ${ALLOCATION}payments/`]: ({ data }) => { posted = data; return ok({ payment: hoursPayment({ id: 'pay-2', amount: '60' }),
+      allocation: allocation({ ...mentorView, paid_amount: '110', outstanding_amount: '40', payments: [hoursPayment(), hoursPayment({ id: 'pay-2', amount: '60' })] }) }); },
+  }));
+  await open(financePath, HOURS_MENTOR);
+  assert.equal(button('Add additional hours'), undefined);
+  await click(button('View AH-000001'));
+  assert.match(bodyText(), /Additional hours AH-000001.*Partially paid.*Hours in the quota/);
+  assert.match(bodyText(), /Chapter3\. Number PlayFor reference: the hours belong to the overall quota\./);
+  assert.match(bodyText(), /Quota 10 hrs → 13 hrs when added/);
+  for (const label of ['Change due date or amount', 'Waive what is due', 'Withdraw hours', 'Void payment of AED 50']) {
+    assert.equal(button(label), undefined, `${label} is the administrators'`);
+  }
+  await click(button('Record payment'));
+  const form = topDialog();
+  assert.equal(button('Record payment', form).disabled, true, 'an amount, a receipt and the confirmation first');
+  await click(button('Pay the full AED 100 still due', form));
+  assert.equal(input('hours-payment-amount').value, '100');
+  await typeText(input('hours-payment-amount'), '60');
+  await pickOption('hours-payment-method', 'AJAS_UAE');
+  assert.deepEqual([...input('hours-payment-method').options].map((option) => option.value), ['TRANSFER', 'AJAS_UAE', 'AJAS_INDIA'], 'never Stripe');
+  await typeText(input('hours-payment-reference'), 'UTR-22');
+  const receipt = new File(['test PNG bytes'], 'receipt.png', { type: 'image/png' });
+  Object.defineProperty(input('hours-payment-proof'), 'files', { configurable: true, value: [receipt] });
+  await fire(input('hours-payment-proof'), new window.Event('change', { bubbles: true }));
+  assert.equal(button('Record payment', form).disabled, true);
+  await click(checkbox('actually been received'));
+  await submitForm('hours-payment-form');
+  assert.deepEqual(Object.fromEntries([...posted.entries()].filter(([key]) => !['request_id', 'proof', 'payment_date'].includes(key))), {
+    amount: '60', method: 'AJAS_UAE', transaction_reference: 'UTR-22', notes: '', received_confirmed: 'true', confirm_duplicate: 'false' });
+  assert.equal(posted.get('proof').name, 'receipt.png');
+  assert.match(bodyText(), /Payment recorded\. AED 40 still due\./);
+  assert.match(bodyText(), /AED 60/);
+});
+
+test('Additional hours: an administrator changes the due date, voids a payment with its kind and reason, and the API’s refusals are shown', async () => {
+  let changed, voided;
+  serve(financeServe({
+    [`GET ${ALLOCATION}`]: allocation(),
+    [`PATCH ${ALLOCATION}`]: ({ data }) => { changed = data; return ok(allocation({ due_date: '2026-12-20' })); },
+    [`POST ${ALLOCATION}payments/pay-1/void/`]: ({ data }) => { voided = data; return ok(allocation({ status: 'PENDING', paid_amount: '0',
+      outstanding_amount: '150', payments: [hoursPayment({ voided: true, void: { at: '2026-11-21T05:00:00+00:00', by: { id: 'admin-h', name: 'Asha Admin' },
+        kind: 'REFUNDED', kind_label: 'Refunded to the payer', reason: 'Money returned.' } })] })); },
+    [`POST ${ALLOCATION}withdraw/`]: () => fail(409, { error: 'HOURS_IN_USE', message: 'Only 2 hrs of the student’s quota are unbooked, so these 3 hrs cannot be withdrawn. Waive the payment instead.' }),
+  }));
+  // Opened straight from the pending list's link.
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_ADMIN);
+  assert.match(bodyText(), /Additional hours AH-000001/);
+  assert.equal(calls('GET', ALLOCATION).length, 1);
+
+  await click(button('Change due date or amount'));
+  assert.equal(input('change-hours-due').value, '2026-12-10');
+  assert.equal(input('change-hours-amount').value, '150');
+  await typeText(input('change-hours-due'), '2026-12-20');
+  await typeText(input('change-hours-reason'), 'The parent asked for ten more days.');
+  await submitForm('change-hours-form');
+  assert.deepEqual(changed, { due_date: '2026-12-20', change_reason: 'The parent asked for ten more days.' }, 'only what changed');
+  assert.match(bodyText(), /Change saved\./);
+
+  await click(button('Void payment of AED 50'));
+  assert.match(clean(topDialog().textContent), /AED 50 recorded on Nov 20, 2026 stops counting and AED 50 is due again/);
+  await pickOption('void-hours-kind', 'REFUNDED');
+  assert.equal(button('Void payment', topDialog()).disabled, true, 'a reason first');
+  await typeText(input('void-hours-reason'), 'Money returned.');
+  await click(button('Void payment', topDialog()));
+  assert.deepEqual(voided, { kind: 'REFUNDED', reason: 'Money returned.' });
+  assert.match(bodyText(), /Payment voided\. AED 150 still due\..*Voided.*Refunded to the payer · Money returned\./);
+  assert.equal(button('Void payment of AED 50'), undefined, 'a voided payment is never voided again');
+
+  await click(button('Withdraw hours'));
+  await typeText(input('close-hours-reason'), 'Given by mistake.');
+  await click(button('Withdraw hours', topDialog()));
+  assert.match(clean(topDialog().textContent), /Only 2 hrs of the student’s quota are unbooked, so these 3 hrs cannot be withdrawn/);
+});
+
+test('Additional hours: the pending list opens on what is still owed, filters by status and due dates, and opens each on its student’s Finance tab', async () => {
+  const overdue = allocation({ overdue: true, days_overdue: 3, due_date: '2026-11-23', status: 'PENDING', paid_amount: '0', outstanding_amount: '150' });
+  serve({ [`GET /api/sales/additional-hours/`]: ({ params }) => ok(hoursPage(params.overdue ? [overdue] : [allocation()],
+    params.overdue ? { summary: hoursSummary({ overdue_count: 1, overdue_amount: '150' }) } : {})) });
+  const page = await open('/additional-hours', HOURS_MENTOR);
+  assert.deepEqual(calls('GET', '/api/sales/additional-hours/')[0].params, { page: 1, page_size: 25, status: 'OPEN' });
+  assert.match(bodyText(), /Additional Hours.*Still dueAED 100OverdueNoneHours with payment pending3 hrsReceivedAED 50/);
+  // The totals are the API's for every matching allocation, not this page's rows alone, and say so.
+  assert.ok(document.querySelector('dl[aria-label="Totals for all additional hours matching these filters, across every page"]'));
+  assert.match(bodyText(), /ArjunEDP00018AH-000001Q-000007 · Grade 6 CBSE3\. Number Play3 hrsAED 150AED 50AED 100/);
+  assert.equal(link('Arjun').getAttribute('href'), `/students/${PURCHASE_STUDENT}?tab=finance&hours=${ALLOCATION_ID}`);
+  await choose('Filter by status', 'Overdue');
+  assert.deepEqual(calls('GET', '/api/sales/additional-hours/').at(-1).params, { page: 1, page_size: 25, overdue: 'true' });
+  assert.match(page.location().search, /view=OVERDUE/);
+  assert.match(bodyText(), /Overdue1 · AED 150.*overdue 3 days/);
+  await typeText(input('hours-due-from'), '2026-11-01');
+  assert.deepEqual(calls('GET', '/api/sales/additional-hours/').at(-1).params, { page: 1, page_size: 25, overdue: 'true', due_from: '2026-11-01' });
+  await click(button('Clear all filters'));
+  assert.deepEqual(calls('GET', '/api/sales/additional-hours/').at(-1).params, { page: 1, page_size: 25, status: 'OPEN' });
+  await mounted.pop().unmount();
+
+  serve({ [`GET /api/sales/additional-hours/`]: hoursPage([], { summary: hoursSummary({ outstanding: '0', received: '0', payment_pending_hours: '0' }) }) });
+  await open('/additional-hours', HOURS_MENTOR);
+  assert.match(bodyText(), /Nothing is owed for additional hours/);
+  await mounted.pop().unmount();
+  serve({ [`GET /api/sales/additional-hours/`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) });
+  await open('/additional-hours', HOURS_MENTOR);
+  assert.match(bodyText(), /You don't have access to additional hours\./);
+  await mounted.pop().unmount();
+  serve({ [`GET /api/sales/additional-hours/`]: () => fail(500, {}) });
+  await open('/additional-hours', HOURS_MENTOR);
+  assert.match(bodyText(), /Could not load the additional hours\./);
+});
+
+test('Additional hours: the pending list is the Admin Hub’s (Sales & Finance) and a mentor’s, on either permission; no one else’s', () => {
+  const adminSection = harness.workspaceFor(HOURS_ADMIN).sections.find((part) => part.label === 'Sales & Finance');
+  assert.ok(adminSection.items.some((item) => item.url === '/additional-hours' && item.title === 'Additional Hours'));
+  const mentorItems = harness.workspaceFor(HOURS_MENTOR).sections.flatMap((part) => part.items);
+  assert.ok(mentorItems.some((item) => item.url === '/additional-hours'));
+  assert.equal(canOpenPage(HOURS_ADMIN, '/additional-hours'), true);
+  assert.equal(canOpenPage(HOURS_MENTOR, '/additional-hours'), true);
+  assert.equal(canOpenPage(BUYING_MENTOR, '/additional-hours'), false, 'not on the purchases permission');
+  assert.equal(canOpenPage({ id: 't', role: 'TUTOR', permissions: ['accounts.view_tutored_students'] }, '/additional-hours'), false);
+  assert.equal(canOpenPage({ id: 'b', role: 'BDE', permissions: ['accounts.manage_initial_sales'] }, '/additional-hours'), false);
+  assert.ok(!harness.workspaceFor(BUYING_MENTOR).sections.flatMap((part) => part.items).some((item) => item.url === '/additional-hours'));
+  assert.equal(harness.describeActivity({ action: 'additional_hours.create', context: { hours: '3', amount: '150', due_date: '2026-12-10' } }),
+    'Added 3 hrs to the quota, AED 150 due by 2026-12-10');
+  assert.equal(harness.actionLabels['additional_hours.payment_void'], 'Additional hours payment voided');
+});
+
+test('Additional hours: the profile says the class quota includes them, and how much is still to be paid for; no card for an account the API does not answer', async () => {
+  const profile = studentProfile({ additional_hours: { active_hours: '3', payment_pending_hours: '3' },
+    learning_plan: { syllabus: 'Grade 6 CBSE', revision: 1, plan_type: 'REGULAR', class_mode: null, purchased_classes: '10', paid_classes: '13', chapters: [] } });
+  profile.stats = { ...profile.stats, quota: { purchased: 13, used_hours: 2, remaining_hours: 11 } };
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: profile });
+  await open(`/students/${PURCHASE_STUDENT}`, HOURS_ADMIN);
+  assert.match(bodyText(), /Class quota13 hrs.*Includes 3 additional hrs, 3 hrs with payment pending\./);
+  assert.match(bodyText(), /of 13 hrs, incl\. 3 additional/);
+  assert.match(bodyText(), /Class quota \(hrs\)13 · incl\. 3 additional hrs, 3 payment pending/);
+  assert.doesNotMatch(bodyText(), /Paid quota/);
+  await mounted.pop().unmount();
+
+  // Without additional hours, the profile reads as it always has.
+  const plain = studentProfile({ learning_plan: { ...profile.student.learning_plan, paid_classes: '10' } });
+  plain.stats = { ...plain.stats, quota: { purchased: 10, used_hours: 2, remaining_hours: 8 } };
+  serve({ [`GET /api/students/${PURCHASE_STUDENT}/profile/`]: plain });
+  await open(`/students/${PURCHASE_STUDENT}`, HOURS_ADMIN);
+  assert.match(bodyText(), /of 10 hrs paid/);
+  assert.match(bodyText(), /Paid quota10 hrs/);
+  assert.match(bodyText(), /Paid class quota10/);
+  await mounted.pop().unmount();
+
+  serve(financeServe({ [`GET ${HOURS}`]: () => fail(403, { detail: 'You do not have permission to perform this action.' }) }));
+  await open(financePath, BUYING_MENTOR);
+  assert.match(bodyText(), /Purchases overview/);
+  assert.doesNotMatch(bodyText(), /Additional hours/);
+});
+
+test('Additional hours: a due date the API finds past is shown under the due-date field, in both dialogs; other refusals stay general', async () => {
+  const PAST = 'Choose today or a later due date.';
+  const occurrences = (root, text) => clean(root.textContent).split(text).length - 1;
+  let creates = 0;
+  serve(financeServe({
+    [`GET ${ELIGIBILITY}`]: eligibility({ plans: [eligiblePlan()] }),
+    [`POST ${HOURS}`]: () => (++creates === 1 ? fail(400, { error: 'DUE_DATE_PAST', message: PAST })
+      : fail(409, { error: 'PLAN_NOT_STUDENTS', message: 'Choose one of this student’s own plans.' })),
+    [`GET ${ALLOCATION}`]: allocation(),
+    [`PATCH ${ALLOCATION}`]: () => fail(400, { error: 'DUE_DATE_PAST', message: PAST }),
+  }));
+  await open(financePath, HOURS_ADMIN);
+  await click(button('Add additional hours'));
+  await typeText(input('hours-hours'), '3');
+  await typeText(input('hours-amount'), '150');
+  await typeText(input('hours-due'), '2026-11-01');
+  await typeText(input('hours-reason'), 'More practice.');
+  await submitForm('add-hours-form');
+  await click(button('Add hours', topDialog()));
+  // Back on the form, the message under the due date -- once, and not as the dialog's own error.
+  assert.ok(input('hours-due'), 'the form is shown again');
+  assert.match(clean(input('hours-due').parentElement.textContent), /Choose today or a later due date\./);
+  assert.equal(occurrences(topDialog(), PAST), 1);
+  assert.equal([...topDialog().querySelectorAll('[role="alert"]')].some((node) => node.textContent.includes(PAST)), false);
+  // Any other refusal is still the dialog's own error.
+  await submitForm('add-hours-form');
+  await click(button('Add hours', topDialog()));
+  assert.ok([...topDialog().querySelectorAll('[role="alert"]')].some((node) => node.textContent.includes('Choose one of this student’s own plans.')));
+  assert.equal(occurrences(topDialog(), PAST), 0, 'the earlier field error is cleared');
+  await mounted.pop().unmount();
+
+  await open(`${financePath}&hours=${ALLOCATION_ID}`, HOURS_ADMIN);
+  await click(button('Change due date or amount'));
+  await typeText(input('change-hours-due'), '2026-11-01');
+  await typeText(input('change-hours-reason'), 'Parent asked.');
+  await submitForm('change-hours-form');
+  assert.match(clean(input('change-hours-due').parentElement.textContent), /Choose today or a later due date\./);
+  assert.equal(occurrences(topDialog(), PAST), 1, 'under the field only, not repeated as the dialog’s error');
+});
+
 // ------------------------------------------------------------------ run
 let failed = 0;
 for (const { name, fn } of tests) {

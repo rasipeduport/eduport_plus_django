@@ -34,6 +34,8 @@ const PORTED_PATHS = new Set([
   '/sales-syllabus',
   '/sales-pricing',
   '/tutor-earnings',
+  // Additional hours across students (Sales & Finance), built on the design tokens.
+  '/additional-hours',
   // The Tutor Hub's My Earnings, built on the design tokens from the start.
   '/my-earnings',
   // The BDE workspace's pages, built on the design tokens from the start.

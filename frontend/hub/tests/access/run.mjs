@@ -573,6 +573,8 @@ const PATHS = [
   // Tutor Earnings (accounts.0030): one tutor's page for the administrators, a tutor's own My Earnings
   // (and the address it had while it was still to come, Hourly Earnings).
   `/tutor-earnings/${ids.tutor_a}`, '/my-earnings', '/hourly-earnings',
+  // Additional hours across students (accounts.0032): only on its own permissions, which no recorded account holds.
+  '/additional-hours',
 ];
 const labelOf = { ...Object.fromEntries(Object.entries(ids).map(([name, id]) => [id, name])), [ENQUIRY_ID]: 'enquiry_a',
   [BOOKING_ID]: 'booking_a', [MY_BOOKING_ID]: 'my_booking_a', [LEAD_ID]: 'lead_a', [LEAD_BDE_ID]: 'lead_bde' };

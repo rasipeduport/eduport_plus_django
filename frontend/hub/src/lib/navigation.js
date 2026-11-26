@@ -8,6 +8,7 @@ import {
   ChartColumn,
   ClipboardCheck,
   ClipboardList,
+  ClockPlus,
   GraduationCap,
   History,
   Inbox,
@@ -91,6 +92,8 @@ const STAFF_WORKSPACE = {
         { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
         { title: 'Exams', url: '/exams', icon: ClipboardList },
         { title: 'Homework', url: '/homework', icon: BookOpen },
+        // What is still owed for additional hours: a mentor's own students'.
+        { title: 'Additional Hours', url: '/additional-hours', icon: ClockPlus },
         // The single staff-management entry, for managers and holders of view_team.
         { title: 'Team', url: '/team', icon: UsersRound },
         { title: 'Invitations', url: '/invitations', icon: Mail },
@@ -145,6 +148,7 @@ const ADMIN_WORKSPACE = {
         { title: 'Syllabus & Plans', url: '/sales-syllabus', icon: BookMarked, nested: true, alsoOn: ['/sales-pricing'] },
         { title: 'Quotes', url: '/quotes', icon: ReceiptText, nested: true },
         { title: 'Tutor Earnings', url: '/tutor-earnings', icon: Wallet, nested: true },
+        { title: 'Additional Hours', url: '/additional-hours', icon: ClockPlus },
       ],
     },
     {
