@@ -14471,7 +14471,7 @@
    }
   },
   "bookings.slot_tutors @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "An administrator sees every active tutor, each available or not for the slot.",
    "result": {
     "capture": {
@@ -14496,7 +14496,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "slot_a",
@@ -14560,7 +14561,7 @@
    }
   },
   "bookings.slot_tutors @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14585,7 +14586,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "slot_a",
@@ -14597,7 +14599,7 @@
    }
   },
   "bookings.slot_tutors @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14622,7 +14624,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "slot_a",
@@ -14634,7 +14637,7 @@
    }
   },
   "bookings.slot_tutors @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14659,7 +14662,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "slot_a",
@@ -14710,7 +14714,7 @@
    }
   },
   "bookings.tutors @ admin": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "An administrator sees every active tutor, each available or not for the booking's slot.",
    "result": {
     "capture": {
@@ -14738,7 +14742,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "booking_a",
@@ -14803,7 +14808,7 @@
    }
   },
   "bookings.tutors @ su_mentor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14831,7 +14836,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "booking_a",
@@ -14844,7 +14850,7 @@
    }
   },
   "bookings.tutors @ su_tutor": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14872,7 +14878,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "booking_a",
@@ -14885,7 +14892,7 @@
    }
   },
   "bookings.tutors @ superuser": {
-   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1).",
+   "decision": "Booking management (Phase 2): /api/bookings/ serves holders of accounts.view_all_bookings (reading every booking and which tutors are free for its slot) and accounts.assign_booking_tutor (changing a booking's tutor), which only the ADMIN role may hold (a superuser holds both under D1). Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "note": "A superuser holds both permissions whatever the role (D1): answered as the administrator is.",
    "result": {
     "capture": {
@@ -14913,7 +14920,8 @@
      "tutors[].full_name",
      "tutors[].id",
      "tutors[].reason",
-     "tutors[].status"
+     "tutors[].status",
+     "tutors[].tutor_code"
     ],
     "records": [
      "booking_a",
@@ -17279,7 +17287,7 @@
    }
   },
   "earnings.me @ su_mentor": {
-   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17327,7 +17335,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "su_mentor"
@@ -17336,7 +17345,7 @@
    }
   },
   "earnings.me @ su_tutor": {
-   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17384,7 +17393,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "su_tutor"
@@ -17393,7 +17403,7 @@
    }
   },
   "earnings.me @ superuser": {
-   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17441,7 +17451,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "superuser"
@@ -17450,7 +17461,7 @@
    }
   },
   "earnings.me @ tutor_a": {
-   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17498,7 +17509,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_a"
@@ -17507,7 +17519,7 @@
    }
   },
   "earnings.me @ tutor_b": {
-   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: a tutor's own earnings summary also serves their converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17555,7 +17567,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_b"
@@ -17706,7 +17719,7 @@
    }
   },
   "earnings.overview @ admin": {
-   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17756,7 +17769,8 @@
      "tutors[].own_rates",
      "tutors[].paid",
      "tutors[].session_hours",
-     "tutors[].sessions"
+     "tutors[].sessions",
+     "tutors[].tutor_code"
     ],
     "records": [
      "su_tutor",
@@ -17811,7 +17825,7 @@
    }
   },
   "earnings.overview @ su_mentor": {
-   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17861,7 +17875,8 @@
      "tutors[].own_rates",
      "tutors[].paid",
      "tutors[].session_hours",
-     "tutors[].sessions"
+     "tutors[].sessions",
+     "tutors[].tutor_code"
     ],
     "records": [
      "su_tutor",
@@ -17872,7 +17887,7 @@
    }
   },
   "earnings.overview @ su_tutor": {
-   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17922,7 +17937,8 @@
      "tutors[].own_rates",
      "tutors[].paid",
      "tutors[].session_hours",
-     "tutors[].sessions"
+     "tutors[].sessions",
+     "tutors[].tutor_code"
     ],
     "records": [
      "su_tutor",
@@ -17933,7 +17949,7 @@
    }
   },
   "earnings.overview @ superuser": {
-   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: the Tutor Earnings overview also serves each tutor's and the totals' converted Demos, Demo earnings and conversion incentives (conversions, demo_earned, conversion_earned), and the enrollments waiting for their Demo (not_counted.WAITING_FOR_DEMO). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -17983,7 +17999,8 @@
      "tutors[].own_rates",
      "tutors[].paid",
      "tutors[].session_hours",
-     "tutors[].sessions"
+     "tutors[].sessions",
+     "tutors[].tutor_code"
     ],
     "records": [
      "su_tutor",
@@ -18863,7 +18880,7 @@
    }
   },
   "earnings.tutor @ admin": {
-   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -18919,7 +18936,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_a"
@@ -18972,7 +18990,7 @@
    }
   },
   "earnings.tutor @ su_mentor": {
-   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -19028,7 +19046,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_a"
@@ -19037,7 +19056,7 @@
    }
   },
   "earnings.tutor @ su_tutor": {
-   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -19093,7 +19112,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_a"
@@ -19102,7 +19122,7 @@
    }
   },
   "earnings.tutor @ superuser": {
-   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status.",
+   "decision": "Demo Conversion Incentive: one tutor's earnings summary also serves the converted Demos, Demo earnings and conversion incentives (summary.conversions, demo_earned, conversion_earned). Same callers, same status. Tutor IDs in earnings and booking pickers (2026-11-27): the Admin's tutor pickers (view_all_bookings), Tutor Earnings overview and tutor page (view_tutor_earnings) and the tutor's own My Earnings (view_own_earnings) carry each tutor's permanent, read-only Tutor ID (tutor_code); null for an account that was never a tutor.",
    "result": {
     "fields": [
      "activated_at",
@@ -19158,7 +19178,8 @@
      "tutor.email",
      "tutor.id",
      "tutor.is_tutor",
-     "tutor.name"
+     "tutor.name",
+     "tutor.tutor_code"
     ],
     "records": [
      "tutor_a"

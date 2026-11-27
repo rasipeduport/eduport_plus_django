@@ -290,6 +290,14 @@ class AvailabilityTests(BookingAdminTestCase):
         res = self.client.get(slot_tutors_url(uuid.uuid4()))
         self.assertEqual((res.status_code, res.data['error']), (status.HTTP_404_NOT_FOUND, 'NOT_FOUND'))
 
+    def test_each_tutor_carries_their_tutor_id(self):
+        expected = {tutor.full_name: tutor.tutor_code for tutor in (self.tutor_a, self.tutor_b, self.tutor_c)}
+        self.assertTrue(all(code and code.startswith('EPT') for code in expected.values()))
+        for url in (tutors_url(self.booking), slot_tutors_url(self.booking.slot_id)):
+            with self.subTest(url=url):
+                rows = self.client.get(url).data['tutors']
+                self.assertEqual({row['full_name']: row['tutor_code'] for row in rows}, expected)
+
     def test_the_picker_agrees_with_the_assignment(self):
         rows = self.client.get(tutors_url(self.booking)).data['tutors']
         for row in rows:

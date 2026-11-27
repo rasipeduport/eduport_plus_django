@@ -479,6 +479,17 @@ class ScheduleApiTests(RedemoApiTestCase):
         self.assertEqual(shown['redemo']['original']['report']['fields']['assessment_review'],
                          self.demo.report.assessment_review)
 
+    def test_both_pickers_show_each_tutors_tutor_id(self):
+        redemo = request_redemo(self.demo, REASON, actor=self.bde)
+        client = self.as_user(self.admin)
+        base = f'/api/bookings/redemos/{redemo.pk}/'
+        expected = {str(self.original_tutor.pk): self.original_tutor.tutor_code, str(self.tutor.pk): self.tutor.tutor_code}
+        self.assertEqual(sorted(expected.values()), ['EPT0001', 'EPT0002'])
+        by_tutor = client.get(f'{base}tutors/').data['tutors']
+        by_slot = client.get(f'{base}slot-tutors/', {'date': self.day.isoformat(), 'time': '19:30'}).data['tutors']
+        for rows in (by_tutor, by_slot):
+            self.assertEqual({row['id']: row['tutor_code'] for row in rows}, expected)
+
 
 class ListApiTests(RedemoApiTestCase):
     def setUp(self):

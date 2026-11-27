@@ -284,3 +284,30 @@ class ActionTests(EarningsApiWorld):
         self.assertEqual(self.call(self.admin, 'get', 'review').data['items'], [])
         self.assertEqual(self.call(self.admin, 'get', 'overview').data['review_count'], 0)
         self.assertEqual(self.call(self.admin, 'get', 'tutor', str(self.tutor.pk)).data['review'], [])
+
+
+class TutorIdTests(EarningsApiWorld):
+    """Each tutor's permanent Tutor ID (accounts.tutor_codes) on the Admin's pages and the tutor's own."""
+
+    def test_the_overview_shows_and_finds_each_tutors_id(self):
+        codes = {self.tutor.tutor_code, self.other_tutor.tutor_code}
+        self.assertEqual(codes, {'EPT0001', 'EPT0002'})
+        rows = self.call(self.admin, 'get', 'overview').data['tutors']
+        self.assertEqual({row['id']: row['tutor_code'] for row in rows},
+                         {str(self.tutor.pk): self.tutor.tutor_code, str(self.other_tutor.pk): self.other_tutor.tutor_code})
+        found = self.call(self.admin, 'get', 'overview', params={'search': self.other_tutor.tutor_code.lower()})
+        self.assertEqual([row['id'] for row in found.data['tutors']], [str(self.other_tutor.pk)])
+
+    def test_the_tutor_page_and_my_earnings_carry_it(self):
+        self.assertEqual(self.call(self.admin, 'get', 'tutor', str(self.tutor.pk)).data['tutor']['tutor_code'],
+                         self.tutor.tutor_code)
+        mine = self.call(self.tutor, 'get', 'me').data['tutor']
+        self.assertEqual((mine['id'], mine['tutor_code']), (str(self.tutor.pk), self.tutor.tutor_code))
+
+    def test_a_former_tutor_is_listed_with_the_id_they_keep(self):
+        code = self.other_tutor.tutor_code
+        self.other_tutor.role = 'MENTOR'
+        self.other_tutor.save(update_fields=['role'])
+        row = next(row for row in self.call(self.admin, 'get', 'overview').data['tutors']
+                   if row['id'] == str(self.other_tutor.pk))
+        self.assertEqual((row['tutor_code'], row['active']), (code, False))

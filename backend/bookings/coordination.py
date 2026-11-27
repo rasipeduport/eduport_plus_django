@@ -570,6 +570,8 @@ def tutor_availability(slot, booking=None):
             'id': str(tutor.pk),
             'full_name': tutor.full_name or tutor.email,
             'email': tutor.email,
+            # Their permanent Tutor ID (accounts.tutor_codes): tells apart tutors of the same name.
+            'tutor_code': tutor.tutor_code,
             'status': UNAVAILABLE if reason else AVAILABLE,
             'reason': reason,
             'current': tutor.pk == current,

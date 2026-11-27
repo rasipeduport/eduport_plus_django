@@ -194,6 +194,8 @@ def overview(month=None, search='', balance='', rate='', now=None):
             'id': str(tutor.pk),
             'name': name_of(tutor),
             'email': tutor.email,
+            # Their permanent Tutor ID (accounts.tutor_codes); a former tutor keeps theirs.
+            'tutor_code': tutor.tutor_code,
             'active': tutor.is_active and tutor.role == 'TUTOR',
             **counts_block(counts.get(tutor.pk, {})),
             'earned': money(earned.get(tutor.pk)),
@@ -220,7 +222,7 @@ def overview(month=None, search='', balance='', rate='', now=None):
 
     term = (search or '').strip().lower()
     if term:
-        rows = [row for row in rows if term in (row['name'] or '').lower() or term in (row['email'] or '').lower()]
+        rows = [row for row in rows if any(term in (row[key] or '').lower() for key in ('name', 'email', 'tutor_code'))]
     if balance in ('pending', 'paid', 'overpaid', 'none'):
         rows = [row for row in rows if row['balance_state'] == balance]
     if rate in ('tutor', 'global'):
@@ -404,7 +406,8 @@ def tutor_earnings(tutor, month=None, admin=True, now=None):
     data = {
         **status_block(admin),
         'period': {'month': month_key(month) if month else None},
-        'tutor': {'id': str(tutor.pk), 'name': name_of(tutor), 'email': tutor.email,
+        # The Admin's tutor page and the tutor's own My Earnings alike: their permanent Tutor ID too.
+        'tutor': {'id': str(tutor.pk), 'name': name_of(tutor), 'email': tutor.email, 'tutor_code': tutor.tutor_code,
                   'active': tutor.is_active and tutor.role == 'TUTOR', 'is_tutor': tutor.role == 'TUTOR'},
         'summary': {
             'earned': money(earned),
