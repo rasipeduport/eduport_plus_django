@@ -27,6 +27,7 @@ import BookingsPage from '@/pages/BookingsPage';
 import InvitationsPage from '@/pages/InvitationsPage';
 import TutorBookingsPage from '@/pages/TutorBookingsPage';
 import SidebarLayout from '@/layout/SidebarLayout';
+import { ReassignStaffDialog } from '@/components/students/reassign-staff-dialog';
 import LearnAuthProvider from '../../../learn/src/context/AuthProvider';
 import LearnStudentProvider from '../../../learn/src/context/StudentProvider';
 import { useStudent } from '../../../learn/src/components/student/student-context';
@@ -76,6 +77,10 @@ function page(path, user) {
   return <RouterProvider router={router} />;
 }
 
+// The student whose mentor and tutor /reassign changes: a mentor, no tutor yet.
+export const REASSIGNED = { id: 'st-riya', full_name: 'Riya', mentor_profile: { id: 'm-1', full_name: 'Mentor One' },
+  tutor_profile: null };
+
 /**
  * The Hub as App.jsx lays it out -- one SidebarLayout, its sidebar staying put
  * while the pages under it change -- at `path`, for the sidebar's live counts.
@@ -93,6 +98,9 @@ function hub(path, user) {
               <Route path="/enquiries" element={<EnquiriesPage user={user} />} />
               <Route path="/demo-bookings" element={<BdeBookingsPage key="DEMO" user={user} type="DEMO" />} />
               <Route path="/leads" element={<LeadsPage user={user} />} />
+              <Route path="/bookings/demo/:bookingId" element={<BookingWorkspacePage key="DEMO" user={user} type="DEMO" />} />
+              {/* The Enrolled Students row action's dialog, open on its student. */}
+              <Route path="/reassign" element={<ReassignStaffDialog student={REASSIGNED} open onOpenChange={() => {}} />} />
             </Routes>
           </SidebarLayout>
         ),
@@ -195,4 +203,5 @@ export async function mount(kind, props = {}) {
 export { act };
 export { BDE_DASHBOARD_URL } from '@/lib/enquiries';
 export { BDE_FOLLOW_UPS_URL } from '@/lib/follow-ups';
+export { pendingAssignmentsChanged } from '@/hooks/use-pending-assignment-counts';
 export { bookingCommunicationUrl } from '@/lib/communications';

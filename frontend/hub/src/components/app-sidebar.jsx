@@ -12,9 +12,10 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useFollowUpsDueToday } from '@/hooks/use-follow-ups-due-today';
+import { PENDING_ASSIGNMENT_COUNTERS, usePendingAssignmentCounts } from '@/hooks/use-pending-assignment-counts';
 import { canOpenPage } from '@/lib/access';
 import { usesRefreshedDesign } from '@/lib/design';
-import { FOLLOW_UPS_DUE_TODAY, workspaceFor } from '@/lib/navigation';
+import { FOLLOW_UPS_DUE_TODAY, counterKeys, workspaceFor } from '@/lib/navigation';
 
 export function AppSidebar({ user, logout, ...props }) {
   // Exactly the pages the route guards in App.jsx open for this account
@@ -24,10 +25,16 @@ export function AppSidebar({ user, logout, ...props }) {
   const workspace = workspaceFor(user);
   // The refreshed design (lib/design) closes the phone's sidebar sheet once a page is picked.
   const closeOnNavigate = usesRefreshedDesign(user);
-  // The live counts beside items that carry a `counter`: the BDE's follow-ups due today, read only
+  // The live counts beside items that carry a `counter`. The BDE's follow-ups due today, read only
   // for whoever may open the Follow-ups page (a BDE who may see their leads' communication).
   const followUpsDueToday = useFollowUpsDueToday(canOpenPage(user, '/follow-ups'));
-  const counts = { [FOLLOW_UPS_DUE_TODAY]: followUpsDueToday };
+  // The Admin Hub's assignments still to make (bookings needing a tutor, students missing a mentor
+  // or tutor), read only for the items of this workspace that show them: those its pages open.
+  const shownCounters = counterKeys(workspace);
+  const pendingAssignments = usePendingAssignmentCounts(
+    PENDING_ASSIGNMENT_COUNTERS.filter((key) => shownCounters.includes(key))
+  );
+  const counts = { ...pendingAssignments, [FOLLOW_UPS_DUE_TODAY]: followUpsDueToday };
 
   return (
     <Sidebar collapsible="icon" {...props}>
