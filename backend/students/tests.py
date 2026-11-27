@@ -1682,3 +1682,98 @@ class DashboardNamesItsStudentTests(APITestCase):
         # Another tab switches: the same session's next read answers for the new student, and says so.
         data = self.dashboard_after_selecting(self.arjun)
         self.assertEqual((data["student_id"], data["student_name"]), (str(self.arjun.id), "Arjun"))
+
+
+class PendingAssignmentFilterTests(APITestCase):
+    """
+    GET /api/students/?assignment=pending: the current students (ACTIVE or
+    INACTIVE -- the Enrolled Students list, not its Expired section) missing a
+    mentor, a tutor or both, each once. With ?page=1&page_size=1 its count is
+    the Admin Hub sidebar's badge beside Enrolled Students.
+    """
+
+    def setUp(self):
+        def staff(email, role):
+            return User.objects.create_user(email=email, password="password", full_name=email.split("@")[0], role=role)
+
+        self.admin = staff("pa_admin@eduport.com", "ADMIN")
+        self.mentor = staff("pa_mentor@eduport.com", "MENTOR")
+        self.tutor = staff("pa_tutor@eduport.com", "TUTOR")
+        parent = staff("pa_parent@eduport.com", "STUDENT")
+
+        def student(code, mentor=None, tutor=None, status="ACTIVE"):
+            return Student.objects.create(
+                profile=parent, student_code=code, full_name=code, mentor=mentor, tutor=tutor, status=status,
+            )
+
+        self.full = student("PA001", self.mentor, self.tutor)
+        self.no_mentor = student("PA002", tutor=self.tutor)
+        self.no_tutor = student("PA003", mentor=self.mentor)
+        self.neither = student("PA004")
+        self.inactive = student("PA005", mentor=self.mentor, status="INACTIVE")
+        self.expired = student("PA006", status="EXPIRED")
+        self.url = reverse('students:student-list')
+        self.client.force_authenticate(user=self.admin)
+
+    def pending(self, **params):
+        response = self.client.get(self.url, {"assignment": "pending", **params})
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        return response.data
+
+    def badge(self):
+        """The sidebar's read: one row, and the count of all of them."""
+        data = self.pending(page=1, page_size=1)
+        self.assertLessEqual(len(data["results"]), 1)
+        return data["count"]
+
+    def test_missing_mentor_or_tutor_each_student_once(self):
+        codes = [row["student_code"] for row in self.pending()]
+        self.assertEqual(codes, ["PA002", "PA003", "PA004", "PA005"])
+        self.assertEqual(self.badge(), 4)
+
+    def test_fully_assigned_and_expired_students_are_not_counted(self):
+        codes = {row["student_code"] for row in self.pending()}
+        self.assertNotIn(self.full.student_code, codes)
+        self.assertNotIn(self.expired.student_code, codes, "listed apart as expired, not enrolled")
+
+    def test_the_count_follows_assignments_made_and_removed(self):
+        reassign = reverse('students:student-reassign')
+
+        def save(student, mentor, tutor):
+            response = self.client.post(reassign, {
+                "id": str(student.id), "mentor": str(mentor.id) if mentor else None,
+                "tutor": str(tutor.id) if tutor else None,
+            }, format='json')
+            self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        save(self.neither, self.mentor, None)
+        self.assertEqual(self.badge(), 4, "still missing its tutor")
+        save(self.neither, self.mentor, self.tutor)
+        self.assertEqual(self.badge(), 3)
+        save(self.full, self.mentor, None)
+        self.assertEqual(self.badge(), 4, "its tutor removed")
+
+    def test_a_student_leaving_or_returning_to_the_current_list(self):
+        self.neither.status = "EXPIRED"
+        self.neither.save(update_fields=["status"])
+        self.assertEqual(self.badge(), 3)
+        self.expired.status = "ACTIVE"
+        self.expired.save(update_fields=["status"])
+        self.assertEqual(self.badge(), 4)
+
+    def test_without_the_filter_the_list_is_unchanged(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 6)
+
+    def test_an_unknown_value_is_refused_not_ignored(self):
+        for value in ("all", "false", "unassigned"):
+            response = self.client.get(self.url, {"assignment": value})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, value)
+            self.assertEqual(response.data["error"], "INVALID_INPUT")
+            self.assertEqual(response.data["fields"], ["assignment"])
+
+    def test_the_filter_never_widens_what_a_caller_sees(self):
+        self.client.force_authenticate(user=self.mentor)
+        codes = [row["student_code"] for row in self.pending()]
+        self.assertEqual(codes, ["PA003", "PA005"], "only their own students, those missing a tutor")
