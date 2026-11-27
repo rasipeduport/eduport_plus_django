@@ -3,14 +3,17 @@
 Stripe transport is mocked throughout; no request leaves the test process.
 """
 from datetime import timedelta
+from unittest import mock
 
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient, APITestCase
 
 from bookings.models import Lead
+from bookings.scheduling import indian_today
+from core.dashboard_dates import indian_date
 from . import tests_student_finance as finance_helpers
-from .payment_models import Sale
+from .payment_models import Payment, Sale
 from .tests_quotes import QuoteTestCase
 
 Finance = finance_helpers.StudentFinanceTests
@@ -120,10 +123,52 @@ class SalesDashboardTests(QuoteTestCase, APITestCase):
         self.assertEqual([(bucket['from'], bucket['to']) for bucket in months['buckets']][:2],
                          [('2025-12-15', '2025-12-31'), ('2026-01-01', '2026-01-31')])
         self.assertEqual((months['unit'], len(months['buckets']), months['buckets'][-1]['to']), ('month', 12, '2026-11-14'))
+        # Longer than a year is no longer refused; beyond two years it is drawn year by year.
+        years = self.dashboard(**{'from': '2023-03-10', 'to': '2026-11-14'}).json()['trend']
+        self.assertEqual((years['unit'], [(bucket['from'], bucket['to']) for bucket in years['buckets']]),
+                         ('year', [('2023-03-10', '2023-12-31'), ('2024-01-01', '2024-12-31'), ('2025-01-01', '2025-12-31'),
+                                   ('2026-01-01', '2026-11-14')]))
+
+    def test_all_time_reaches_sales_and_payments_older_than_a_year(self):
+        # Paid, and so enrolled, 400 days ago: an enrolled sale cannot be redated afterwards, so Stripe's confirmation is.
+        long_ago = timezone.now() - timedelta(days=400)
+        self.lead = self.new_lead(collection_mode='FULL')
+        self.assertEqual(self.start().status_code, 201)
+        self.gateway, self.calls, self.created = self.transport()
+        link = self.link_for(self.lead, self.gateway, classes='10', mode='FULL')
+        with mock.patch('django.utils.timezone.now', return_value=long_ago):
+            self.assertEqual(self.paid(link, self.gateway).status_code, 200)
+        first, today = indian_date(long_ago), indian_today()
+        sale = Sale.objects.get(kind='NEW')
+        self.assertEqual((indian_date(sale.enrolled_at), Payment.objects.get(sale=sale).payment_date), (first, first))
+        Lead.objects.update(created_at=long_ago)
+
+        # The last year (a Custom span) misses them entirely.
+        year = self.dashboard(**{'from': today - timedelta(days=364), 'to': today}).json()['summary']
+        self.assertEqual((year['sales_count'], year['payments'], year['leads']), (0, 0, 0))
+
+        data = self.dashboard(range='all').json()
+        summary = data['summary']
+        self.assertEqual((summary['sales_count'], summary['sales_value'], summary['enrollments'], summary['payments'],
+                          summary['collected'], summary['leads'], summary['enrolled_leads']),
+                         (1, '500', 1, 1, '500', Lead.objects.count(), 1))
+        self.assertEqual(data['range'], {'from': first.isoformat(), 'to': today.isoformat(), 'all_time': True})
+        trend = data['trend']
+        self.assertEqual((trend['unit'], trend['buckets'][0]['from'], trend['buckets'][-1]['to']), ('month', first.isoformat(), today.isoformat()))
+        self.assertEqual((trend['buckets'][0]['sales_count'], trend['buckets'][0]['collected']), (1, '500'))
+        self.assertEqual(sum(bucket['payments'] for bucket in trend['buckets']), 1)
+        bde = next(row for row in data['bdes'] if row['id'] == str(self.bde.pk))
+        self.assertEqual((bde['enrollments'], bde['collected']), (1, '500'))
+
+    def test_all_time_starts_from_the_first_record_counted(self):
+        # Nothing sold yet: the first record is the lead the fixtures took in today.
+        data = self.dashboard(range='all').json()
+        self.assertEqual(data['range'], {'from': indian_today().isoformat(), 'to': indian_today().isoformat(), 'all_time': True})
+        self.assertEqual((data['trend']['unit'], len(data['trend']['buckets']), data['summary']['sales_count']), ('day', 1, 0))
 
     def test_bad_dates_are_refused_naming_them(self):
         for dates, fields in (({'from': '2026-13-01', 'to': '2026-11-01'}, ['from']), ({'from': '2026-11-01'}, ['to']),
-                              ({'from': '2025-01-01', 'to': '2026-11-01'}, ['to'])):
+                              ({'from': '2026-11-02', 'to': '2026-11-01'}, ['to']), ({'range': 'month'}, ['range'])):
             with self.subTest(dates=dates):
                 response = self.dashboard(**dates)
                 self.assertEqual((response.status_code, response.json()['error'], response.json()['fields']), (400, 'INVALID_INPUT', fields))

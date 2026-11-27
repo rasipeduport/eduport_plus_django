@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   CalendarCheck,
   CalendarDays,
@@ -20,18 +20,17 @@ import {
 import api from '@/lib/api';
 import {
   ADMISSIONS_DASHBOARD_URL,
-  DEFAULT_RANGE,
-  RANGE_OPTIONS,
+  ADMISSIONS_DEFAULT_RANGE,
   bookingsInRangePath,
   bookingsListPath,
   busierType,
   leadsPath,
-  readRange,
   todaysBookingPath,
   totalOf,
 } from '@/lib/admissions';
-import { rangeLabel } from '@/lib/date-range';
+import { shownRange } from '@/lib/dashboard-range';
 import { enquiryError, slotParts } from '@/lib/enquiries';
+import { useDashboardRange } from '@/hooks/use-dashboard-range';
 import { showsStudentTime } from '@/lib/timezone';
 import { cn, getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,10 +43,9 @@ import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { BookingTypeBadge, EnquiryStatusBadge } from '@/components/enquiries/enquiry-badges';
 import { BookingStateBadge, TutorName } from '@/components/bookings/booking-badges';
 import { StudentTimeCell } from '@/components/bookings/student-time';
-import { DatePresets } from '@/components/page/date-presets';
+import { DashboardRangeFilter } from '@/components/dashboard/dashboard-range-filter';
 import { Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
-import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -66,33 +64,6 @@ function DashboardSkeleton() {
         <Skeleton className="h-72 rounded-xl xl:col-span-2" />
       </div>
       <Skeleton className="h-56 rounded-xl" />
-    </div>
-  );
-}
-
-/** The span the dashboard counts: a preset, or a Custom range on a calendar. */
-function RangeFilter({ range, onChange }) {
-  const labelId = useId();
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:items-end">
-      <span id={labelId} className="sr-only">
-        Dates to count
-      </span>
-      <DatePresets
-        options={RANGE_OPTIONS}
-        value={range.range}
-        from={range.from}
-        to={range.to}
-        anyLabel="Last 7 days"
-        labelledBy={labelId}
-        onPick={(preset) => onChange({ range: preset === DEFAULT_RANGE ? null : preset, from: null, to: null })}
-        onCustom={(picked) =>
-          onChange(picked.from ? { range: 'custom', ...picked } : { range: null, from: null, to: null })
-        }
-      />
-      <p className="text-muted-foreground text-xs" aria-live="polite">
-        {rangeLabel(range.from, range.to, '')} · Indian dates (IST)
-      </p>
     </div>
   );
 }
@@ -477,7 +448,8 @@ function RecentLeads({ rows }) {
 /**
  * The Admissions Dashboard, for administrators: the admissions pipeline at a
  * glance, across every BDE. Over the dates picked (the last 7 days unless
- * chosen otherwise, kept in the URL) the leads that came in and where they
+ * chosen otherwise, kept in the URL; All Time for every lead and class up to
+ * today -- lib/dashboard-range) the leads that came in and where they
  * stand now, and the Demo and Diagnostic bookings for classes on those dates;
  * then, as things stand now, what awaits action, today's bookings, the latest
  * leads and the latest admissions activity -- all from one request
@@ -486,10 +458,9 @@ function RecentLeads({ rows }) {
  * activity only for readers of the activity log, as the API answers.
  */
 export default function AdmissionsDashboardPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const range = readRange(searchParams);
-  const { from, to } = range;
-  const [data, setData] = useState(null);
+  const [range, pickRange, query] = useDashboardRange(ADMISSIONS_DEFAULT_RANGE);
+  // The latest answer, with the dates it was read for (`query`).
+  const [answer, setAnswer] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -498,10 +469,10 @@ export default function AdmissionsDashboardPage() {
     let active = true;
     setPending(true);
     api
-      .get(ADMISSIONS_DASHBOARD_URL, { params: { from, to } })
+      .get(ADMISSIONS_DASHBOARD_URL, { params: query })
       .then((response) => {
         if (!active) return;
-        setData(response.data);
+        setAnswer({ data: response.data, query });
         setFailure(null);
       })
       .catch((err) => {
@@ -513,17 +484,13 @@ export default function AdmissionsDashboardPage() {
     return () => {
       active = false;
     };
-  }, [from, to, reloadKey]);
+  }, [query, reloadKey]);
 
-  const changeRange = (updates) => {
-    const params = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(updates)) {
-      if (value) params.set(key, value);
-      else params.delete(key);
-    }
-    setSearchParams(params, { replace: true });
-  };
   const reload = () => setReloadKey((key) => key + 1);
+  // An answer for other dates is shown (dimmed) only while these are read, never once their read has failed.
+  const data = answer && (answer.query === query || !failure) ? answer.data : null;
+  // The dates each count's list opens on: for All Time, those the API counted from.
+  const listRange = shownRange(range, data?.range);
 
   let content;
   if (failure && !data && failure.status === 403) {
@@ -536,9 +503,9 @@ export default function AdmissionsDashboardPage() {
     content = (
       <div className={cn('flex flex-col gap-4', pending && 'opacity-70 transition-opacity')} aria-busy={pending || undefined}>
         {failure ? <ErrorState message={failure.message} onRetry={reload} pending={pending} /> : null}
-        <KpiTiles data={data} range={range} />
+        <KpiTiles data={data} range={listRange} />
         <div className="grid min-w-0 gap-4 xl:grid-cols-5 xl:items-start">
-          <Pipeline data={data} range={range} className="xl:col-span-3" />
+          <Pipeline data={data} range={listRange} className="xl:col-span-3" />
           <PendingActions pending={data.pending} className="xl:col-span-2" />
         </div>
         {data.today_bookings ? <TodaysBookings today={data.today_bookings} /> : null}
@@ -557,10 +524,14 @@ export default function AdmissionsDashboardPage() {
         description="Leads, Demo and Diagnostic bookings and what awaits action, across every BDE."
         actionsClassName="w-full sm:w-auto"
         actions={
-          <div className="flex w-full items-start gap-2">
-            <RangeFilter range={range} onChange={changeRange} />
-            <RefreshButton variant="ghost" iconOnly onClick={reload} pending={pending} />
-          </div>
+          <DashboardRangeFilter
+            range={range}
+            fallback={ADMISSIONS_DEFAULT_RANGE}
+            answered={data?.range}
+            onPick={pickRange}
+            onRefresh={reload}
+            pending={pending}
+          />
         }
       />
       {content}

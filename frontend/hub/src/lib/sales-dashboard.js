@@ -1,18 +1,11 @@
 // The administrators' Sales Dashboard: the /api/sales/dashboard/ contract
 // (backend sales/dashboard.py) as the Hub uses it, its dates and its words.
-// The dates are Indian dates, picked as the Admissions Dashboard's are
-// (lib/admissions); amounts are whole AED, written as lib/payments writes them.
-import { format } from 'date-fns';
-
-import { readRange } from '@/lib/admissions';
-import { toPickerDate } from '@/lib/date-range';
+// The dates are Indian dates, picked as every dashboard's are
+// (lib/dashboard-range); amounts are whole AED, written as lib/payments writes them.
 
 export const SALES_DASHBOARD_URL = '/api/sales/dashboard/';
 // What the dashboard shows without dates: this month, as sales are reviewed month by month.
 export const SALES_DEFAULT_RANGE = 'month';
-
-/** The dashboard's dates from its URL: this month unless others were picked. */
-export const readSalesRange = (searchParams, now = new Date()) => readRange(searchParams, now, SALES_DEFAULT_RANGE);
 
 // What each part of the API's answer counts, in the Hub's words.
 export const SALE_KINDS = { INITIAL: 'New enrollments', ADDITIONAL: 'Additional purchases' };
@@ -44,18 +37,3 @@ export function compactAed(amount) {
 
 /** A student's Finance tab, where their purchases are collected. */
 export const studentFinancePath = (studentId) => `/students/${studentId}?tab=finance`;
-
-/**
- * A trend bucket (`{ from, to }`, Indian dates) in words: "12 Nov" for a day,
- * "10–16 Nov" for a week (or the part of it the span covers), "Nov 2026" for a month.
- */
-export function bucketLabel(bucket, unit) {
-  const from = toPickerDate(bucket.from);
-  const to = toPickerDate(bucket.to);
-  if (unit === 'month') return format(from, 'MMM yyyy');
-  if (unit === 'day' || bucket.from === bucket.to) return format(from, 'd MMM');
-  return from.getMonth() === to.getMonth() ? `${format(from, 'd')}–${format(to, 'd MMM')}` : `${format(from, 'd MMM')} – ${format(to, 'd MMM')}`;
-}
-
-/** What the trend's buckets are, for its subtitle: "day by day", "week by week", "month by month". */
-export const UNIT_WORDS = { day: 'day by day', week: 'week by week', month: 'month by month' };

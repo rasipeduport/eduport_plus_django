@@ -3,7 +3,8 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { wholeAed } from '@/lib/payments';
-import { axisCeiling, bucketLabel, compactAed } from '@/lib/sales-dashboard';
+import { bucketLabel } from '@/lib/dashboard-range';
+import { axisCeiling, compactAed } from '@/lib/sales-dashboard';
 
 // Sales value and money received: two series on one AED axis, each its own
 // colour per theme (validated as a pair for colour-blind readers in both). The

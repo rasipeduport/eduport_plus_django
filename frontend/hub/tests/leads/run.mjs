@@ -1058,6 +1058,30 @@ test("Admissions Dashboard: today's bookings give each student's own time beside
   assert.deepEqual(headers(), ['Time (IST)', 'Type', 'Student', 'Tutor', 'Status', 'Open']);
 });
 
+test('Admissions Dashboard dates: Today | 7 Days | This Month | All Time | Custom; All Time asks for no first date and its counts open on the dates counted', async () => {
+  const indianDay = (offset = 0) => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const presets = () => [...document.querySelectorAll('button[aria-pressed]')];
+  const asked = () => calls('GET', '/api/admissions/dashboard/').map((entry) => entry.params);
+  serve({ 'GET /api/admissions/dashboard/': (entry) => Promise.resolve({ status: 200, data: entry.params.range === 'all'
+    ? { ...admissionsOf([]), range: { from: '2024-08-19', to: indianDay(), all_time: true } }
+    : { ...admissionsOf([]), range: { ...entry.params, all_time: false } } }) });
+  const page = await open('/admissions', ADMIN);
+  assert.deepEqual(presets().map((element) => clean(element.textContent)), ['Today', '7 Days', 'This Month', 'All Time', 'Custom']);
+  assert.equal(presets().find((element) => element.getAttribute('aria-pressed') === 'true').textContent, '7 Days');
+  assert.deepEqual(asked(), [{ from: indianDay(-6), to: indianDay() }]);
+
+  await click(presets().find((element) => clean(element.textContent) === 'This Month'));
+  assert.deepEqual(asked().at(-1), { from: `${indianDay().slice(0, 8)}01`, to: indianDay() }, 'from its first day to today');
+  await click(presets().find((element) => clean(element.textContent) === 'All Time'));
+  assert.deepEqual(asked().at(-1), { range: 'all' });
+  assert.equal(page.location().search, '?range=all');
+  assert.match(bodyText(), /All time: 19 Aug 2024 – .* · Indian dates \(IST\)/);
+  const tile = (label) => [...document.querySelectorAll('a')].find((a) => clean(a.textContent).startsWith(label));
+  assert.equal(tile('Total Leads').getAttribute('href'), `/leads?from=2024-08-19&to=${indianDay()}`);
+  assert.equal(tile('Demo Bookings').getAttribute('href'), `/bookings/demo?from=2024-08-19&to=${indianDay()}&when=all`);
+  assert.equal(asked().length, 3);
+});
+
 // ------------------------------------------------------------ custom sources
 /** The control the open dialog's label `text` names (the required star aside), or null. */
 function controlFor(text, root = topDialog()) {

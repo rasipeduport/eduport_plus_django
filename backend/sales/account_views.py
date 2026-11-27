@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from bookings import admissions
+from core.dashboard_dates import INVALID_MESSAGE, read_span
 from core.permissions import HasAppPermission
 from . import dashboard, payments, review, student_accounts
 from .account_models import GuardianRelationship
@@ -113,10 +113,11 @@ class ResolveReviewView(APIView):
 
 class SalesDashboardView(APIView):
     """
-    GET /api/sales/dashboard/?from=&to=
+    GET /api/sales/dashboard/?from=&to= or ?range=all
     Sales and collections at a glance, for administrators (sales.dashboard):
     over the Indian dates ``from`` to ``to`` (both or neither: the last seven
-    days, as the Admissions Dashboard reads them), what was sold and received,
+    days; range=all for every record up to today -- core.dashboard_dates, as
+    every dashboard reads them), what was sold and received,
     the leads' conversion and each BDE's share; then the outstanding balances,
     Autopay and what awaits action. Bad dates answer 400 INVALID_INPUT naming them.
     """
@@ -124,7 +125,7 @@ class SalesDashboardView(APIView):
 
     def get(self, request):
         now = timezone.now()
-        (date_from, date_to), invalid = admissions.span(request.query_params, now)
+        (date_from, date_to), invalid = read_span(request.query_params, now)
         if invalid:
-            return _error('INVALID_INPUT', f'Check the dates: YYYY-MM-DD, at most {admissions.MAX_DAYS} days.', 400, fields=invalid)
+            return _error('INVALID_INPUT', INVALID_MESSAGE, 400, fields=invalid)
         return Response(dashboard.dashboard(now, date_from, date_to))

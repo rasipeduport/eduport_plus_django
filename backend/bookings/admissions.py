@@ -1,9 +1,10 @@
 """
 The administrators' Admissions Dashboard (GET /api/admissions/dashboard/):
-the admissions pipeline at a glance. Over a span of Indian dates, the leads
-that came in and where each stands now, and the Demo and Diagnostic bookings
-for classes in it; then, whatever the span, today's bookings, what awaits an
-administrator, the latest leads and the latest admissions activity.
+the admissions pipeline at a glance. Over a span of Indian dates (read as
+every dashboard reads one, core.dashboard_dates -- All Time included), the
+leads that came in and where each stands now, and the Demo and Diagnostic
+bookings for classes in it; then, whatever the span, today's bookings, what
+awaits an administrator, the latest leads and the latest admissions activity.
 
 Everything is read from the leads, the bookings and the activity log as they
 stand -- nothing is stored or estimated here -- and each count that opens a
@@ -13,12 +14,12 @@ of the Bookings pages' filters (coordination.filtered). Enrolments are not
 counted: nothing links a student to the lead they came from (lead_status).
 """
 from collections import Counter
-from datetime import timedelta
 
-from django.db.models import Count, Q
+from django.db.models import Count, Min, Q
 
 from activity.models import ActivityLog
 from activity.serializers import ActivityLogSerializer
+from core.dashboard_dates import date_on_dates, indian_date, instant_on_dates, shown_range
 from core.querysets import scope_activity
 
 from . import coordination, lead_admin, redemos
@@ -26,10 +27,6 @@ from .lead_status import STAGES, LeadStatus, with_status
 from .models import BOOKING_MODELS, HOLDS_SEAT, BookingStatus, Lead, ParentConfirmation, ReDemoStatus
 from .scheduling import BOOKING_TIMEZONE_NAME, indian_today
 
-# The span a dashboard opened without dates shows: the last seven Indian days, today included.
-DEFAULT_DAYS = 7
-# The longest span it reads at once.
-MAX_DAYS = 366
 TODAY_ROWS = 12
 RECENT_ROWS = 6
 ACTIVITY_ROWS = 8
@@ -52,27 +49,6 @@ _STAGE_OF[LeadStatus.ENROLLED] = 'ENROLLED'
 ADMISSIONS_ENTITIES = (
     'lead', 'booking_link', 'booking', 'booking_slot', 'booking_schedule', 'demo_invite', 'redemo_request', 'report',
 )
-
-
-def span(params, now):
-    """
-    The dashboard's dates from ``from`` and ``to`` (Indian dates, inclusive),
-    as ((date_from, date_to), invalid): both or neither -- the last
-    DEFAULT_DAYS days when neither -- the first on or before the last, at
-    most MAX_DAYS days apart. ``invalid`` names what is wrong, and nothing is
-    guessed for it.
-    """
-    (date_from, date_to), invalid = lead_admin.received_dates(params)
-    if invalid:
-        return (None, None), invalid
-    if date_from is None and date_to is None:
-        today = indian_today(now)
-        return (today - timedelta(days=DEFAULT_DAYS - 1), today), []
-    if date_from is None or date_to is None:
-        return (None, None), ['from' if date_from is None else 'to']
-    if (date_to - date_from).days >= MAX_DAYS:
-        return (None, None), ['to']
-    return (date_from, date_to), []
 
 
 def _by_type(make_count):
@@ -115,14 +91,32 @@ def _bookings(now, date_from, date_to):
     """
     Each type's bookings for classes on the span's dates that hold their seat
     (booked, completed or sent for a Re-Demo; never a cancelled or moved one),
-    and how many of those are still to come.
+    and how many of those are still to come. All Time (``date_from`` None)
+    counts every class up to the span's last date.
     """
-    in_span = Q(slot__local_date__gte=date_from, slot__local_date__lte=date_to)
+    in_span = date_on_dates('slot__local_date', date_from, date_to)
     to_come = Q(status=BookingStatus.BOOKED, slot__ends_at__gt=now)
     return _by_type(lambda model: model.objects.filter(in_span).aggregate(
         total=Count('pk', filter=Q(status__in=HOLDS_SEAT)),
         upcoming=Count('pk', filter=to_come),
     ))
+
+
+def _first_date(date_to, show_bookings):
+    """
+    For All Time: the first Indian date, up to ``date_to``, anything the
+    dashboard counts falls on -- a lead coming in or, for whoever sees the
+    bookings, a class that holds its seat -- or None when there is nothing yet.
+    """
+    first_lead = Lead.objects.filter(instant_on_dates('created_at', None, date_to)).aggregate(first=Min('created_at'))['first']
+    firsts = [indian_date(first_lead)] if first_lead else []
+    if show_bookings:
+        for model in BOOKING_MODELS:
+            first_class = (model.objects.filter(date_on_dates('slot__local_date', None, date_to), status__in=HOLDS_SEAT)
+                           .aggregate(first=Min('slot__local_date'))['first'])
+            if first_class:
+                firsts.append(first_class)
+    return min(firsts, default=None)
 
 
 def _today_bookings(now):
@@ -151,7 +145,8 @@ def dashboard(now, date_from, date_to, *, user, request=None, show_bookings=Fals
               show_activity=False):
     """
     The dashboard for the span ``date_from``..``date_to`` (Indian dates,
-    inclusive). The booking parts are null unless ``show_bookings`` (the
+    inclusive; every record up to ``date_to`` when ``date_from`` is None, All
+    Time). The booking parts are null unless ``show_bookings`` (the
     caller may see every booking), the confirmations unless
     ``show_confirmation`` too, and the activity unless ``show_activity``
     (the caller may read the activity log, scoped as it is for them).
@@ -161,7 +156,7 @@ def dashboard(now, date_from, date_to, *, user, request=None, show_bookings=Fals
     stages = Counter(_STAGE_OF[status] for status in received.values_list('lead_status', flat=True))
     return {
         'timezone': BOOKING_TIMEZONE_NAME,
-        'range': {'from': date_from.isoformat(), 'to': date_to.isoformat()},
+        'range': shown_range(date_from, date_to, _first_date(date_to, show_bookings) if date_from is None else None),
         'leads': {'received': sum(stages.values()), 'new': stages['NEW']},
         'pipeline': [{'stage': stage, 'label': label, 'count': stages[stage]} for stage, label in PIPELINE]
                     + ([{'stage': 'ENROLLED', 'label': 'Enrolled', 'count': stages['ENROLLED']}] if stages['ENROLLED'] else []),
