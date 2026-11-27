@@ -19,6 +19,8 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from students.models import Student, StatusChoices
+from bookings.scheduling import indian_today
+from core.dashboard_dates import day_start
 from activity.models import ActivityLog
 from sessions.models import Session, SessionStatusChoices, SessionFile
 
@@ -114,10 +116,49 @@ class EduportPlusBackendAPITests(APITestCase):
         self.client.force_authenticate(user=self.admin)
         res = self.client.get(self.stats_url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertIn('signup_data', res.data)
         self.assertIn('recent_signups', res.data)
         self.assertEqual(len(res.data['recent_signups']), 2) # Both students created in setUp
         self.assertEqual(res.data['students'], 2)
+        # Without dates, the sign-ups of the last seven Indian days, day by day.
+        today = indian_today()
+        self.assertEqual(res.data['range'], {'from': (today - timedelta(days=6)).isoformat(), 'to': today.isoformat(), 'all_time': False})
+        signups = res.data['signups']
+        self.assertEqual((signups['total'], signups['unit'], len(signups['buckets'])), (2, 'day', 7))
+        self.assertEqual(signups['buckets'][-1], {'from': today.isoformat(), 'to': today.isoformat(), 'signups': 2})
+
+    def test_staff_dashboard_signups_over_a_span_of_indian_dates(self):
+        """
+        The sign-ups follow the dates asked for, counted by the Indian date a
+        student joined on; All Time reaches every one, however old, while the
+        student totals stay as they stand.
+        """
+        today = indian_today()
+        long_ago = today - timedelta(days=400)
+        # Five past midnight in India: still the day before in UTC.
+        Student.objects.filter(pk=self.student2.pk).update(created_at=day_start(long_ago) + timedelta(minutes=5))
+        self.client.force_authenticate(user=self.admin)
+
+        def signups(**params):
+            res = self.client.get(self.stats_url, params)
+            self.assertEqual(res.status_code, status.HTTP_200_OK, res.content)
+            self.assertEqual(res.data['students'], 2)
+            return res.data
+
+        everything = signups(range='all')
+        self.assertEqual(everything['range'], {'from': long_ago.isoformat(), 'to': today.isoformat(), 'all_time': True})
+        self.assertEqual((everything['signups']['total'], everything['signups']['unit']), (2, 'month'))
+        self.assertEqual(everything['signups']['buckets'][0], {'from': long_ago.isoformat(), 'to': everything['signups']['buckets'][0]['to'], 'signups': 1})
+        self.assertEqual(sum(bucket['signups'] for bucket in everything['signups']['buckets']), 2)
+        self.assertEqual(signups()['signups']['total'], 1)
+        self.assertEqual(signups(**{'from': long_ago.isoformat(), 'to': long_ago.isoformat()})['signups']['total'], 1)
+        day_before = (long_ago - timedelta(days=1)).isoformat()
+        self.assertEqual(signups(**{'from': day_before, 'to': day_before})['signups']['total'], 0)
+
+        for params, fields in (({'from': today.isoformat()}, ['to']), ({'range': '30d'}, ['range']),
+                               ({'from': today.isoformat(), 'to': long_ago.isoformat()}, ['to'])):
+            with self.subTest(params=params):
+                res = self.client.get(self.stats_url, params)
+                self.assertEqual((res.status_code, res.data['error'], res.data['fields']), (400, 'INVALID_INPUT', fields))
 
     def test_student_dashboard(self):
         """

@@ -1,7 +1,10 @@
-import datetime
 import uuid
+from collections import Counter
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status
@@ -40,6 +43,10 @@ from core.querysets import STUDENT_VIEW_PERMISSIONS, scope_students
 from core.students import get_account_students, get_usable_students, resolve_selected_student
 from core.pagination import paginate_queryset
 from core.timezones import is_valid_timezone
+from core.dashboard_dates import (
+    INVALID_MESSAGE, bucket_start, instant_on_dates, read_span, shown_range, trend_buckets,
+)
+from bookings.scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME
 
 User = get_user_model()
 
@@ -78,14 +85,24 @@ def _staff_display(user):
 
 class StaffDashboardStatsView(APIView):
     """
-    GET /api/dashboard/stats/
-    Returns the numbers of students, mentors, tutors, and pending invitations.
-    Also returns sign-up history over the last 7 days and recent signups.
+    GET /api/dashboard/stats/?from=&to= or ?range=all
+    The staff dashboard's figures: the numbers of students (those this caller
+    may see), mentors, tutors and pending invitations; the latest five
+    sign-ups; and the sign-ups over a span of Indian dates, read as every
+    dashboard reads one (core.dashboard_dates: the last seven days without
+    dates, every one up to today for range=all) -- their total and, bucket by
+    bucket, how many fell in each, counted in the database. Bad dates answer
+    400 INVALID_INPUT naming them.
     Visible to: accounts.view_staff_dashboard
     """
     permission_classes = [IsAuthenticated, HasAppPermission('accounts.view_staff_dashboard')]
 
     def get(self, request, *args, **kwargs):
+        (date_from, date_to), invalid = read_span(request.query_params, timezone.now())
+        if invalid:
+            return Response({'error': 'INVALID_INPUT', 'message': INVALID_MESSAGE, 'fields': invalid},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         # Only the students this caller may see count. A tutor's count keeps
         # the students who have since expired.
         student_qs = scope_students(Student.objects.all(), request.user, request, current_only=False)
@@ -95,28 +112,6 @@ class StaffDashboardStatsView(APIView):
         mentors_count = User.objects.filter(role='MENTOR').count()
         tutors_count = User.objects.filter(role='TUTOR').count()
         pending_invites_count = Invitation.objects.filter(status=InvitationStatusChoices.PENDING).count()
-
-        # Build last 7 days signup data (UTC days)
-        now_utc = timezone.now()
-        day_map = {}
-        for i in range(6, -1, -1):
-            d = now_utc - datetime.timedelta(days=i)
-            day_num = str(int(d.strftime("%d")))
-            key = f"{d.strftime('%b')} {day_num}"
-            day_map[key] = 0
-
-        since = now_utc - datetime.timedelta(days=6)
-        since = since.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        signups = student_qs.filter(created_at__gte=since)
-        for s in signups:
-            created_utc = s.created_at.astimezone(datetime.timezone.utc)
-            day_num = str(int(created_utc.strftime("%d")))
-            key = f"{created_utc.strftime('%b')} {day_num}"
-            if key in day_map:
-                day_map[key] += 1
-
-        signup_data = [{"day": day, "signups": count} for day, count in day_map.items()]
 
         # Recent 5 student signups
         recent = student_qs.select_related('profile').order_by('-created_at')[:5]
@@ -130,13 +125,32 @@ class StaffDashboardStatsView(APIView):
             for s in recent
         ]
 
+        # Sign-ups per Indian date on the span, grouped in the database.
+        per_day = dict(
+            student_qs.filter(instant_on_dates('created_at', date_from, date_to)).order_by()
+            .annotate(day=TruncDate('created_at', tzinfo=BOOKING_TIMEZONE))
+            .values('day').annotate(signups=Count('pk')).values_list('day', 'signups')
+        )
+        first = min(per_day, default=None) if date_from is None else None
+        unit, buckets = trend_buckets(date_from or first or date_to, date_to)
+        in_bucket = Counter()
+        for day, signups in per_day.items():
+            in_bucket[bucket_start(day, unit)] += signups
+
         return Response({
             "students": students_count,
             "mentors": mentors_count,
             "tutors": tutors_count,
             "pending_invitations": pending_invites_count,
-            "signup_data": signup_data,
-            "recent_signups": recent_signups
+            "recent_signups": recent_signups,
+            "timezone": BOOKING_TIMEZONE_NAME,
+            "range": shown_range(date_from, date_to, first),
+            "signups": {
+                "total": sum(per_day.values()),
+                "unit": unit,
+                "buckets": [{"from": start_day.isoformat(), "to": last.isoformat(), "signups": in_bucket[start]}
+                            for start, start_day, last in buckets],
+            },
         }, status=status.HTTP_200_OK)
 
 class StudentDashboardView(APIView):

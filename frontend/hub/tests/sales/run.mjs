@@ -3663,6 +3663,44 @@ chartTest('Sales Dashboard: another span asks for its own dates; empty dates, a 
   assert.match(bodyText(), /Could not load the sales dashboard\./);
 });
 
+chartTest('Sales Dashboard dates: Today | 7 Days | This Month | All Time | Custom; All Time asks for no first date and names the one counted from', async () => {
+  const allTime = salesDashboard({ range: { from: '2025-01-03', to: indianDay(), all_time: true },
+    trend: { unit: 'month', buckets: buckets([['2025-01-03', '500', '500']]) } });
+  serve({ [`GET ${SALES_DASHBOARD}`]: (entry) => ok(entry.params.range === 'all' ? allTime : salesDashboard()) });
+  const page = await open('/sales-dashboard?range=30d', SALES_ADMIN);
+  const labels = [...document.querySelectorAll('button[aria-pressed]')].map((element) => clean(element.textContent));
+  assert.deepEqual(labels, ['Today', '7 Days', 'This Month', 'All Time', 'Custom']);
+  assert.equal(pressed('This Month').getAttribute('aria-pressed'), 'true', 'an old 30 Days link opens on the default');
+  assert.deepEqual(calls('GET', SALES_DASHBOARD)[0].params, { from: `${indianDay().slice(0, 8)}01`, to: indianDay() }, 'this month up to today');
+
+  await click(pressed('All Time'));
+  assert.deepEqual(calls('GET', SALES_DASHBOARD).at(-1).params, { range: 'all' });
+  assert.equal(page.location().search, '?range=all');
+  assert.match(bodyText(), /All time: 3 Jan 2025 – .* · Indian dates \(IST\)/);
+  assert.match(bodyText(), /month by month \(IST\)/);
+  // Its counts open their lists on the dates the API counted.
+  assert.equal(link('View all').getAttribute('href'), `/leads?from=2025-01-03&to=${indianDay()}`);
+  await click(pressed('All Time'));
+  assert.equal(calls('GET', SALES_DASHBOARD).length, 2, 'the span already shown is not read again');
+});
+
+chartTest('Sales Dashboard dates: figures read for other dates are not shown once the new dates fail to load', async () => {
+  let failing = false;
+  serve({ [`GET ${SALES_DASHBOARD}`]: () => (failing ? fail(500, {}) : ok(salesDashboard())) });
+  await open('/sales-dashboard', SALES_ADMIN);
+  assert.match(bodyText(), /Sales ValueAED 10,362/);
+  failing = true;
+  await click(pressed('All Time'));
+  assert.match(bodyText(), /Could not load the sales dashboard\./);
+  assert.ok(!bodyText().includes('AED 10,362'), "this month's figures are not offered as All Time's");
+  // A failed refresh of the same dates keeps them, with the error above.
+  failing = false;
+  await click(pressed('This Month'));
+  failing = true;
+  await click(document.querySelector('button[aria-label="Refresh"]'));
+  assert.match(bodyText(), /Could not load the sales dashboard\..*Sales ValueAED 10,362/);
+});
+
 // ------------------------------------------------------------------ additional hours (deferred payment)
 const HOURS = `/api/sales/students/${PURCHASE_STUDENT}/additional-hours/`;
 const ELIGIBILITY = `${HOURS}eligibility/`;

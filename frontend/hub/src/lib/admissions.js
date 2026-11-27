@@ -1,57 +1,17 @@
 // The administrators' Admissions Dashboard: the /api/admissions/dashboard/
-// contract (backend bookings/admissions.py) as the Hub uses it, its dates, and
-// where each of its counts opens. Every date is an Indian date, worked out
-// from today's date in India whatever zone this device is in, as the booking
-// lists' class dates are (lib/bde-booking-filters).
+// contract (backend bookings/admissions.py) as the Hub uses it, and where each
+// of its counts opens. Its dates are every dashboard's (lib/dashboard-range):
+// Indian dates, worked out from today's date in India whatever zone this
+// device is in, as the booking lists' class dates are (lib/bde-booking-filters).
 import { bookingPagePath, bookingsPagePath } from '@/lib/bookings';
-import { classDateSpan, indianToday } from '@/lib/bde-booking-filters';
 
 export const ADMISSIONS_DASHBOARD_URL = '/api/admissions/dashboard/';
+// What the dashboard shows without dates: the last seven days, today included.
+export const ADMISSIONS_DEFAULT_RANGE = '7d';
 
-export const RANGE_OPTIONS = [
-  { value: 'today', label: 'Today' },
-  { value: '7d', label: '7 Days' },
-  { value: '30d', label: '30 Days' },
-  { value: 'month', label: 'This Month' },
-  { value: 'custom', label: 'Custom' },
-];
-// What the API shows without dates, too: the last seven days, today included.
-export const DEFAULT_RANGE = '7d';
-const RANGE_VALUES = new Set(RANGE_OPTIONS.map((option) => option.value));
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function daysBefore(iso, days) {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day) - days * DAY_MS).toISOString().slice(0, 10);
-}
-
-/** The Indian dates a preset covers as of `now`, `{ from, to }`, inclusive; null for Custom. */
-export function rangeSpan(preset, now = new Date()) {
-  const today = indianToday(now);
-  if (preset === '7d') return { from: daysBefore(today, 6), to: today };
-  if (preset === '30d') return { from: daysBefore(today, 29), to: today };
-  return classDateSpan(preset, now);
-}
-
-/**
- * The dashboard's dates from its URL: `range` (a preset; `fallback`, the last
- * 7 days unless a dashboard opens on another, when absent) and, for Custom,
- * `from` and `to` -- a Custom range missing either end falls back to the
- * default. Answers `{ range, from, to }`.
- */
-export function readRange(searchParams, now = new Date(), fallback = DEFAULT_RANGE) {
-  const asked = RANGE_VALUES.has(searchParams.get('range')) ? searchParams.get('range') : fallback;
-  if (asked === 'custom') {
-    const from = DATE_RE.test(searchParams.get('from') ?? '') ? searchParams.get('from') : '';
-    const to = DATE_RE.test(searchParams.get('to') ?? '') ? searchParams.get('to') : '';
-    if (from && to && from <= to) return { range: 'custom', from, to };
-  }
-  const preset = asked === 'custom' ? fallback : asked;
-  return { range: preset, ...rangeSpan(preset, now) };
-}
-
-const withQuery = (path, params) => `${path}?${new URLSearchParams(params)}`;
+// A list's URL with `params`, leaving out those without a value (All Time's missing first date, say).
+const withQuery = (path, params) =>
+  `${path}?${new URLSearchParams(Object.entries(params).filter(([, value]) => value != null && value !== ''))}`;
 
 /** The Leads page showing the leads that came in on `range`'s dates, at `status` (a stage, or none). */
 export function leadsPath(range, status = null) {

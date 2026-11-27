@@ -58,19 +58,27 @@ class AdmissionsAccessTests(AdmissionsTestCase):
             ({'from': today.isoformat()}, ['to']),
             ({'to': today.isoformat()}, ['from']),
             ({'from': today.isoformat(), 'to': (today - timedelta(days=1)).isoformat()}, ['to']),
-            ({'from': (today - timedelta(days=admissions.MAX_DAYS)).isoformat(), 'to': today.isoformat()}, ['to']),
+            ({'from': '1999-12-31', 'to': today.isoformat()}, ['from']),
+            ({'range': '30d'}, ['range']),
+            ({'range': 'all', 'from': today.isoformat(), 'to': today.isoformat()}, ['range']),
         ]
         for params, fields in cases:
             with self.subTest(params=params):
                 res = self.client.get(DASHBOARD, params)
                 self.assertEqual((res.status_code, res.json()['error'], res.json()['fields']), (400, 'INVALID_INPUT', fields))
 
+    def test_a_custom_range_may_be_longer_than_a_year(self):
+        today = indian_today()
+        start = today - timedelta(days=800)
+        self.assertEqual(self.read(**{'from': start.isoformat(), 'to': today.isoformat()})['range'],
+                         {'from': start.isoformat(), 'to': today.isoformat(), 'all_time': False})
+
 
 class AdmissionsLeadTests(AdmissionsTestCase):
     def test_the_last_seven_indian_days_by_default(self):
         today = indian_today()
         data = self.read()
-        self.assertEqual(data['range'], {'from': (today - timedelta(days=6)).isoformat(), 'to': today.isoformat()})
+        self.assertEqual(data['range'], {'from': (today - timedelta(days=6)).isoformat(), 'to': today.isoformat(), 'all_time': False})
         self.assertEqual(data['timezone'], 'Asia/Kolkata')
 
     def test_leads_that_came_in_on_the_span_and_where_each_stands(self):
@@ -97,6 +105,21 @@ class AdmissionsLeadTests(AdmissionsTestCase):
         self.assertEqual(self.read(**{'from': today, 'to': today})['leads'], {'received': 1, 'new': 1})
         self.assertEqual(fresh.student_name, 'Fresh')
 
+    def test_all_time_counts_every_lead_however_old_from_the_first(self):
+        today = indian_today()
+        received(lead(None, 'Recent', phone='501000021'), 0)
+        received(lead(self.bde, 'Last year', phone='501000022'), 400)
+        received(lead(None, 'Two years ago', phone='501000023'), 760, minutes=5)
+        data = self.read(range='all')
+        self.assertEqual(data['leads'], {'received': 3, 'new': 3})
+        self.assertEqual(sum(row['count'] for row in data['pipeline']), 3)
+        # From the Indian date the first lead came in on (five past midnight in India: the day before in UTC).
+        first = today - timedelta(days=760)
+        self.assertEqual(data['range'], {'from': first.isoformat(), 'to': today.isoformat(), 'all_time': True})
+        # Nothing at all: All Time names no first date.
+        Lead.objects.all().delete()
+        self.assertEqual(self.read(range='all')['range'], {'from': None, 'to': today.isoformat(), 'all_time': True})
+
     def test_the_latest_leads_whatever_the_span(self):
         for number in range(8):
             received(lead(None, f'Child {number}', phone=f'50100010{number}'), 30 + number)
@@ -121,6 +144,22 @@ class AdmissionsBookingTests(AdmissionsTestCase):
         data = self.read()
         self.assertEqual(data['bookings']['DEMO']['total'], 2)
         self.assertEqual(data['bookings']['DIAGNOSTIC']['total'], 1)
+
+    def test_all_time_counts_every_class_up_to_today_however_old(self):
+        booking(self.riya, 0, DEMO)
+        booking(self.riya, -400, DEMO, status=BookingStatus.CANCELLED)
+        complete(booking(self.riya, -500, DEMO, started_by=self.tutor))
+        old = booking(self.ali, -700, DIAGNOSTIC)
+        booking(self.ali, 5, DIAGNOSTIC)                             # still to come: after today, not counted
+        data = self.read(range='all')
+        self.assertEqual((data['bookings']['DEMO']['total'], data['bookings']['DIAGNOSTIC']['total']), (2, 1))
+        self.assertEqual(data['bookings']['DIAGNOSTIC']['upcoming'], 0)
+        # The first class is older than the first lead, so the span starts there.
+        self.assertEqual(data['range']['from'], old.slot.local_date.isoformat())
+        # This month runs from its first day to today, and counts only its own classes.
+        today = indian_today()
+        month = self.read(**{'from': today.replace(day=1).isoformat(), 'to': today.isoformat()})
+        self.assertEqual(month['bookings']['DEMO']['total'], 1)
 
     def test_what_awaits_an_administrator(self):
         booking(self.riya, 2, DEMO)                                  # needs a tutor, awaiting confirmation

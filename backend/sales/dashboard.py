@@ -1,6 +1,7 @@
 """
 The administrators' Sales Dashboard (GET /api/sales/dashboard/): Eduport
-Plus sales and collections at a glance. Over a span of Indian dates, what was
+Plus sales and collections at a glance. Over a span of Indian dates (read as
+every dashboard reads one, core.dashboard_dates -- All Time included), what was
 sold and what was received, how it was sold and collected, how far the leads
 that came in converted, and each BDE's share; then, whatever the span, the
 balances still outstanding, the Autopay agreements and what awaits an
@@ -24,15 +25,16 @@ Finance tab shows them until a refund policy is approved. Students managed only
 in the enrolment sheet have no sales here.
 """
 from collections import Counter, defaultdict
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.db.models import Exists, F, OuterRef, Q, Sum
+from django.db.models import Exists, F, Min, OuterRef, Sum
 
 from bookings import lead_admin
 from bookings.models import Lead
-from bookings.scheduling import BOOKING_TIMEZONE, BOOKING_TIMEZONE_NAME
+from bookings.scheduling import BOOKING_TIMEZONE_NAME
+from core.dashboard_dates import bucket_start, date_on_dates, indian_date, instant_on_dates, shown_range, trend_buckets
 
 from . import autopay, payments
 from .additional_purchases import payment_status
@@ -48,27 +50,12 @@ OUTSTANDING_ROWS = 8
 RECENT_ROWS = 8
 # Autopay collections due within this many days are the ones coming up.
 DUE_DAYS = 30
-# A span of up to a month is drawn day by day, up to six months week by week, longer month by month.
-DAILY_DAYS = 31
-WEEKLY_DAYS = 186
 FINISHED_AGREEMENTS = ('COMPLETED', 'CANCELLED')
 # Installments that will not be collected: paid, cancelled with their agreement, or written off in Stripe.
 CLOSED_INSTALLMENTS = ('PAID', 'CANCELLED', 'VOID', 'UNCOLLECTIBLE')
 PAYMENT_TYPES = ('INITIAL', 'TOKEN', 'AUTOPAY_INITIAL', 'BALANCE', 'AUTOPAY_INSTALLMENT', 'ADDITIONAL')
 OPEN_STATUSES = ('PARTIALLY_PAID', 'UNPAID', 'LINK_PENDING', 'AUTOPAY')
 PLANS = ('FULL', 'PARTIAL', 'AUTOPAY')
-
-
-def _indian_date(instant):
-    return instant.astimezone(BOOKING_TIMEZONE).date()
-
-
-def _on_dates(field, date_from, date_to):
-    """``field`` (an instant) on the Indian dates ``date_from`` to ``date_to``, inclusive."""
-    return Q(**{
-        f'{field}__gte': datetime.combine(date_from, time.min, tzinfo=BOOKING_TIMEZONE),
-        f'{field}__lt': datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=BOOKING_TIMEZONE),
-    })
 
 
 def _total(values):
@@ -102,7 +89,7 @@ def _purchases():
             continue
         received = paid.get(sale.pk) or ZERO
         rows.append({
-            'sale': sale, 'purchase': purchase, 'sold_on': _indian_date(sale.enrolled_at or sale.created_at),
+            'sale': sale, 'purchase': purchase, 'sold_on': indian_date(sale.enrolled_at or sale.created_at),
             'plan': 'AUTOPAY' if sale.pk in on_autopay else purchase.collection_mode,
             'paid': received, 'outstanding': purchase.amount - received,
             'status': payment_status(received >= purchase.amount, sale.pk in on_autopay, sale.pk in link_pending, received),
@@ -111,49 +98,26 @@ def _purchases():
 
 
 def _received(date_from, date_to):
-    """The payments received on the span's dates, each with its type."""
-    rows = list(payments.received_payments(Payment.objects.filter(payment_date__gte=date_from, payment_date__lte=date_to))
+    """The payments received on the span's dates (every one up to ``date_to`` for All Time), each with its type."""
+    rows = list(payments.received_payments(Payment.objects.filter(date_on_dates('payment_date', date_from, date_to)))
                 .select_related('sale'))
     installments = {row.payment_id: row for row in AutopayInstallment.objects.filter(payment__in=rows)}
     return [(row, payment_type(row, installments.get(row.pk))) for row in rows]
 
 
-def _unit(date_from, date_to):
-    days = (date_to - date_from).days + 1
-    return 'day' if days <= DAILY_DAYS else 'week' if days <= WEEKLY_DAYS else 'month'
-
-
-def _bucket(day, unit):
-    """The first day of the day, week (from Monday) or month ``day`` falls in."""
-    if unit == 'day':
-        return day
-    return day - timedelta(days=day.weekday()) if unit == 'week' else day.replace(day=1)
-
-
-def _next(start, unit):
-    if unit == 'day':
-        return start + timedelta(days=1)
-    return start + timedelta(days=7) if unit == 'week' else (start.replace(day=28) + timedelta(days=4)).replace(day=1)
-
-
 def _trend(date_from, date_to, sold, received):
-    """What was sold and received, day by day, week by week or month by month; each bucket cut to the span."""
-    unit = _unit(date_from, date_to)
+    """What was sold and received, in core.dashboard_dates' buckets (day, week, month or year), each cut to the span."""
+    unit, buckets = trend_buckets(date_from, date_to)
     sales, collected = defaultdict(list), defaultdict(list)
     for row in sold:
-        sales[_bucket(row['sold_on'], unit)].append(row['purchase'].amount)
+        sales[bucket_start(row['sold_on'], unit)].append(row['purchase'].amount)
     for payment, _type in received:
-        collected[_bucket(payment.payment_date, unit)].append(payment.amount)
-    buckets, start = [], _bucket(date_from, unit)
-    while start <= date_to:
-        following = _next(start, unit)
-        buckets.append({
-            'from': max(start, date_from).isoformat(), 'to': min(following - timedelta(days=1), date_to).isoformat(),
-            'sales_count': len(sales[start]), 'sales_value': plain(_total(sales[start])),
-            'payments': len(collected[start]), 'collected': plain(_total(collected[start])),
-        })
-        start = following
-    return {'unit': unit, 'buckets': buckets}
+        collected[bucket_start(payment.payment_date, unit)].append(payment.amount)
+    return {'unit': unit, 'buckets': [{
+        'from': first.isoformat(), 'to': last.isoformat(),
+        'sales_count': len(sales[start]), 'sales_value': plain(_total(sales[start])),
+        'payments': len(collected[start]), 'collected': plain(_total(collected[start])),
+    } for start, first, last in buckets]}
 
 
 def _mix(sold):
@@ -180,7 +144,8 @@ def _collections(received):
 
 def _leads(date_from, date_to):
     """
-    The leads that came in on the span's dates, each with its BDE and how far
+    The leads that came in on the span's dates (every one up to ``date_to``
+    for All Time), each with its BDE and how far
     it went: quoted, a sale started, enrolled (lead_status's ENROLLED: its sale
     enrolled a student).
     """
@@ -316,18 +281,40 @@ def _recent():
     return data
 
 
+def _first_date(date_to, sold, received, refunded):
+    """
+    For All Time: the first Indian date, up to ``date_to``, anything the
+    dashboard counts falls on -- a sale, a payment received, a refund or a
+    lead coming in -- or None when there is nothing yet.
+    """
+    firsts = [row['sold_on'] for row in sold] + [payment.payment_date for payment, _type in received]
+    for first in (refunded.aggregate(first=Min('stripe_created_at'))['first'],
+                  Lead.objects.filter(instant_on_dates('created_at', None, date_to)).aggregate(first=Min('created_at'))['first']):
+        if first:
+            firsts.append(indian_date(first))
+    return min(firsts, default=None)
+
+
 def dashboard(now, date_from, date_to):
-    """The dashboard for the Indian dates ``date_from`` to ``date_to``, inclusive."""
+    """
+    The dashboard for the Indian dates ``date_from`` to ``date_to``, inclusive;
+    for All Time (``date_from`` None) every record up to ``date_to``, its trend
+    drawn from the first date anything counted falls on.
+    """
     purchases = _purchases()
-    sold = [row for row in purchases if date_from <= row['sold_on'] <= date_to]
+    # Every sale's row is read for the balances, which count every sale whatever the span;
+    # the span's sales are picked from those rows rather than read a second time.
+    sold = [row for row in purchases if (date_from is None or date_from <= row['sold_on']) and row['sold_on'] <= date_to]
     received = _received(date_from, date_to)
     leads = _leads(date_from, date_to)
-    refunded = Refund.objects.filter(_on_dates('stripe_created_at', date_from, date_to), status__in=COUNTED_REFUNDS)
+    refunded = Refund.objects.filter(instant_on_dates('stripe_created_at', date_from, date_to), status__in=COUNTED_REFUNDS)
     outstanding = _outstanding(purchases)
+    first = _first_date(date_to, sold, received, refunded) if date_from is None else None
+    trend_from = date_from or first or date_to
     return {
         'timezone': BOOKING_TIMEZONE_NAME,
         'currency': 'AED',
-        'range': {'from': date_from.isoformat(), 'to': date_to.isoformat()},
+        'range': shown_range(date_from, date_to, first),
         'summary': {
             'sales_count': len(sold), 'sales_value': plain(_total(row['purchase'].amount for row in sold)),
             'enrollments': sum(1 for row in sold if row['sale'].kind in INITIAL_KINDS),
@@ -338,7 +325,7 @@ def dashboard(now, date_from, date_to):
             'leads': len(leads), 'enrolled_leads': sum(1 for lead in leads if lead['enrolled']),
             'unassigned_leads': sum(1 for lead in leads if not lead['owner_bde_id']),
         },
-        'trend': _trend(date_from, date_to, sold, received),
+        'trend': _trend(trend_from, date_to, sold, received),
         'mix': _mix(sold),
         'collections': _collections(received),
         'funnel': _funnel(leads),

@@ -47,14 +47,16 @@ export function Tile({ icon, tone, label, value, hint, hintTone = 'muted', to, l
 
 /**
  * The four headline numbers. Every figure is read from what the page already
- * loads: the stats endpoint (totals, this week's sign-ups), the students list
+ * loads: the stats endpoint (totals) and `signups`, its sign-ups on the
+ * dashboard's dates -- the only figure here the date filter moves -- the students list
  * (active count), the sessions list (today's and upcoming classes) and the
- * Needs Attention items.
+ * Needs Attention items, all as they stand now.
  */
-export function KpiCards({ stats, students, sessions, attentionTotal }) {
+export function KpiCards({ stats, signups, students, sessions, attentionTotal }) {
   const total = stats?.students ?? students.length;
   const active = students.filter((s) => (s.status || 'active').toLowerCase() === 'active').length;
-  const thisWeek = (stats?.signup_data ?? []).reduce((sum, d) => sum + (d.signups || 0), 0);
+  // The sign-ups on the dashboard's dates; none named while they could not be read.
+  const joined = signups?.total ?? 0;
   const activePct = total > 0 ? Math.round((active / total) * 100) : 0;
 
   // Same local-day rule as the Upcoming Sessions panel, so the two agree.
@@ -69,8 +71,8 @@ export function KpiCards({ stats, students, sessions, attentionTotal }) {
         tone="info"
         label="Total Students"
         value={total}
-        hint={thisWeek > 0 ? `+${thisWeek} this week` : 'No new sign-ups this week'}
-        hintTone={thisWeek > 0 ? 'success' : 'muted'}
+        hint={!signups ? null : joined > 0 ? `+${joined} on these dates` : 'No new sign-ups on these dates'}
+        hintTone={joined > 0 ? 'success' : 'muted'}
         to="/students"
       />
       <Tile

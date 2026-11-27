@@ -33,6 +33,7 @@ from rest_framework.views import APIView
 
 from accounts.authz import has_app_permission
 from accounts.models import RoleChoices
+from core.dashboard_dates import INVALID_MESSAGE, read_span
 from core.pagination import page_params
 from core.permissions import ByMethod, HasAppPermission
 from core.querysets import ACTIVITY_VIEW_PERMISSIONS
@@ -300,9 +301,10 @@ class LeadNotesView(APIView):
 
 class AdmissionsDashboardView(APIView):
     """
-    GET /api/admissions/dashboard/?from=&to=
+    GET /api/admissions/dashboard/?from=&to= or ?range=all
     The admissions pipeline at a glance (bookings.admissions.dashboard): over
-    the Indian dates ``from`` to ``to`` (both or neither: the last seven days),
+    the Indian dates ``from`` to ``to`` (both or neither: the last seven days;
+    range=all for every record up to today -- core.dashboard_dates),
     the leads that came in and where each stands now, and the Demo and
     Diagnostic bookings for those dates; then today's bookings, what awaits an
     administrator, the latest leads and the latest admissions activity. Bad
@@ -315,10 +317,9 @@ class AdmissionsDashboardView(APIView):
 
     def get(self, request, *args, **kwargs):
         now = timezone.now()
-        (date_from, date_to), invalid = admissions.span(request.query_params, now)
+        (date_from, date_to), invalid = read_span(request.query_params, now)
         if invalid:
-            return _error('INVALID_INPUT', f'Check the dates: YYYY-MM-DD, at most {admissions.MAX_DAYS} days.',
-                          status.HTTP_400_BAD_REQUEST, fields=invalid)
+            return _error('INVALID_INPUT', INVALID_MESSAGE, status.HTTP_400_BAD_REQUEST, fields=invalid)
 
         def holds(permission):
             return has_app_permission(request.user, permission, request)

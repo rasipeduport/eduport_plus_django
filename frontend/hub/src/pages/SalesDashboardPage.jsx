@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   BarChart3,
@@ -22,8 +22,9 @@ import {
 import { format } from 'date-fns';
 
 import api from '@/lib/api';
-import { RANGE_OPTIONS, leadsPath } from '@/lib/admissions';
-import { rangeLabel, toPickerDate } from '@/lib/date-range';
+import { leadsPath } from '@/lib/admissions';
+import { UNIT_WORDS, shownRange } from '@/lib/dashboard-range';
+import { toPickerDate } from '@/lib/date-range';
 import { enquiryError } from '@/lib/enquiries';
 import { PAYMENT_TYPES, PURCHASE_KINDS, PURCHASE_STATUSES, autopayStatus, wholeAed } from '@/lib/payments';
 import {
@@ -32,22 +33,20 @@ import {
   SALES_DASHBOARD_URL,
   SALES_DEFAULT_RANGE,
   SALE_KINDS,
-  UNIT_WORDS,
   aedDigits,
   percent,
-  readSalesRange,
   studentFinancePath,
 } from '@/lib/sales-dashboard';
+import { useDashboardRange } from '@/hooks/use-dashboard-range';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tile } from '@/components/dashboard/kpi-cards';
 import { Panel, PanelEmpty, ScrollList } from '@/components/dashboard/dashboard-primitives';
 import { SalesTrendChart } from '@/components/sales/sales-trend-chart';
-import { DatePresets } from '@/components/page/date-presets';
+import { DashboardRangeFilter } from '@/components/dashboard/dashboard-range-filter';
 import { Page, PageHeader } from '@/components/page/page';
 import { ResponsiveList } from '@/components/page/responsive-list';
-import { RefreshButton } from '@/components/page/refresh-button';
 import { AccessDeniedState, ErrorState } from '@/components/page/states';
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -66,31 +65,6 @@ function DashboardSkeleton() {
         <Skeleton className="h-80 rounded-xl xl:col-span-2" />
       </div>
       <Skeleton className="h-56 rounded-xl" />
-    </div>
-  );
-}
-
-/** The span the dashboard counts: a preset (this month unless chosen otherwise), or a Custom range on a calendar. */
-function RangeFilter({ range, onChange }) {
-  const labelId = useId();
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:items-end">
-      <span id={labelId} className="sr-only">
-        Dates to count
-      </span>
-      <DatePresets
-        options={RANGE_OPTIONS}
-        value={range.range}
-        from={range.from}
-        to={range.to}
-        anyLabel="This month"
-        labelledBy={labelId}
-        onPick={(preset) => onChange({ range: preset === SALES_DEFAULT_RANGE ? null : preset, from: null, to: null })}
-        onCustom={(picked) => onChange(picked.from ? { range: 'custom', ...picked } : { range: null, from: null, to: null })}
-      />
-      <p className="text-muted-foreground text-xs" aria-live="polite">
-        {rangeLabel(range.from, range.to, '')} · Indian dates (IST)
-      </p>
     </div>
   );
 }
@@ -639,17 +613,17 @@ function RecentPayments({ rows, className }) {
 /**
  * The Sales Dashboard, for administrators: Eduport Plus sales and collections
  * across every student enrolled through its payments. Over the dates picked
- * (this month unless chosen otherwise, kept in the URL) what was sold and
+ * (this month unless chosen otherwise, kept in the URL; All Time for every
+ * record up to today -- lib/dashboard-range) what was sold and
  * received, how it was sold and collected, how far the leads converted and
  * each BDE's share; then, as things stand now, the outstanding balances,
  * AutoPay, what awaits action and the latest payments -- all from one request
  * (GET /api/sales/dashboard/), with the Finance tab's own figures.
  */
 export default function SalesDashboardPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const range = readSalesRange(searchParams);
-  const { from, to } = range;
-  const [data, setData] = useState(null);
+  const [range, pickRange, query] = useDashboardRange(SALES_DEFAULT_RANGE);
+  // The latest answer, with the dates it was read for (`query`).
+  const [answer, setAnswer] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -658,10 +632,10 @@ export default function SalesDashboardPage() {
     let active = true;
     setPending(true);
     api
-      .get(SALES_DASHBOARD_URL, { params: { from, to } })
+      .get(SALES_DASHBOARD_URL, { params: query })
       .then((response) => {
         if (!active) return;
-        setData(response.data);
+        setAnswer({ data: response.data, query });
         setFailure(null);
       })
       .catch((err) => {
@@ -673,17 +647,13 @@ export default function SalesDashboardPage() {
     return () => {
       active = false;
     };
-  }, [from, to, reloadKey]);
+  }, [query, reloadKey]);
 
-  const changeRange = (updates) => {
-    const params = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(updates)) {
-      if (value) params.set(key, value);
-      else params.delete(key);
-    }
-    setSearchParams(params, { replace: true });
-  };
   const reload = () => setReloadKey((key) => key + 1);
+  // An answer for other dates is shown (dimmed) only while these are read, never once their read has failed.
+  const data = answer && (answer.query === query || !failure) ? answer.data : null;
+  // The dates each count's list opens on: for All Time, those the API counted from.
+  const listRange = shownRange(range, data?.range);
 
   let content;
   if (failure && !data && failure.status === 403) {
@@ -696,13 +666,13 @@ export default function SalesDashboardPage() {
     content = (
       <div className={cn('flex flex-col gap-4', pending && 'opacity-70 transition-opacity')} aria-busy={pending || undefined}>
         {failure ? <ErrorState message={failure.message} onRetry={reload} pending={pending} /> : null}
-        <KpiTiles summary={data.summary} range={range} />
+        <KpiTiles summary={data.summary} range={listRange} />
         <div className="grid min-w-0 gap-4 xl:grid-cols-5 xl:items-start">
           <TrendPanel data={data} className="xl:col-span-3" />
           <SalesMix mix={data.mix} summary={data.summary} className="xl:col-span-2" />
         </div>
         <div className="grid min-w-0 gap-4 xl:grid-cols-5 xl:items-start">
-          <ConversionFunnel funnel={data.funnel} range={range} className="xl:col-span-3" />
+          <ConversionFunnel funnel={data.funnel} range={listRange} className="xl:col-span-3" />
           <Collections collections={data.collections} summary={data.summary} className="xl:col-span-2" />
         </div>
         <BdePerformance rows={data.bdes} unassigned={data.summary.unassigned_leads} />
@@ -723,10 +693,14 @@ export default function SalesDashboardPage() {
         description="Sales, collections and balances across every student enrolled through Eduport Plus payments."
         actionsClassName="w-full sm:w-auto"
         actions={
-          <div className="flex w-full items-start gap-2">
-            <RangeFilter range={range} onChange={changeRange} />
-            <RefreshButton variant="ghost" iconOnly onClick={reload} pending={pending} />
-          </div>
+          <DashboardRangeFilter
+            range={range}
+            fallback={SALES_DEFAULT_RANGE}
+            answered={data?.range}
+            onPick={pickRange}
+            onRefresh={reload}
+            pending={pending}
+          />
         }
       />
       {content}

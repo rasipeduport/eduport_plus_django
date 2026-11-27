@@ -1543,6 +1543,63 @@ test('Refresh audit B4: staff dashboard Refresh is disabled and turning until it
   assert.deepEqual(alerts(), ['Could not refresh the dashboard figures; showing what was loaded before.']);
 });
 
+// ------------------------------------------------ Dashboard dates: the staff (Academics) dashboard
+const indianDay = (offset = 0) => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const presets = () => [...document.querySelectorAll('button[aria-pressed]')].map((element) => clean(element.textContent));
+const pressedPreset = () => presets().find((label) => button(label).getAttribute('aria-pressed') === 'true');
+const statsParams = () => calls('GET', '/api/dashboard/stats/').map((entry) => entry.params);
+// The stats as backend students.StaffDashboardStatsView answers them: All Time from its first sign-up, month by month.
+const statsFor = (entry) => (entry.params?.range === 'all'
+  ? { ...STATS, range: { from: '2025-01-03', to: indianDay(), all_time: true },
+    signups: { total: 9, unit: 'month', buckets: [{ from: '2025-01-03', to: '2025-01-31', signups: 7 }, { from: '2025-02-01', to: indianDay(), signups: 2 }] } }
+  : { ...STATS, range: { ...entry.params, all_time: false },
+    signups: { total: 2, unit: 'day', buckets: [{ from: entry.params.to, to: entry.params.to, signups: 2 }] } });
+
+test('Dashboard dates: the staff dashboard offers Today | 7 Days | This Month | All Time | Custom; a pick reads the stats alone again', async () => {
+  serve(staffDashboard({ 'GET /api/dashboard/stats/': statsFor }));
+  await open('page', { path: '/academics-dashboard', user: STAFF });
+  assert.deepEqual(presets(), ['Today', '7 Days', 'This Month', 'All Time', 'Custom']);
+  assert.equal(pressedPreset(), '7 Days', 'the last seven days, as its sign-ups always opened on');
+  assert.deepEqual(statsParams(), [{ from: indianDay(-6), to: indianDay() }]);
+  assert.match(text(), /\+2 on these dates/);
+  assert.match(text(), /2 student sign-ups on these dates, day by day \(IST\)/);
+  assert.ok(!text().includes('30 Days'));
+
+  await click(button('All Time'));
+  assert.deepEqual(statsParams().at(-1), { range: 'all' }, 'no first date at all');
+  assert.equal(pressedPreset(), 'All Time');
+  assert.equal(globalThis.__dfRouter.state.location.search, '?range=all');
+  assert.match(text(), /All time: 3 Jan 2025 – .* · Indian dates \(IST\)/);
+  assert.match(text(), /9 student sign-ups on these dates, month by month \(IST\)/);
+  assert.match(text(), /\+9 on these dates/);
+  // Only the stats follow the dates: the five lists are as things stand, read once.
+  for (const list of ['/api/students/', '/api/sessions/', '/api/homework/', '/api/activity/']) assert.equal(gets(list), 1, list);
+
+  await click(button('All Time'));
+  assert.equal(gets('/api/dashboard/stats/'), 2, 'the span already shown is not read again');
+  await click(button('This Month'));
+  assert.deepEqual(statsParams().at(-1), { from: `${indianDay().slice(0, 8)}01`, to: indianDay() }, 'from its first day to today');
+  await click(button('Today'));
+  assert.deepEqual(statsParams().at(-1), { from: indianDay(), to: indianDay() });
+  assert.equal(gets('/api/students/'), 1);
+  await click(button('Refresh'));
+  assert.equal(gets('/api/students/'), 2, 'Refresh reads everything');
+  assert.deepEqual(statsParams().at(-1), { from: indianDay(), to: indianDay() }, 'for the same dates');
+});
+
+test('Dashboard dates: an old 30 Days link opens on the default; sign-ups that fail for new dates are never shown for them', async () => {
+  let failing = false;
+  serve(staffDashboard({ 'GET /api/dashboard/stats/': (entry) => (failing ? refused(500, {}) : statsFor(entry)) }));
+  await open('page', { path: '/academics-dashboard?range=30d', user: STAFF });
+  assert.equal(pressedPreset(), '7 Days');
+  assert.deepEqual(statsParams(), [{ from: indianDay(-6), to: indianDay() }]);
+  failing = true;
+  await click(button('All Time'));
+  assert.ok(!/\+2 on these dates/.test(text()), "the last 7 days' count is not offered as All Time's");
+  assert.match(text(), /The sign-ups for these dates could not be loaded/);
+  assert.match(text(), /Total Students\s*1/, 'the totals stand whatever the dates');
+});
+
 // ------------------------------------------------ B4: the tutor's Main and Admissions dashboards
 const TEACHER = { ...TUTOR, permissions: [...TUTOR.permissions, 'accounts.view_tutored_students', 'accounts.view_tutored_sessions'] };
 const countOnly = (count) => ({ results: [], count, page: 1, page_size: 1 });

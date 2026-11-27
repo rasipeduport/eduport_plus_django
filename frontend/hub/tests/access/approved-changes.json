@@ -478,8 +478,8 @@
    }
   },
   "/booking-links @ mentor_a": {
-   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Booking links are not this role's page: the route guard sends the caller to their home page.",
+   "decision": "DEVT-5934 (BDE booking links): accounts.view_own_booking_links, which only the BDE role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Booking links are not this role's page: the route guard sends the caller to their home page. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -492,7 +492,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -559,8 +563,8 @@
    }
   },
   "/booking-links @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "A superuser holds the permission (D1), but the Hub opens the page only for the BDE role, so they are sent to their home page, the dashboard. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -578,7 +582,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -884,8 +892,8 @@
    }
   },
   "/booking-slots?type=demo&date=2026-10-29 @ mentor_a": {
-   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Booking slots are not this role's page: the route guard sends the caller to their home page.",
+   "decision": "DEVT-5973 (admin slot management): accounts.manage_booking_slots, which only the ADMIN role may hold (a superuser holds it under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Booking slots are not this role's page: the route guard sends the caller to their home page. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -898,7 +906,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1298,8 +1310,8 @@
    }
   },
   "/dashboard @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1317,7 +1329,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1519,8 +1535,8 @@
    }
   },
   "/enquiries @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Manual enquiries retired (2026-11-22, backend accounts.0031): a BDE no longer adds enquiries by hand -- the Add Enquiry button and dialog are gone from the BDE dashboard and My Enquiries, and accounts.add_enquiry is no longer in /me. An administrator adds the lead from Leads (Add lead, unchanged) and assigns it.",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Manual enquiries retired (2026-11-22, backend accounts.0031): a BDE no longer adds enquiries by hand -- the Add Enquiry button and dialog are gone from the BDE dashboard and My Enquiries, and accounts.add_enquiry is no longer in /me. An administrator adds the lead from Leads (Add lead, unchanged) and assigns it. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1533,7 +1549,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1600,8 +1620,8 @@
    }
   },
   "/enquiries @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1619,7 +1639,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -1922,8 +1946,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ mentor_a": {
-   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Manual enquiries retired (2026-11-22, backend accounts.0031): a BDE no longer adds enquiries by hand -- the Add Enquiry button and dialog are gone from the BDE dashboard and My Enquiries, and accounts.add_enquiry is no longer in /me. An administrator adds the lead from Leads (Add lead, unchanged) and assigns it.",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called.",
+   "decision": "BDE portal phase 1 (dashboard and My Enquiries): accounts.view_own_enquiries and accounts.add_enquiry, which only the BDE role may hold (a superuser holds them under D1). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Manual enquiries retired (2026-11-22, backend accounts.0031): a BDE no longer adds enquiries by hand -- the Add Enquiry button and dialog are gone from the BDE dashboard and My Enquiries, and accounts.add_enquiry is no longer in /me. An administrator adds the lead from Leads (Add lead, unchanged) and assigns it. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -1936,7 +1960,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -2003,8 +2031,8 @@
    }
   },
   "/enquiries/{enquiry_a} @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The enquiry pages are for the BDE role only (a superuser holds the permissions under D1 but owns no enquiries), so this caller lands on its home page, as on any page it may not open; no enquiry endpoint is called. The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -2022,7 +2050,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -3221,8 +3253,8 @@
    }
   },
   "/nowhere @ su_mentor": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "The superuser with the Mentor role now gets the administrator interface (all pages, columns and actions) because /me lists the whole catalogue for them and the API serves them everything. Booking links (DEVT-5934) stays hidden: the Hub opens it only for the BDE role. With DEVT-5973 the sidebar also offers Booking slots (accounts.manage_booking_slots). The sidebar also offers Bookings, in a Demo & Diagnostic section with Booking slots (the caller holds accounts.view_all_bookings); nothing else changes. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -3240,7 +3272,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -6922,8 +6958,8 @@
    }
   },
   "/bookings @ mentor_a": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -6936,7 +6972,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -7371,8 +7411,8 @@
    }
   },
   "/bookings?booking={booking_a} @ mentor_a": {
-   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Bookings are not this role's page: the route guard sends the caller to their home page.",
+   "decision": "Booking management (Phase 3, on the Phase 2 API): accounts.view_all_bookings and accounts.assign_booking_tutor, which only the ADMIN role may hold (a superuser holds both under D1); /bookings opens for view_all_bookings. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Bookings are not this role's page: the route guard sends the caller to their home page. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -7385,7 +7425,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -8365,8 +8409,8 @@
    }
   },
   "/my-bookings @ mentor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8379,7 +8423,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -8446,8 +8494,8 @@
    }
   },
   "/my-bookings @ su_mentor": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8465,7 +8513,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -8788,8 +8840,8 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ mentor_a": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "My Bookings is not this role's page: the route guard sends the caller to their home page; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8802,7 +8854,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -8869,8 +8925,8 @@
    }
   },
   "/my-bookings?booking={my_booking_a}&booking_type=DEMO @ su_mentor": {
-   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "My Bookings (Phase 4, on the tutor bookings API): accounts.view_assigned_bookings, which only the TUTOR role may hold (a superuser holds it under D1); /my-bookings opens for it and for the TUTOR role only, as the enquiry pages do for the BDE role. The Diagnostic/Demo booking split (Phase 5.2 P1, approved 2026-10-31) gives each type its own table and API (/api/bookings/<demo|diagnostic>/, /api/tutor/bookings/<type>/<id>/). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "A superuser holds accounts.view_assigned_bookings (D1) but is not a tutor: the page is for the TUTOR role only, so this caller lands on its home page, as on any page it may not open; no tutor endpoint is called. Since the split a booking is opened by its type and its id (?booking=<id>&booking_type=<type>), and the sheet reads /api/tutor/bookings/<type>/<id>/. Who may open the page is unchanged. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -8888,7 +8944,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -10350,8 +10410,8 @@
    }
   },
   "/my-bookings/demo/{my_booking_a}/report @ mentor_a": {
-   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called.",
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -10364,7 +10424,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -10431,8 +10495,8 @@
    }
   },
   "/my-bookings/demo/{my_booking_a}/report @ su_mentor": {
-   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes.",
+   "decision": "Tutor report page (Phase 5.2 P8, design D.2): /my-bookings/<demo|diagnostic>/<id>/report is part of My Bookings and opens exactly as /my-bookings does -- for the TUTOR role holding accounts.view_assigned_bookings; every other caller is sent where /my-bookings sends them. The page reads only the tutor booking and report APIs, which serve a booking to its assigned tutor alone (anyone else is answered as if it did not exist). Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. The sidebar offers it, second, to whoever may open it. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not this role's page: exactly the result /my-bookings gives this caller (sent to their home page, the no-access page, or Learn); no tutor endpoint is called. The sidebar gains Leads; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -10450,7 +10514,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -10740,8 +10808,8 @@
    }
   },
   "/leads @ mentor_a": {
-   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not this role's page: sent to their home page; no leads endpoint is called.",
+   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not this role's page: sent to their home page; no leads endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -10754,7 +10822,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -11145,8 +11217,8 @@
    }
   },
   "/leads/{lead_a} @ mentor_a": {
-   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not this role's page: sent to their home page; no leads endpoint is called.",
+   "decision": "Lead management (backend accounts.0018, bookings.lead_views): the Leads page (/leads, /leads/<id>) opens for holders of accounts.view_all_leads -- the ADMIN role's alone, held by superusers too (D1) -- listing every lead with its source, status and owner BDE; accounts.add_lead offers Add lead and accounts.assign_lead_owner Assign / Reassign. Every other caller is sent where any page they cannot open sends them, and no leads endpoint is called. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not this role's page: sent to their home page; no leads endpoint is called. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -11159,7 +11231,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -11522,8 +11598,8 @@
    }
   },
   "/demo-bookings @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -11536,7 +11612,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -11603,8 +11683,8 @@
    }
   },
   "/demo-bookings @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -11622,7 +11702,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -11909,8 +11993,8 @@
    }
   },
   "/diagnostic-bookings @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -11923,7 +12007,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -11990,8 +12078,8 @@
    }
   },
   "/diagnostic-bookings @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -12009,7 +12097,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -12311,8 +12403,8 @@
    }
   },
   "/follow-ups @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -12325,7 +12417,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -12392,8 +12488,8 @@
    }
   },
   "/follow-ups @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -12411,7 +12507,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -12714,8 +12814,8 @@
    }
   },
   "/plans @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -12728,7 +12828,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -12795,8 +12899,8 @@
    }
   },
   "/plans @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -12814,7 +12918,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -13091,8 +13199,8 @@
    }
   },
   "/sales @ mentor_a": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -13105,7 +13213,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -13172,8 +13284,8 @@
    }
   },
   "/sales @ su_mentor": {
-   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn).",
+   "decision": "BDE Hub redesign Phase 2 (shell and design system, approved 2026-11-07): the BDE workspace's sidebar becomes Dashboard, My Enquiries, Demo Bookings, Diagnostic Bookings and Follow-ups, then My Sales and Plans & Pricing (each badged Coming Soon) and Activity (lib/navigation BDE_WORKSPACE); My Leads is renamed My Enquiries, its routes and APIs unchanged (/enquiries, /api/bde/enquiries/). The new pages (/demo-bookings, /diagnostic-bookings, /follow-ups, /sales, /plans) open for the BDE role only (BDE_PAGES) on accounts.view_own_enquiries. /activity also opens on accounts.view_own_enquiries, which only a BDE or a superuser can hold, and App.jsx gives a BDE their own Activity page; every other caller's /activity is unchanged. Demo Bookings, Diagnostic Bookings, Follow-ups and Activity send the BDE to My Enquiries until their lists arrive (Phases 5 and 6); My Sales and Plans & Pricing are Coming Soon pages with no business logic. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands where any address it may not open does (its home page, the No Access page, or nothing for a student, whom the Hub hands to Learn). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -13191,7 +13303,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -13379,8 +13495,8 @@
    }
   },
   "/admissions?range=custom&from=2026-11-02&to=2026-11-08 @ admin": {
-   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
-   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
+   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change (30 Days -> All Time); nothing else on the page changes.",
    "result": {
     "at": "/admissions?range=custom&from=2026-11-02&to=2026-11-08",
     "noAccess": false,
@@ -13404,8 +13520,8 @@
      "/activity"
     ],
     "buttons": [
-     "30 Days",
      "7 Days",
+     "All Time",
      "Custom",
      "Refresh",
      "This Month",
@@ -13492,8 +13608,8 @@
    }
   },
   "/admissions?range=custom&from=2026-11-02&to=2026-11-08 @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -13506,7 +13622,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -13573,8 +13693,8 @@
    }
   },
   "/admissions?range=custom&from=2026-11-02&to=2026-11-08 @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them.",
-   "note": "Opens for this caller.",
+   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Opens for this caller. Dashboard dates (2026-11-27): the page's date buttons change (30 Days -> All Time); nothing else on the page changes.",
    "result": {
     "at": "/admissions?range=custom&from=2026-11-02&to=2026-11-08",
     "noAccess": false,
@@ -13592,8 +13712,8 @@
      "/booking-slots"
     ],
     "buttons": [
-     "30 Days",
      "7 Days",
+     "All Time",
      "Custom",
      "Refresh",
      "This Month",
@@ -13627,8 +13747,8 @@
    }
   },
   "/admissions?range=custom&from=2026-11-02&to=2026-11-08 @ superuser": {
-   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
-   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
+   "decision": "Admin Hub redesign, Phase 2: the Admissions Dashboard (/admissions) opens for accounts.view_all_leads, as the Leads page does -- the ADMIN role's alone, held by superusers too (D1) -- and reads one request, GET /api/admissions/dashboard/. Every other caller is sent where any page they cannot open sends them. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change (30 Days -> All Time); nothing else on the page changes.",
    "result": {
     "at": "/admissions?range=custom&from=2026-11-02&to=2026-11-08",
     "noAccess": false,
@@ -13652,8 +13772,8 @@
      "/activity"
     ],
     "buttons": [
-     "30 Days",
      "7 Days",
+     "All Time",
      "Custom",
      "Refresh",
      "This Month",
@@ -13913,8 +14033,8 @@
    }
   },
   "/bookings/demo @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -13927,7 +14047,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -14342,8 +14466,8 @@
    }
   },
   "/bookings/diagnostic @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 3: the Demo and Diagnostic Bookings pages (/bookings/demo, /bookings/diagnostic) open for accounts.view_all_bookings, as the former single Bookings page did -- the ADMIN role's alone, held by superusers too (D1). Every other caller is sent where any page they cannot open sends them. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -14356,7 +14480,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -14627,8 +14755,8 @@
    }
   },
   "/sales-dashboard @ admin": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Sales Dashboard (2026-11-15): the page is built -- GET /api/sales/dashboard/ for this month, its date presets, Refresh and its panels; it opens for an ADMIN-role account holding accounts.manage_initial_sales and accounts.manage_sales_quotes (lib/access EVERY_PERMISSION_PAGES).",
-   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Sales Dashboard (2026-11-15): the page is built -- GET /api/sales/dashboard/ for this month, its date presets, Refresh and its panels; it opens for an ADMIN-role account holding accounts.manage_initial_sales and accounts.manage_sales_quotes (lib/access EVERY_PERMISSION_PAGES). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change (30 Days -> All Time); nothing else on the page changes.",
    "result": {
     "at": "/sales-dashboard",
     "noAccess": false,
@@ -14652,8 +14780,8 @@
      "/activity"
     ],
     "buttons": [
-     "30 Days",
      "7 Days",
+     "All Time",
      "Custom",
      "Refresh",
      "This Month",
@@ -14726,8 +14854,8 @@
    }
   },
   "/sales-dashboard @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -14740,7 +14868,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -14807,8 +14939,8 @@
    }
   },
   "/sales-dashboard @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -14826,7 +14958,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -14858,8 +14994,8 @@
    }
   },
   "/sales-dashboard @ superuser": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Sales Dashboard (2026-11-15): the page is built -- GET /api/sales/dashboard/ for this month, its date presets, Refresh and its panels; it opens for an ADMIN-role account holding accounts.manage_initial_sales and accounts.manage_sales_quotes (lib/access EVERY_PERMISSION_PAGES).",
-   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Sales Dashboard (2026-11-15): the page is built -- GET /api/sales/dashboard/ for this month, its date presets, Refresh and its panels; it opens for an ADMIN-role account holding accounts.manage_initial_sales and accounts.manage_sales_quotes (lib/access EVERY_PERMISSION_PAGES). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Opens for this caller, with the Admin Hub sidebar. With Sales Management (accounts.0020) the sidebar also lists Global Pricing (/sales-pricing) after Syllabus & Plans; nothing else on the page changes. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes. Dashboard dates (2026-11-27): the page's date buttons change (30 Days -> All Time); nothing else on the page changes.",
    "result": {
     "at": "/sales-dashboard",
     "noAccess": false,
@@ -14883,8 +15019,8 @@
      "/activity"
     ],
     "buttons": [
-     "30 Days",
      "7 Days",
+     "All Time",
      "Custom",
      "Refresh",
      "This Month",
@@ -15097,8 +15233,8 @@
    }
   },
   "/sales-module @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -15111,7 +15247,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -15178,8 +15318,8 @@
    }
   },
   "/sales-module @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -15197,7 +15337,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -15462,8 +15606,8 @@
    }
   },
   "/sales-punching @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -15476,7 +15620,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -15543,8 +15691,8 @@
    }
   },
   "/sales-punching @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -15562,7 +15710,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -15858,8 +16010,8 @@
    }
   },
   "/sales-syllabus @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -15872,7 +16024,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -16293,8 +16449,8 @@
    }
   },
   "/tutor-earnings @ mentor_a": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -16307,7 +16463,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -16374,8 +16534,8 @@
    }
   },
   "/tutor-earnings @ su_mentor": {
-   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not a page for this caller: it lands on its home page (/dashboard).",
+   "decision": "Admin Hub redesign, Phase 4: the Sales & Finance modules still to come (Sales Dashboard, Sales Module, Sales Punching, Sales Syllabus, Tutor Earnings) are Coming Soon pages with nothing behind them, for ADMIN-role accounts holding accounts.view_staff_dashboard. A superuser in another role is sent to their home page, as a superuser is from the BDE workspace's pages. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not a page for this caller: it lands on its home page (/dashboard). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -16393,7 +16553,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -16697,8 +16861,8 @@
    }
   },
   "/sales-pricing @ mentor_a": {
-   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Global Pricing is not this account's: sent home, as for any page it may not open.",
+   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Global Pricing is not this account's: sent home, as for any page it may not open. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -16711,7 +16875,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17086,8 +17254,8 @@
    }
   },
   "/quotes @ mentor_a": {
-   "decision": "Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
-   "note": "Not theirs to open: sent where an unknown address sends them, as /nowhere.",
+   "decision": "Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Not theirs to open: sent where an unknown address sends them, as /nowhere. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -17100,7 +17268,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17838,7 +18010,8 @@
    "note": "Only the \"Edit Demo Link\" menu item is gone."
   },
   "/admins @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -17851,7 +18024,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17880,7 +18057,8 @@
    }
   },
   "/dashboard @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -17893,7 +18071,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17922,7 +18104,8 @@
    }
   },
   "/invitations @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -17935,7 +18118,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -17964,7 +18151,8 @@
    }
   },
   "/nowhere @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -17977,7 +18165,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18107,7 +18299,8 @@
    }
   },
   "/team @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18120,7 +18313,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18149,7 +18346,8 @@
    }
   },
   "/team/{mentor_c} @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18162,7 +18360,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18191,7 +18393,8 @@
    }
   },
   "/team/{mentor_c}?tab=activity @ mentor_a": {
-   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged.",
+   "decision": "Normal Session lifecycle (2026-11-15): the dashboard's Needs Attention card adds three session rows -- Classes not started, Session notes due, Late notes awaiting approval (lib/session-lifecycle classState) -- each linking to the Sessions page's Needs Action tab (/sessions?tab=needs_action). Every other link, button and call is unchanged. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18204,7 +18407,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18330,8 +18537,8 @@
    }
   },
   "/hourly-earnings @ mentor_a": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18344,7 +18551,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18412,8 +18623,8 @@
    }
   },
   "/hourly-earnings @ su_mentor": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18431,7 +18642,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18747,8 +18962,8 @@
    }
   },
   "/my-earnings @ mentor_a": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18761,7 +18976,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -18829,8 +19048,8 @@
    }
   },
   "/my-earnings @ su_mentor": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -18848,7 +19067,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -19209,8 +19432,8 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ mentor_a": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -19223,7 +19446,11 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -19291,8 +19518,8 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ su_mentor": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page.",
-   "note": "New page (2026-11-16).",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "New page (2026-11-16). Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -19310,7 +19537,11 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -19646,8 +19877,8 @@
    }
   },
   "/additional-hours @ mentor_a": {
-   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
-   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -19660,8 +19891,12 @@
      "/activity"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
      "Refresh",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
@@ -19728,8 +19963,8 @@
    }
   },
   "/additional-hours @ su_mentor": {
-   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
-   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides). Unified dashboard dates (2026-11-27): the Admissions, Sales and Academics (staff) dashboards share one date filter, Today | 7 Days | This Month | All Time | Custom (lib/dashboard-range, components/dashboard/dashboard-range-filter). 30 Days is gone and All Time added; the staff dashboard's New Enrollments chart lost its own date button, the page's filter now sets its dates. Navigation, permissions, links and API calls are unchanged.",
+   "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales. Dashboard dates (2026-11-27): the page's date buttons change ({week} -> 7 Days, All Time, Custom, This Month, Today); nothing else on the page changes.",
    "result": {
     "at": "/dashboard",
     "noAccess": false,
@@ -19747,8 +19982,12 @@
      "/booking-slots"
     ],
     "buttons": [
-     "{week}",
+     "7 Days",
+     "All Time",
+     "Custom",
      "Refresh",
+     "This Month",
+     "Today",
      "Toggle Sidebar"
     ],
     "links": [
