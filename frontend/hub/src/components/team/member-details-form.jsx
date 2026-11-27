@@ -85,6 +85,8 @@ function AccountSummary({ member }) {
     <section className="flex flex-col gap-2">
       <h2 className="text-sm font-semibold">Account</h2>
       <dl className="divide-y rounded-md border px-4">
+        {/* Issued by the API when the account first became a tutor; never edited, kept after a role change. */}
+        {member.tutor_code ? <SummaryRow label="Tutor ID">{member.tutor_code}</SummaryRow> : null}
         <SummaryRow label="Status">
           {isActiveMember(member) ? 'Active' : `Deactivated ${formatDateTime(member.deactivated_at)}`}
           {!isActiveMember(member) && member.deactivation_reason ? (

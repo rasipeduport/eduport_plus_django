@@ -81,6 +81,8 @@ export default function SidebarLayout({ user, logout, children }) {
     avatar: user?.avatar_url || '',
     initials: getInitials(user?.full_name, user?.email),
     role: user?.role ?? null,
+    // A tutor's own Tutor ID (from /api/auth/me/), shown in their account menu.
+    tutorCode: user?.tutor_code ?? null,
     // What the sidebar offers follows these (lib/access canOpenPage).
     permissions: user?.permissions ?? [],
   };

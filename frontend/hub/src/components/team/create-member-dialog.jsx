@@ -88,8 +88,10 @@ export function CreateMemberDialog({ viewer, open, onOpenChange, onCreated }) {
       const member = response.data;
       setPassword('');
       setConfirm('');
+      // A tutor's Tutor ID is issued by the API as the account is created.
+      const issued = member.tutor_code ? ` with Tutor ID ${member.tutor_code}` : '';
       onCreated?.(
-        `Created ${member.full_name || member.username} (${member.username}) as ${roleLabel(member.role)}. ` +
+        `Created ${member.full_name || member.username} (${member.username}) as ${roleLabel(member.role)}${issued}. ` +
           'Share the temporary password with them privately; they must replace it when they first sign in.'
       );
       onOpenChange(false);

@@ -99,6 +99,9 @@ function TutorChoices({ tutors, value, onChange, disabled, freeText }) {
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{option.full_name}</span>
+                {option.tutor_code ? (
+                  <span className="text-muted-foreground text-xs tabular-nums">{option.tutor_code}</span>
+                ) : null}
                 {ineligible ? (
                   <Badge variant="outline">{option.original ? 'Original tutor' : 'Taught this chain'} · Not eligible</Badge>
                 ) : (
