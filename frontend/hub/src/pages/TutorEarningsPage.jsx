@@ -112,7 +112,10 @@ export default function TutorEarningsPage({ user }) {
   const term = q.toLowerCase();
   const rows = (data?.tutors || []).filter(
     (row) =>
-      (!term || (row.name || '').toLowerCase().includes(term) || (row.email || '').toLowerCase().includes(term)) &&
+      (!term ||
+        (row.name || '').toLowerCase().includes(term) ||
+        (row.email || '').toLowerCase().includes(term) ||
+        (row.tutor_code || '').toLowerCase().includes(term)) &&
       (!balance || row.balance_state === balance) &&
       (!rate || row.own_rates === (rate === 'tutor'))
   );
@@ -152,7 +155,7 @@ export default function TutorEarningsPage({ user }) {
                 </Badge>
               )}
             </span>
-            <span className="text-muted-foreground text-xs">{row.email}</span>
+            <span className="text-muted-foreground text-xs">{[row.tutor_code, row.email].filter(Boolean).join(' · ')}</span>
           </Link>
         ),
       },
@@ -242,7 +245,7 @@ export default function TutorEarningsPage({ user }) {
         <DemoConversionCard counts={totals} total={totals.earned} period={period} />
 
         <div className="flex flex-wrap items-center gap-2">
-          <SearchField value={q} onSearch={(text) => update({ q: text })} label="Search tutors" placeholder="Tutor name or email…" />
+          <SearchField value={q} onSearch={(text) => update({ q: text })} label="Search tutors" placeholder="Tutor name, email or Tutor ID…" />
           <MonthFilter months={data.months} value={month} onChange={(value) => update({ month: value })} />
           <FilterSelect label="Balance" placeholder="All tutors" value={balance} onChange={(value) => update({ balance: value })} options={BALANCES} />
           <FilterSelect label="Rates" placeholder="Any rate" value={rate} onChange={(value) => update({ rate: value })} options={RATES} />
@@ -279,7 +282,9 @@ export default function TutorEarningsPage({ user }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{row.name}</p>
-                    <p className="text-muted-foreground truncate text-xs">{row.email}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {[row.tutor_code, row.email].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
                   <BalanceBadge state={row.balance_state} outstanding={row.outstanding} />
                 </div>

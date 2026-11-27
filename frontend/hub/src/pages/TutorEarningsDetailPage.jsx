@@ -332,7 +332,7 @@ export default function TutorEarningsDetailPage({ user }) {
         description={
           data ? (
             <span className="flex flex-wrap items-center gap-2">
-              {data.tutor.email}
+              {[data.tutor.tutor_code && `Tutor ID ${data.tutor.tutor_code}`, data.tutor.email].filter(Boolean).join(' · ')}
               {data.tutor.active ? null : <Badge variant="secondary">Inactive</Badge>}
               {data.own_rates ? <Badge variant="info">Tutor-specific rates</Badge> : <Badge variant="outline">Global rates</Badge>}
             </span>

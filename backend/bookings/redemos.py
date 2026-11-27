@@ -588,6 +588,8 @@ def tutor_options(redemo, now):
             'id': str(tutor.pk),
             'full_name': tutor.full_name or tutor.email,
             'email': tutor.email,
+            # Their permanent Tutor ID (accounts.tutor_codes).
+            'tutor_code': tutor.tutor_code,
             'status': AVAILABLE if free else UNAVAILABLE_TUTOR,
             'free_slots': free,
             'reason': reason,
@@ -672,6 +674,8 @@ def slot_tutor_options(redemo, local_date, local_time, now):
             'id': str(tutor.pk),
             'full_name': tutor.full_name or tutor.email,
             'email': tutor.email,
+            # Their permanent Tutor ID (accounts.tutor_codes).
+            'tutor_code': tutor.tutor_code,
             'status': AVAILABLE if reason is None else UNAVAILABLE_TUTOR,
             'reason': reason,
             'tutor_meet_link': tutor.tutor_meet_link,

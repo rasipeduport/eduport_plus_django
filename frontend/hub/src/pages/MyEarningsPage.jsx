@@ -190,7 +190,15 @@ export default function MyEarningsPage() {
     <Page>
       <PageHeader
         title="My Earnings"
-        description="What you have earned for the classes you completed, counted from the activation, and the payments Admin has recorded for you. In Indian rupees."
+        description={
+          <>
+            {data?.tutor?.tutor_code ? (
+              <span className="text-foreground block font-medium">Tutor ID {data.tutor.tutor_code}</span>
+            ) : null}
+            What you have earned for the classes you completed, counted from the activation, and the payments Admin
+            has recorded for you. In Indian rupees.
+          </>
+        }
       />
       {content}
     </Page>

@@ -25,6 +25,8 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'avatar_url',
             'role',
+            # The account's own Tutor ID (accounts.tutor_codes); null if never a tutor.
+            'tutor_code',
             'mobile_number',
             'created_at',
             'last_login',
@@ -34,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
             'groups',
         ]
         read_only_fields = [
-            'id', 'username', 'email', 'role', 'created_at', 'last_login',
+            'id', 'username', 'email', 'role', 'tutor_code', 'created_at', 'last_login',
             'is_superuser', 'must_change_password',
         ]
 

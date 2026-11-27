@@ -82,7 +82,9 @@ function TutorOption({ tutor, name, checked, onSelect }) {
           <span className="font-medium">{tutor.full_name}</span>
           {tutor.current ? <Badge variant="info">Current</Badge> : null}
         </span>
-        <span className="text-muted-foreground block truncate text-xs">{tutor.email}</span>
+        <span className="text-muted-foreground block truncate text-xs">
+          {[tutor.tutor_code, tutor.email].filter(Boolean).join(' · ')}
+        </span>
         {tutor.reason?.message ? <span className="text-muted-foreground mt-1 block text-xs">{tutor.reason.message}</span> : null}
       </span>
       <AvailabilityBadge status={tutor.status} />
@@ -114,9 +116,9 @@ function TutorGroup({ title, tutors, empty, name, selected, onSelect }) {
  * Choosing who teaches a booking. Every active tutor for its slot comes from
  * the API (GET /api/bookings/<type>/<id>/tutors/), Available or Unavailable
  * with the reason it gives -- a class or another booking at that time, never
- * another child's name -- and the current tutor marked: searched by name or
- * email here, in this list (nothing new is asked of the API), and shown in two
- * groups, the available tutors first. Only an available tutor can be picked,
+ * another child's name -- and the current tutor marked: searched by name,
+ * email or Tutor ID here, in this list (nothing new is asked of the API), and
+ * shown in two groups, the available tutors first. Only an available tutor can be picked,
  * one at a time; the API checks again when assigning
  * (PUT /api/bookings/<type>/<id>/tutor/) and a refusal is shown as it comes,
  * with the list read again. Nothing closes the dialog while the assignment is
@@ -181,7 +183,8 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned, onR
   const matches = (tutor) =>
     !search ||
     (tutor.full_name ?? '').toLowerCase().includes(search) ||
-    (tutor.email ?? '').toLowerCase().includes(search);
+    (tutor.email ?? '').toLowerCase().includes(search) ||
+    (tutor.tutor_code ?? '').toLowerCase().includes(search);
   const available = tutors.filter((tutor) => tutor.status === 'AVAILABLE' && matches(tutor));
   const unavailable = tutors.filter((tutor) => tutor.status !== 'AVAILABLE' && matches(tutor));
 
@@ -260,7 +263,7 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned, onR
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search tutor by name or email…"
+            placeholder="Search tutor by name, email or Tutor ID…"
             aria-label="Search tutors"
             className="pl-8"
             disabled={pending}

@@ -3,12 +3,13 @@ import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.db import models
+from django.db import models, router, transaction
 from django.db.models import Q
 from django.utils import timezone
 
 from .meet_links import MEET_LINK_DB_PATTERN, MEET_LINK_MAX_LENGTH, validate_meet_link
 from .permission_catalogue import hub_permission_meta
+from .tutor_codes import TUTOR_CODE_DB_PATTERN, TUTOR_CODE_MAX_LENGTH, allocate_tutor_code
 
 
 class RoleChoices(models.TextChoices):
@@ -198,6 +199,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         validators=[validate_meet_link],
     )
+    # A tutor's permanent Tutor ID (EPT0001, EPT0002, ...), issued by save()
+    # the first time the account is saved as a tutor -- created as one, or
+    # given the role later -- in the same transaction (accounts.tutor_codes).
+    # It never changes and is never issued again: a former tutor keeps it,
+    # and gets the same one back should they teach again. Nobody sets it: no
+    # form or API accepts it, and the database refuses a change (migration
+    # 0034). NULL = never a tutor.
+    tutor_code = models.CharField(
+        max_length=TUTOR_CODE_MAX_LENGTH,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name='Tutor ID',
+    )
 
     # Django-required fields. `is_staff` means "may use the Django admin site"
     # and nothing else; application access comes from `role` (and, from
@@ -240,6 +256,17 @@ class User(AbstractBaseUser, PermissionsMixin):
                 condition=Q(mentor_meet_link__isnull=True) | Q(mentor_meet_link__regex=MEET_LINK_DB_PATTERN),
                 name='profiles_mentor_meet_link_google_meet',
             ),
+            # Tutor IDs (accounts.tutor_codes): every tutor has one, and each is
+            # EPT and at least four digits. A former tutor keeps theirs, so the
+            # rule runs one way only.
+            models.CheckConstraint(
+                condition=Q(tutor_code__isnull=True) | Q(tutor_code__regex=TUTOR_CODE_DB_PATTERN),
+                name='profiles_tutor_code_format',
+            ),
+            models.CheckConstraint(
+                condition=~Q(role=RoleChoices.TUTOR) | Q(tutor_code__isnull=False),
+                name='profiles_tutors_have_code',
+            ),
         ]
 
     def clean(self):
@@ -253,10 +280,45 @@ class User(AbstractBaseUser, PermissionsMixin):
     def save(self, *args, **kwargs):
         if self.username:
             self.username = normalize_username(self.username)
-        super().save(*args, **kwargs)
+        if self.role != RoleChoices.TUTOR or self.tutor_code is not None:
+            super().save(*args, **kwargs)
+            return
+        # A tutor without a Tutor ID: a new one, or an account becoming one.
+        # Issued in the same transaction as the save, so a save that fails
+        # issues nothing and a saved tutor always has one.
+        using = kwargs.get('using') or router.db_for_write(type(self), instance=self)
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = {*kwargs['update_fields'], 'tutor_code'}
+        try:
+            with transaction.atomic(using=using):
+                self.tutor_code = allocate_tutor_code(using)
+                super().save(*args, **kwargs)
+        except BaseException:
+            # The number went back with the rollback; so does this copy of it.
+            self.tutor_code = None
+            raise
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+
+class TutorCodeCounter(models.Model):
+    """
+    The last Tutor ID number issued (accounts.tutor_codes): one row, EPT.
+    Written only by allocate_tutor_code() and migration 0034; the database
+    refuses to lower or delete it (tutor_code_counter_fixed), so a number is
+    never issued twice, not even once its tutor is gone.
+    """
+    name = models.CharField(max_length=10, primary_key=True)
+    value = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'tutor_code_counter'
+        verbose_name = 'Tutor ID counter'
+        verbose_name_plural = 'Tutor ID counter'
+
+    def __str__(self):
+        return f"{self.name}: {self.value}"
 
 
 # The staff roles that carry a role group. Students never do: Learn has no

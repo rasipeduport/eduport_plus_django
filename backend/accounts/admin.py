@@ -110,9 +110,9 @@ class UserAdmin(BaseUserAdmin):
     form = UserChangeAdminForm
     add_form = UserCreationAdminForm
 
-    list_display = ('username', 'email', 'full_name', 'role', 'is_active', 'is_staff', 'created_at')
+    list_display = ('username', 'email', 'full_name', 'role', 'tutor_code', 'is_active', 'is_staff', 'created_at')
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'must_change_password', 'created_at')
-    search_fields = ('username', 'email', 'full_name', 'mobile_number')
+    search_fields = ('username', 'email', 'full_name', 'mobile_number', 'tutor_code')
     ordering = ('-created_at',)
     # No group or permission pickers: group membership is never used (the
     # role's group applies through accounts.RoleGroup) and individual grants
@@ -121,7 +121,8 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         (None, {'fields': ('username', 'email', 'password')}),
-        ('Personal Info', {'fields': ('full_name', 'mobile_number', 'avatar_url', 'role')}),
+        # The Tutor ID is shown, never edited: the account issues it (accounts.tutor_codes).
+        ('Personal Info', {'fields': ('full_name', 'mobile_number', 'avatar_url', 'role', 'tutor_code')}),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'individual_permissions'),
             'description': '"Staff status" only grants access to this Django admin site. '
@@ -145,7 +146,7 @@ class UserAdmin(BaseUserAdmin):
     )
     readonly_fields = (
         'created_at', 'updated_at', 'last_login', 'deactivated_at', 'deactivated_by',
-        'deactivation_reason', 'password_changed_at', 'individual_permissions',
+        'deactivation_reason', 'password_changed_at', 'individual_permissions', 'tutor_code',
     )
 
     @admin.display(description='Individual permissions')
@@ -213,7 +214,11 @@ class UserAdmin(BaseUserAdmin):
                 entity_id=str(obj.id),
                 entity_label=obj.full_name or obj.username,
                 changes={'role': {'old': form.initial.get('role'), 'new': obj.role}},
-                context={'via': 'django_admin'},
+                context={
+                    'via': 'django_admin',
+                    # Which Tutor ID a new or returning tutor holds (accounts.tutor_codes).
+                    **({'tutor_code': obj.tutor_code} if obj.role == RoleChoices.TUTOR else {}),
+                },
                 request=request,
             )
             if cleared:
