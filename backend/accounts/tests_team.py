@@ -481,7 +481,9 @@ class TeamUpdateTests(TeamTestCase):
 
     def test_the_last_active_admin_is_kept(self):
         # A superuser outside the ADMIN role, and one remaining active admin.
-        User.objects.filter(pk=self.root.pk).update(role='TUTOR')
+        # Saved, not update()d: a tutor is issued a Tutor ID as it is saved.
+        self.root.role = 'TUTOR'
+        self.root.save(update_fields=['role'])
         User.objects.filter(pk=self.other_admin.pk).update(is_active=False, deactivated_at=timezone.now())
         root = self.as_user(User.objects.get(pk=self.root.pk))
         self.assert_refused(root.patch(member_url(self.admin), {'role': 'MENTOR'}, format='json'), 409, 'LAST_ADMIN')

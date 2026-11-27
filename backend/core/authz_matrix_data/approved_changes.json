@@ -5802,8 +5802,98 @@
     "status": 400
    }
   },
+  "auth.login.admin @ anon": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "fields": [
+     "csrf_token",
+     "must_change_password",
+     "status",
+     "user",
+     "user.avatar_url",
+     "user.created_at",
+     "user.email",
+     "user.full_name",
+     "user.groups",
+     "user.id",
+     "user.is_superuser",
+     "user.last_login",
+     "user.mobile_number",
+     "user.must_change_password",
+     "user.permissions",
+     "user.role",
+     "user.tutor_code",
+     "user.username"
+    ],
+    "records": [
+     "admin"
+    ],
+    "status": 200
+   }
+  },
+  "auth.login.mentor @ anon": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "fields": [
+     "csrf_token",
+     "must_change_password",
+     "status",
+     "user",
+     "user.avatar_url",
+     "user.created_at",
+     "user.email",
+     "user.full_name",
+     "user.groups",
+     "user.id",
+     "user.is_superuser",
+     "user.last_login",
+     "user.mobile_number",
+     "user.must_change_password",
+     "user.permissions",
+     "user.role",
+     "user.tutor_code",
+     "user.username"
+    ],
+    "records": [
+     "mentor_a"
+    ],
+    "status": 200
+   }
+  },
+  "auth.login.unknown_role @ anon": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "fields": [
+     "csrf_token",
+     "must_change_password",
+     "status",
+     "user",
+     "user.avatar_url",
+     "user.created_at",
+     "user.email",
+     "user.full_name",
+     "user.groups",
+     "user.id",
+     "user.is_superuser",
+     "user.last_login",
+     "user.mobile_number",
+     "user.must_change_password",
+     "user.permissions",
+     "user.role",
+     "user.tutor_code",
+     "user.username"
+    ],
+    "records": [
+     "unknown"
+    ],
+    "status": 200
+   }
+  },
   "auth.me @ admin": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The ADMIN role group gained accounts.manage_booking_slots with DEVT-5973 (booking slots). It gained accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
@@ -5888,6 +5978,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -5897,7 +5988,7 @@
    }
   },
   "auth.me @ mentor_a": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
@@ -5944,6 +6035,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -5953,7 +6045,7 @@
    }
   },
   "auth.me @ mentor_b": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue.",
    "result": {
     "capture": {
@@ -6000,6 +6092,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -6008,8 +6101,75 @@
     "status": 200
    }
   },
+  "auth.me @ parent_a": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "capture": {
+     "groups": [],
+     "permissions": [],
+     "role": "STUDENT"
+    },
+    "fields": [
+     "csrf_token",
+     "must_change_password",
+     "selected_student_id",
+     "student_profile",
+     "student_profile.admission_date",
+     "student_profile.country",
+     "student_profile.full_name",
+     "student_profile.grade",
+     "student_profile.id",
+     "student_profile.meet_link",
+     "student_profile.mobile_number",
+     "student_profile.school_name",
+     "student_profile.state",
+     "student_profile.status",
+     "student_profile.student_code",
+     "student_profile.syllabus",
+     "student_profile.timezone",
+     "student_profile.total_class_quota",
+     "student_profiles",
+     "student_profiles[].admission_date",
+     "student_profiles[].country",
+     "student_profiles[].full_name",
+     "student_profiles[].grade",
+     "student_profiles[].id",
+     "student_profiles[].meet_link",
+     "student_profiles[].mobile_number",
+     "student_profiles[].school_name",
+     "student_profiles[].state",
+     "student_profiles[].status",
+     "student_profiles[].student_code",
+     "student_profiles[].syllabus",
+     "student_profiles[].timezone",
+     "student_profiles[].total_class_quota",
+     "user",
+     "user.avatar_url",
+     "user.created_at",
+     "user.email",
+     "user.full_name",
+     "user.groups",
+     "user.id",
+     "user.is_superuser",
+     "user.last_login",
+     "user.mobile_number",
+     "user.must_change_password",
+     "user.permissions",
+     "user.role",
+     "user.tutor_code",
+     "user.username"
+    ],
+    "records": [
+     "parent_a",
+     "stu_a",
+     "stu_c"
+    ],
+    "status": 200
+   }
+  },
   "auth.me @ su_mentor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
@@ -6113,6 +6273,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -6122,7 +6283,7 @@
    }
   },
   "auth.me @ su_tutor": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
@@ -6226,6 +6387,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -6235,7 +6397,7 @@
    }
   },
   "auth.me @ superuser": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Lead management (accounts.0018): the ADMIN role group carries accounts.view_all_leads and accounts.add_lead, which only the ADMIN role may hold; superusers hold every permission (D1). Nothing else in /me changes. Student Local Time (accounts.0019): the ADMIN and BDE role groups carry accounts.change_student_timezone, which only those two roles may hold; superusers hold every permission (D1). Nothing else in /me changes. Additional purchases (accounts.0026): the MENTOR and ADMIN role groups carry accounts.create_additional_purchases. Manual student invitations retired (2026-11-15): student Learn accounts and their invitations are created at enrollment only (sales.enrollment). POST /api/invitations/ answers 410 MANUAL_INVITATIONS_RETIRED to whoever may view invitations (everyone else 403, as before); the enrolment-sheet lookup (POST /api/invitations/lookup-student/) and the per-row legacy issue (POST /api/invitations/students/<id>/issue/) are removed -- no route, so no result (the bulk legacy transition stays the issue_learn_credentials command). accounts.create_invitation is retired by accounts.0028, so /me no longer lists it for the Admin role. No invitation, student or account is touched. Session outcomes (2026-11-15, accounts.0029): the Admin role holds accounts.correct_session_outcome -- correcting or revoking a recorded No-show / Not Conducted -- and superusers hold every permission; nothing else changes. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Manual enquiries retired (2026-11-22, accounts.0031): a BDE no longer adds enquiries by hand -- an administrator adds the lead (accounts.add_lead) and assigns it. POST /api/bde/enquiries/ answers a BDE 410 MANUAL_ENQUIRIES_RETIRED and every other caller as before; accounts.add_enquiry is retired, so /me no longer lists it for superusers. No lead or account is touched. Additional hours (accounts.0032): the ADMIN role group carries accounts.manage_additional_hours and accounts.collect_additional_hours_payments, the MENTOR role group accounts.collect_additional_hours_payments; superusers list both with the whole catalogue. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The catalogue gained accounts.view_own_booking_links with DEVT-5934 (BDE booking links), accounts.manage_booking_slots with DEVT-5973 (booking slots) and accounts.view_own_enquiries and accounts.add_enquiry with BDE portal phase 1 (dashboard and My Enquiries), accounts.view_all_bookings and accounts.assign_booking_tutor with booking management (Phase 2), and accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report. The catalogue gained the five parent communication permissions with BDE-to-PDF Phase 2A (accounts.0017, so a superuser now lists 64; seeded ahead of the APIs that enforce them; they open no endpoint yet): the ADMIN group carries send_lead_communications, record_parent_confirmation, view_all_communications and manage_message_templates; the BDE group view_own_lead_communications, send_lead_communications and record_parent_confirmation. Gains accounts.add_lead and accounts.view_all_leads; nothing else changes. Gains accounts.change_student_timezone; nothing else changes. Gains accounts.manage_sales_pricing and accounts.manage_sales_syllabi (Sales Management, accounts.0020); nothing else changes. Gains accounts.view_sales_catalogue (the catalogue on sale, accounts.0021). Gains accounts.create_sales_quotes and accounts.manage_sales_quotes (quotes, accounts.0022). The MENTOR and ADMIN role groups gained accounts.create_additional_purchases (a Mentor's additional purchase for their own student); superusers list it with the whole catalogue. accounts.add_enquiry left the catalogue with accounts.0031 (manual enquiries retired, 2026-11-22), so superusers no longer list it.",
    "result": {
     "capture": {
@@ -6339,6 +6501,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -6348,7 +6511,7 @@
    }
   },
   "auth.me @ tutor_a": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
@@ -6387,6 +6550,7 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
@@ -6396,7 +6560,7 @@
    }
   },
   "auth.me @ tutor_b": {
-   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five.",
+   "decision": "A2 (unified-permission sprint): /me reports every effective permission. Tutor Earnings (accounts.0030): the Admin role holds view_tutor_earnings, manage_tutor_rates, manage_tutor_payments and correct_tutor_earnings, the Tutor role view_own_earnings; superusers hold all five. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "The Hub builds its navigation, route guards and actions from /me, so /me lists the full effective set (role group + grants, within the role ceiling; superusers: the whole catalogue) instead of view_team only. The TUTOR role group gained accounts.view_assigned_bookings with My Bookings (Phase 4). The catalogue gained the eleven Demo/Diagnostic workflow permissions with Phase 5.2 P2 (accounts.0015, seeded ahead of the phases that enforce them; they open no endpoint yet): the ADMIN group carries reschedule_booking (only the Admin reschedules, Q23), cancel_booking (the Admin and the owner BDE cancel, Q22), share_booking_report, view_conversion_tracker, manage_conversions and assign_lead_owner; the TUTOR group submit_booking_report.",
    "result": {
     "capture": {
@@ -6436,10 +6600,45 @@
      "user.must_change_password",
      "user.permissions",
      "user.role",
+     "user.tutor_code",
      "user.username"
     ],
     "records": [
      "tutor_b"
+    ],
+    "status": 200
+   }
+  },
+  "auth.me @ unknown": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "capture": {
+     "groups": [],
+     "permissions": [],
+     "role": "UNASSIGNED"
+    },
+    "fields": [
+     "csrf_token",
+     "must_change_password",
+     "user",
+     "user.avatar_url",
+     "user.created_at",
+     "user.email",
+     "user.full_name",
+     "user.groups",
+     "user.id",
+     "user.is_superuser",
+     "user.last_login",
+     "user.mobile_number",
+     "user.must_change_password",
+     "user.permissions",
+     "user.role",
+     "user.tutor_code",
+     "user.username"
+    ],
+    "records": [
+     "unknown"
     ],
     "status": 200
    }
@@ -47749,7 +47948,7 @@
    }
   },
   "team.create.admin @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47773,6 +47972,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47784,7 +47984,7 @@
    }
   },
   "team.create.admin @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47808,6 +48008,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47819,7 +48020,7 @@
    }
   },
   "team.create.admin @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47843,6 +48044,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47854,7 +48056,7 @@
    }
   },
   "team.create.mentor @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47878,6 +48080,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47889,7 +48092,7 @@
    }
   },
   "team.create.mentor @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47913,6 +48116,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47924,7 +48128,7 @@
    }
   },
   "team.create.mentor @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47948,6 +48152,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47959,7 +48164,7 @@
    }
   },
   "team.create.mentor @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -47983,6 +48188,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -47994,7 +48200,7 @@
    }
   },
   "team.deactivate @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48015,6 +48221,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48025,7 +48232,7 @@
    }
   },
   "team.deactivate @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48046,6 +48253,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48056,7 +48264,7 @@
    }
   },
   "team.deactivate @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48077,6 +48285,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48087,7 +48296,7 @@
    }
   },
   "team.deactivate @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48108,6 +48317,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48118,7 +48328,7 @@
    }
   },
   "team.detail @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48145,6 +48355,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48155,7 +48366,7 @@
    }
   },
   "team.detail @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48182,6 +48393,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48192,7 +48404,7 @@
    }
   },
   "team.detail @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48219,6 +48431,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48229,7 +48442,7 @@
    }
   },
   "team.detail @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48256,6 +48469,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48265,8 +48479,34 @@
     "status": 200
    }
   },
+  "team.detail @ tutor_b": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "capture": {
+     "permissions": null,
+     "role": "MENTOR"
+    },
+    "fields": [
+     "created_at",
+     "deactivated_at",
+     "email",
+     "full_name",
+     "id",
+     "is_active",
+     "mobile_number",
+     "role",
+     "tutor_code",
+     "username"
+    ],
+    "records": [
+     "mentor_c"
+    ],
+    "status": 200
+   }
+  },
   "team.list @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48287,6 +48527,7 @@
      "[].must_change_password",
      "[].permissions",
      "[].role",
+     "[].tutor_code",
      "[].tutor_meet_link",
      "[].username"
     ],
@@ -48307,7 +48548,7 @@
    }
   },
   "team.list @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48328,6 +48569,7 @@
      "[].must_change_password",
      "[].permissions",
      "[].role",
+     "[].tutor_code",
      "[].tutor_meet_link",
      "[].username"
     ],
@@ -48348,7 +48590,7 @@
    }
   },
   "team.list @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48369,6 +48611,7 @@
      "[].must_change_password",
      "[].permissions",
      "[].role",
+     "[].tutor_code",
      "[].tutor_meet_link",
      "[].username"
     ],
@@ -48389,7 +48632,7 @@
    }
   },
   "team.list @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -48410,6 +48653,7 @@
      "[].must_change_password",
      "[].permissions",
      "[].role",
+     "[].tutor_code",
      "[].tutor_meet_link",
      "[].username"
     ],
@@ -48429,8 +48673,40 @@
     "status": 200
    }
   },
+  "team.list @ tutor_b": {
+   "decision": "Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
+   "note": "Additive field only; no status, record, capture or other field changes.",
+   "result": {
+    "fields": [
+     "[].created_at",
+     "[].deactivated_at",
+     "[].email",
+     "[].full_name",
+     "[].id",
+     "[].is_active",
+     "[].mobile_number",
+     "[].role",
+     "[].tutor_code",
+     "[].username"
+    ],
+    "records": [
+     "admin",
+     "admin2",
+     "mentor_a",
+     "mentor_b",
+     "mentor_c",
+     "su_mentor",
+     "su_tutor",
+     "superuser",
+     "tutor_a",
+     "tutor_b",
+     "tutor_off"
+    ],
+    "status": 200
+   }
+  },
   "team.meet_link @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
    "result": {
     "fields": [
@@ -48451,6 +48727,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48509,7 +48786,7 @@
    }
   },
   "team.meet_link @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
    "result": {
     "fields": [
@@ -48530,6 +48807,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48540,7 +48818,7 @@
    }
   },
   "team.meet_link @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
    "result": {
     "fields": [
@@ -48561,6 +48839,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48571,7 +48850,7 @@
    }
   },
   "team.meet_link @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Sets tutor_a's permanent Google Meet link: 200 with the account as a team manager sees it (tutor_meet_link in its stored form). The activity log records that it changed, never the link.",
    "result": {
     "fields": [
@@ -48592,6 +48871,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48638,7 +48918,7 @@
    }
   },
   "team.mentor_meet_link @ admin": {
-   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403).",
+   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403). Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "result": {
     "fields": [
      "created_at",
@@ -48658,6 +48938,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48712,7 +48993,7 @@
    }
   },
   "team.mentor_meet_link @ su_mentor": {
-   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403).",
+   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403). Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "result": {
     "fields": [
      "created_at",
@@ -48732,6 +49013,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48742,7 +49024,7 @@
    }
   },
   "team.mentor_meet_link @ su_tutor": {
-   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403).",
+   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403). Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "result": {
     "fields": [
      "created_at",
@@ -48762,6 +49044,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48772,7 +49055,7 @@
    }
   },
   "team.mentor_meet_link @ superuser": {
-   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403).",
+   "decision": "Meet link ownership (2026-11-15): PUT /api/team/<id>/meet-link/ also takes {mentor_meet_link} for a MENTOR account, the room of their students' chapter exams -- team managers only (the Admin role and superusers, 200), everyone else refused as for the tutor's link (403). Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "result": {
     "fields": [
      "created_at",
@@ -48792,6 +49075,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48835,7 +49119,7 @@
    }
   },
   "team.permissions.grant @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48862,6 +49146,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48872,7 +49157,7 @@
    }
   },
   "team.permissions.grant @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48899,6 +49184,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48909,7 +49195,7 @@
    }
   },
   "team.permissions.grant @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48936,6 +49222,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48946,7 +49233,7 @@
    }
   },
   "team.permissions.grant @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -48973,6 +49260,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -48983,7 +49271,7 @@
    }
   },
   "team.reactivate @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49004,6 +49292,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49014,7 +49303,7 @@
    }
   },
   "team.reactivate @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49035,6 +49324,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49045,7 +49335,7 @@
    }
   },
   "team.reactivate @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49066,6 +49356,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49076,7 +49367,7 @@
    }
   },
   "team.reactivate @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49097,6 +49388,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49107,7 +49399,7 @@
    }
   },
   "team.reset_password @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49128,6 +49420,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49138,7 +49431,7 @@
    }
   },
   "team.reset_password @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49159,6 +49452,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49169,7 +49463,7 @@
    }
   },
   "team.reset_password @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49190,6 +49484,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49200,7 +49495,7 @@
    }
   },
   "team.reset_password @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49221,6 +49516,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49231,7 +49527,7 @@
    }
   },
   "team.update.admin_target @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49252,6 +49548,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49262,7 +49559,7 @@
    }
   },
   "team.update.admin_target @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49283,6 +49580,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49293,7 +49591,7 @@
    }
   },
   "team.update.admin_target @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "fields": [
@@ -49314,6 +49612,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49324,7 +49623,7 @@
    }
   },
   "team.update.name @ admin": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49351,6 +49650,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49361,7 +49661,7 @@
    }
   },
   "team.update.name @ su_mentor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49388,6 +49688,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49398,7 +49699,7 @@
    }
   },
   "team.update.name @ su_tutor": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49425,6 +49726,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49435,7 +49737,7 @@
    }
   },
   "team.update.name @ superuser": {
-   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49462,6 +49764,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49472,7 +49775,7 @@
    }
   },
   "team.update.role @ admin": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49497,6 +49800,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49507,7 +49811,7 @@
    }
   },
   "team.update.role @ su_mentor": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49532,6 +49836,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49542,7 +49847,7 @@
    }
   },
   "team.update.role @ su_tutor": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49567,6 +49872,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],
@@ -49577,7 +49883,7 @@
    }
   },
   "team.update.role @ superuser": {
-   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes.",
+   "decision": "Phase 2a requirement 9 (approved): a role change clears the account's individual grants and audits it. BDE-to-PDF workflow Phase 1 (tutor permanent Google Meet link, scope approved 2026-11-03): one permanent Google Meet link per tutor (profiles.tutor_meet_link), created and changed only by team managers -- the Admin role, and superusers under D1 -- through PUT /api/team/<id>/meet-link/ (accounts.manage_team); each booking keeps its own copy (tutor_meet_link), shown to the Admin, the owner BDE and the tutor. Meet link ownership (2026-11-15): a normal session joins the Meet room of the tutor it is assigned to (tutor_meet_link, from accounts.User.tutor_meet_link) and a chapter exam the room of the mentor it is assigned to (mentor_meet_link, from accounts.User.mentor_meet_link). The student's own link is no longer nested in session, exam, additional-exam or homework payloads (students.meet_link stays on the student record). Team member payloads for team managers carry mentor_meet_link. Fields only: no status or record changes. Tutor IDs (accounts.0033/0034, 2026-11-27): every tutor holds a permanent, read-only Tutor ID (tutor_code, EPT0001...). Team member payloads (team managers and view_team holders) and the caller's own /me and sign-in answer carry it; null for an account that was never a tutor.",
    "note": "Changing mentor_c from MENTOR to TUTOR removes the individual accounts.view_team grant (audited as user.permissions_update, reason role_change). With Phase 1 a team manager's view of a staff account also carries tutor_meet_link: the tutor's permanent Google Meet link, null for every other role and for a tutor without one. Directory readers (accounts.view_team) are shown nothing new. Field added only: the same status, records and every earlier field.",
    "result": {
     "capture": {
@@ -49602,6 +49908,7 @@
      "must_change_password",
      "permissions",
      "role",
+     "tutor_code",
      "tutor_meet_link",
      "username"
     ],

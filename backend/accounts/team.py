@@ -29,6 +29,9 @@ The rules, enforced here whatever the client sends:
 * A tutor's permanent Google Meet link has an endpoint of its own
   (TeamMemberMeetLinkView), never PATCH, since its change reaches the tutor's
   live bookings; team managers only, tutors only. A role change drops it.
+* A tutor's Tutor ID (tutor_code, EPT0001...) is issued by the account itself
+  when it is saved as a tutor (accounts.tutor_codes) and is read-only
+  everywhere: no endpoint accepts it, and a role change keeps it.
 """
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -63,7 +66,8 @@ User = get_user_model()
 # normal sessions) and a mentor's (chapter exams). Set through PUT meet-link/.
 MEET_LINK_FIELDS = ('tutor_meet_link', 'mentor_meet_link')
 
-# Advisory-lock class for Team writes (sessions.services uses 1 and 2).
+# Advisory-lock class for Team writes (sessions.services uses 1 and 2,
+# accounts.tutor_codes 4).
 _LOCK_CLASS_TEAM = 3
 
 
@@ -245,6 +249,8 @@ def member_payload(account, full=True):
         "full_name": account.full_name or "",
         "mobile_number": account.mobile_number or "",
         "role": account.role,
+        # The tutor's permanent Tutor ID; a former tutor keeps theirs. Null if never a tutor.
+        "tutor_code": account.tutor_code,
         "is_active": account.is_active,
         "deactivated_at": _iso(account.deactivated_at),
         "created_at": _iso(account.created_at),
@@ -428,7 +434,7 @@ class TeamView(APIView):
 class TeamListView(TeamView):
     """
     GET  /api/team/ -- staff accounts, newest first. Filters: ?role=,
-         ?status=active|deactivated, ?q= (username, email or name). Opt-in
+         ?status=active|deactivated, ?q= (username, email, name or Tutor ID). Opt-in
          paging with ?page= (core.pagination).
     POST /api/team/ -- create a staff account holding a temporary password.
     """
@@ -450,6 +456,7 @@ class TeamListView(TeamView):
         if search:
             accounts = accounts.filter(
                 Q(username__icontains=search) | Q(email__icontains=search) | Q(full_name__icontains=search)
+                | Q(tutor_code__icontains=search)
             )
         accounts = accounts.order_by('-created_at', 'id')
 
@@ -492,7 +499,12 @@ class TeamListView(TeamView):
             entity_type='profile',
             entity_id=str(account.id),
             entity_label=account.full_name or account.username,
-            context={"role": account.role, "username": account.username},
+            context={
+                "role": account.role,
+                "username": account.username,
+                # The Tutor ID the new tutor was issued (accounts.tutor_codes).
+                **({"tutor_code": account.tutor_code} if account.tutor_code else {}),
+            },
             request=request,
         )
         return Response(member_payload(account), status=status.HTTP_201_CREATED)
@@ -589,14 +601,20 @@ class TeamMemberView(TeamView):
                 request=request,
             )
         if 'role' in changed:
+            context = {}
+            # That the tutor's or mentor's Meet link went with the role, never the link.
+            if meet_link_removed:
+                context["meet_link_removed"] = True
+            # Which Tutor ID a new or returning tutor holds (accounts.tutor_codes).
+            if account.role == RoleChoices.TUTOR:
+                context["tutor_code"] = account.tutor_code
             log_activity(
                 action='user.role_change',
                 entity_type='profile',
                 entity_id=str(account.id),
                 entity_label=account.full_name or account.username,
                 changes={"role": {"old": before['role'], "new": account.role}},
-                # That the tutor's or mentor's Meet link went with the role, never the link.
-                context={"meet_link_removed": True} if meet_link_removed else None,
+                context=context or None,
                 request=request,
             )
         if cleared:
