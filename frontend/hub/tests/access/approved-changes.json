@@ -16590,7 +16590,7 @@
    }
   },
   "/sales-pricing @ admin": {
-   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
+   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "Global Pricing: the pricing in effect, Change pricing and the history, as this account renders it now. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/sales-pricing",
@@ -16636,7 +16636,10 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/sales/pricing/"
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/sales/pricing/",
+     "GET /api/students/"
     ]
    }
   },
@@ -16819,7 +16822,7 @@
    }
   },
   "/sales-pricing @ superuser": {
-   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar.",
+   "decision": "Sales Management (accounts.0020): Sales & Finance offers Syllabus & Plans (/sales-syllabus, formerly the Sales Syllabus Coming Soon page) and Global Pricing (/sales-pricing), each opening on its own permission -- accounts.manage_sales_syllabi, accounts.manage_sales_pricing -- which only the ADMIN role holds and a superuser holds under D1 (lib/access PAGE_PERMISSIONS), instead of the ADMIN role and view_staff_dashboard. Quotes (Plans & Pricing Step 5, approved 2026-11-09): one shared /quotes page for BDE and Admin with permission-based features. It opens on accounts.create_sales_quotes or accounts.manage_sales_quotes (backend accounts.0022), whatever the role; the API answers a BDE with their own quotes and a manager with every one, and only a manager cancels. The BDE workspace lists it as My Quotes after Plans & Pricing, the Admin Hub as Quotes under Sales & Finance after Global Pricing (lib/navigation); every other page is unchanged. Global Pricing navigation (2026-11-15): the Admin Hub sidebar no longer lists Global Pricing (/sales-pricing); it opens from the Global pricing button on Syllabus & Plans, which stays highlighted on it (lib/navigation alsoOn), and its Back to Syllabus & Plans button returns there. The page, its permission and the API are unchanged. Sales & Finance cleanup (2026-11-15): Sales Module and Sales Punching left the Admin Hub sidebar (their pages, routes and access stay), so they are dropped from this sidebar. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "Global Pricing: the pricing in effect, Change pricing and the history (a superuser holds manage_sales_pricing under D1), as rendered now. Quotes (2026-11-09): the sidebar lists /quotes for this caller; nothing else on the page changes. Global Pricing (2026-11-15): the sidebar no longer lists /sales-pricing; nothing else on the page changes.",
    "result": {
     "at": "/sales-pricing",
@@ -16865,7 +16868,10 @@
     "menus": [],
     "calls": [
      "GET /api/auth/me/",
-     "GET /api/sales/pricing/"
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/sales/pricing/",
+     "GET /api/students/"
     ]
    }
   },
@@ -18227,7 +18233,7 @@
    }
   },
   "/hourly-earnings @ admin": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/dashboard",
@@ -18263,7 +18269,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },
@@ -18455,7 +18464,7 @@
    }
   },
   "/hourly-earnings @ superuser": {
-   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page.",
+   "decision": "Tutor Earnings (accounts.0030): the Tutor Hub's former Hourly Earnings address sends a tutor on to My Earnings; everyone else lands on their home page. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/dashboard",
@@ -18491,7 +18500,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },
@@ -18638,7 +18650,7 @@
    }
   },
   "/my-earnings @ admin": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/dashboard",
@@ -18674,7 +18686,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },
@@ -18866,7 +18881,7 @@
    }
   },
   "/my-earnings @ superuser": {
-   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn).",
+   "decision": "Tutor Earnings (accounts.0030): My Earnings opens for the TUTOR role holding accounts.view_own_earnings -- the signed-in tutor's own earnings, rates, classes not counted yet, ledger and payments, with no rate, payment or correction control. Everyone else lands on their home page (a superuser holds the permission but is not a tutor; a student is sent to Learn). Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/dashboard",
@@ -18902,7 +18917,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },
@@ -19049,7 +19067,7 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ admin": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/tutor-earnings/{tutor_a}",
@@ -19129,8 +19147,11 @@
     ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
      "GET /api/earnings/tutors/{tutor_a}/",
-     "GET /api/earnings/tutors/{tutor_a}/entries/"
+     "GET /api/earnings/tutors/{tutor_a}/entries/",
+     "GET /api/students/"
     ]
    }
   },
@@ -19322,7 +19343,7 @@
    }
   },
   "/tutor-earnings/{tutor_a} @ superuser": {
-   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts.",
+   "decision": "Tutor Earnings (accounts.0030): one tutor's earnings page opens for administrators holding accounts.view_tutor_earnings (the ADMIN role, as /tutor-earnings): the period's totals, the breakdown with the rate applied and its source, rates and history, classes not counted yet, what needs review with Reverse earning and Keep as earned, the ledger with Reverse, payments with Void, and Record payment, Add adjustment and Edit tutor rates on their own permissions. Everyone else lands on their home page. Demo Conversion Incentive (2026-11-25): Tutor Earnings shows Demo conversions -- a Converted column on the overview and a Conversions column in By month; the earnings API serves the counts. Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "New page (2026-11-16).",
    "result": {
     "at": "/tutor-earnings/{tutor_a}",
@@ -19402,8 +19423,11 @@
     ],
     "calls": [
      "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
      "GET /api/earnings/tutors/{tutor_a}/",
-     "GET /api/earnings/tutors/{tutor_a}/entries/"
+     "GET /api/earnings/tutors/{tutor_a}/entries/",
+     "GET /api/students/"
     ]
    }
   },
@@ -19525,7 +19549,7 @@
    }
   },
   "/additional-hours @ admin": {
-   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides). Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
    "result": {
     "at": "/dashboard",
@@ -19561,7 +19585,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },
@@ -19753,7 +19780,7 @@
    }
   },
   "/additional-hours @ superuser": {
-   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides).",
+   "decision": "Additional hours with deferred payment (2026-11-26, backend accounts.0032): the Additional Hours page (/additional-hours) opens only on accounts.collect_additional_hours_payments or accounts.manage_additional_hours -- an administrator sees every student\u2019s, a mentor their own students\u2019 (the API decides). Admin sidebar pending assignment badges (2026-11-27): on every page the Admin Hub sidebar reads how many Demo and Diagnostic bookings need a tutor (GET /api/bookings/<type>/?status=BOOKED&assigned=false&when=upcoming&page_size=1) and, for whoever may open Enrolled Students, how many students miss a mentor or tutor (GET /api/students/?assignment=pending&page=1&page_size=1), for the red counts beside Demo, Diagnostic and Enrolled Students.",
    "note": "No recorded account holds either permission: staff are sent to their own home page, and the student, Sales TL and unknown-role accounts are answered as on any other page they may not open (as /tutor-earnings records them). What an administrator and a mentor see there is covered by tests/sales.",
    "result": {
     "at": "/dashboard",
@@ -19789,7 +19816,10 @@
     "filters": [],
     "menus": [],
     "calls": [
-     "GET /api/auth/me/"
+     "GET /api/auth/me/",
+     "GET /api/bookings/demo/",
+     "GET /api/bookings/diagnostic/",
+     "GET /api/students/"
     ]
    }
   },

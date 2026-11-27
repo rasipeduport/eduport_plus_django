@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FormDialog } from '@/components/form-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { pendingAssignmentsChanged } from '@/hooks/use-pending-assignment-counts';
 import api from '@/lib/api';
 
 // Radix Select disallows an empty-string value, so "no one" uses a sentinel.
@@ -72,6 +73,8 @@ export function ReassignStaffDialog({ student, open, onOpenChange, onSaved }) {
         tutor: toId(tutorId),
       });
       onSaved?.();
+      // The sidebar's count of students missing a mentor or tutor, read again now.
+      pendingAssignmentsChanged();
       onOpenChange(false);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reassign mentor/tutor.');

@@ -5,7 +5,9 @@
 // about 20 seconds after a change in its workspace; and Sessions on request
 // (Refresh) and on coming back to the tab -- each refresh once, however many
 // events bring it, and nothing left running after the page goes; and the BDE
-// sidebar's count of follow-ups due today, on the same minute. The pages
+// sidebar's count of follow-ups due today, on the same minute; and the Admin
+// Hub sidebar's counts of assignments still to make, on the same minute and at
+// once after the Hub assigns a tutor or reassigns a student. The pages
 // and hooks are rendered for real in jsdom (harness.jsx), with the API stood
 // in for (../sessions/api-stub.js).
 //
@@ -81,7 +83,8 @@ let visibility = 'visible';
 Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
 Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
 
-const { mount, act, BDE_DASHBOARD_URL, BDE_FOLLOW_UPS_URL, bookingCommunicationUrl } = await import(pathToFileURL(bundle).href);
+const { mount, act, BDE_DASHBOARD_URL, BDE_FOLLOW_UPS_URL, bookingCommunicationUrl, pendingAssignmentsChanged } =
+  await import(pathToFileURL(bundle).href);
 
 // -------------------------------------------------------------- the clock
 // Every timer the app sets (setTimeout / setInterval, read at call time) and
@@ -1233,8 +1236,235 @@ test("Sidebar badge: an administrator's sidebar, or a BDE's without Follow-ups, 
     await advance(3 * MINUTE);
     await focus();
     assert.equal(gets(BDE_FOLLOW_UPS_URL), 0, `${user.role}: no follow-ups read`);
-    assert.equal(document.querySelector('[data-counter]'), null);
+    assert.equal(dueBadge(), null);
     assert.equal(followUpsItem(), null, 'no Follow-ups item to badge');
+    await current.unmount();
+    current = null;
+  }
+});
+
+// ============================= Sidebar: the Admin Hub's pending assignment badges
+// Beside Bookings' Demo and Diagnostic, the bookings that need a tutor (booked,
+// no tutor, the class still to come: the Bookings lists' filter); beside
+// Enrolled Students, the students missing a mentor or a tutor, each once
+// (backend ?assignment=pending). The API counts each; the sidebar reads them on
+// arrival, every minute while shown, on return, and at once after the Hub
+// assigns a tutor or changes a student's mentor or tutor.
+const DEMO_LIST = '/api/bookings/demo/';
+const DIAGNOSTIC_LIST = '/api/bookings/diagnostic/';
+const STUDENTS_LIST = '/api/students/';
+const NEEDS_TUTOR_READ = { status: 'BOOKED', assigned: 'false', when: 'upcoming', page_size: 1 };
+const PENDING_STUDENTS_READ = { assignment: 'pending', page: 1, page_size: 1 };
+const COUNTERS = { demo: 'demo-needs-tutor', diagnostic: 'diagnostic-needs-tutor', students: 'students-pending-assignment' };
+const ASSIGNER = { id: 'admin', role: 'ADMIN', full_name: 'Admin One', email: 'admin@hub.test', permissions: [
+  'accounts.view_all_bookings', 'accounts.assign_booking_tutor', 'accounts.view_all_students',
+  'accounts.view_full_student_record', 'accounts.reassign_student_staff'] };
+const countPage = (count) => ({ results: [], count, page: 1, page_size: 1 });
+/** Each list's count read from `state` ({ demo, diagnostic, students }), as it stands when asked. */
+const countRoutes = (state) => ({
+  [`GET ${DEMO_LIST}`]: () => countPage(state.demo),
+  [`GET ${DIAGNOSTIC_LIST}`]: () => countPage(state.diagnostic),
+  [`GET ${STUDENTS_LIST}`]: () => countPage(state.students),
+});
+const pendingBadge = (name) => document.querySelector(`[data-counter="${COUNTERS[name]}"]`);
+const shownCounts = () => Object.fromEntries(Object.keys(COUNTERS).map((name) => [name, pendingBadge(name) ? clean(pendingBadge(name).textContent) : null]));
+const navLink = (href) => document.querySelector(`a[href="${href}"]`);
+const countReads = () => [DEMO_LIST, DIAGNOSTIC_LIST, STUDENTS_LIST].map((url) => calls('GET', url).length);
+
+test('Admin badges: Demo and Diagnostic count the bookings needing a tutor, Enrolled Students those missing a mentor or tutor', async () => {
+  serve(countRoutes({ demo: 3, diagnostic: 1, students: 2 }));
+  await openHub('/sessions', ASSIGNER);
+  assert.deepEqual(shownCounts(), { demo: '3', diagnostic: '1', students: '2' });
+  assert.equal(clean(navLink('/bookings/demo').textContent), 'Demo (3 need a tutor)');
+  assert.equal(clean(navLink('/bookings/diagnostic').textContent), 'Diagnostic (1 need a tutor)');
+  assert.equal(clean(navLink('/students').textContent), 'Enrolled Students (2 missing a mentor or tutor)');
+  // Read once each, as the lists filter them: one row, the count of all.
+  assert.deepEqual(calls('GET', DEMO_LIST).map((entry) => entry.params), [NEEDS_TUTOR_READ]);
+  assert.deepEqual(calls('GET', DIAGNOSTIC_LIST).map((entry) => entry.params), [NEEDS_TUTOR_READ]);
+  assert.deepEqual(calls('GET', STUDENTS_LIST).map((entry) => entry.params), [PENDING_STUDENTS_READ]);
+  assert.equal(gets(BDE_FOLLOW_UPS_URL), 0, 'no follow-ups read');
+});
+
+test('Admin badges: the Follow-ups badge’s red pill, beside each item; Demo and Diagnostic on their submenu rows', async () => {
+  serve(countRoutes({ demo: 3, diagnostic: 1, students: 2 }));
+  await openHub('/sessions', ASSIGNER);
+  for (const name of Object.keys(COUNTERS)) {
+    const badge = pendingBadge(name);
+    assert.equal(badge.getAttribute('aria-hidden'), 'true', `${name}: read out with the item instead`);
+    assert.match(badge.className, /bg-destructive/);
+    assert.match(badge.className, /rounded-full/);
+    assert.match(badge.className, /text-white/);
+  }
+  for (const name of ['demo', 'diagnostic']) {
+    assert.ok(pendingBadge(name).closest('[data-sidebar="menu-sub-item"]'), `${name}: in the Bookings submenu`);
+    assert.match(pendingBadge(name).className, /\btop-1\b/, `${name}: centred on the submenu's row`);
+  }
+  assert.ok(pendingBadge('students').closest('[data-sidebar="menu-item"]'));
+  for (const href of ['/bookings/demo', '/bookings/diagnostic', '/students']) {
+    assert.match(navLink(href).className, /\bpr-10\b/, `${href}: the title keeps clear of the badge`);
+  }
+});
+
+test('Admin badges: none to count hides that badge alone, its item as it always was', async () => {
+  serve(countRoutes({ demo: 0, diagnostic: 2, students: 0 }));
+  await openHub('/sessions', ASSIGNER);
+  assert.deepEqual(shownCounts(), { demo: null, diagnostic: '2', students: null });
+  assert.equal(clean(navLink('/bookings/demo').textContent), 'Demo');
+  assert.equal(clean(navLink('/students').textContent), 'Enrolled Students');
+  assert.doesNotMatch(navLink('/students').className, /\bpr-10\b/);
+});
+
+test('Admin badges: 120 reads 99+; the full number is read out', async () => {
+  serve(countRoutes({ demo: 120, diagnostic: 1, students: 150 }));
+  await openHub('/sessions', ASSIGNER);
+  assert.deepEqual(shownCounts(), { demo: '99+', diagnostic: '1', students: '99+' });
+  assert.equal(clean(navLink('/bookings/demo').textContent), 'Demo (120 need a tutor)');
+  assert.equal(clean(navLink('/students').textContent), 'Enrolled Students (150 missing a mentor or tutor)');
+});
+
+test('Admin badges: changes made elsewhere show on the minute; nothing read while hidden, once on return', async () => {
+  const state = { demo: 3, diagnostic: 1, students: 2 };
+  serve(countRoutes(state));
+  await openHub('/sessions', ASSIGNER);
+  Object.assign(state, { demo: 4, diagnostic: 0, students: 1 });
+  await advance(MINUTE - 1);
+  assert.deepEqual(shownCounts(), { demo: '3', diagnostic: '1', students: '2' }, 'nothing read before the minute');
+  await advance(1);
+  assert.deepEqual(shownCounts(), { demo: '4', diagnostic: null, students: '1' });
+  await hide();
+  state.students = 5;
+  await advance(5 * MINUTE);
+  assert.deepEqual(countReads(), [2, 2, 2], 'nothing while hidden');
+  await show();
+  await focus();
+  assert.deepEqual(countReads(), [3, 3, 3], 'one read each for visibility + focus');
+  assert.equal(shownCounts().students, '5');
+});
+
+test('Admin badges: kept while moving between pages, a change of page reading nothing again', async () => {
+  serve(countRoutes({ demo: 3, diagnostic: 1, students: 2 }));
+  await openHub('/sessions', ASSIGNER);
+  for (const to of ['/leads', '/exams', '/sessions']) {
+    await go(to);
+    assert.deepEqual(shownCounts(), { demo: '3', diagnostic: '1', students: '2' }, `still shown on ${to}`);
+  }
+  assert.deepEqual(countReads(), [1, 1, 1]);
+});
+
+test('Admin badges: a failed read keeps its count shown; the others still change; the next minute reads it again', async () => {
+  const state = { demo: 3, diagnostic: 1, students: 2 };
+  let fail = false;
+  serve({ ...countRoutes(state), [`GET ${DEMO_LIST}`]: () => (fail ? refused(500, {}) : countPage(state.demo)) });
+  await openHub('/sessions', ASSIGNER);
+  fail = true;
+  Object.assign(state, { demo: 0, students: 4 });
+  await advance(MINUTE);
+  assert.deepEqual(shownCounts(), { demo: '3', diagnostic: '1', students: '4' });
+  fail = false;
+  await advance(MINUTE);
+  assert.deepEqual(shownCounts(), { demo: null, diagnostic: '1', students: '4' });
+});
+
+test('Admin badges: assigning a tutor reads the counts again at once -- the Demo badge drops without waiting for the minute', async () => {
+  const BOOKING = { ...RIYA, tutor_changeable: true };
+  const TUTOR_ONE = { id: 't-1', full_name: 'Tutor One', email: 't1@hub.test' };
+  const state = { demo: 1, diagnostic: 0, students: 0 };
+  serve({
+    ...countRoutes(state),
+    [`GET ${BOOKING_URL(RIYA.id)}`]: BOOKING,
+    [`GET ${COMMS(RIYA.id)}`]: () => communication(RIYA.id, 'PLANNED'),
+    [`GET ${BOOKING_URL(RIYA.id)}tutors/`]: { tutor_changeable: true, tutors: [{ ...TUTOR_ONE, status: 'AVAILABLE', current: false }] },
+    [`PUT ${BOOKING_URL(RIYA.id)}tutor/`]: () => {
+      state.demo = 0;
+      return { ...BOOKING, tutor: TUTOR_ONE };
+    },
+  });
+  await openHub(`/bookings/demo/${RIYA.id}`, ASSIGNER);
+  assert.equal(shownCounts().demo, '1');
+  await click(button('Assign Tutor'));
+  await click(document.querySelector('input[type="radio"][value="t-1"]'));
+  await click(button('Assign Tutor', topDialog()));
+  assert.equal(calls('PUT', `${BOOKING_URL(RIYA.id)}tutor/`).length, 1);
+  assert.equal(shownCounts().demo, null, 'gone at once');
+  assert.equal(clean(navLink('/bookings/demo').textContent), 'Demo');
+  assert.deepEqual(countReads(), [2, 2, 2], 'one read each on arrival and one after the assignment');
+});
+
+test("Admin badges: changing a student's mentor or tutor reads the counts again at once", async () => {
+  const state = { demo: 0, diagnostic: 0, students: 1 };
+  serve({
+    ...countRoutes(state),
+    'GET /api/mentors/': { mentors: [{ id: 'm-1', full_name: 'Mentor One' }] },
+    'GET /api/tutors/': { tutors: [{ id: 't-1', full_name: 'Tutor One' }] },
+    'POST /api/students/reassign/': () => {
+      state.students = 0;
+      return {};
+    },
+  });
+  await openHub('/reassign', ASSIGNER);
+  assert.equal(shownCounts().students, '1');
+  const trigger = document.getElementById('reassign-tutor');
+  trigger.focus();
+  await act(async () => trigger.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })));
+  await settle();
+  await click([...document.querySelectorAll('[role="option"]')].find((option) => clean(option.textContent) === 'Tutor One'));
+  await click(button('Save', topDialog()));
+  assert.deepEqual(calls('POST', '/api/students/reassign/').map((entry) => entry.data), [{ id: 'st-riya', mentor: 'm-1', tutor: 't-1' }]);
+  assert.equal(shownCounts().students, null, 'gone at once');
+  assert.deepEqual(countReads(), [2, 2, 2]);
+});
+
+test('Admin badges: an answer read before a change never overwrites the one read after it', async () => {
+  const state = { demo: 2, diagnostic: 0, students: 0 };
+  const slow = held();
+  let n = 0;
+  serve({ ...countRoutes(state), [`GET ${DEMO_LIST}`]: () => (++n === 2 ? slow() : countPage(state.demo)) });
+  await openHub('/sessions', ASSIGNER);
+  await advance(MINUTE);  // the minute's read of Demo, slow to answer: it will say 2
+  assert.equal(slow.waiting(), 1);
+  state.demo = 0;
+  await act(async () => pendingAssignmentsChanged());
+  await settle();
+  assert.equal(shownCounts().demo, null, 'the read after the change');
+  await slow.release(countPage(2));
+  assert.equal(shownCounts().demo, null, 'the earlier answer set aside');
+});
+
+test("Admin badges: signing out drops them; nothing read after; the next administrator never sees the last one's", async () => {
+  serve(countRoutes({ demo: 3, diagnostic: 1, students: 2 }));
+  await openHub('/sessions', ASSIGNER);
+  await current.unmount();
+  current = null;
+  await advance(5 * MINUTE);
+  await act(async () => pendingAssignmentsChanged());
+  assert.deepEqual(countReads(), [1, 1, 1], 'nothing read after signing out');
+  const first = held();
+  serve({ ...countRoutes({ demo: 1, diagnostic: 0, students: 0 }), [`GET ${DEMO_LIST}`]: first });
+  await openHub('/sessions', { ...ASSIGNER, id: 'admin-2', email: 'admin2@hub.test' });
+  assert.equal(shownCounts().demo, null, 'nothing shown before their own read');
+  await first.release(countPage(1));
+  assert.equal(shownCounts().demo, '1');
+});
+
+test('Admin badges: only where the item opens -- an administrator without view_all_students reads the booking counts alone', async () => {
+  serve(countRoutes({ demo: 3, diagnostic: 1, students: 2 }));
+  await openHub('/sessions', ADMIN);
+  assert.deepEqual(shownCounts(), { demo: '3', diagnostic: '1', students: null });
+  assert.deepEqual(countReads(), [1, 1, 0]);
+});
+
+test("Admin badges: the Admin Hub's only -- a BDE's, a tutor's and a mentor's sidebars read none of these counts", async () => {
+  const MENTOR = { id: 'mentor', role: 'MENTOR', full_name: 'Mentor One', email: 'mentor@hub.test',
+    permissions: ['accounts.view_mentored_students', 'accounts.view_mentored_sessions'] };
+  const TUTOR_STAFF = { ...TUTOR, permissions: ['accounts.view_assigned_bookings', 'accounts.view_tutored_students'] };
+  serve({ ...countRoutes({ demo: 3, diagnostic: 1, students: 2 }), [`GET ${BDE_FOLLOW_UPS_URL}`]: FOLLOW_UPS_DUE(0) });
+  for (const user of [BDE, TUTOR_STAFF, MENTOR]) {
+    await openHub('/sessions', user);
+    await advance(3 * MINUTE);
+    await focus();
+    await act(async () => pendingAssignmentsChanged());
+    assert.deepEqual(countReads(), [0, 0, 0], `${user.role}: no pending assignment count read`);
+    assert.deepEqual(shownCounts(), { demo: null, diagnostic: null, students: null });
     await current.unmount();
     current = null;
   }

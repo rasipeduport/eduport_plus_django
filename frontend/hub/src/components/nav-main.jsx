@@ -64,9 +64,31 @@ function useFold(name, current) {
 // A live count (an item's `counter`) above this reads "99+"; the full number is still read out.
 const MAX_COUNT_SHOWN = 99;
 
-function NavItem({ item, current, onNavigate, count }) {
+/** `item`'s live count from `counts`, or null while there is nothing to count (it is then not shown). */
+function countedOf(item, counts) {
+  const count = item.counter ? counts?.[item.counter.key] : undefined;
+  return Number.isInteger(count) && count > 0 ? count : null;
+}
+
+/** The red badge with an item's live count; the item's own name reads it out instead. */
+function CounterBadge({ item, count, className }) {
+  return (
+    <SidebarMenuBadge
+      aria-hidden="true"
+      data-counter={item.counter.key}
+      className={cn(
+        'bg-destructive dark:bg-destructive/60 rounded-full px-1.5 text-[11px] font-semibold text-white peer-hover/menu-button:text-white peer-data-[active=true]/menu-button:text-white',
+        className
+      )}
+    >
+      {count > MAX_COUNT_SHOWN ? `${MAX_COUNT_SHOWN}+` : count}
+    </SidebarMenuBadge>
+  );
+}
+
+function NavItem({ item, current, onNavigate, counts }) {
   // Shown only while there is something to count.
-  const counted = item.counter && Number.isInteger(count) && count > 0 ? count : null;
+  const counted = countedOf(item, counts);
   // What the tooltip (the icon rail's only label) and a screen reader add to the item's name.
   const note = item.badge ?? (counted != null ? `${counted} ${item.counter.label}` : null);
   return (
@@ -85,15 +107,7 @@ function NavItem({ item, current, onNavigate, count }) {
           </span>
         </Link>
       </SidebarMenuButton>
-      {counted != null ? (
-        <SidebarMenuBadge
-          aria-hidden="true"
-          data-counter={item.counter.key}
-          className="bg-destructive dark:bg-destructive/60 rounded-full px-1.5 text-[11px] font-semibold text-white peer-hover/menu-button:text-white peer-data-[active=true]/menu-button:text-white"
-        >
-          {counted > MAX_COUNT_SHOWN ? `${MAX_COUNT_SHOWN}+` : counted}
-        </SidebarMenuBadge>
-      ) : null}
+      {counted != null ? <CounterBadge item={item} count={counted} /> : null}
       {item.badge ? (
         <SidebarMenuBadge
           aria-hidden="true"
@@ -106,13 +120,32 @@ function NavItem({ item, current, onNavigate, count }) {
   );
 }
 
+/** One page of a submenu, with its live count (its `counter`) beside it as a top-level item has. */
+function NavSubItem({ item, current, onNavigate, counts }) {
+  const counted = countedOf(item, counts);
+  return (
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton asChild isActive={current(item)} className={cn(counted != null && 'pr-10')}>
+        <Link to={item.url} onClick={onNavigate}>
+          <span>
+            {item.title}
+            {counted != null ? <span className="sr-only"> ({`${counted} ${item.counter.label}`})</span> : null}
+          </span>
+        </Link>
+      </SidebarMenuSubButton>
+      {/* Centred on the submenu's shorter row (h-7), as the badge is on an item's. */}
+      {counted != null ? <CounterBadge item={item} count={counted} className="top-1" /> : null}
+    </SidebarMenuSubItem>
+  );
+}
+
 /**
  * An item holding pages of its own (`item.children`, such as Bookings' Demo
  * and Diagnostic): a button that opens and closes them in a submenu. On the
  * icon rail there is no room for the submenu, so the item opens its first page
  * and shows as current while any of its pages is.
  */
-function NavSubmenu({ item, current, rail, onNavigate }) {
+function NavSubmenu({ item, current, rail, onNavigate, counts }) {
   const active = current(item);
   const [open, setOpen] = useFold(`item:${item.title}`, active);
 
@@ -145,13 +178,7 @@ function NavSubmenu({ item, current, rail, onNavigate }) {
         <Collapsible.Content>
           <SidebarMenuSub className="mt-1">
             {item.children.map((child) => (
-              <SidebarMenuSubItem key={child.url}>
-                <SidebarMenuSubButton asChild isActive={current(child)}>
-                  <Link to={child.url} onClick={onNavigate}>
-                    <span>{child.title}</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
+              <NavSubItem key={child.url} item={child} current={current} onNavigate={onNavigate} counts={counts} />
             ))}
           </SidebarMenuSub>
         </Collapsible.Content>
@@ -191,7 +218,7 @@ function FoldingSection({ label, current, rail, children }) {
 // With `collapsible`, a labelled section folds away under its heading (the Admin Hub's).
 // An item's `badge` (e.g. "Coming Soon") shows beside it, and is read out with its name;
 // an item's `counter` shows its live count from `counts` (keyed by the counter's `key`) the same way, while above zero;
-// an item's `children` open in a submenu under it.
+// an item's `children` open in a submenu under it, each child's `counter` shown beside it likewise.
 // With `closeOnNavigate`, picking a page on a phone closes the sidebar's sheet, so the page shows.
 export function NavMain({ items, label, counts, collapsible = false, closeOnNavigate = false }) {
   const location = useLocation();
@@ -204,15 +231,16 @@ export function NavMain({ items, label, counts, collapsible = false, closeOnNavi
     <SidebarMenu>
       {items.map((item) =>
         item.children ? (
-          <NavSubmenu key={item.title} item={item} current={current} rail={rail} onNavigate={onNavigate} />
-        ) : (
-          <NavItem
+          <NavSubmenu
             key={item.title}
             item={item}
             current={current}
+            rail={rail}
             onNavigate={onNavigate}
-            count={item.counter ? counts?.[item.counter.key] : undefined}
+            counts={counts}
           />
+        ) : (
+          <NavItem key={item.title} item={item} current={current} onNavigate={onNavigate} counts={counts} />
         )
       )}
     </SidebarMenu>

@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookingTypeBadge } from '@/components/enquiries/enquiry-badges';
 import { ErrorState } from '@/components/page/states';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { pendingAssignmentsChanged } from '@/hooks/use-pending-assignment-counts';
 import { useRefusalRefresh } from '@/hooks/use-refusal-refresh';
 import { bookingError, bookingTutorUrl, bookingTutorsUrl } from '@/lib/bookings';
 import { slotLabel } from '@/lib/enquiries';
@@ -201,6 +202,8 @@ export function AssignTutorDialog({ booking, open, onOpenChange, onAssigned, onR
       const response = await api.put(bookingTutorUrl(bookingType, bookingId), { tutor_id: selected });
       refusal.accepted();
       onAssigned?.(response.data);
+      // The sidebar's count of bookings needing a tutor, read again now.
+      pendingAssignmentsChanged();
       onOpenChange(false);
     } catch (err) {
       const failure = bookingError(err, 'Could not assign the tutor.');

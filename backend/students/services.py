@@ -21,6 +21,7 @@ from core.querysets import EXAM_VIEW_PERMISSIONS, scope_exams
 from sessions.models import Session, SessionStatusChoices
 from sessions.lifecycle import ClassState
 from sessions.services import apply_content_filter, calculate_credits_used, state_q
+from students.models import StatusChoices
 
 
 # Without accounts.view_full_student_record (tutors) a student row carries no
@@ -160,6 +161,21 @@ def redact_student(data, user, request=None):
             kept['profile'] = {"avatar_url": kept['profile'].get('avatar_url')}
         return kept
     return data
+
+
+# The students the Hub's Enrolled Students list shows as current: every one but
+# the expired, who are listed apart in a section of their own.
+CURRENT_STATUSES = (StatusChoices.ACTIVE, StatusChoices.INACTIVE)
+
+
+def pending_assignment(students):
+    """
+    ``students`` narrowed to the current ones still waiting for a mentor, a
+    tutor or both -- each student once, whichever is missing. This is what the
+    Admin Hub sidebar counts beside Enrolled Students (GET
+    /api/students/?assignment=pending).
+    """
+    return students.filter(status__in=CURRENT_STATUSES).filter(Q(mentor__isnull=True) | Q(tutor__isnull=True))
 
 
 def _round1(value):

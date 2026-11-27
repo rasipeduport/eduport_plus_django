@@ -30,7 +30,8 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 // under the logo and lists its sections: an optional `label`, and items of
 // `title`, `url` and `icon`, plus `badge` (a note such as "Coming Soon"),
 // `counter` (a live count shown beside it while above zero: `key`, which count
-// the sidebar supplies, and `label`, what it counts, read out with it) and
+// the sidebar supplies, and `label`, what it counts, read out with it; a
+// child item may carry one too) and
 // `nested` (the item stays highlighted on the pages under its address, such as
 // one enquiry under My Enquiries) and `alsoOn` (other pages it stays
 // highlighted on, such as Global Pricing, opened from Syllabus & Plans and
@@ -45,6 +46,14 @@ import { canOpenPage, isAdmin, isBde, isTutor } from '@/lib/access';
 export const COMING_SOON = 'Coming Soon';
 // The BDE's follow-ups due today (hooks/use-follow-ups-due-today), beside Follow-ups.
 export const FOLLOW_UPS_DUE_TODAY = 'follow-ups-due-today';
+// What still waits for an assignment (hooks/use-pending-assignment-counts), in
+// the Admin Hub: the Demo and the Diagnostic bookings that need a tutor, beside
+// Bookings' Demo and Diagnostic, and the students missing a mentor or a tutor,
+// beside Enrolled Students.
+export const DEMO_NEEDS_TUTOR = 'demo-needs-tutor';
+export const DIAGNOSTIC_NEEDS_TUTOR = 'diagnostic-needs-tutor';
+export const STUDENTS_PENDING_ASSIGNMENT = 'students-pending-assignment';
+const NEEDS_TUTOR_LABEL = 'need a tutor';
 
 // The BDE workspace: their own enquiries, the Demo and Diagnostic bookings
 // made for them and what to follow up, then what is still being built and the
@@ -134,8 +143,18 @@ const ADMIN_WORKSPACE = {
           icon: CalendarCheck2,
           // Each stays highlighted on its bookings' own pages (/bookings/<type>/<id>).
           children: [
-            { title: 'Demo', url: '/bookings/demo', nested: true },
-            { title: 'Diagnostic', url: '/bookings/diagnostic', nested: true },
+            {
+              title: 'Demo',
+              url: '/bookings/demo',
+              nested: true,
+              counter: { key: DEMO_NEEDS_TUTOR, label: NEEDS_TUTOR_LABEL },
+            },
+            {
+              title: 'Diagnostic',
+              url: '/bookings/diagnostic',
+              nested: true,
+              counter: { key: DIAGNOSTIC_NEEDS_TUTOR, label: NEEDS_TUTOR_LABEL },
+            },
           ],
         },
         { title: 'Booking Slots', url: '/booking-slots', icon: CalendarClock },
@@ -155,7 +174,13 @@ const ADMIN_WORKSPACE = {
       label: 'Academics & Learning',
       items: [
         { title: 'Academics Dashboard', url: '/academics-dashboard', icon: School },
-        { title: 'Enrolled Students', url: '/students', icon: GraduationCap, nested: true },
+        {
+          title: 'Enrolled Students',
+          url: '/students',
+          icon: GraduationCap,
+          nested: true,
+          counter: { key: STUDENTS_PENDING_ASSIGNMENT, label: 'missing a mentor or tutor' },
+        },
         { title: 'Sessions', url: '/sessions', icon: CalendarCheck },
         { title: 'Exams', url: '/exams', icon: ClipboardList },
         { title: 'Homework', url: '/homework', icon: BookOpen },
@@ -243,6 +268,14 @@ export function workspaceFor(user) {
     .map((section) => ({ ...section, items: section.items.map((item) => openable(user, item)).filter(Boolean) }))
     .filter((section) => section.items.length > 0);
   return { name: workspace.name, collapsible: Boolean(workspace.collapsible), sections };
+}
+
+/** The `key` of every counter `workspace` (as workspaceFor gives it) shows, its child items' included. */
+export function counterKeys(workspace) {
+  return workspace.sections
+    .flatMap((section) => section.items.flatMap((item) => [item, ...(item.children ?? [])]))
+    .map((item) => item.counter?.key)
+    .filter(Boolean);
 }
 
 /**
