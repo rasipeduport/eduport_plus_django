@@ -13,6 +13,7 @@ from students.models import Student, StudentNote
 from students.serializers import StudentNoteSerializer
 from students.services import (
     build_profile_stats,
+    pending_assignment,
     profile_highlights,
     quota_stats,
     redact_student,
@@ -49,6 +50,9 @@ PROFILE_TEXT_FIELDS = (
     'full_name', 'mobile_number', 'country', 'state',
     'school_name', 'grade', 'syllabus', 'remarks_for_mentor',
 )
+
+# GET /api/students/?assignment=pending: the students still waiting for a mentor or a tutor.
+PENDING_ASSIGNMENT = 'pending'
 
 
 def _parse_uuid(value, field):
@@ -234,6 +238,10 @@ class StudentListView(APIView):
       view_all_students -> every student; view_mentored_students -> the ones
       they mentor; view_tutored_students -> the ones they tutor while ACTIVE
       or INACTIVE. Rows are cut down without view_full_student_record.
+      ?assignment=pending narrows them to the current students still missing
+      a mentor or a tutor (students.services.pending_assignment); with
+      ?page=1&page_size=1 its count is the Admin Hub sidebar's badge beside
+      Enrolled Students. Any other value answers 400 INVALID_INPUT.
     PUT /api/students/ - Update student details (meet link, timezone, status,
       and the profile fields behind the Hub's "Edit Profile" sheet). Class
       quota is NOT settable here -- it is synced from the enrolment sheet
@@ -248,6 +256,15 @@ class StudentListView(APIView):
         queryset = scope_students(
             Student.objects.select_related('profile', 'mentor', 'tutor'), request.user, request
         ).order_by('student_code')
+
+        assignment = (request.query_params.get('assignment') or '').strip().lower()
+        if assignment:
+            if assignment != PENDING_ASSIGNMENT:
+                return Response(
+                    {"error": "INVALID_INPUT", "message": "assignment must be 'pending'.", "fields": ["assignment"]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            queryset = pending_assignment(queryset)
 
         # Opt-in pagination: full list by default, sliced when ?page= is given.
         page_items, meta = paginate_queryset(request, queryset)
