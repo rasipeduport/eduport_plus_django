@@ -51,6 +51,12 @@ export function TeamDirectory({ rows, total, page, pageSize, filters, pending, v
     { key: 'username', header: 'Username', className: 'text-muted-foreground', cell: (member) => member.username },
     { key: 'email', header: 'Email', cell: (member) => member.email },
     { key: 'role', header: 'Role', cell: (member) => roleLabel(member.role) },
+    {
+      key: 'tutor_code',
+      header: 'Tutor ID',
+      className: 'tabular-nums',
+      cell: (member) => member.tutor_code || <span className="text-muted-foreground">—</span>,
+    },
     { key: 'status', header: 'Status', cell: badges },
     {
       key: 'open',
@@ -74,7 +80,9 @@ export function TeamDirectory({ rows, total, page, pageSize, filters, pending, v
       </div>
       <div className="grid gap-1 text-sm">
         <p className="truncate">{member.email}</p>
-        <p className="text-muted-foreground truncate">{member.username}</p>
+        <p className="text-muted-foreground truncate">
+          {[member.username, member.tutor_code && `Tutor ID ${member.tutor_code}`].filter(Boolean).join(' · ')}
+        </p>
       </div>
       <div className="mt-auto border-t pt-3">{badges(member)}</div>
     </article>
@@ -83,7 +91,7 @@ export function TeamDirectory({ rows, total, page, pageSize, filters, pending, v
   let body;
   if (rows.length) {
     body = (
-      <ResponsiveList label="Staff" columns={columns} rows={rows} pending={pending} minTableWidth={860} renderCard={renderCard} />
+      <ResponsiveList label="Staff" columns={columns} rows={rows} pending={pending} minTableWidth={960} renderCard={renderCard} />
     );
   } else if (total > 0) {
     body = (
@@ -122,7 +130,7 @@ export function TeamDirectory({ rows, total, page, pageSize, filters, pending, v
           value={filters.q}
           onSearch={(text) => update({ q: text || null })}
           label="Search staff"
-          placeholder="Search name, username or email…"
+          placeholder="Search name, username, email or Tutor ID…"
         />
         <FilterSelect
           label="Filter by role"

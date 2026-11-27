@@ -319,7 +319,7 @@ export default function TutorMainDashboardPage({ user }) {
     <Page>
       <DashboardHeader
         user={user}
-        subtitle="Your admissions and academic work at a glance."
+        subtitle={`${user?.tutor_code ? `Tutor ID ${user.tutor_code} · ` : ''}Your admissions and academic work at a glance.`}
         actions={
           <RefreshButton variant="ghost" onClick={refresh} pending={refreshing} disabled={!data} />
         }

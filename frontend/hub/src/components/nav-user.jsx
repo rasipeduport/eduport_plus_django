@@ -67,6 +67,9 @@ export function NavUser({ user, logout }) {
                     {showBadge && <RoleBadge role={user.role} />}
                   </div>
                   <span className="text-muted-foreground truncate text-xs leading-none">{user.email}</span>
+                  {user.tutorCode ? (
+                    <span className="text-muted-foreground truncate text-xs leading-none">Tutor ID {user.tutorCode}</span>
+                  ) : null}
                 </div>
               </div>
             </DropdownMenuLabel>

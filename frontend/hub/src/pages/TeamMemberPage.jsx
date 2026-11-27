@@ -174,7 +174,9 @@ export default function TeamMemberPage({ user }) {
               <MemberBadges member={shown} viewer={user} detailed={canManage} withRole={false} />
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
-              {shown.username} · {roleLabel(shown.role)} · {shown.email}
+              {[shown.username, roleLabel(shown.role), shown.tutor_code && `Tutor ID ${shown.tutor_code}`, shown.email]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           </div>
           {canManage && !restriction ? (
